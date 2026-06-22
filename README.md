@@ -50,22 +50,32 @@ npm run import:contracts   # 7 hợp đồng thật (OCR từ PDF/docx) + báo g
 - Báo giá theo hạng mục lấy từ phần đầu sheet `TongHop` (nhóm A–E × diện tích × đơn giá bán/m²); cập nhật `salePrice` đúng (vd PickLang 2,83 tỷ thay vì giá trị lỗi).
 - Chạy lại không nhân đôi (thay toàn bộ HĐ của dự án đích).
 
+### Nhập đơn đặt hàng (mua hàng)
+Đặt file đơn vào `...RaDonHang/<dự án>/MH/<ngày>_DH_<BL|TON>_<mã>.xlsx` rồi:
+```bash
+npm run import:orders      # bóc chi tiết từng dòng vật tư từ file đơn nhiều sheet
+```
+- Mỗi file = 1 đơn (BL/Tôn…); parse **theo nhãn cột** (fold dấu) nên ổn định dù mỗi sheet khác cấu trúc.
+- Theo dõi NCC + trạng thái (Nháp/Đã đặt/Đã nhận) + giá trị + trọng lượng; mở file đơn từ web.
+- Chạy lại không nhân đôi (thay đơn theo dự án + loại).
+
 ## Tính năng theo module
 - **Tổng quan**: thẻ thống kê, biểu đồ trạng thái & giá bán/chi phí, dự án cập nhật gần đây.
 - **Dự án**: danh sách lọc/tìm, chi tiết, đổi trạng thái, gán NCC theo hạng mục, xuất Excel.
 - **Tiến độ tuần**: nhật ký theo tuần (thay sheet TDDA_Tuan).
 - **Dự toán & chi phí**: nhập KL/đơn giá theo nhóm → tổng chi phí, lợi nhuận, biên LN, CP/m²; xuất Excel.
 - **Hợp đồng & Báo giá**: quản lý HĐ theo từng hạng mục (đơn giá bán × KL), trạng thái Báo giá/Đã ký/Thanh lý, VAT, điều khoản thanh toán, mở file HĐ đã ký.
+- **Đơn hàng & Mua hàng**: đơn đặt hàng vật tư gửi NCC, chi tiết từng dòng (quy cách/SL/trọng lượng), trạng thái Đã đặt/Đã nhận, mở file đơn.
 - **Chủ đầu tư / Nhà cung cấp**: CRUD, phân loại NCC.
 - **Người dùng** (ADMIN): quản lý tài khoản + vai trò.
 
 ## Phân quyền (tóm tắt)
-| Bộ phận | Dự án | Tiến độ | Dự toán | HĐ/Báo giá | Lợi nhuận | CĐT | NCC | User |
-|---|---|---|---|---|---|---|---|---|
-| BGĐ/Quản lý | Sửa | Sửa | Sửa | Sửa | Xem | Sửa | Sửa | Sửa |
-| Kinh doanh | Sửa | Xem | Xem | Sửa | Xem | Sửa | Xem | – |
-| Kỹ thuật | Sửa | Sửa | Xem | Xem | – | Xem | Xem | – |
-| Vật tư | Xem | Xem | Sửa | Xem | – | – | Sửa | – |
+| Bộ phận | Dự án | Tiến độ | Dự toán | HĐ/Báo giá | Đơn hàng | Lợi nhuận | CĐT | NCC | User |
+|---|---|---|---|---|---|---|---|---|---|
+| BGĐ/Quản lý | Sửa | Sửa | Sửa | Sửa | Sửa | Xem | Sửa | Sửa | Sửa |
+| Kinh doanh | Sửa | Xem | Xem | Sửa | Xem | Xem | Sửa | Xem | – |
+| Kỹ thuật | Sửa | Sửa | Xem | Xem | Xem | – | Xem | Xem | – |
+| Vật tư | Xem | Xem | Sửa | Xem | Sửa | – | – | Sửa | – |
 
 Ma trận chi tiết ở `src/lib/rbac.ts`.
 

@@ -82,6 +82,24 @@ export const CONTRACT_STATUS: Option[] = [
 ];
 export const CONTRACT_STATUS_MAP = map(CONTRACT_STATUS);
 
+// ----- Đơn đặt hàng (mua hàng) -----
+export const PO_CATEGORY: Option[] = [
+  { value: "BL", label: "Bulong & liên kết", tone: "amber" },
+  { value: "TON", label: "Tôn & bao che", tone: "blue" },
+  { value: "PANEL", label: "Panel", tone: "purple" },
+  { value: "CUALUA", label: "Cửa lùa", tone: "slate" },
+  { value: "PK", label: "Phụ kiện", tone: "slate" },
+  { value: "KHAC", label: "Khác", tone: "slate" },
+];
+export const PO_CATEGORY_MAP = map(PO_CATEGORY);
+
+export const PO_STATUS: Option[] = [
+  { value: "DRAFT", label: "Nháp", tone: "slate" },
+  { value: "ORDERED", label: "Đã đặt", tone: "amber" },
+  { value: "RECEIVED", label: "Đã nhận", tone: "green" },
+];
+export const PO_STATUS_MAP = map(PO_STATUS);
+
 export function labelOf(
   map: Record<string, Option>,
   value: string | null | undefined

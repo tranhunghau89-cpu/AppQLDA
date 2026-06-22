@@ -11,8 +11,8 @@ import { Milestones, type MilestoneValue } from "./Milestones";
 import { computeProfit, formatPercent } from "@/lib/profit";
 import { computeContractTotals } from "@/lib/contract";
 import { Badge } from "@/components/ui/badge";
-import { CONTRACT_STATUS_MAP } from "@/lib/constants";
-import { Calculator, FileSignature } from "lucide-react";
+import { CONTRACT_STATUS_MAP, PO_CATEGORY_MAP, PO_STATUS_MAP } from "@/lib/constants";
+import { Calculator, FileSignature, ShoppingCart } from "lucide-react";
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -51,6 +51,10 @@ export default async function ProjectDetailPage({
         orderBy: [{ status: "asc" }, { createdAt: "asc" }],
         include: { items: { select: { qty: true, unitPrice: true, amount: true } } },
       },
+      purchaseOrders: {
+        orderBy: [{ category: "asc" }, { createdAt: "asc" }],
+        include: { supplier: { select: { name: true } }, _count: { select: { items: true } } },
+      },
     },
   });
   if (!project) notFound();
@@ -58,6 +62,7 @@ export default async function ProjectDetailPage({
   const canEditProgress = can(session.role, "progress", "edit");
   const canViewProfit = can(session.role, "profit", "view");
   const canViewContract = can(session.role, "contract", "view");
+  const canViewPurchase = can(session.role, "purchase", "view");
   const profit = computeProfit(project.estimateItems, project.salePrice, project.area);
   const milestoneMap: Record<string, MilestoneValue> = {};
   for (const m of project.milestones) {
@@ -209,6 +214,53 @@ export default async function ProjectDetailPage({
                         <span className="mx-1.5 text-slate-300">·</span>
                         Tổng:{" "}
                         <span className="font-semibold text-green-600">{formatVND(t.withVat)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {canViewPurchase && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Đơn hàng & Mua hàng</CardTitle>
+            <Link
+              href={`/projects/${project.id}/purchase`}
+              className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100"
+            >
+              <ShoppingCart className="h-4 w-4" /> Mở đơn hàng
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {project.purchaseOrders.length === 0 ? (
+              <p className="text-sm text-slate-400">Chưa có đơn đặt hàng</p>
+            ) : (
+              <div className="space-y-2">
+                {project.purchaseOrders.map((o) => {
+                  const cat = PO_CATEGORY_MAP[o.category];
+                  const st = PO_STATUS_MAP[o.status];
+                  return (
+                    <div
+                      key={o.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Badge tone={cat?.tone ?? "slate"}>{cat?.label ?? o.category}</Badge>
+                        <Badge tone={st?.tone ?? "slate"}>{st?.label ?? o.status}</Badge>
+                        <span className="text-sm text-slate-600">
+                          {o.supplier?.name ?? "Chưa gán NCC"}
+                        </span>
+                      </div>
+                      <div className="text-sm text-slate-600">
+                        {o._count.items} dòng
+                        <span className="mx-1.5 text-slate-300">·</span>
+                        <span className="font-medium text-blue-600">
+                          {formatNumber(o.totalWeight)} kg
+                        </span>
                       </div>
                     </div>
                   );

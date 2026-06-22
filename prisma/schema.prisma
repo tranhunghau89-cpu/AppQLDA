@@ -43,8 +43,9 @@ model Supplier {
   note          String?
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
-  projectLinks  ProjectSupplier[]
-  estimateItems EstimateItem[]
+  projectLinks   ProjectSupplier[]
+  estimateItems  EstimateItem[]
+  purchaseOrders PurchaseOrder[]
 }
 
 model Project {
@@ -67,11 +68,50 @@ model Project {
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
 
-  suppliers     ProjectSupplier[]
-  milestones    Milestone[]
-  weeklyLogs    WeeklyLog[]
-  estimateItems EstimateItem[]
-  contracts     Contract[]
+  suppliers      ProjectSupplier[]
+  milestones     Milestone[]
+  weeklyLogs     WeeklyLog[]
+  estimateItems  EstimateItem[]
+  contracts      Contract[]
+  purchaseOrders PurchaseOrder[]
+}
+
+model PurchaseOrder {
+  id           String    @id @default(cuid())
+  projectId    String
+  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  orderNo      String? // số/tên đơn
+  orderDate    DateTime?
+  category     String // BL | TON | PANEL | CUALUA | PK | KHAC
+  supplierId   String?
+  supplier     Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  status       String    @default("DRAFT") // DRAFT | ORDERED | RECEIVED
+  orderedDate  DateTime?
+  receivedDate DateTime?
+  value        Float? // Σ thành tiền
+  totalWeight  Float? // Σ trọng lượng (kg)
+  filePath     String?
+  note         String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  items PurchaseOrderItem[]
+}
+
+model PurchaseOrderItem {
+  id        String        @id @default(cuid())
+  orderId   String
+  order     PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  category  String? // loại sheet: BLLK, Tôn mái, Diềm...
+  groupName String? // hạng mục: HM Khung mái...
+  name      String
+  unit      String?
+  qty       Float?
+  unitPrice Float?
+  amount    Float?
+  weight    Float? // kg
+  note      String?
+  sortOrder Int           @default(0)
 }
 
 model Contract {
