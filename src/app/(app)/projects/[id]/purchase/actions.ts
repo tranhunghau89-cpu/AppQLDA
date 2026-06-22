@@ -171,3 +171,54 @@ export async function deletePurchaseItem(
   revalidatePath("/purchases");
   return { ok: true };
 }
+
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+export async function uploadPurchaseItemImages(
+  projectId: string,
+  itemId: string,
+  form: FormData
+): Promise<ActionResult> {
+  try {
+    await requirePermission("purchase", "edit");
+  } catch {
+    return { ok: false, error: "Bạn không có quyền thêm ảnh." };
+  }
+  const files = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
+  if (!files.length) return { ok: false, error: "Chưa chọn ảnh." };
+  for (const f of files) {
+    if (!f.type.startsWith("image/")) return { ok: false, error: `"${f.name}" không phải ảnh.` };
+    if (f.size > MAX_IMAGE_BYTES) return { ok: false, error: `"${f.name}" vượt quá 10MB.` };
+  }
+  const item = await db.purchaseOrderItem.findUnique({ where: { id: itemId }, select: { id: true } });
+  if (!item) return { ok: false, error: "Không tìm thấy dòng vật tư." };
+
+  const last = await db.poItemImage.findFirst({
+    where: { itemId },
+    orderBy: { sortOrder: "desc" },
+    select: { sortOrder: true },
+  });
+  let sort = (last?.sortOrder ?? -1) + 1;
+  for (const f of files) {
+    const data = Buffer.from(await f.arrayBuffer());
+    await db.poItemImage.create({
+      data: { itemId, mime: f.type || "image/png", data, sortOrder: sort++ },
+    });
+  }
+  revalidatePath(`/projects/${projectId}/purchase`);
+  return { ok: true };
+}
+
+export async function deletePurchaseItemImage(
+  projectId: string,
+  imageId: string
+): Promise<ActionResult> {
+  try {
+    await requirePermission("purchase", "edit");
+  } catch {
+    return { ok: false, error: "Bạn không có quyền xóa ảnh." };
+  }
+  await db.poItemImage.delete({ where: { id: imageId } });
+  revalidatePath(`/projects/${projectId}/purchase`);
+  return { ok: true };
+}

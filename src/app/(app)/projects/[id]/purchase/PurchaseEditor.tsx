@@ -1,21 +1,41 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, FileSpreadsheet } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  FileSpreadsheet,
+  ImagePlus,
+  X,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { PO_CATEGORY, PO_CATEGORY_MAP, PO_STATUS, PO_STATUS_MAP } from "@/lib/constants";
-import { formatVND, formatNumber, formatDate } from "@/lib/utils";
+import { cn, formatVND, formatNumber, formatDate } from "@/lib/utils";
 import {
   savePurchaseOrder,
   deletePurchaseOrder,
   savePurchaseItem,
   deletePurchaseItem,
+  uploadPurchaseItemImages,
+  deletePurchaseItemImage,
 } from "./actions";
+
+type GroupBy = "category" | "group";
+type SortField = "name" | "other" | "qty" | "unitPrice" | "amount" | "weight";
+type SortDir = "asc" | "desc";
+interface SortState {
+  field: SortField | null;
+  dir: SortDir;
+}
 
 export interface OrderItemView {
   id: string;
@@ -75,6 +95,18 @@ export function PurchaseEditor({
   const [iOrderId, setIOrderId] = useState<string | null>(null);
   const [iEditing, setIEditing] = useState<OrderItemView | null>(null);
 
+  const [groupBy, setGroupBy] = useState<GroupBy>("category");
+  const [sort, setSort] = useState<SortState>({ field: null, dir: "asc" });
+  function toggleSort(field: SortField) {
+    setSort((s) =>
+      s.field === field
+        ? s.dir === "asc"
+          ? { field, dir: "desc" }
+          : { field: null, dir: "asc" }
+        : { field, dir: "asc" }
+    );
+  }
+
   function onOrderSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
@@ -125,8 +157,42 @@ export function PurchaseEditor({
 
   return (
     <div className="space-y-6">
-      {canEdit && (
-        <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-slate-500">Gom theo:</span>
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
+            {(
+              [
+                ["category", "Nhóm vật tư"],
+                ["group", "Hạng mục"],
+              ] as [GroupBy, string][]
+            ).map(([val, label]) => (
+              <button
+                key={val}
+                type="button"
+                onClick={() => setGroupBy(val)}
+                className={cn(
+                  "rounded-md px-3 py-1 text-sm font-medium transition",
+                  groupBy === val
+                    ? "bg-blue-600 text-white"
+                    : "text-slate-600 hover:bg-slate-100"
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {sort.field && (
+            <button
+              type="button"
+              onClick={() => setSort({ field: null, dir: "asc" })}
+              className="text-xs text-slate-400 underline hover:text-slate-600"
+            >
+              Bỏ sắp xếp
+            </button>
+          )}
+        </div>
+        {canEdit && (
           <Button
             size="sm"
             onClick={() => {
@@ -137,8 +203,8 @@ export function PurchaseEditor({
           >
             <Plus className="h-4 w-4" /> Thêm đơn hàng
           </Button>
-        </div>
-      )}
+        )}
+      </div>
 
       {orders.length === 0 && (
         <div className="rounded-xl border border-dashed border-slate-300 py-12 text-center text-slate-400">
@@ -151,6 +217,11 @@ export function PurchaseEditor({
           key={o.id}
           order={o}
           canEdit={canEdit}
+          projectId={projectId}
+          groupBy={groupBy}
+          sort={sort}
+          onToggleSort={toggleSort}
+          onRefresh={() => router.refresh()}
           onEditOrder={() => {
             setOEditing(o);
             setError(null);
@@ -289,9 +360,72 @@ export function PurchaseEditor({
   );
 }
 
+const otherOf = (it: OrderItemView, groupBy: GroupBy) =>
+  (groupBy === "category" ? it.groupName : it.category) ?? "";
+
+function sortRows(rows: OrderItemView[], sort: SortState, groupBy: GroupBy): OrderItemView[] {
+  if (!sort.field) return rows;
+  const { field, dir } = sort;
+  const sign = dir === "asc" ? 1 : -1;
+  const out = [...rows];
+  out.sort((a, b) => {
+    if (field === "name") return sign * a.name.localeCompare(b.name, "vi");
+    if (field === "other")
+      return sign * otherOf(a, groupBy).localeCompare(otherOf(b, groupBy), "vi");
+    const av = a[field] as number | null;
+    const bv = b[field] as number | null;
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1; // null luôn xuống cuối
+    if (bv == null) return -1;
+    return sign * (av - bv);
+  });
+  return out;
+}
+
+function SortHead({
+  field,
+  label,
+  sort,
+  onToggle,
+  align = "left",
+}: {
+  field: SortField;
+  label: string;
+  sort: SortState;
+  onToggle: (f: SortField) => void;
+  align?: "left" | "right";
+}) {
+  const active = sort.field === field;
+  const Icon = !active ? ArrowUpDown : sort.dir === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <Th
+      className={cn(
+        "cursor-pointer select-none hover:bg-slate-200/70",
+        align === "right" && "text-right"
+      )}
+      onClick={() => onToggle(field)}
+    >
+      <span
+        className={cn(
+          "inline-flex items-center gap-1",
+          align === "right" && "flex-row-reverse"
+        )}
+      >
+        {label}
+        <Icon className={cn("h-3.5 w-3.5", active ? "text-blue-600" : "text-slate-300")} />
+      </span>
+    </Th>
+  );
+}
+
 function OrderCard({
   order,
   canEdit,
+  projectId,
+  groupBy,
+  sort,
+  onToggleSort,
+  onRefresh,
   onEditOrder,
   onDeleteOrder,
   onAddItem,
@@ -300,6 +434,11 @@ function OrderCard({
 }: {
   order: OrderView;
   canEdit: boolean;
+  projectId: string;
+  groupBy: GroupBy;
+  sort: SortState;
+  onToggleSort: (f: SortField) => void;
+  onRefresh: () => void;
   onEditOrder: () => void;
   onDeleteOrder: () => void;
   onAddItem: () => void;
@@ -308,17 +447,20 @@ function OrderCard({
 }) {
   const cat = PO_CATEGORY_MAP[order.category];
   const st = PO_STATUS_MAP[order.status];
+  const otherLabel = groupBy === "category" ? "Hạng mục" : "Nhóm vật tư";
 
   const groups = useMemo(() => {
     const map = new Map<string, OrderItemView[]>();
     for (const it of order.items) {
-      const key = it.category ?? "—";
+      const key = (groupBy === "category" ? it.category : it.groupName) || "—";
       const arr = map.get(key) ?? [];
       arr.push(it);
       map.set(key, arr);
     }
-    return Array.from(map.entries());
-  }, [order.items]);
+    return Array.from(map.entries()).map(
+      ([key, rows]) => [key, sortRows(rows, sort, groupBy)] as const
+    );
+  }, [order.items, groupBy, sort]);
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white">
@@ -370,12 +512,12 @@ function OrderCard({
           <Table>
             <THead>
               <tr>
-                <Th>Tên hàng, quy cách</Th>
-                <Th>Hạng mục</Th>
-                <Th className="text-right">SL</Th>
-                <Th className="text-right">Đơn giá</Th>
-                <Th className="text-right">Thành tiền</Th>
-                <Th className="text-right">TL (kg)</Th>
+                <SortHead field="name" label="Tên hàng, quy cách" sort={sort} onToggle={onToggleSort} />
+                <SortHead field="other" label={otherLabel} sort={sort} onToggle={onToggleSort} />
+                <SortHead field="qty" label="SL" sort={sort} onToggle={onToggleSort} align="right" />
+                <SortHead field="unitPrice" label="Đơn giá" sort={sort} onToggle={onToggleSort} align="right" />
+                <SortHead field="amount" label="Thành tiền" sort={sort} onToggle={onToggleSort} align="right" />
+                <SortHead field="weight" label="TL (kg)" sort={sort} onToggle={onToggleSort} align="right" />
                 {canEdit && <Th></Th>}
               </tr>
             </THead>
@@ -385,29 +527,14 @@ function OrderCard({
                   <Td className="font-medium text-slate-900">
                     {r.name}
                     {r.unit ? <span className="text-slate-400"> ({r.unit})</span> : null}
-                    {r.imageIds.length > 0 && (
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        {r.imageIds.map((imgId) => (
-                          <a
-                            key={imgId}
-                            href={`/api/po-images/${imgId}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="Mở hình biên dạng"
-                            className="block"
-                          >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={`/api/po-images/${imgId}`}
-                              alt="biên dạng"
-                              className="h-12 w-auto rounded border border-slate-200 bg-white object-contain p-0.5 hover:border-blue-400"
-                            />
-                          </a>
-                        ))}
-                      </div>
-                    )}
+                    <ItemImages
+                      item={r}
+                      projectId={projectId}
+                      canEdit={canEdit}
+                      onRefresh={onRefresh}
+                    />
                   </Td>
-                  <Td className="text-slate-500">{r.groupName ?? "—"}</Td>
+                  <Td className="text-slate-500">{otherOf(r, groupBy) || "—"}</Td>
                   <Td className="text-right">{formatNumber(r.qty)}</Td>
                   <Td className="text-right">{formatNumber(r.unitPrice)}</Td>
                   <Td className="text-right">{r.amount ? formatVND(r.amount) : "—"}</Td>
@@ -459,6 +586,98 @@ function OrderCard({
           </div>
         </dl>
       </div>
+    </div>
+  );
+}
+
+function ItemImages({
+  item,
+  projectId,
+  canEdit,
+  onRefresh,
+}: {
+  item: OrderItemView;
+  projectId: string;
+  canEdit: boolean;
+  onRefresh: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || !files.length) return;
+    const fd = new FormData();
+    Array.from(files).forEach((f) => fd.append("files", f));
+    e.target.value = "";
+    setBusy(true);
+    const res = await uploadPurchaseItemImages(projectId, item.id, fd);
+    setBusy(false);
+    if (!res.ok) alert(res.error);
+    else onRefresh();
+  }
+  async function onDelete(imgId: string) {
+    if (!window.confirm("Xóa ảnh biên dạng này?")) return;
+    setBusy(true);
+    const res = await deletePurchaseItemImage(projectId, imgId);
+    setBusy(false);
+    if (!res.ok) alert(res.error);
+    else onRefresh();
+  }
+
+  if (!canEdit && item.imageIds.length === 0) return null;
+
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+      {item.imageIds.map((imgId) => (
+        <div key={imgId} className="group relative">
+          <a
+            href={`/api/po-images/${imgId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Mở hình biên dạng"
+            className="block"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/api/po-images/${imgId}`}
+              alt="biên dạng"
+              className="h-12 w-auto rounded border border-slate-200 bg-white object-contain p-0.5 hover:border-blue-400"
+            />
+          </a>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => onDelete(imgId)}
+              title="Xóa ảnh"
+              className="absolute -right-1.5 -top-1.5 hidden rounded-full bg-red-600 p-0.5 text-white shadow group-hover:block hover:bg-red-700"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+      ))}
+      {canEdit && (
+        <>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+            title="Thêm ảnh biên dạng"
+            className="flex h-12 w-12 items-center justify-center rounded border border-dashed border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-500 disabled:opacity-50"
+          >
+            <ImagePlus className="h-5 w-5" />
+          </button>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={onPick}
+          />
+        </>
+      )}
     </div>
   );
 }
