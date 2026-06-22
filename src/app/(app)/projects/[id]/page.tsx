@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatVND, formatDate, formatNumber } from "@/lib/utils";
 import { StatusChanger, SupplierAssigner } from "./ProjectDetail";
 import { Milestones, type MilestoneValue } from "./Milestones";
+import { computeProfit, formatPercent } from "@/lib/profit";
+import { Calculator } from "lucide-react";
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -33,11 +35,22 @@ export default async function ProjectDetailPage({
       customer: true,
       suppliers: { include: { supplier: true } },
       milestones: true,
+      estimateItems: {
+        select: {
+          groupCode: true,
+          designQty: true,
+          actualQty: true,
+          unitPrice: true,
+          amount: true,
+        },
+      },
     },
   });
   if (!project) notFound();
 
   const canEditProgress = can(session.role, "progress", "edit");
+  const canViewProfit = can(session.role, "profit", "view");
+  const profit = computeProfit(project.estimateItems, project.salePrice, project.area);
   const milestoneMap: Record<string, MilestoneValue> = {};
   for (const m of project.milestones) {
     milestoneMap[m.type] = {
@@ -120,6 +133,40 @@ export default async function ProjectDetailPage({
       </div>
 
       <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Dự toán & Chi phí</CardTitle>
+          <Link
+            href={`/projects/${project.id}/estimate`}
+            className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100"
+          >
+            <Calculator className="h-4 w-4" /> Mở dự toán
+          </Link>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <Summary label="Tổng chi phí" value={formatVND(profit.totalCost)} />
+            {canViewProfit && <Summary label="Giá bán" value={formatVND(profit.salePrice)} />}
+            {canViewProfit && (
+              <Summary
+                label="Lợi nhuận"
+                value={formatVND(profit.profit)}
+                valueClass={profit.profit >= 0 ? "text-green-600" : "text-red-600"}
+              />
+            )}
+            {canViewProfit && (
+              <Summary label="Biên LN" value={formatPercent(profit.margin)} />
+            )}
+            {!canViewProfit && (
+              <Summary
+                label="CP / m²"
+                value={profit.costPerM2 != null ? formatVND(profit.costPerM2) : "—"}
+              />
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader>
           <CardTitle>Tiến độ thực hiện</CardTitle>
         </CardHeader>
@@ -131,6 +178,25 @@ export default async function ProjectDetailPage({
           />
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function Summary({
+  label,
+  value,
+  valueClass,
+}: {
+  label: string;
+  value: string;
+  valueClass?: string;
+}) {
+  return (
+    <div className="rounded-lg bg-slate-50 p-3">
+      <div className="text-xs text-slate-500">{label}</div>
+      <div className={`mt-0.5 text-lg font-bold text-slate-900 ${valueClass ?? ""}`}>
+        {value}
+      </div>
     </div>
   );
 }
