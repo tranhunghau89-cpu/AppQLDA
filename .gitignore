@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# database (SQLite dev)
+prisma/dev.db
+prisma/dev.db-journal
+*.db
+*.db-journal
+
+# local dev artifacts
+dev.log
+cookies.txt
+.playwright-mcp/

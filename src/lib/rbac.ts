@@ -1,0 +1,65 @@
+// Phân quyền theo bộ phận (RBAC) — dùng chung server + client.
+
+export const ROLES = ["ADMIN", "SALES", "ENGINEERING", "PROCUREMENT"] as const;
+export type Role = (typeof ROLES)[number];
+
+export const ROLE_LABEL: Record<Role, string> = {
+  ADMIN: "Ban giám đốc / Quản lý",
+  SALES: "Kinh doanh / CĐT",
+  ENGINEERING: "Kỹ thuật / Thiết kế",
+  PROCUREMENT: "Vật tư / Mua hàng",
+};
+
+// Các "tài nguyên" trong hệ thống.
+export type Resource =
+  | "project"
+  | "progress"
+  | "estimate"
+  | "profit"
+  | "customer"
+  | "supplier"
+  | "user";
+
+export type Action = "view" | "edit";
+
+// Ma trận quyền: role -> resource -> các action được phép.
+const MATRIX: Record<Role, Partial<Record<Resource, Action[]>>> = {
+  ADMIN: {
+    project: ["view", "edit"],
+    progress: ["view", "edit"],
+    estimate: ["view", "edit"],
+    profit: ["view"],
+    customer: ["view", "edit"],
+    supplier: ["view", "edit"],
+    user: ["view", "edit"],
+  },
+  SALES: {
+    project: ["view", "edit"],
+    progress: ["view"],
+    estimate: ["view"],
+    profit: ["view"],
+    customer: ["view", "edit"],
+    supplier: ["view"],
+  },
+  ENGINEERING: {
+    project: ["view", "edit"],
+    progress: ["view", "edit"],
+    estimate: ["view"],
+    customer: ["view"],
+    supplier: ["view"],
+  },
+  PROCUREMENT: {
+    project: ["view"],
+    progress: ["view"],
+    estimate: ["view", "edit"],
+    supplier: ["view", "edit"],
+  },
+};
+
+export function can(role: Role, resource: Resource, action: Action): boolean {
+  return MATRIX[role]?.[resource]?.includes(action) ?? false;
+}
+
+export function isValidRole(value: unknown): value is Role {
+  return typeof value === "string" && (ROLES as readonly string[]).includes(value);
+}

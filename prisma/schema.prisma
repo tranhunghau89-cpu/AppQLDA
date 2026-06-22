@@ -1,0 +1,24 @@
+// Prisma schema — AppQLDA Web
+// Phase 00: chỉ User (đăng nhập). Schema đầy đủ ở Phase 01.
+// Lưu ý: SQLite KHÔNG hỗ trợ enum → các trường "enum" lưu dạng String,
+// giá trị hợp lệ định nghĩa & validate ở src/lib (TS + Zod).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         String   @default("SALES") // ADMIN | SALES | ENGINEERING | PROCUREMENT
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
