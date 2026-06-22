@@ -63,3 +63,10 @@ export async function requirePermission(
   }
   return session;
 }
+
+/** Dùng đầu Server Component của 1 trang: thiếu quyền xem -> đẩy về dashboard. */
+export async function requireView(resource: Resource): Promise<SessionUser> {
+  const session = await requireSession();
+  if (!can(session.role as Role, resource, "view")) redirect("/");
+  return session;
+}

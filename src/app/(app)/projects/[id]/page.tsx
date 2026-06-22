@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
-import { requireSession } from "@/lib/auth";
+import { requireView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatVND, formatDate, formatNumber } from "@/lib/utils";
@@ -26,7 +26,7 @@ export default async function ProjectDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await requireSession();
+  const session = await requireView("project");
   const canEdit = can(session.role, "project", "edit");
 
   const project = await db.project.findUnique({

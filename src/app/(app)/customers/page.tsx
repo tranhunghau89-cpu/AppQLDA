@@ -1,10 +1,10 @@
 import { db } from "@/lib/db";
-import { requireSession } from "@/lib/auth";
+import { requireView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { CustomerManager } from "./CustomerManager";
 
 export default async function CustomersPage() {
-  const session = await requireSession();
+  const session = await requireView("customer");
   const canEdit = can(session.role, "customer", "edit");
 
   const customers = await db.customer.findMany({

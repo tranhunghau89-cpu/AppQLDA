@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
-import { requireSession } from "@/lib/auth";
+import { requireView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { EstimateEditor, type EstimateRow } from "./EstimateEditor";
 
@@ -12,7 +12,7 @@ export default async function EstimatePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await requireSession();
+  const session = await requireView("estimate");
   const canEdit = can(session.role, "estimate", "edit");
 
   const project = await db.project.findUnique({

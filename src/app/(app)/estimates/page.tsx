@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireSession } from "@/lib/auth";
+import { requireView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -8,7 +8,7 @@ import { computeProfit, formatPercent } from "@/lib/profit";
 import { formatVND } from "@/lib/utils";
 
 export default async function EstimatesPage() {
-  const session = await requireSession();
+  const session = await requireView("estimate");
   const canViewProfit = can(session.role, "profit", "view");
 
   const projects = await db.project.findMany({

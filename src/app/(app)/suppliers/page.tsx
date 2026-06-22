@@ -1,10 +1,10 @@
 import { db } from "@/lib/db";
-import { requireSession } from "@/lib/auth";
+import { requireView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { SupplierManager } from "./SupplierManager";
 
 export default async function SuppliersPage() {
-  const session = await requireSession();
+  const session = await requireView("supplier");
   const canEdit = can(session.role, "supplier", "edit");
 
   const suppliers = await db.supplier.findMany({

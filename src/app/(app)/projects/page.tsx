@@ -1,10 +1,10 @@
 import { db } from "@/lib/db";
-import { requireSession } from "@/lib/auth";
+import { requireView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { ProjectList, type ProjectRow } from "./ProjectList";
 
 export default async function ProjectsPage() {
-  const session = await requireSession();
+  const session = await requireView("project");
   const canEdit = can(session.role, "project", "edit");
 
   const [projects, customers] = await Promise.all([

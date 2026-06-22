@@ -13,23 +13,23 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Role } from "@/lib/rbac";
+import { can, type Role, type Resource } from "@/lib/rbac";
 
 interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
-  roles?: Role[]; // nếu có, chỉ role này thấy
+  resource?: Resource; // nếu có, lọc theo quyền view
 }
 
 const NAV: NavItem[] = [
   { href: "/", label: "Tổng quan", icon: LayoutDashboard },
-  { href: "/projects", label: "Dự án", icon: FolderKanban },
-  { href: "/weekly", label: "Tiến độ tuần", icon: CalendarRange },
-  { href: "/estimates", label: "Dự toán & chi phí", icon: Calculator },
-  { href: "/customers", label: "Chủ đầu tư", icon: Building2 },
-  { href: "/suppliers", label: "Nhà cung cấp", icon: Truck },
-  { href: "/users", label: "Người dùng", icon: Users, roles: ["ADMIN"] },
+  { href: "/projects", label: "Dự án", icon: FolderKanban, resource: "project" },
+  { href: "/weekly", label: "Tiến độ tuần", icon: CalendarRange, resource: "progress" },
+  { href: "/estimates", label: "Dự toán & chi phí", icon: Calculator, resource: "estimate" },
+  { href: "/customers", label: "Chủ đầu tư", icon: Building2, resource: "customer" },
+  { href: "/suppliers", label: "Nhà cung cấp", icon: Truck, resource: "supplier" },
+  { href: "/users", label: "Người dùng", icon: Users, resource: "user" },
 ];
 
 export function Sidebar({ role }: { role: Role }) {
@@ -47,7 +47,7 @@ export function Sidebar({ role }: { role: Role }) {
         </div>
       </div>
       <nav className="flex-1 space-y-1 p-3">
-        {NAV.filter((i) => !i.roles || i.roles.includes(role)).map((item) => {
+        {NAV.filter((i) => !i.resource || can(role, i.resource, "view")).map((item) => {
           const active =
             item.href === "/"
               ? pathname === "/"

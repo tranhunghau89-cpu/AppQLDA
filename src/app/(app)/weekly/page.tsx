@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { requireSession } from "@/lib/auth";
+import { requireView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { isoWeek, weekLabel, recentWeeks } from "@/lib/week";
 import { WeeklyBoard, type WeeklyProjectRow, type WeekCol } from "./WeeklyBoard";
@@ -9,7 +9,7 @@ export default async function WeeklyPage({
 }: {
   searchParams: Promise<{ year?: string; week?: string }>;
 }) {
-  const session = await requireSession();
+  const session = await requireView("progress");
   const canEdit = can(session.role, "progress", "edit");
 
   const sp = await searchParams;
