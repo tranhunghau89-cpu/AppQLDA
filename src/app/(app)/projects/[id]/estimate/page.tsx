@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
@@ -62,6 +62,12 @@ export default async function EstimatePage({
           </h1>
           <p className="text-sm text-slate-500">Chi phí, đơn giá, nhà cung cấp và lợi nhuận</p>
         </div>
+        <a
+          href={`/api/export/estimate/${project.id}`}
+          className="ml-auto inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
+          <Download className="h-4 w-4" /> Xuất Excel
+        </a>
       </div>
 
       <EstimateEditor

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { Download } from "lucide-react";
 import { requireView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
@@ -50,11 +51,19 @@ export default async function EstimatesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Dự toán & Chi phí</h1>
-        <p className="text-sm text-slate-500">
-          Tổng hợp chi phí, giá bán và lợi nhuận theo dự án
-        </p>
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">Dự toán & Chi phí</h1>
+          <p className="text-sm text-slate-500">
+            Tổng hợp chi phí, giá bán và lợi nhuận theo dự án
+          </p>
+        </div>
+        <a
+          href="/api/export/projects"
+          className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
+          <Download className="h-4 w-4" /> Xuất Excel
+        </a>
       </div>
 
       {canViewProfit && (

@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { Download } from "lucide-react";
 import { requireView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { ProjectList, type ProjectRow } from "./ProjectList";
@@ -36,9 +37,17 @@ export default async function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Dự án</h1>
-        <p className="text-sm text-slate-500">Danh sách và quản lý dự án thi công</p>
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">Dự án</h1>
+          <p className="text-sm text-slate-500">Danh sách và quản lý dự án thi công</p>
+        </div>
+        <a
+          href="/api/export/projects"
+          className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
+          <Download className="h-4 w-4" /> Xuất Excel
+        </a>
       </div>
       <ProjectList projects={rows} customers={customers} canEdit={canEdit} />
     </div>
