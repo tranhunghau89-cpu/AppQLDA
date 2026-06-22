@@ -22,7 +22,10 @@ export default async function PurchasePage({
         orderBy: [{ category: "asc" }, { createdAt: "asc" }],
         include: {
           supplier: { select: { id: true, name: true } },
-          items: { orderBy: { sortOrder: "asc" } },
+          items: {
+            orderBy: { sortOrder: "asc" },
+            include: { images: { orderBy: { sortOrder: "asc" }, select: { id: true } } },
+          },
         },
       },
     },
@@ -59,6 +62,7 @@ export default async function PurchasePage({
       amount: i.amount,
       weight: i.weight,
       note: i.note,
+      imageIds: i.images.map((im) => im.id),
     })),
   }));
 

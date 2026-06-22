@@ -63,17 +63,24 @@ interface POItem {
   weight: number | null;
   note: string | null;
   sortOrder: number;
+  row: number; // dòng nguồn (để gắn ảnh biên dạng)
+  si: number; // chỉ số sheet
 }
 
 function cleanSheetName(sn: string): string {
   return sn.replace(/^\s*\d+\.\s*/, "").trim();
 }
 
-function parseSheet(ws: ExcelJS.Worksheet, sheetCat: string, startSort: number): POItem[] {
+function parseSheet(
+  ws: ExcelJS.Worksheet,
+  sheetCat: string,
+  startSort: number,
+  si: number
+): { items: POItem[]; headerRow: number } {
   // marker "ĐẶT HÀNG" trong vài hàng đầu
   let marker = false;
   for (let r = 1; r <= 8; r++) if (text(ws.getCell(r, 1).value).includes("ĐẶT HÀNG")) marker = true;
-  if (!marker) return [];
+  if (!marker) return { items: [], headerRow: 0 };
 
   // tìm header row (cột A == STT)
   let hdr = 0;
@@ -83,7 +90,7 @@ function parseSheet(ws: ExcelJS.Worksheet, sheetCat: string, startSort: number):
       break;
     }
   }
-  if (!hdr) return [];
+  if (!hdr) return { items: [], headerRow: 0 };
 
   const col: Record<string, number> = {};
   const maxC = Math.max(ws.columnCount, 12);
@@ -129,9 +136,51 @@ function parseSheet(ws: ExcelJS.Worksheet, sheetCat: string, startSort: number):
       weight,
       note: col.note ? text(ws.getCell(r, col.note).value) || null : null,
       sortOrder: sort++,
+      row: r,
+      si,
     });
   }
-  return items;
+  return { items, headerRow: hdr };
+}
+
+interface POImage {
+  si: number;
+  anchorRow: number;
+  mime: string;
+  buffer: Buffer;
+  targetSort: number; // sortOrder của item được gắn
+}
+
+// Trích ảnh biên dạng (bỏ logo ở phía trên header).
+function extractImages(
+  wb: ExcelJS.Workbook,
+  ws: ExcelJS.Worksheet,
+  si: number,
+  headerRow: number
+): POImage[] {
+  const out: POImage[] = [];
+  let imgs: ReturnType<ExcelJS.Worksheet["getImages"]>;
+  try {
+    imgs = ws.getImages();
+  } catch {
+    return out;
+  }
+  for (const im of imgs) {
+    const tlRow = im.range?.tl?.row;
+    if (typeof tlRow !== "number") continue;
+    const anchorRow = Math.floor(tlRow) + 1;
+    if (anchorRow < headerRow) continue; // logo / vùng đầu trang
+    const media = wb.getImage(Number(im.imageId)) as { buffer?: Buffer; extension?: string };
+    if (!media?.buffer) continue;
+    out.push({
+      si,
+      anchorRow,
+      mime: "image/" + (media.extension || "png"),
+      buffer: media.buffer,
+      targetSort: -1,
+    });
+  }
+  return out;
 }
 
 function categoryOf(file: string): string {
@@ -161,10 +210,10 @@ async function main() {
 
   const compFor: Record<string, string[]> = { BL: ["BLLK", "BL_NEO"], TON: ["TON"], PANEL: ["TON"] };
 
-  console.log("\nFile".padEnd(34), "Dự án".padEnd(7), "Loại".padEnd(6), "Dòng", "  Giá trị", "  TL(kg)", " NCC");
+  console.log("\nFile".padEnd(34), "Dự án".padEnd(7), "Loại".padEnd(6), "Dòng", "  TL(kg)", " Ảnh", " NCC");
   console.log("-".repeat(96));
 
-  let orders = 0, totalItems = 0;
+  let orders = 0, totalItems = 0, totalImages = 0;
   for (const dir of MH_DIRS) {
     if (!fs.existsSync(dir)) {
       console.log("(thiếu thư mục)", dir);
@@ -184,11 +233,26 @@ async function main() {
       const wb = new ExcelJS.Workbook();
       await wb.xlsx.readFile(path.join(dir, f));
       const items: POItem[] = [];
+      const images: POImage[] = [];
+      let si = 0;
       wb.eachSheet((ws) => {
-        const found = parseSheet(ws, cleanSheetName(ws.name), items.length);
+        const { items: found, headerRow } = parseSheet(ws, cleanSheetName(ws.name), items.length, si);
         items.push(...found);
+        if (headerRow) images.push(...extractImages(wb, ws, si, headerRow));
+        si++;
       });
       if (!items.length) continue;
+
+      // gắn ảnh vào dòng vật tư gần nhất phía trên trong cùng sheet
+      for (const img of images) {
+        const cands = items.filter((it) => it.si === img.si);
+        if (!cands.length) continue;
+        const above = cands.filter((it) => it.row <= img.anchorRow);
+        const target = above.length
+          ? above.reduce((a, b) => (b.row > a.row ? b : a))
+          : cands.reduce((a, b) => (b.row < a.row ? b : a));
+        img.targetSort = target.sortOrder;
+      }
 
       const value = items.reduce((s, i) => s + (i.amount ?? 0), 0);
       const totalWeight = items.reduce((s, i) => s + (i.weight ?? 0), 0);
@@ -218,24 +282,57 @@ async function main() {
           value,
           totalWeight,
           filePath: path.join(dir, f),
-          items: { create: items },
+          items: {
+            create: items.map((i) => ({
+              category: i.category,
+              groupName: i.groupName,
+              name: i.name,
+              unit: i.unit,
+              qty: i.qty,
+              unitPrice: i.unitPrice,
+              amount: i.amount,
+              weight: i.weight,
+              note: i.note,
+              sortOrder: i.sortOrder,
+            })),
+          },
         },
       });
+
+      // gắn ảnh biên dạng vào item theo sortOrder
+      let nImg = 0;
+      const matched = images.filter((im) => im.targetSort >= 0);
+      if (matched.length) {
+        const createdItems = await db.purchaseOrderItem.findMany({
+          where: { orderId: created.id },
+          select: { id: true, sortOrder: true },
+        });
+        const bySort = new Map(createdItems.map((it) => [it.sortOrder, it.id]));
+        for (const im of matched) {
+          const itemId = bySort.get(im.targetSort);
+          if (!itemId) continue;
+          await db.poItemImage.create({
+            data: { itemId, mime: im.mime, data: Uint8Array.from(im.buffer), sortOrder: nImg },
+          });
+          nImg++;
+        }
+      }
+
       orders++;
       totalItems += items.length;
+      totalImages += nImg;
       console.log(
         stem.slice(0, 33).padEnd(34),
         project.code.padEnd(7),
         category.padEnd(6),
         String(items.length).padStart(4),
-        value.toLocaleString("vi-VN").padStart(11),
         totalWeight.toFixed(0).padStart(8),
+        String(nImg).padStart(4),
         supplierId ? " ✓" : " —"
       );
-      void created;
     }
   }
-  console.log(`\nXong. Đơn: ${orders} | Dòng vật tư: ${totalItems}`);
+  console.log(`\nXong. Đơn: ${orders} | Dòng vật tư: ${totalItems} | Ảnh biên dạng: ${totalImages}`);
 }
 
 main()

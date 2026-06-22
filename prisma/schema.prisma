@@ -112,6 +112,18 @@ model PurchaseOrderItem {
   weight    Float? // kg
   note      String?
   sortOrder Int           @default(0)
+
+  images PoItemImage[]
+}
+
+model PoItemImage {
+  id        String            @id @default(cuid())
+  itemId    String
+  item      PurchaseOrderItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  mime      String            @default("image/png")
+  data      Bytes // ảnh biên dạng nhúng từ file đơn
+  sortOrder Int               @default(0)
+  createdAt DateTime          @default(now())
 }
 
 model Contract {

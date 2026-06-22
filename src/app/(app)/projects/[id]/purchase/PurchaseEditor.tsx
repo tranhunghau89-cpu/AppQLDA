@@ -28,6 +28,7 @@ export interface OrderItemView {
   amount: number | null;
   weight: number | null;
   note: string | null;
+  imageIds: string[];
 }
 export interface OrderView {
   id: string;
@@ -384,6 +385,27 @@ function OrderCard({
                   <Td className="font-medium text-slate-900">
                     {r.name}
                     {r.unit ? <span className="text-slate-400"> ({r.unit})</span> : null}
+                    {r.imageIds.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {r.imageIds.map((imgId) => (
+                          <a
+                            key={imgId}
+                            href={`/api/po-images/${imgId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Mở hình biên dạng"
+                            className="block"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={`/api/po-images/${imgId}`}
+                              alt="biên dạng"
+                              className="h-12 w-auto rounded border border-slate-200 bg-white object-contain p-0.5 hover:border-blue-400"
+                            />
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </Td>
                   <Td className="text-slate-500">{r.groupName ?? "—"}</Td>
                   <Td className="text-right">{formatNumber(r.qty)}</Td>
