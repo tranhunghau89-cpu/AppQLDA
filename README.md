@@ -57,7 +57,8 @@ npm run import:orders      # bóc chi tiết từng dòng vật tư từ file đ
 ```
 - Mỗi file = 1 đơn (BL/Tôn…); parse **theo nhãn cột** (fold dấu) nên ổn định dù mỗi sheet khác cấu trúc.
 - Theo dõi NCC + trạng thái (Nháp/Đã đặt/Đã nhận) + giá trị + trọng lượng; mở file đơn từ web.
-- **Hình biên dạng**: ảnh quy cách nhúng trong file (diềm, tôn vòm, máng xối…) được trích, gắn vào đúng dòng vật tư (lưu trong DB), hiện thumbnail trong trang đơn hàng.
+- **Hình biên dạng**: ảnh quy cách nhúng trong file (diềm, tôn vòm, máng xối…) được trích, gắn vào đúng dòng vật tư (lưu trong DB), hiện thumbnail trong trang đơn hàng. Có thể **tự upload thêm / xóa** ảnh biên dạng cho từng dòng ngay trên web.
+- **Gom & sắp xếp**: đổi cách gom vật tư (theo Nhóm vật tư / theo Hạng mục) và bấm tiêu đề cột (SL, Đơn giá, TL…) để sắp xếp tăng/giảm.
 - Chạy lại không nhân đôi (thay đơn theo dự án + loại).
 
 ## Tính năng theo module
