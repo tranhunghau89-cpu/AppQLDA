@@ -1,7 +1,6 @@
-// Prisma schema — AppQLDA Web
-// Phase 00: chỉ User (đăng nhập). Schema đầy đủ ở Phase 01.
-// Lưu ý: SQLite KHÔNG hỗ trợ enum → các trường "enum" lưu dạng String,
-// giá trị hợp lệ định nghĩa & validate ở src/lib (TS + Zod).
+// Prisma schema — AppQLDA Web (Quản lý dự án kết cấu thép)
+// SQLite KHÔNG hỗ trợ enum → các trường "enum" lưu String,
+// giá trị hợp lệ + nhãn định nghĩa ở src/lib/constants.ts (validate bằng Zod).
 
 generator client {
   provider = "prisma-client-js"
@@ -21,4 +20,111 @@ model User {
   active       Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model Customer {
+  id            String    @id @default(cuid())
+  name          String
+  contactPerson String?
+  phone         String?
+  address       String?
+  note          String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  projects      Project[]
+}
+
+model Supplier {
+  id            String            @id @default(cuid())
+  name          String
+  category      String            @default("KHAC") // KCT|XA_GO|TON|BL_NEO|BLLK|LAP_DUNG|KHAC
+  contactPerson String?
+  phone         String?
+  note          String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  projectLinks  ProjectSupplier[]
+  estimateItems EstimateItem[]
+}
+
+model Project {
+  id           String            @id @default(cuid())
+  code         String            @unique // N037...
+  name         String // K25L60
+  buildingType String? // Xưởng, Nhà xưởng...
+  status       String            @default("CHO") // CHO|SHOP|GIA_CONG|LAP_DUNG|HOAN_THANH
+  location     String?
+  customerId   String?
+  customer     Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  startDate    DateTime?
+  endDate      DateTime?
+  kK           Float? // bước khung K
+  kL           Float? // chiều dài L
+  kH           Float? // chiều cao H
+  area         Float? // m2
+  salePrice    Float? // giá bán / hợp đồng
+  note         String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  suppliers     ProjectSupplier[]
+  milestones    Milestone[]
+  weeklyLogs    WeeklyLog[]
+  estimateItems EstimateItem[]
+}
+
+model ProjectSupplier {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  component  String // KCT|XA_GO|TON|BL_NEO|BLLK|LAP_DUNG
+
+  @@unique([projectId, component])
+}
+
+model Milestone {
+  id         String    @id @default(cuid())
+  projectId  String
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type       String // BV_KT|SHOP|MUA_HANG|GIA_CONG|LAP_DUNG|LOP_TON|HS_NT|HS_QT
+  planDate   DateTime?
+  actualDate DateTime?
+  done       Boolean   @default(false)
+  note       String?
+
+  @@unique([projectId, type])
+}
+
+model WeeklyLog {
+  id             String  @id @default(cuid())
+  projectId      String
+  project        Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  year           Int
+  week           Int
+  statusSnapshot String?
+  note           String?
+
+  @@unique([projectId, year, week])
+}
+
+model EstimateItem {
+  id             String    @id @default(cuid())
+  projectId      String
+  project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  groupCode      String // KCT|XA_GO|TON|BL_NEO|BLLK|VT_PHU|NHAN_CONG|VAN_CHUYEN|MAY|KHAC
+  name           String
+  unit           String?
+  designQty      Float?
+  actualQty      Float?
+  unitPrice      Float?
+  amount         Float?
+  supplierId     String?
+  supplier       Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  orderStatus    String? // Đặt hàng
+  dispatchStatus String? // Xuất hàng
+  note           String?
+  sortOrder      Int       @default(0)
+  createdAt      DateTime  @default(now())
 }
