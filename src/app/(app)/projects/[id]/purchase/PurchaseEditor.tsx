@@ -451,6 +451,7 @@ function ItemsTable({
         <tr>
           {showGroupCol && <Th>{groupColLabel}</Th>}
           <SortHead field="name" label="Tên hàng, quy cách" sort={sort} onToggle={onToggleSort} />
+          <Th className="text-center">Biên dạng</Th>
           <SortHead field="other" label={otherLabel} sort={sort} onToggle={onToggleSort} />
           <SortHead field="qty" label="SL" sort={sort} onToggle={onToggleSort} align="right" />
           <SortHead field="unitPrice" label="Đơn giá" sort={sort} onToggle={onToggleSort} align="right" />
@@ -470,7 +471,11 @@ function ItemsTable({
             <Td className="font-medium text-slate-900">
               {r.name}
               {r.unit ? <span className="text-slate-400"> ({r.unit})</span> : null}
-              <ItemImages item={r} projectId={projectId} canEdit={canEdit} onRefresh={onRefresh} />
+            </Td>
+            <Td>
+              <div className="flex justify-center">
+                <ItemImages item={r} projectId={projectId} canEdit={canEdit} onRefresh={onRefresh} />
+              </div>
             </Td>
             <Td className="text-slate-500">{otherOf(r, groupBy) || "—"}</Td>
             <Td className="text-right">{formatNumber(r.qty)}</Td>
@@ -774,10 +779,11 @@ function ItemImages({
     else onRefresh();
   }
 
-  if (!canEdit && item.imageIds.length === 0) return null;
+  if (!canEdit && item.imageIds.length === 0)
+    return <span className="text-slate-300">—</span>;
 
   return (
-    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1">
       {item.imageIds.map((imgId) => (
         <div key={imgId} className="group relative">
           <a
@@ -791,7 +797,7 @@ function ItemImages({
             <img
               src={`/api/po-images/${imgId}`}
               alt="biên dạng"
-              className="h-12 w-auto rounded border border-slate-200 bg-white object-contain p-0.5 hover:border-blue-400"
+              className="h-8 w-8 rounded border border-slate-200 bg-white object-contain p-0.5 hover:border-blue-400"
             />
           </a>
           {canEdit && (
@@ -801,7 +807,7 @@ function ItemImages({
               title="Xóa ảnh"
               className="absolute -right-1.5 -top-1.5 hidden rounded-full bg-red-600 p-0.5 text-white shadow group-hover:block hover:bg-red-700"
             >
-              <X className="h-3 w-3" />
+              <X className="h-2.5 w-2.5" />
             </button>
           )}
         </div>
@@ -813,9 +819,9 @@ function ItemImages({
             disabled={busy}
             onClick={() => inputRef.current?.click()}
             title="Thêm ảnh biên dạng"
-            className="flex h-12 w-12 items-center justify-center rounded border border-dashed border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-500 disabled:opacity-50"
+            className="flex h-8 w-8 items-center justify-center rounded border border-dashed border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-500 disabled:opacity-50"
           >
-            <ImagePlus className="h-5 w-5" />
+            <ImagePlus className="h-4 w-4" />
           </button>
           <input
             ref={inputRef}
