@@ -4,7 +4,11 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
-import { PROJECT_STATUS_MAP, PROJECT_COMPONENT_MAP } from "@/lib/constants";
+import {
+  PROJECT_STATUS_MAP,
+  PROJECT_COMPONENT_MAP,
+  MILESTONE_TYPE_MAP,
+} from "@/lib/constants";
 
 export type ActionResult =
   | { ok: true; id?: string }
@@ -132,6 +136,35 @@ export async function updateStatus(
   await db.project.update({ where: { id }, data: { status } });
   revalidatePath("/projects");
   revalidatePath(`/projects/${id}`);
+  return { ok: true };
+}
+
+export async function upsertMilestone(
+  projectId: string,
+  type: string,
+  values: { planDate: string; actualDate: string; done: boolean; note: string }
+): Promise<ActionResult> {
+  try {
+    await requirePermission("progress", "edit");
+  } catch {
+    return { ok: false, error: "Bạn không có quyền cập nhật tiến độ." };
+  }
+  if (!(type in MILESTONE_TYPE_MAP))
+    return { ok: false, error: "Loại mốc không hợp lệ." };
+
+  const data = {
+    planDate: values.planDate ? new Date(values.planDate) : null,
+    actualDate: values.actualDate ? new Date(values.actualDate) : null,
+    done: values.done,
+    note: values.note || null,
+  };
+
+  await db.milestone.upsert({
+    where: { projectId_type: { projectId, type } },
+    update: data,
+    create: { projectId, type, ...data },
+  });
+  revalidatePath(`/projects/${projectId}`);
   return { ok: true };
 }
 

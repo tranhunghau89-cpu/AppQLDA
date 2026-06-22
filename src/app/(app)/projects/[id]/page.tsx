@@ -7,6 +7,7 @@ import { can } from "@/lib/rbac";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatVND, formatDate, formatNumber } from "@/lib/utils";
 import { StatusChanger, SupplierAssigner } from "./ProjectDetail";
+import { Milestones, type MilestoneValue } from "./Milestones";
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -31,9 +32,21 @@ export default async function ProjectDetailPage({
     include: {
       customer: true,
       suppliers: { include: { supplier: true } },
+      milestones: true,
     },
   });
   if (!project) notFound();
+
+  const canEditProgress = can(session.role, "progress", "edit");
+  const milestoneMap: Record<string, MilestoneValue> = {};
+  for (const m of project.milestones) {
+    milestoneMap[m.type] = {
+      planDate: m.planDate?.toISOString() ?? null,
+      actualDate: m.actualDate?.toISOString() ?? null,
+      done: m.done,
+      note: m.note,
+    };
+  }
 
   const suppliers = await db.supplier.findMany({
     orderBy: [{ category: "asc" }, { name: "asc" }],
@@ -105,6 +118,19 @@ export default async function ProjectDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Tiến độ thực hiện</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Milestones
+            projectId={project.id}
+            milestones={milestoneMap}
+            canEdit={canEditProgress}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }
