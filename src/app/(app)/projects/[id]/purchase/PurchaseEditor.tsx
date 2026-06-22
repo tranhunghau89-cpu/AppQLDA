@@ -418,6 +418,91 @@ function SortHead({
   );
 }
 
+function ItemsTable({
+  rows,
+  sort,
+  onToggleSort,
+  groupBy,
+  otherLabel,
+  canEdit,
+  projectId,
+  onRefresh,
+  onEditItem,
+  onDeleteItem,
+  showGroupCol = false,
+  groupColLabel = "",
+}: {
+  rows: OrderItemView[];
+  sort: SortState;
+  onToggleSort: (f: SortField) => void;
+  groupBy: GroupBy;
+  otherLabel: string;
+  canEdit: boolean;
+  projectId: string;
+  onRefresh: () => void;
+  onEditItem: (it: OrderItemView) => void;
+  onDeleteItem: (it: OrderItemView) => void;
+  showGroupCol?: boolean;
+  groupColLabel?: string;
+}) {
+  return (
+    <Table>
+      <THead>
+        <tr>
+          {showGroupCol && <Th>{groupColLabel}</Th>}
+          <SortHead field="name" label="Tên hàng, quy cách" sort={sort} onToggle={onToggleSort} />
+          <SortHead field="other" label={otherLabel} sort={sort} onToggle={onToggleSort} />
+          <SortHead field="qty" label="SL" sort={sort} onToggle={onToggleSort} align="right" />
+          <SortHead field="unitPrice" label="Đơn giá" sort={sort} onToggle={onToggleSort} align="right" />
+          <SortHead field="amount" label="Thành tiền" sort={sort} onToggle={onToggleSort} align="right" />
+          <SortHead field="weight" label="TL (kg)" sort={sort} onToggle={onToggleSort} align="right" />
+          {canEdit && <Th></Th>}
+        </tr>
+      </THead>
+      <tbody>
+        {rows.map((r) => (
+          <Tr key={r.id}>
+            {showGroupCol && (
+              <Td className="text-slate-500">
+                {(groupBy === "category" ? r.category : r.groupName) || "—"}
+              </Td>
+            )}
+            <Td className="font-medium text-slate-900">
+              {r.name}
+              {r.unit ? <span className="text-slate-400"> ({r.unit})</span> : null}
+              <ItemImages item={r} projectId={projectId} canEdit={canEdit} onRefresh={onRefresh} />
+            </Td>
+            <Td className="text-slate-500">{otherOf(r, groupBy) || "—"}</Td>
+            <Td className="text-right">{formatNumber(r.qty)}</Td>
+            <Td className="text-right">{formatNumber(r.unitPrice)}</Td>
+            <Td className="text-right">{r.amount ? formatVND(r.amount) : "—"}</Td>
+            <Td className="text-right">{formatNumber(r.weight)}</Td>
+            {canEdit && (
+              <Td className="text-right">
+                <div className="flex justify-end gap-1">
+                  <Button variant="ghost" size="icon" onClick={() => onEditItem(r)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-red-600 hover:bg-red-50"
+                    onClick={() => onDeleteItem(r)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </Td>
+            )}
+          </Tr>
+        ))}
+      </tbody>
+    </Table>
+  );
+}
+
+const SUMMARY_TAB = "__summary__";
+
 function OrderCard({
   order,
   canEdit,
@@ -448,6 +533,7 @@ function OrderCard({
   const cat = PO_CATEGORY_MAP[order.category];
   const st = PO_STATUS_MAP[order.status];
   const otherLabel = groupBy === "category" ? "Hạng mục" : "Nhóm vật tư";
+  const groupColLabel = groupBy === "category" ? "Nhóm vật tư" : "Hạng mục";
 
   const groups = useMemo(() => {
     const map = new Map<string, OrderItemView[]>();
@@ -461,6 +547,23 @@ function OrderCard({
       ([key, rows]) => [key, sortRows(rows, sort, groupBy)] as const
     );
   }, [order.items, groupBy, sort]);
+
+  const summary = useMemo(
+    () =>
+      groups.map(([key, rows]) => ({
+        key,
+        count: rows.length,
+        weight: rows.reduce((s, r) => s + (r.weight ?? 0), 0),
+        value: rows.reduce((s, r) => s + (r.amount ?? 0), 0),
+      })),
+    [groups]
+  );
+  const allRows = useMemo(() => sortRows(order.items, sort, groupBy), [order.items, sort, groupBy]);
+
+  const [tab, setTab] = useState<string>(SUMMARY_TAB);
+  const tabKeys = groups.map(([k]) => k);
+  const current = tab === SUMMARY_TAB || tabKeys.includes(tab) ? tab : SUMMARY_TAB;
+  const currentRows = groups.find(([k]) => k === current)?.[1] ?? [];
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white">
@@ -506,62 +609,108 @@ function OrderCard({
         </div>
       </div>
 
-      {groups.map(([catName, rows]) => (
-        <div key={catName}>
-          <div className="bg-slate-50 px-4 py-1.5 text-sm font-medium text-slate-600">{catName}</div>
-          <Table>
-            <THead>
-              <tr>
-                <SortHead field="name" label="Tên hàng, quy cách" sort={sort} onToggle={onToggleSort} />
-                <SortHead field="other" label={otherLabel} sort={sort} onToggle={onToggleSort} />
-                <SortHead field="qty" label="SL" sort={sort} onToggle={onToggleSort} align="right" />
-                <SortHead field="unitPrice" label="Đơn giá" sort={sort} onToggle={onToggleSort} align="right" />
-                <SortHead field="amount" label="Thành tiền" sort={sort} onToggle={onToggleSort} align="right" />
-                <SortHead field="weight" label="TL (kg)" sort={sort} onToggle={onToggleSort} align="right" />
-                {canEdit && <Th></Th>}
-              </tr>
-            </THead>
-            <tbody>
-              {rows.map((r) => (
-                <Tr key={r.id}>
-                  <Td className="font-medium text-slate-900">
-                    {r.name}
-                    {r.unit ? <span className="text-slate-400"> ({r.unit})</span> : null}
-                    <ItemImages
-                      item={r}
-                      projectId={projectId}
-                      canEdit={canEdit}
-                      onRefresh={onRefresh}
-                    />
-                  </Td>
-                  <Td className="text-slate-500">{otherOf(r, groupBy) || "—"}</Td>
-                  <Td className="text-right">{formatNumber(r.qty)}</Td>
-                  <Td className="text-right">{formatNumber(r.unitPrice)}</Td>
-                  <Td className="text-right">{r.amount ? formatVND(r.amount) : "—"}</Td>
-                  <Td className="text-right">{formatNumber(r.weight)}</Td>
-                  {canEdit && (
-                    <Td className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => onEditItem(r)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-red-600 hover:bg-red-50"
-                          onClick={() => onDeleteItem(r)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </Td>
-                  )}
-                </Tr>
-              ))}
-            </tbody>
-          </Table>
-        </div>
-      ))}
+      {order.items.length > 0 && (
+        <>
+          <div className="flex flex-wrap gap-1 border-b border-slate-100 px-3 pt-2">
+            {groups.map(([key, rows]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTab(key)}
+                className={cn(
+                  "rounded-t-md border-b-2 px-3 py-1.5 text-sm font-medium transition",
+                  current === key
+                    ? "border-blue-600 text-blue-700"
+                    : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                )}
+              >
+                {key}
+                <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 text-xs text-slate-500">
+                  {rows.length}
+                </span>
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setTab(SUMMARY_TAB)}
+              className={cn(
+                "rounded-t-md border-b-2 px-3 py-1.5 text-sm font-semibold transition",
+                current === SUMMARY_TAB
+                  ? "border-blue-600 text-blue-700"
+                  : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+              )}
+            >
+              Tổng hợp
+            </button>
+          </div>
+
+          {current === SUMMARY_TAB ? (
+            <div className="space-y-4 p-4">
+              <div>
+                <div className="mb-1.5 text-sm font-medium text-slate-600">
+                  Tóm tắt theo {groupColLabel.toLowerCase()}
+                </div>
+                <Table>
+                  <THead>
+                    <tr>
+                      <Th>{groupColLabel}</Th>
+                      <Th className="text-right">Số dòng</Th>
+                      <Th className="text-right">Khối lượng (kg)</Th>
+                      <Th className="text-right">Giá trị</Th>
+                    </tr>
+                  </THead>
+                  <tbody>
+                    {summary.map((s) => (
+                      <Tr key={s.key}>
+                        <Td className="font-medium text-slate-900">{s.key}</Td>
+                        <Td className="text-right">{s.count}</Td>
+                        <Td className="text-right">{formatNumber(s.weight)}</Td>
+                        <Td className="text-right">{s.value ? formatVND(s.value) : "—"}</Td>
+                      </Tr>
+                    ))}
+                    <Tr className="bg-slate-50 font-semibold">
+                      <Td className="text-slate-900">Tổng cộng</Td>
+                      <Td className="text-right">{order.items.length}</Td>
+                      <Td className="text-right">{formatNumber(order.totalWeight)}</Td>
+                      <Td className="text-right">{order.value ? formatVND(order.value) : "—"}</Td>
+                    </Tr>
+                  </tbody>
+                </Table>
+              </div>
+              <div>
+                <div className="mb-1.5 text-sm font-medium text-slate-600">Toàn bộ vật tư</div>
+                <ItemsTable
+                  rows={allRows}
+                  sort={sort}
+                  onToggleSort={onToggleSort}
+                  groupBy={groupBy}
+                  otherLabel={otherLabel}
+                  canEdit={canEdit}
+                  projectId={projectId}
+                  onRefresh={onRefresh}
+                  onEditItem={onEditItem}
+                  onDeleteItem={onDeleteItem}
+                  showGroupCol
+                  groupColLabel={groupColLabel}
+                />
+              </div>
+            </div>
+          ) : (
+            <ItemsTable
+              rows={currentRows}
+              sort={sort}
+              onToggleSort={onToggleSort}
+              groupBy={groupBy}
+              otherLabel={otherLabel}
+              canEdit={canEdit}
+              projectId={projectId}
+              onRefresh={onRefresh}
+              onEditItem={onEditItem}
+              onDeleteItem={onDeleteItem}
+            />
+          )}
+        </>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 p-4">
         {canEdit ? (
