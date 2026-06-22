@@ -74,6 +74,14 @@ export const ESTIMATE_GROUP: Option[] = [
 ];
 export const ESTIMATE_GROUP_MAP = map(ESTIMATE_GROUP);
 
+// ----- Trạng thái hợp đồng / báo giá -----
+export const CONTRACT_STATUS: Option[] = [
+  { value: "QUOTE", label: "Báo giá", tone: "slate" },
+  { value: "SIGNED", label: "Đã ký", tone: "green" },
+  { value: "LIQUIDATED", label: "Thanh lý", tone: "blue" },
+];
+export const CONTRACT_STATUS_MAP = map(CONTRACT_STATUS);
+
 export function labelOf(
   map: Record<string, Option>,
   value: string | null | undefined

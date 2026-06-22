@@ -71,6 +71,42 @@ model Project {
   milestones    Milestone[]
   weeklyLogs    WeeklyLog[]
   estimateItems EstimateItem[]
+  contracts     Contract[]
+}
+
+model Contract {
+  id             String         @id @default(cuid())
+  projectId      String
+  project        Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contractNo     String? // Số HĐ: 0704/2026/HĐMB...
+  signDate       DateTime? // ngày ký
+  subject        String? // V/v: cung cấp & thi công nhà thép...
+  partyAName     String? // Bên A (CĐT)
+  partyAInfo     String? // địa chỉ, MST, người đại diện
+  valueBeforeVat Float? // giá trị chưa VAT = Σ hạng mục
+  vatPercent     Float?         @default(8)
+  valueWithVat   Float? // tổng có VAT
+  paymentTerms   String? // các đợt thanh toán
+  filePath       String? // đường dẫn file HĐ đã ký
+  status         String         @default("QUOTE") // QUOTE | SIGNED | LIQUIDATED
+  note           String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  items ContractItem[]
+}
+
+model ContractItem {
+  id         String   @id @default(cuid())
+  contractId String
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  name       String // hạng mục: Khung mái, Vách, Panel...
+  unit       String? // m2
+  qty        Float? // khối lượng / diện tích
+  unitPrice  Float? // đơn giá bán
+  amount     Float? // thành tiền
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
 }
 
 model ProjectSupplier {

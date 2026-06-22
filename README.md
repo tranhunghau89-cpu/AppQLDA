@@ -42,21 +42,30 @@ npm run import:estimates   # nhập từng dòng vật tư + diện tích + giá
 - Khớp dự án an toàn: chỉ gắn vào dự án có sẵn khi tên (hoặc phần `K..L..`) trùng khít; khác hậu tố địa điểm → tạo dự án mới (`DT01…`).
 - Chạy lại không nhân đôi (thay toàn bộ item của dự án đích).
 
+### Nhập hợp đồng & báo giá
+```bash
+npm run import:contracts   # 7 hợp đồng thật (OCR từ PDF/docx) + báo giá theo hạng mục từ dự toán
+```
+- Hợp đồng đã ký: số HĐ, ngày, CĐT, điều khoản thanh toán, **đường dẫn file** (mở qua API stream), dòng hạng mục, giá trị chưa VAT / VAT 8% / tổng.
+- Báo giá theo hạng mục lấy từ phần đầu sheet `TongHop` (nhóm A–E × diện tích × đơn giá bán/m²); cập nhật `salePrice` đúng (vd PickLang 2,83 tỷ thay vì giá trị lỗi).
+- Chạy lại không nhân đôi (thay toàn bộ HĐ của dự án đích).
+
 ## Tính năng theo module
 - **Tổng quan**: thẻ thống kê, biểu đồ trạng thái & giá bán/chi phí, dự án cập nhật gần đây.
 - **Dự án**: danh sách lọc/tìm, chi tiết, đổi trạng thái, gán NCC theo hạng mục, xuất Excel.
 - **Tiến độ tuần**: nhật ký theo tuần (thay sheet TDDA_Tuan).
 - **Dự toán & chi phí**: nhập KL/đơn giá theo nhóm → tổng chi phí, lợi nhuận, biên LN, CP/m²; xuất Excel.
+- **Hợp đồng & Báo giá**: quản lý HĐ theo từng hạng mục (đơn giá bán × KL), trạng thái Báo giá/Đã ký/Thanh lý, VAT, điều khoản thanh toán, mở file HĐ đã ký.
 - **Chủ đầu tư / Nhà cung cấp**: CRUD, phân loại NCC.
 - **Người dùng** (ADMIN): quản lý tài khoản + vai trò.
 
 ## Phân quyền (tóm tắt)
-| Bộ phận | Dự án | Tiến độ | Dự toán | Lợi nhuận | CĐT | NCC | User |
-|---|---|---|---|---|---|---|---|
-| BGĐ/Quản lý | Sửa | Sửa | Sửa | Xem | Sửa | Sửa | Sửa |
-| Kinh doanh | Sửa | Xem | Xem | Xem | Sửa | Xem | – |
-| Kỹ thuật | Sửa | Sửa | Xem | – | Xem | Xem | – |
-| Vật tư | Xem | Xem | Sửa | – | – | Sửa | – |
+| Bộ phận | Dự án | Tiến độ | Dự toán | HĐ/Báo giá | Lợi nhuận | CĐT | NCC | User |
+|---|---|---|---|---|---|---|---|---|
+| BGĐ/Quản lý | Sửa | Sửa | Sửa | Sửa | Xem | Sửa | Sửa | Sửa |
+| Kinh doanh | Sửa | Xem | Xem | Sửa | Xem | Sửa | Xem | – |
+| Kỹ thuật | Sửa | Sửa | Xem | Xem | – | Xem | Xem | – |
+| Vật tư | Xem | Xem | Sửa | Xem | – | – | Sửa | – |
 
 Ma trận chi tiết ở `src/lib/rbac.ts`.
 

@@ -9,7 +9,10 @@ import { formatVND, formatDate, formatNumber } from "@/lib/utils";
 import { StatusChanger, SupplierAssigner } from "./ProjectDetail";
 import { Milestones, type MilestoneValue } from "./Milestones";
 import { computeProfit, formatPercent } from "@/lib/profit";
-import { Calculator } from "lucide-react";
+import { computeContractTotals } from "@/lib/contract";
+import { Badge } from "@/components/ui/badge";
+import { CONTRACT_STATUS_MAP } from "@/lib/constants";
+import { Calculator, FileSignature } from "lucide-react";
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -44,12 +47,17 @@ export default async function ProjectDetailPage({
           amount: true,
         },
       },
+      contracts: {
+        orderBy: [{ status: "asc" }, { createdAt: "asc" }],
+        include: { items: { select: { qty: true, unitPrice: true, amount: true } } },
+      },
     },
   });
   if (!project) notFound();
 
   const canEditProgress = can(session.role, "progress", "edit");
   const canViewProfit = can(session.role, "profit", "view");
+  const canViewContract = can(session.role, "contract", "view");
   const profit = computeProfit(project.estimateItems, project.salePrice, project.area);
   const milestoneMap: Record<string, MilestoneValue> = {};
   for (const m of project.milestones) {
@@ -165,6 +173,51 @@ export default async function ProjectDetailPage({
           </div>
         </CardContent>
       </Card>
+
+      {canViewContract && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Hợp đồng & Báo giá</CardTitle>
+            <Link
+              href={`/projects/${project.id}/contract`}
+              className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100"
+            >
+              <FileSignature className="h-4 w-4" /> Mở hợp đồng
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {project.contracts.length === 0 ? (
+              <p className="text-sm text-slate-400">Chưa có hợp đồng / báo giá</p>
+            ) : (
+              <div className="space-y-2">
+                {project.contracts.map((c) => {
+                  const t = computeContractTotals(c.items, c.vatPercent);
+                  const st = CONTRACT_STATUS_MAP[c.status];
+                  return (
+                    <div
+                      key={c.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Badge tone={st?.tone ?? "slate"}>{st?.label ?? c.status}</Badge>
+                        <span className="text-sm font-medium text-slate-800">
+                          {c.contractNo ?? c.subject ?? "—"}
+                        </span>
+                      </div>
+                      <div className="text-sm text-slate-600">
+                        Chưa VAT: <span className="font-medium">{formatVND(t.beforeVat)}</span>
+                        <span className="mx-1.5 text-slate-300">·</span>
+                        Tổng:{" "}
+                        <span className="font-semibold text-green-600">{formatVND(t.withVat)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
