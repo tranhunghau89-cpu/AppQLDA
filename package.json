@@ -10,7 +10,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:migrate": "prisma migrate dev",
-    "import": "tsx scripts/import-excel.ts"
+    "import": "tsx scripts/import-excel.ts",
+    "import:estimates": "tsx scripts/import-estimates.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

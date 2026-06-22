@@ -33,6 +33,15 @@ npm run dev                 # http://localhost:3000
 npm run import              # nhập 56 dự án + CĐT + NCC từ sheet TongHop (chạy lại không nhân đôi)
 ```
 
+### Nhập dự toán chi tiết
+Đặt các file dự toán (mỗi file 1 dự án, sheet `TongHop`) vào `AppQLDA/DuToanMau/` rồi:
+```bash
+npm run import:estimates   # nhập từng dòng vật tư + diện tích + giá bán; khớp dự án theo tên, tạo mới nếu chưa có
+```
+- Tổng chi phí được tính lại từ các dòng item (cột `I1`/`J1` trong Excel thường stale).
+- Khớp dự án an toàn: chỉ gắn vào dự án có sẵn khi tên (hoặc phần `K..L..`) trùng khít; khác hậu tố địa điểm → tạo dự án mới (`DT01…`).
+- Chạy lại không nhân đôi (thay toàn bộ item của dự án đích).
+
 ## Tính năng theo module
 - **Tổng quan**: thẻ thống kê, biểu đồ trạng thái & giá bán/chi phí, dự án cập nhật gần đây.
 - **Dự án**: danh sách lọc/tìm, chi tiết, đổi trạng thái, gán NCC theo hạng mục, xuất Excel.
