@@ -10,9 +10,10 @@ import { StatusChanger, SupplierAssigner } from "./ProjectDetail";
 import { Milestones, type MilestoneValue } from "./Milestones";
 import { computeProfit, formatPercent } from "@/lib/profit";
 import { computeContractTotals } from "@/lib/contract";
+import { computeQuoteTotals } from "@/lib/quote";
 import { Badge } from "@/components/ui/badge";
 import { CONTRACT_STATUS_MAP, PO_CATEGORY_MAP, PO_STATUS_MAP } from "@/lib/constants";
-import { Calculator, FileSignature, ShoppingCart, Wallet } from "lucide-react";
+import { Calculator, FileSignature, ShoppingCart, Wallet, Receipt } from "lucide-react";
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -56,6 +57,10 @@ export default async function ProjectDetailPage({
         include: { supplier: { select: { name: true } }, _count: { select: { items: true } } },
       },
       costSummary: { select: { id: true, revenue: true, cost: true, profit: true } },
+      quotes: {
+        orderBy: { createdAt: "desc" },
+        include: { items: { select: { qty: true, sellPrice: true, baseCost: true } } },
+      },
     },
   });
   if (!project) notFound();
@@ -65,6 +70,9 @@ export default async function ProjectDetailPage({
   const canViewContract = can(session.role, "contract", "view");
   const canViewPurchase = can(session.role, "purchase", "view");
   const canViewCost = can(session.role, "cost", "view");
+  const canViewQuote = can(session.role, "quote", "view");
+  const latestQuote = project.quotes[0];
+  const quoteTotals = latestQuote ? computeQuoteTotals(latestQuote.items) : null;
   const profit = computeProfit(project.estimateItems, project.salePrice, project.area);
   const milestoneMap: Record<string, MilestoneValue> = {};
   for (const m of project.milestones) {
@@ -307,6 +315,42 @@ export default async function ProjectDetailPage({
                 </div>
               )}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {canViewQuote && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Báo giá chi tiết (Mã CV)</CardTitle>
+            <Link
+              href={`/projects/${project.id}/quote`}
+              className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100"
+            >
+              <Receipt className="h-4 w-4" /> {project.quotes.length > 0 ? "Xem báo giá" : "Lập báo giá"}
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {quoteTotals ? (
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-lg bg-slate-50 px-3 py-2">
+                  <div className="text-xs text-slate-500">Giá bán</div>
+                  <div className="font-semibold text-blue-600">{formatVND(quoteTotals.sell)}</div>
+                </div>
+                <div className="rounded-lg bg-slate-50 px-3 py-2">
+                  <div className="text-xs text-slate-500">Giá gốc</div>
+                  <div className="font-semibold text-amber-600">{formatVND(quoteTotals.cost)}</div>
+                </div>
+                {canViewProfit && (
+                  <div className="rounded-lg bg-slate-50 px-3 py-2">
+                    <div className="text-xs text-slate-500">Lợi nhuận</div>
+                    <div className="font-semibold text-green-600">{formatVND(quoteTotals.profit)}</div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400">Chưa có báo giá chi tiết.</p>
+            )}
           </CardContent>
         </Card>
       )}

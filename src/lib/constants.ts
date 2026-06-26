@@ -122,6 +122,27 @@ export const PO_STATUS: Option[] = [
 ];
 export const PO_STATUS_MAP = map(PO_STATUS);
 
+// ----- Nhóm mã công việc trong catalog đơn giá (2 ký tự đầu Mã CV) -----
+export const WORK_GROUP: Option[] = [
+  { value: "AA", label: "Kết cấu thép" },
+  { value: "AB", label: "Bulong neo & mã dưỡng" },
+  { value: "AC", label: "Bulong & phụ kiện liên kết" },
+  { value: "AD", label: "Tôn & diềm" },
+  { value: "AE", label: "Phụ kiện tôn" },
+  { value: "AF", label: "Sàn decking" },
+  { value: "AG", label: "Vận chuyển" },
+  { value: "AK", label: "Lắp dựng" },
+  { value: "AL", label: "Gia công khác" },
+];
+export const WORK_GROUP_MAP = map(WORK_GROUP);
+
+/** Lấy nhóm AA..AL từ Mã CV (vd "AC.150" -> "AC"); fallback "AL". */
+export function workGroupOf(code: string | null | undefined): string {
+  if (!code) return "AL";
+  const g = code.trim().slice(0, 2).toUpperCase();
+  return g in WORK_GROUP_MAP ? g : "AL";
+}
+
 export function labelOf(
   map: Record<string, Option>,
   value: string | null | undefined

@@ -59,6 +59,19 @@ npm run import:thcp        # nhập doanh thu/chi phí/LNTT + hạng mục (NCC/
 - Cập nhật `salePrice` = doanh thu; dashboard ưu tiên số liệu quyết toán (doanh thu/chi phí/lợi nhuận thực tế).
 - Chạy lại không nhân đôi (thay toàn bộ quyết toán của dự án đích).
 
+### Nhập bảng đơn giá & báo giá chi tiết
+File nguồn: `…/RaDonHang/@CN/BG_NX_KL_HN_D2504_23.xlsx` (sheet `DV` = danh mục đơn giá, `BG CT` = báo giá chi tiết).
+```bash
+npm run import:pricebook   # nạp 135 mã công việc (Mã CV) + giá thành = (VT+NC)×HS vào Bảng đơn giá
+npm run import:quote       # nạp báo giá mẫu (BG CT) thành 1 báo giá trên dự án demo (DEMO1)
+```
+- **Bảng đơn giá (`/catalog`)**: danh mục công việc dùng chung, gom theo nhóm AA…AL; sửa vật tư/nhân công/hệ số → tự tính giá thành.
+- **Báo giá chi tiết (`/projects/[id]/quote`)**: lập báo giá theo Mã CV (Phần A/B/… + mục I/II), khối lượng × đơn giá → thành tiền, tổng giá bán/giá gốc/lợi nhuận.
+  - Chọn Mã CV từ bảng đơn giá → tự điền tên/đơn vị/giá gốc; **đơn giá bán = giá gốc × hệ số TL**.
+  - **Tạo từ dự án khác**: sao chép cấu trúc + khối lượng từ báo giá cũ rồi lấy lại đơn giá mới nhất từ bảng đơn giá.
+  - **Cập nhật đơn giá**: refresh giá gốc toàn bộ dòng từ catalog. **Đẩy giá bán**: ghi tổng báo giá vào `salePrice` dự án (thủ công).
+- Chạy lại không nhân đôi (pricebook upsert theo mã; quote thay toàn bộ báo giá của dự án demo).
+
 ### Nhập đơn đặt hàng (mua hàng)
 Đặt file đơn vào `...RaDonHang/<dự án>/MH/<ngày>_DH_<BL|TON>_<mã>.xlsx` rồi:
 ```bash
@@ -79,6 +92,7 @@ npm run import:orders      # bóc chi tiết từng dòng vật tư từ file đ
 - **Hợp đồng & Báo giá**: quản lý HĐ theo từng hạng mục (đơn giá bán × KL), trạng thái Báo giá/Đã ký/Thanh lý, VAT, điều khoản thanh toán, mở file HĐ đã ký.
 - **Đơn hàng & Mua hàng**: đơn đặt hàng vật tư gửi NCC, chi tiết từng dòng (quy cách/SL/trọng lượng), trạng thái Đã đặt/Đã nhận, mở file đơn.
 - **Tổng hợp chi phí (quyết toán)**: doanh thu, chi phí, LNTT, đã thu/đã chi/còn phải thu; bảng hạng mục (NCC/giá trị/thanh toán/hóa đơn) + chi tiết chi phí từng dòng; cập nhật dashboard.
+- **Đơn giá & Báo giá chi tiết**: bảng đơn giá theo Mã CV dùng chung; lập báo giá chi tiết theo dự án (Phần/Mục/dòng), tổng giá bán/giá gốc/lợi nhuận; clone từ báo giá cũ + cập nhật đơn giá; đẩy giá bán sang dự án.
 - **Chủ đầu tư / Nhà cung cấp**: CRUD, phân loại NCC.
 - **Người dùng** (ADMIN): quản lý tài khoản + vai trò.
 
@@ -91,6 +105,8 @@ npm run import:orders      # bóc chi tiết từng dòng vật tư từ file đ
 | Vật tư | Xem | Xem | Sửa | Xem | Sửa | – | – | Sửa | – |
 
 **Tổng hợp chi phí (quyết toán)**: BGĐ sửa; Kinh doanh + Vật tư xem; Kỹ thuật không truy cập.
+
+**Đơn giá & Báo giá chi tiết**: BGĐ + Kinh doanh sửa; Vật tư + Kỹ thuật xem.
 
 Ma trận chi tiết ở `src/lib/rbac.ts`.
 

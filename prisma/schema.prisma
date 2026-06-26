@@ -75,6 +75,7 @@ model Project {
   contracts      Contract[]
   purchaseOrders PurchaseOrder[]
   costSummary    CostSummary?
+  quotes         Quote[]
 }
 
 model PurchaseOrder {
@@ -264,4 +265,82 @@ model CostItem {
   ref        String? // Thời gian / HĐ
   note       String? // Ghi chú
   sortOrder  Int          @default(0)
+}
+
+// ----- Đơn giá & Báo giá chi tiết (Mã CV) -----
+
+// Bảng danh mục công việc & đơn giá dùng chung mọi dự án (sheet DV).
+model WorkPrice {
+  id           String   @id @default(cuid())
+  code         String   @unique // Mã CV: AA.110
+  name         String // nội dung công việc (ND)
+  shortName    String? // Loại
+  spec         String? // TSKT
+  unit         String? // đơn vị
+  groupCode    String   @default("AA") // AA..AL (2 ký tự đầu mã)
+  material     Float? // VT (vật tư)
+  laborMachine Float? // NC_M (nhân công + máy)
+  coefficient  Float? // HS (hệ số)
+  baseCost     Float? // GT = (material + laborMachine) * coefficient
+  note         String? // GC
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// Báo giá chi tiết của 1 dự án (mỗi dự án có thể nhiều bản).
+model Quote {
+  id           String         @id @default(cuid())
+  projectId    String
+  project      Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title        String // tiêu đề/phiên bản
+  recipient    String? // Kính gửi
+  location     String? // Địa điểm
+  scope        String? // Hạng mục
+  quoteDate    DateTime?
+  markup       Float?         @default(1) // hệ số TL: đơn giá bán = giá gốc × markup
+  clonedFromId String? // bản gốc đã clone
+  clonedFrom   Quote?         @relation("QuoteClone", fields: [clonedFromId], references: [id], onDelete: SetNull)
+  clones       Quote[]        @relation("QuoteClone")
+  note         String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  sections QuoteSection[]
+  items    QuoteItem[]
+}
+
+// Phần (A/B/…) và mục con (I/II) — cây 2 cấp qua parentId.
+model QuoteSection {
+  id        String         @id @default(cuid())
+  quoteId   String
+  quote     Quote          @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  code      String // A / B / I / II
+  name      String
+  kind      String         @default("PHAN") // PHAN | SUB
+  parentId  String?
+  parent    QuoteSection?  @relation("SectionTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  QuoteSection[] @relation("SectionTree")
+  area      Float? // m2 (cho phần)
+  sortOrder Int            @default(0)
+
+  items QuoteItem[]
+}
+
+// Dòng vật tư trong báo giá.
+model QuoteItem {
+  id        String       @id @default(cuid())
+  quoteId   String
+  quote     Quote        @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  sectionId String
+  section   QuoteSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  workCode  String? // tham chiếu WorkPrice.code (có thể tự nhập)
+  name      String
+  unit      String?
+  qty       Float? // khối lượng
+  baseCost  Float? // giá gốc (snapshot, override được)
+  sellPrice Float? // đơn giá bán = baseCost × markup (override được)
+  spec      String? // quy cách
+  note      String?
+  sortOrder Int          @default(0)
 }
