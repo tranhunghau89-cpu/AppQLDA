@@ -17,6 +17,7 @@ export type Resource =
   | "estimate"
   | "contract"
   | "purchase"
+  | "cost"
   | "profit"
   | "customer"
   | "supplier"
@@ -32,6 +33,7 @@ const MATRIX: Record<Role, Partial<Record<Resource, Action[]>>> = {
     estimate: ["view", "edit"],
     contract: ["view", "edit"],
     purchase: ["view", "edit"],
+    cost: ["view", "edit"],
     profit: ["view"],
     customer: ["view", "edit"],
     supplier: ["view", "edit"],
@@ -43,6 +45,7 @@ const MATRIX: Record<Role, Partial<Record<Resource, Action[]>>> = {
     estimate: ["view"],
     contract: ["view", "edit"],
     purchase: ["view"],
+    cost: ["view"],
     profit: ["view"],
     customer: ["view", "edit"],
     supplier: ["view"],
@@ -62,6 +65,7 @@ const MATRIX: Record<Role, Partial<Record<Resource, Action[]>>> = {
     estimate: ["view", "edit"],
     contract: ["view"],
     purchase: ["view", "edit"],
+    cost: ["view"],
     supplier: ["view", "edit"],
   },
 };

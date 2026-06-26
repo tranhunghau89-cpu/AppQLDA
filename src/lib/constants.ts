@@ -74,6 +74,28 @@ export const ESTIMATE_GROUP: Option[] = [
 ];
 export const ESTIMATE_GROUP_MAP = map(ESTIMATE_GROUP);
 
+// ----- Nhóm hạng mục Tổng hợp chi phí (A–K) → map ESTIMATE_GROUP -----
+export interface CostCategoryDef {
+  code: string; // A..K
+  label: string;
+  group: string; // ESTIMATE_GROUP value
+}
+export const COST_CATEGORY: CostCategoryDef[] = [
+  { code: "A", label: "Kết cấu thép", group: "KCT" },
+  { code: "B", label: "Xà gồ", group: "XA_GO" },
+  { code: "C", label: "Tôn - Diềm", group: "TON" },
+  { code: "D", label: "Bulong neo", group: "BL_NEO" },
+  { code: "E", label: "BLLK", group: "BLLK" },
+  { code: "F", label: "Vật tư phụ", group: "VT_PHU" },
+  { code: "G", label: "Lắp dựng", group: "NHAN_CONG" },
+  { code: "H", label: "Vận chuyển", group: "VAN_CHUYEN" },
+  { code: "I", label: "Máy", group: "MAY" },
+  { code: "K", label: "Khác", group: "KHAC" },
+];
+export const COST_CATEGORY_MAP: Record<string, CostCategoryDef> = Object.fromEntries(
+  COST_CATEGORY.map((c) => [c.code, c])
+);
+
 // ----- Trạng thái hợp đồng / báo giá -----
 export const CONTRACT_STATUS: Option[] = [
   { value: "QUOTE", label: "Báo giá", tone: "slate" },

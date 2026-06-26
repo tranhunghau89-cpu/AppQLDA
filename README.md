@@ -50,6 +50,15 @@ npm run import:contracts   # 7 hợp đồng thật (OCR từ PDF/docx) + báo g
 - Báo giá theo hạng mục lấy từ phần đầu sheet `TongHop` (nhóm A–E × diện tích × đơn giá bán/m²); cập nhật `salePrice` đúng (vd PickLang 2,83 tỷ thay vì giá trị lỗi).
 - Chạy lại không nhân đôi (thay toàn bộ HĐ của dự án đích).
 
+### Nhập tổng hợp chi phí (quyết toán)
+Đặt các file THCP (mỗi file 1 dự án) vào `AppQLDA/THCPMau/*.xlsx` rồi:
+```bash
+npm run import:thcp        # nhập doanh thu/chi phí/LNTT + hạng mục (NCC/giá trị/thanh toán/hóa đơn) + chi tiết
+```
+- Khớp dự án theo tên + tỉnh; không khớp → tạo dự án mới (vd Ba Vì K20L50_HN).
+- Cập nhật `salePrice` = doanh thu; dashboard ưu tiên số liệu quyết toán (doanh thu/chi phí/lợi nhuận thực tế).
+- Chạy lại không nhân đôi (thay toàn bộ quyết toán của dự án đích).
+
 ### Nhập đơn đặt hàng (mua hàng)
 Đặt file đơn vào `...RaDonHang/<dự án>/MH/<ngày>_DH_<BL|TON>_<mã>.xlsx` rồi:
 ```bash
@@ -69,6 +78,7 @@ npm run import:orders      # bóc chi tiết từng dòng vật tư từ file đ
 - **Dự toán & chi phí**: nhập KL/đơn giá theo nhóm → tổng chi phí, lợi nhuận, biên LN, CP/m²; xuất Excel.
 - **Hợp đồng & Báo giá**: quản lý HĐ theo từng hạng mục (đơn giá bán × KL), trạng thái Báo giá/Đã ký/Thanh lý, VAT, điều khoản thanh toán, mở file HĐ đã ký.
 - **Đơn hàng & Mua hàng**: đơn đặt hàng vật tư gửi NCC, chi tiết từng dòng (quy cách/SL/trọng lượng), trạng thái Đã đặt/Đã nhận, mở file đơn.
+- **Tổng hợp chi phí (quyết toán)**: doanh thu, chi phí, LNTT, đã thu/đã chi/còn phải thu; bảng hạng mục (NCC/giá trị/thanh toán/hóa đơn) + chi tiết chi phí từng dòng; cập nhật dashboard.
 - **Chủ đầu tư / Nhà cung cấp**: CRUD, phân loại NCC.
 - **Người dùng** (ADMIN): quản lý tài khoản + vai trò.
 
@@ -79,6 +89,8 @@ npm run import:orders      # bóc chi tiết từng dòng vật tư từ file đ
 | Kinh doanh | Sửa | Xem | Xem | Sửa | Xem | Xem | Sửa | Xem | – |
 | Kỹ thuật | Sửa | Sửa | Xem | Xem | Xem | – | Xem | Xem | – |
 | Vật tư | Xem | Xem | Sửa | Xem | Sửa | – | – | Sửa | – |
+
+**Tổng hợp chi phí (quyết toán)**: BGĐ sửa; Kinh doanh + Vật tư xem; Kỹ thuật không truy cập.
 
 Ma trận chi tiết ở `src/lib/rbac.ts`.
 

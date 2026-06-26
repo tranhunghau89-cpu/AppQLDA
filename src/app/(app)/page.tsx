@@ -27,6 +27,7 @@ export default async function DashboardPage() {
           amount: true,
         },
       },
+      costSummary: { select: { revenue: true, cost: true } },
     },
   });
 
@@ -44,10 +45,20 @@ export default async function DashboardPage() {
   let totalRevenue = 0;
   let totalCost = 0;
   const costSale = projects.map((p) => {
-    const s = computeProfit(p.estimateItems, p.salePrice, p.area);
-    totalRevenue += s.salePrice;
-    totalCost += s.totalCost;
-    return { code: p.code, cost: s.totalCost, sale: s.salePrice };
+    // Ưu tiên quyết toán thực tế (THCP) nếu có, ngược lại tính từ dự toán.
+    let sale: number;
+    let cost: number;
+    if (p.costSummary) {
+      sale = p.costSummary.revenue ?? p.salePrice ?? 0;
+      cost = p.costSummary.cost ?? 0;
+    } else {
+      const s = computeProfit(p.estimateItems, p.salePrice, p.area);
+      sale = s.salePrice;
+      cost = s.totalCost;
+    }
+    totalRevenue += sale;
+    totalCost += cost;
+    return { code: p.code, cost, sale };
   });
   const totalProfit = totalRevenue - totalCost;
   const topCostSale = [...costSale]

@@ -74,6 +74,7 @@ model Project {
   estimateItems  EstimateItem[]
   contracts      Contract[]
   purchaseOrders PurchaseOrder[]
+  costSummary    CostSummary?
 }
 
 model PurchaseOrder {
@@ -215,4 +216,52 @@ model EstimateItem {
   note           String?
   sortOrder      Int       @default(0)
   createdAt      DateTime  @default(now())
+}
+
+// ----- Tổng hợp chi phí (quyết toán thực tế) -----
+model CostSummary {
+  id               String         @id @default(cuid())
+  projectId        String         @unique
+  project          Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  revenue          Float? // Doanh Thu
+  cost             Float? // Chi phí
+  profit           Float? // LNTT
+  extraVat         Float? // VAT được nhận thêm
+  paidWithVat      Float? // Đã Chi cả V
+  collectedWithVat Float? // Đã Thu cả V
+  receivable       Float? // Còn Phải thu
+  collectionNote   String? // vd "đã thu đủ"
+  filePath         String? // đường dẫn file THCP gốc
+  note             String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  categories       CostCategory[]
+}
+
+model CostCategory {
+  id        String      @id @default(cuid())
+  summaryId String
+  summary   CostSummary @relation(fields: [summaryId], references: [id], onDelete: Cascade)
+  code      String // A..K
+  groupCode String // map ESTIMATE_GROUP: KCT|XA_GO|TON|...
+  name      String
+  supplier  String? // NCC
+  value     Float? // GIÁ TRỊ
+  payment   Float? // THANH TOÁN
+  invoice   Float? // HÓA ĐƠN
+  sortOrder Int         @default(0)
+  items     CostItem[]
+}
+
+model CostItem {
+  id         String       @id @default(cuid())
+  categoryId String
+  category   CostCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name       String // Hạng Mục
+  qty        Float? // Khối lượng
+  unitPrice  Float? // Đơn giá
+  amount     Float? // Thành tiền
+  ref        String? // Thời gian / HĐ
+  note       String? // Ghi chú
+  sortOrder  Int          @default(0)
 }

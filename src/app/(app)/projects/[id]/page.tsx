@@ -12,7 +12,7 @@ import { computeProfit, formatPercent } from "@/lib/profit";
 import { computeContractTotals } from "@/lib/contract";
 import { Badge } from "@/components/ui/badge";
 import { CONTRACT_STATUS_MAP, PO_CATEGORY_MAP, PO_STATUS_MAP } from "@/lib/constants";
-import { Calculator, FileSignature, ShoppingCart } from "lucide-react";
+import { Calculator, FileSignature, ShoppingCart, Wallet } from "lucide-react";
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -55,6 +55,7 @@ export default async function ProjectDetailPage({
         orderBy: [{ category: "asc" }, { createdAt: "asc" }],
         include: { supplier: { select: { name: true } }, _count: { select: { items: true } } },
       },
+      costSummary: { select: { id: true, revenue: true, cost: true, profit: true } },
     },
   });
   if (!project) notFound();
@@ -63,6 +64,7 @@ export default async function ProjectDetailPage({
   const canViewProfit = can(session.role, "profit", "view");
   const canViewContract = can(session.role, "contract", "view");
   const canViewPurchase = can(session.role, "purchase", "view");
+  const canViewCost = can(session.role, "cost", "view");
   const profit = computeProfit(project.estimateItems, project.salePrice, project.area);
   const milestoneMap: Record<string, MilestoneValue> = {};
   for (const m of project.milestones) {
@@ -267,6 +269,44 @@ export default async function ProjectDetailPage({
                 })}
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {canViewCost && project.costSummary && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Tổng hợp chi phí (quyết toán)</CardTitle>
+            <Link
+              href={`/projects/${project.id}/cost`}
+              className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100"
+            >
+              <Wallet className="h-4 w-4" /> Xem chi tiết
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-lg bg-slate-50 px-3 py-2">
+                <div className="text-xs text-slate-500">Doanh thu</div>
+                <div className="font-semibold text-blue-600">
+                  {formatVND(project.costSummary.revenue ?? 0)}
+                </div>
+              </div>
+              <div className="rounded-lg bg-slate-50 px-3 py-2">
+                <div className="text-xs text-slate-500">Chi phí</div>
+                <div className="font-semibold text-amber-600">
+                  {formatVND(project.costSummary.cost ?? 0)}
+                </div>
+              </div>
+              {canViewProfit && (
+                <div className="rounded-lg bg-slate-50 px-3 py-2">
+                  <div className="text-xs text-slate-500">LNTT</div>
+                  <div className="font-semibold text-green-600">
+                    {formatVND(project.costSummary.profit ?? 0)}
+                  </div>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}

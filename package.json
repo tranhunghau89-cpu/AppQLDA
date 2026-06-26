@@ -13,7 +13,8 @@
     "import": "tsx scripts/import-excel.ts",
     "import:estimates": "tsx scripts/import-estimates.ts",
     "import:contracts": "tsx scripts/import-contracts.ts",
-    "import:orders": "tsx scripts/import-orders.ts"
+    "import:orders": "tsx scripts/import-orders.ts",
+    "import:thcp": "tsx scripts/import-thcp.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
