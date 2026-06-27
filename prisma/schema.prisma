@@ -1,5 +1,6 @@
 // Prisma schema — AppQLDA Web (Quản lý dự án kết cấu thép)
-// SQLite KHÔNG hỗ trợ enum → các trường "enum" lưu String,
+// DB: PostgreSQL (Supabase) cho prod; trước đây SQLite (dev).
+// Các trường "enum" vẫn lưu String (giữ tương thích, đơn giản hóa migrate),
 // giá trị hợp lệ + nhãn định nghĩa ở src/lib/constants.ts (validate bằng Zod).
 
 generator client {
@@ -7,8 +8,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {

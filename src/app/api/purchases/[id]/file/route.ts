@@ -3,6 +3,7 @@ import path from "path";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
+import { signedUrl } from "@/lib/storage";
 
 const MIME: Record<string, string> = {
   ".pdf": "application/pdf",
@@ -26,8 +27,13 @@ export async function GET(
     select: { filePath: true },
   });
   if (!order?.filePath) return new Response("Không có file", { status: 404 });
-  if (!fs.existsSync(order.filePath))
-    return new Response("File không tồn tại trên ổ đĩa", { status: 404 });
+
+  // Local: đọc từ ổ đĩa nếu file còn tồn tại. Cloud: filePath là key Storage → redirect signed URL.
+  if (!fs.existsSync(order.filePath)) {
+    const url = await signedUrl(order.filePath);
+    if (url) return Response.redirect(url, 302);
+    return new Response("File không tồn tại", { status: 404 });
+  }
 
   const buf = fs.readFileSync(order.filePath);
   const ext = path.extname(order.filePath).toLowerCase();
