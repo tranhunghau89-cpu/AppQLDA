@@ -93,6 +93,7 @@ npm run import:orders      # bóc chi tiết từng dòng vật tư từ file đ
 - **Đơn hàng & Mua hàng**: đơn đặt hàng vật tư gửi NCC, chi tiết từng dòng (quy cách/SL/trọng lượng), trạng thái Đã đặt/Đã nhận, mở file đơn.
 - **Tổng hợp chi phí (quyết toán)**: doanh thu, chi phí, LNTT, đã thu/đã chi/còn phải thu; bảng hạng mục (NCC/giá trị/thanh toán/hóa đơn) + chi tiết chi phí từng dòng; cập nhật dashboard.
 - **Đơn giá & Báo giá chi tiết**: bảng đơn giá theo Mã CV dùng chung; lập báo giá chi tiết theo dự án (Phần/Mục/dòng), tổng giá bán/giá gốc/lợi nhuận; clone từ báo giá cũ + cập nhật đơn giá; đẩy giá bán sang dự án.
+- **Công nợ**: tổng hợp tự động (chỉ đọc) — phải thu theo **chủ đầu tư** (giá trị HĐ/doanh thu − đã thu; nguồn: quyết toán → hợp đồng → giá bán) và phải trả theo **nhà cung cấp** (giá trị quyết toán − đã trả, khớp tên NCC; đơn hàng theo FK). Trang `/debts` có thẻ tổng + bảng bung chi tiết theo dự án; cột công nợ cũng nhúng trong trang Chủ đầu tư / Nhà cung cấp. *Đã trả vượt giá trị (gồm VAT) ⇒ coi như tất toán (còn phải trả = 0).*
 - **Chủ đầu tư / Nhà cung cấp**: CRUD, phân loại NCC.
 - **Người dùng** (ADMIN): quản lý tài khoản + vai trò.
 
@@ -107,6 +108,8 @@ npm run import:orders      # bóc chi tiết từng dòng vật tư từ file đ
 **Tổng hợp chi phí (quyết toán)**: BGĐ sửa; Kinh doanh + Vật tư xem; Kỹ thuật không truy cập.
 
 **Đơn giá & Báo giá chi tiết**: BGĐ + Kinh doanh sửa; Vật tư + Kỹ thuật xem.
+
+**Công nợ**: BGĐ + Kinh doanh + Vật tư xem (chỉ đọc); Kỹ thuật không truy cập.
 
 Ma trận chi tiết ở `src/lib/rbac.ts`.
 

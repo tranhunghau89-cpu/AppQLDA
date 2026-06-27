@@ -2,12 +2,14 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Plus, Pencil, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Select, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { formatVND } from "@/lib/utils";
 import { SUPPLIER_CATEGORY, SUPPLIER_CATEGORY_MAP } from "@/lib/constants";
 import { saveSupplier, deleteSupplier } from "./actions";
 
@@ -19,21 +21,34 @@ export interface SupplierRow {
   phone: string | null;
   note: string | null;
   usageCount: number;
+  payable: number | null;
+  debtProjects: { projectId: string; label: string; payable: number }[];
 }
 
 export function SupplierManager({
   suppliers,
   canEdit,
+  canViewDebt,
 }: {
   suppliers: SupplierRow[];
   canEdit: boolean;
+  canViewDebt: boolean;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<SupplierRow | null>(null);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("ALL");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [pending, start] = useTransition();
+
+  const toggle = (id: string) =>
+    setExpanded((s) => {
+      const n = new Set(s);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  const colCount = 5 + (canViewDebt ? 1 : 0) + (canEdit ? 1 : 0);
 
   const list = useMemo(
     () => (filter === "ALL" ? suppliers : suppliers.filter((s) => s.category === filter)),
@@ -105,43 +120,90 @@ export function SupplierManager({
               <Th>Người phụ trách</Th>
               <Th>Điện thoại</Th>
               <Th>Dùng ở DA</Th>
+              {canViewDebt && <Th className="text-right">Còn phải trả</Th>}
               {canEdit && <Th className="text-right">Thao tác</Th>}
             </tr>
           </THead>
           <tbody>
-            {list.map((s) => (
-              <Tr key={s.id}>
-                <Td className="font-medium text-slate-900">{s.name}</Td>
-                <Td>
-                  <Badge tone="blue">
-                    {SUPPLIER_CATEGORY_MAP[s.category]?.label ?? s.category}
-                  </Badge>
-                </Td>
-                <Td>{s.contactPerson || "—"}</Td>
-                <Td>{s.phone || "—"}</Td>
-                <Td>{s.usageCount}</Td>
-                {canEdit && (
-                  <Td className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(s)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-red-600 hover:bg-red-50"
-                        onClick={() => onDelete(s)}
+            {list.map((s) => {
+              const isOpen = expanded.has(s.id);
+              const hasDebt = canViewDebt && s.debtProjects.length > 0;
+              return (
+                <FragmentRow key={s.id}>
+                  <Tr>
+                    <Td className="font-medium text-slate-900">
+                      {hasDebt ? (
+                        <button
+                          type="button"
+                          onClick={() => toggle(s.id)}
+                          className="inline-flex items-center gap-1 hover:text-blue-600"
+                        >
+                          {isOpen ? (
+                            <ChevronDown className="h-4 w-4 text-slate-400" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-slate-400" />
+                          )}
+                          {s.name}
+                        </button>
+                      ) : (
+                        s.name
+                      )}
+                    </Td>
+                    <Td>
+                      <Badge tone="blue">
+                        {SUPPLIER_CATEGORY_MAP[s.category]?.label ?? s.category}
+                      </Badge>
+                    </Td>
+                    <Td>{s.contactPerson || "—"}</Td>
+                    <Td>{s.phone || "—"}</Td>
+                    <Td>{s.usageCount}</Td>
+                    {canViewDebt && (
+                      <Td className="text-right font-semibold text-amber-700">
+                        {s.payable == null ? "—" : formatVND(s.payable)}
+                      </Td>
+                    )}
+                    {canEdit && (
+                      <Td className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(s)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-600 hover:bg-red-50"
+                            onClick={() => onDelete(s)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </Td>
+                    )}
+                  </Tr>
+                  {isOpen &&
+                    s.debtProjects.map((p) => (
+                      <tr
+                        key={p.projectId}
+                        className="border-b border-slate-100 bg-slate-50/60"
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </Td>
-                )}
-              </Tr>
-            ))}
+                        <Td className="pl-9" colSpan={5}>
+                          <Link
+                            href={`/projects/${p.projectId}`}
+                            className="text-slate-700 hover:text-blue-600 hover:underline"
+                          >
+                            {p.label}
+                          </Link>
+                        </Td>
+                        <Td className="text-right text-amber-700">{formatVND(p.payable)}</Td>
+                        {canEdit && <Td />}
+                      </tr>
+                    ))}
+                </FragmentRow>
+              );
+            })}
             {list.length === 0 && (
               <Tr>
-                <Td colSpan={canEdit ? 6 : 5} className="py-8 text-center text-slate-400">
+                <Td colSpan={colCount} className="py-8 text-center text-slate-400">
                   Không có NCC nào
                 </Td>
               </Tr>
@@ -194,4 +256,8 @@ export function SupplierManager({
       </Modal>
     </div>
   );
+}
+
+function FragmentRow({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
 }

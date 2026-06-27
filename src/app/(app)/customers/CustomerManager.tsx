@@ -2,11 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Plus, Pencil, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
+import { formatVND } from "@/lib/utils";
 import { saveCustomer, deleteCustomer } from "./actions";
 
 export interface CustomerRow {
@@ -17,20 +19,33 @@ export interface CustomerRow {
   address: string | null;
   note: string | null;
   projectCount: number;
+  receivable: number | null;
+  debtProjects: { projectId: string; label: string; receivable: number }[];
 }
 
 export function CustomerManager({
   customers,
   canEdit,
+  canViewDebt,
 }: {
   customers: CustomerRow[];
   canEdit: boolean;
+  canViewDebt: boolean;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState<CustomerRow | null>(null);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [pending, start] = useTransition();
+
+  const toggle = (id: string) =>
+    setExpanded((s) => {
+      const n = new Set(s);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  const colCount = 5 + (canViewDebt ? 1 : 0) + (canEdit ? 1 : 0);
 
   function openNew() {
     setEditing(null);
@@ -86,39 +101,88 @@ export function CustomerManager({
               <Th>Điện thoại</Th>
               <Th>Địa chỉ</Th>
               <Th>Số DA</Th>
+              {canViewDebt && <Th className="text-right">Còn phải thu</Th>}
               {canEdit && <Th className="text-right">Thao tác</Th>}
             </tr>
           </THead>
           <tbody>
-            {customers.map((c) => (
-              <Tr key={c.id}>
-                <Td className="font-medium text-slate-900">{c.name}</Td>
-                <Td>{c.contactPerson || "—"}</Td>
-                <Td>{c.phone || "—"}</Td>
-                <Td>{c.address || "—"}</Td>
-                <Td>{c.projectCount}</Td>
-                {canEdit && (
-                  <Td className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(c)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-red-600 hover:bg-red-50"
-                        onClick={() => onDelete(c)}
+            {customers.map((c) => {
+              const isOpen = expanded.has(c.id);
+              const hasDebt = canViewDebt && c.debtProjects.length > 0;
+              return (
+                <FragmentRow key={c.id}>
+                  <Tr>
+                    <Td className="font-medium text-slate-900">
+                      {hasDebt ? (
+                        <button
+                          type="button"
+                          onClick={() => toggle(c.id)}
+                          className="inline-flex items-center gap-1 hover:text-blue-600"
+                        >
+                          {isOpen ? (
+                            <ChevronDown className="h-4 w-4 text-slate-400" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-slate-400" />
+                          )}
+                          {c.name}
+                        </button>
+                      ) : (
+                        c.name
+                      )}
+                    </Td>
+                    <Td>{c.contactPerson || "—"}</Td>
+                    <Td>{c.phone || "—"}</Td>
+                    <Td>{c.address || "—"}</Td>
+                    <Td>{c.projectCount}</Td>
+                    {canViewDebt && (
+                      <Td className="text-right font-semibold text-blue-700">
+                        {c.receivable == null ? "—" : formatVND(c.receivable)}
+                      </Td>
+                    )}
+                    {canEdit && (
+                      <Td className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(c)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-600 hover:bg-red-50"
+                            onClick={() => onDelete(c)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </Td>
+                    )}
+                  </Tr>
+                  {isOpen &&
+                    c.debtProjects.map((p) => (
+                      <tr
+                        key={p.projectId}
+                        className="border-b border-slate-100 bg-slate-50/60"
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </Td>
-                )}
-              </Tr>
-            ))}
+                        <Td className="pl-9" colSpan={5}>
+                          <Link
+                            href={`/projects/${p.projectId}`}
+                            className="text-slate-700 hover:text-blue-600 hover:underline"
+                          >
+                            {p.label}
+                          </Link>
+                        </Td>
+                        <Td className="text-right text-blue-700">
+                          {formatVND(p.receivable)}
+                        </Td>
+                        {canEdit && <Td />}
+                      </tr>
+                    ))}
+                </FragmentRow>
+              );
+            })}
             {customers.length === 0 && (
               <Tr>
-                <Td colSpan={canEdit ? 6 : 5} className="py-8 text-center text-slate-400">
+                <Td colSpan={colCount} className="py-8 text-center text-slate-400">
                   Chưa có chủ đầu tư nào
                 </Td>
               </Tr>
@@ -165,4 +229,8 @@ export function CustomerManager({
       </Modal>
     </div>
   );
+}
+
+function FragmentRow({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
 }
