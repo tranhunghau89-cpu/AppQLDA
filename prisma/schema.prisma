@@ -73,6 +73,7 @@ model Project {
   suppliers      ProjectSupplier[]
   milestones     Milestone[]
   weeklyLogs     WeeklyLog[]
+  progressNotes  ProjectNote[]
   estimateItems  EstimateItem[]
   contracts      Contract[]
   purchaseOrders PurchaseOrder[]
@@ -199,6 +200,17 @@ model WeeklyLog {
   note           String?
 
   @@unique([projectId, year, week])
+}
+
+model ProjectNote {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  content    String
+  authorName String?
+  createdAt  DateTime @default(now())
+
+  @@index([projectId, createdAt])
 }
 
 model EstimateItem {

@@ -30,7 +30,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { href: "/", label: "Tổng quan", icon: LayoutDashboard },
   { href: "/projects", label: "Dự án", icon: FolderKanban, resource: "project" },
-  { href: "/weekly", label: "Tiến độ tuần", icon: CalendarRange, resource: "progress" },
+  { href: "/weekly", label: "Tiến độ", icon: CalendarRange, resource: "progress" },
   { href: "/estimates", label: "Dự toán & chi phí", icon: Calculator, resource: "estimate" },
   { href: "/contracts", label: "Hợp đồng & Báo giá", icon: FileSignature, resource: "contract" },
   { href: "/purchases", label: "Đơn hàng & Mua hàng", icon: ShoppingCart, resource: "purchase" },

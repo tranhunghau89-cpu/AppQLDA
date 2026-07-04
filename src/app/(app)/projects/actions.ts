@@ -3,7 +3,8 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireSession } from "@/lib/auth";
+import { projectNoteDb } from "@/lib/project-notes";
 import {
   PROJECT_STATUS_MAP,
   PROJECT_COMPONENT_MAP,
@@ -191,5 +192,51 @@ export async function setProjectSupplier(
     });
   }
   revalidatePath(`/projects/${projectId}`);
+  return { ok: true };
+}
+
+// ================= Ghi chú dự án (nhật ký có mốc thời gian) =================
+
+export async function addProjectNote(
+  projectId: string,
+  content: string
+): Promise<ActionResult> {
+  let session;
+  try {
+    session = await requirePermission("project", "edit");
+  } catch {
+    return { ok: false, error: "Bạn không có quyền thêm ghi chú." };
+  }
+  const trimmed = content.trim();
+  if (!trimmed) return { ok: false, error: "Nội dung ghi chú không được để trống." };
+  if (trimmed.length > 2000) return { ok: false, error: "Ghi chú quá dài (tối đa 2000 ký tự)." };
+
+  const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } });
+  if (!project) return { ok: false, error: "Không tìm thấy dự án." };
+
+  await projectNoteDb.create({
+    data: { projectId, content: trimmed, authorName: session.name },
+  });
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/weekly");
+  return { ok: true };
+}
+
+export async function deleteProjectNote(
+  noteId: string,
+  projectId: string
+): Promise<ActionResult> {
+  let session;
+  try {
+    session = await requireSession();
+  } catch {
+    return { ok: false, error: "Phiên đăng nhập hết hạn." };
+  }
+  if (session.role !== "ADMIN") {
+    return { ok: false, error: "Chỉ quản trị viên được xóa ghi chú." };
+  }
+  await projectNoteDb.delete({ where: { id: noteId } });
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/weekly");
   return { ok: true };
 }

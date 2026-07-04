@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatVND, formatDate, formatNumber } from "@/lib/utils";
 import { StatusChanger, SupplierAssigner } from "./ProjectDetail";
 import { Milestones, type MilestoneValue } from "./Milestones";
+import { ProjectNotes } from "./Notes";
+import { projectNoteDb } from "@/lib/project-notes";
 import { computeProfit, formatPercent } from "@/lib/profit";
 import { computeContractTotals } from "@/lib/contract";
 import { computeQuoteTotals } from "@/lib/quote";
@@ -83,6 +85,17 @@ export default async function ProjectDetailPage({
       note: m.note,
     };
   }
+
+  const noteRows = await projectNoteDb.findMany({
+    where: { projectId: id },
+    orderBy: { createdAt: "desc" },
+  });
+  const notes = noteRows.map((n) => ({
+    id: n.id,
+    content: n.content,
+    authorName: n.authorName,
+    createdAt: n.createdAt.toISOString(),
+  }));
 
   const suppliers = await db.supplier.findMany({
     orderBy: [{ category: "asc" }, { name: "asc" }],
@@ -364,6 +377,20 @@ export default async function ProjectDetailPage({
             projectId={project.id}
             milestones={milestoneMap}
             canEdit={canEditProgress}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Nhật ký dự án</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ProjectNotes
+            projectId={project.id}
+            notes={notes}
+            canEdit={canEdit}
+            canDelete={session.role === "ADMIN"}
           />
         </CardContent>
       </Card>
