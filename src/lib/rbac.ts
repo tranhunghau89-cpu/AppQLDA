@@ -1,6 +1,6 @@
 // Phân quyền theo bộ phận (RBAC) — dùng chung server + client.
 
-export const ROLES = ["ADMIN", "SALES", "ENGINEERING", "PROCUREMENT"] as const;
+export const ROLES = ["ADMIN", "SALES", "ENGINEERING", "PROCUREMENT", "ACCOUNTING"] as const;
 export type Role = (typeof ROLES)[number];
 
 export const ROLE_LABEL: Record<Role, string> = {
@@ -8,6 +8,7 @@ export const ROLE_LABEL: Record<Role, string> = {
   SALES: "Kinh doanh / CĐT",
   ENGINEERING: "Kỹ thuật / Thiết kế",
   PROCUREMENT: "Vật tư / Mua hàng",
+  ACCOUNTING: "Kế toán / Tài chính",
 };
 
 // Các "tài nguyên" trong hệ thống.
@@ -76,6 +77,18 @@ const MATRIX: Record<Role, Partial<Record<Resource, Action[]>>> = {
     quote: ["view"],
     debt: ["view"],
     supplier: ["view", "edit"],
+  },
+  ACCOUNTING: {
+    project: ["view"],
+    estimate: ["view"],
+    contract: ["view"],
+    purchase: ["view"],
+    cost: ["view", "edit"],
+    quote: ["view"],
+    debt: ["view", "edit"],
+    profit: ["view"],
+    customer: ["view"],
+    supplier: ["view"],
   },
 };
 
