@@ -59,6 +59,7 @@ export interface OrderView {
   supplierName: string | null;
   status: string;
   orderedDate: string | null;
+  expectedDate: string | null;
   receivedDate: string | null;
   value: number | null;
   totalWeight: number | null;
@@ -285,9 +286,12 @@ export function PurchaseEditor({
               ))}
             </Select>
           </Field>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <Field label="Ngày đặt">
               <Input name="orderedDate" type="date" defaultValue={d10(oEditing?.orderedDate ?? null)} />
+            </Field>
+            <Field label="Dự kiến giao">
+              <Input name="expectedDate" type="date" defaultValue={d10(oEditing?.expectedDate ?? null)} />
             </Field>
             <Field label="Ngày nhận">
               <Input name="receivedDate" type="date" defaultValue={d10(oEditing?.receivedDate ?? null)} />
@@ -582,7 +586,9 @@ function OrderCard({
           <div className="text-sm text-slate-500">
             NCC: {order.supplierName ?? "—"} · Ngày đặt:{" "}
             {order.orderedDate ? formatDate(order.orderedDate) : "—"}
+            {order.expectedDate ? ` · Dự kiến giao: ${formatDate(order.expectedDate)}` : ""}
             {order.receivedDate ? ` · Đã nhận: ${formatDate(order.receivedDate)}` : ""}
+            <LateBadge expected={order.expectedDate} received={order.receivedDate} />
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -834,5 +840,24 @@ function ItemImages({
         </>
       )}
     </div>
+  );
+}
+
+function LateBadge({ expected, received }: { expected: string | null; received: string | null }) {
+  if (!expected) return null;
+  const exp = new Date(expected);
+  const end = received ? new Date(received) : new Date();
+  const days = Math.floor((end.getTime() - exp.getTime()) / 86400000);
+  if (days <= 0) {
+    return received ? (
+      <span className="ml-1.5 rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-600">
+        đúng hẹn
+      </span>
+    ) : null;
+  }
+  return (
+    <span className="ml-1.5 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
+      {received ? `giao trễ ${days} ngày` : `quá hẹn ${days} ngày`}
+    </span>
   );
 }

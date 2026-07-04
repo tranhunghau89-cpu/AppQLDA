@@ -9,6 +9,8 @@ import { formatVND, formatDate, formatNumber } from "@/lib/utils";
 import { StatusChanger, SupplierAssigner } from "./ProjectDetail";
 import { Milestones, type MilestoneValue } from "./Milestones";
 import { ProjectNotes } from "./Notes";
+import { DocVersions } from "./DocVersions";
+import { docVersionDb } from "@/lib/doc-versions";
 import { projectNoteDb } from "@/lib/project-notes";
 import { computeProfit, formatPercent } from "@/lib/profit";
 import { computeContractTotals } from "@/lib/contract";
@@ -96,6 +98,26 @@ export default async function ProjectDetailPage({
     authorName: n.authorName,
     createdAt: n.createdAt.toISOString(),
   }));
+
+  const docRows = await docVersionDb.findMany({
+    where: { projectId: id },
+    orderBy: [{ docType: "asc" }, { createdAt: "desc" }],
+  });
+  const docs = docRows.map((d) => ({
+    id: d.id,
+    docType: d.docType,
+    version: d.version,
+    issuedAt: d.issuedAt?.toISOString() ?? null,
+    status: d.status,
+    note: d.note,
+    authorName: d.authorName,
+    createdAt: d.createdAt.toISOString(),
+  }));
+  const canEditTypes = [
+    can(session.role, "quote", "edit") ? "BAO_GIA" : null,
+    can(session.role, "contract", "edit") ? "HOP_DONG" : null,
+    can(session.role, "progress", "edit") ? "SHOP_DRAWING" : null,
+  ].filter((v): v is string => v !== null);
 
   const suppliers = await db.supplier.findMany({
     orderBy: [{ category: "asc" }, { name: "asc" }],
@@ -377,6 +399,20 @@ export default async function ProjectDetailPage({
             projectId={project.id}
             milestones={milestoneMap}
             canEdit={canEditProgress}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Hồ sơ & phiên bản</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DocVersions
+            projectId={project.id}
+            docs={docs}
+            canEditTypes={canEditTypes}
+            canDelete={session.role === "ADMIN"}
           />
         </CardContent>
       </Card>

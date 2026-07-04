@@ -2,8 +2,9 @@ import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
 import { can, type Role } from "@/lib/rbac";
 import { projectNoteDb } from "@/lib/project-notes";
+import { docVersionDb } from "@/lib/doc-versions";
 import { weekRange } from "@/lib/week";
-import { MILESTONE_TYPE } from "@/lib/constants";
+import { MILESTONE_TYPE, DOC_TYPE_MAP, DOC_STATUS_MAP, PO_CATEGORY_MAP } from "@/lib/constants";
 import { ProgressBoard, type ProgressRow, type TimelineEntry } from "./ProgressBoard";
 
 function fmtDateTime(d: Date): string {
@@ -36,6 +37,30 @@ export default async function ProgressPage() {
   });
 
   const allNotes = await projectNoteDb.findMany({ orderBy: { createdAt: "desc" } });
+  const allDocs = await docVersionDb.findMany({ orderBy: [{ createdAt: "desc" }] });
+  const docsByProject = new Map<string, typeof allDocs>();
+  for (const d of allDocs) {
+    const list = docsByProject.get(d.projectId) ?? [];
+    list.push(d);
+    docsByProject.set(d.projectId, list);
+  }
+  const allPos = await db.purchaseOrder.findMany({
+    select: {
+      id: true,
+      projectId: true,
+      orderNo: true,
+      category: true,
+      orderedDate: true,
+      receivedDate: true,
+      supplier: { select: { name: true } },
+    },
+  });
+  const posByProject = new Map<string, typeof allPos>();
+  for (const o of allPos) {
+    const list = posByProject.get(o.projectId) ?? [];
+    list.push(o);
+    posByProject.set(o.projectId, list);
+  }
   const notesByProject = new Map<string, typeof allNotes>();
   for (const n of allNotes) {
     const list = notesByProject.get(n.projectId) ?? [];
@@ -67,8 +92,49 @@ export default async function ProgressPage() {
         content: w.note ?? "",
       }));
 
-    const timeline = [...noteEntries, ...weekEntries].sort((a, b) =>
-      b.dateIso.localeCompare(a.dateIso)
+    const docEntries: TimelineEntry[] = (docsByProject.get(p.id) ?? []).map((d) => {
+      const when = d.issuedAt ?? d.createdAt;
+      const typeLabel = DOC_TYPE_MAP[d.docType]?.label ?? d.docType;
+      const stLabel = DOC_STATUS_MAP[d.status]?.label ?? d.status;
+      return {
+        key: `doc-${d.id}`,
+        kind: "doc" as const,
+        dateIso: when.toISOString(),
+        label: fmtDateTime(when),
+        author: d.authorName,
+        content: `${typeLabel} ${d.version} — ${stLabel}${d.note ? `: ${d.note}` : ""}`,
+      };
+    });
+
+    const poEntries: TimelineEntry[] = [];
+    for (const o of posByProject.get(p.id) ?? []) {
+      const catLabel = PO_CATEGORY_MAP[o.category]?.label ?? o.category;
+      const name = o.orderNo ? `${catLabel} (${o.orderNo})` : catLabel;
+      const ncc = o.supplier?.name ? ` — NCC: ${o.supplier.name}` : "";
+      if (o.orderedDate) {
+        poEntries.push({
+          key: `po-order-${o.id}`,
+          kind: "po" as const,
+          dateIso: o.orderedDate.toISOString(),
+          label: fmtDateTime(o.orderedDate),
+          author: null,
+          content: `Đặt hàng ${name}${ncc}`,
+        });
+      }
+      if (o.receivedDate) {
+        poEntries.push({
+          key: `po-recv-${o.id}`,
+          kind: "po" as const,
+          dateIso: o.receivedDate.toISOString(),
+          label: fmtDateTime(o.receivedDate),
+          author: null,
+          content: `Nhận hàng ${name}${ncc}`,
+        });
+      }
+    }
+
+    const timeline = [...noteEntries, ...weekEntries, ...docEntries, ...poEntries].sort(
+      (a, b) => b.dateIso.localeCompare(a.dateIso)
     );
 
     return {

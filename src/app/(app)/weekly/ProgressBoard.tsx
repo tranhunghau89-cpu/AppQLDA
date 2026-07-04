@@ -9,7 +9,7 @@ import { PROJECT_STATUS_MAP, MILESTONE_TYPE_MAP } from "@/lib/constants";
 
 export interface TimelineEntry {
   key: string;
-  kind: "note" | "week";
+  kind: "note" | "week" | "doc" | "po";
   noteId?: string;
   dateIso: string; // để sắp xếp
   label: string; // "10:35 04/07/2026" hoặc "Tuần 27/2026"
@@ -219,7 +219,7 @@ function RowGroup({
                   <li key={t.key} className="relative">
                     <span
                       className={`absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full ${
-                        t.kind === "note" ? "bg-blue-400" : "bg-amber-400"
+                        { note: "bg-blue-400", week: "bg-amber-400", doc: "bg-purple-400", po: "bg-green-500" }[t.kind]
                       }`}
                     />
                     <div className="text-xs text-slate-400">

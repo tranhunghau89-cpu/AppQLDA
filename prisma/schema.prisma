@@ -74,6 +74,7 @@ model Project {
   milestones     Milestone[]
   weeklyLogs     WeeklyLog[]
   progressNotes  ProjectNote[]
+  docVersions    DocVersion[]
   estimateItems  EstimateItem[]
   contracts      Contract[]
   purchaseOrders PurchaseOrder[]
@@ -87,11 +88,12 @@ model PurchaseOrder {
   project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   orderNo      String? // số/tên đơn
   orderDate    DateTime?
-  category     String // BL | TON | PANEL | CUALUA | PK | KHAC
+  category     String // KCT | XA_GO | TON | VTP
   supplierId   String?
   supplier     Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   status       String    @default("DRAFT") // DRAFT | ORDERED | RECEIVED
   orderedDate  DateTime?
+  expectedDate DateTime? // dự kiến giao
   receivedDate DateTime?
   value        Float? // Σ thành tiền
   totalWeight  Float? // Σ trọng lượng (kg)
@@ -211,6 +213,21 @@ model ProjectNote {
   createdAt  DateTime @default(now())
 
   @@index([projectId, createdAt])
+}
+
+model DocVersion {
+  id         String    @id @default(cuid())
+  projectId  String
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  docType    String // BAO_GIA | HOP_DONG | SHOP_DRAWING
+  version    String // R0, R1, v1...
+  issuedAt   DateTime? // ngày phát hành / gửi
+  status     String    @default("DRAFT") // DRAFT | SENT | APPROVED | SUPERSEDED
+  note       String?
+  authorName String?
+  createdAt  DateTime  @default(now())
+
+  @@index([projectId, docType, createdAt])
 }
 
 model EstimateItem {

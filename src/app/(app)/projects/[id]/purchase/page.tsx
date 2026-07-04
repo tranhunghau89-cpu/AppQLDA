@@ -46,6 +46,7 @@ export default async function PurchasePage({
     supplierName: o.supplier?.name ?? null,
     status: o.status,
     orderedDate: o.orderedDate?.toISOString() ?? null,
+    expectedDate: (o as { expectedDate?: Date | null }).expectedDate?.toISOString() ?? null,
     receivedDate: o.receivedDate?.toISOString() ?? null,
     value: o.value,
     totalWeight: o.totalWeight,
