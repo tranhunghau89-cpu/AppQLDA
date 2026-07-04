@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
+import { can, type Role } from "@/lib/rbac";
 import { projectNoteDb } from "@/lib/project-notes";
 import { weekRange } from "@/lib/week";
 import { MILESTONE_TYPE } from "@/lib/constants";
@@ -14,7 +15,9 @@ function fmtDateTime(d: Date): string {
 }
 
 export default async function ProgressPage() {
-  await requireView("progress");
+  const session = await requireView("progress");
+  const canEdit = can(session.role as Role, "project", "edit");
+  const canDelete = session.role === "ADMIN";
 
   const projects = await db.project.findMany({
     orderBy: { code: "desc" },
@@ -46,6 +49,7 @@ export default async function ProgressPage() {
     const noteEntries: TimelineEntry[] = (notesByProject.get(p.id) ?? []).map((n) => ({
       key: `note-${n.id}`,
       kind: "note" as const,
+      noteId: n.id,
       dateIso: n.createdAt.toISOString(),
       label: fmtDateTime(n.createdAt),
       author: n.authorName,
@@ -90,7 +94,7 @@ export default async function ProgressPage() {
           trong trang chi tiết dự án
         </p>
       </div>
-      <ProgressBoard rows={rows} />
+      <ProgressBoard rows={rows} canEdit={canEdit} canDelete={canDelete} />
     </div>
   );
 }
