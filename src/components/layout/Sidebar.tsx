@@ -6,6 +6,8 @@ import {
   LayoutDashboard,
   FolderKanban,
   CalendarRange,
+  GanttChart,
+  CheckCheck,
   Calculator,
   FileSignature,
   ShoppingCart,
@@ -31,6 +33,7 @@ const NAV: NavItem[] = [
   { href: "/", label: "Tổng quan", icon: LayoutDashboard },
   { href: "/projects", label: "Dự án", icon: FolderKanban, resource: "project" },
   { href: "/weekly", label: "Tiến độ", icon: CalendarRange, resource: "progress" },
+  { href: "/gantt", label: "Kế hoạch (Gantt)", icon: GanttChart, resource: "progress" },
   { href: "/estimates", label: "Dự toán & chi phí", icon: Calculator, resource: "estimate" },
   { href: "/contracts", label: "Hợp đồng & Báo giá", icon: FileSignature, resource: "contract" },
   { href: "/purchases", label: "Đơn hàng & Mua hàng", icon: ShoppingCart, resource: "purchase" },
@@ -39,6 +42,7 @@ const NAV: NavItem[] = [
   { href: "/debts", label: "Công nợ", icon: HandCoins, resource: "debt" },
   { href: "/customers", label: "Chủ đầu tư", icon: Building2, resource: "customer" },
   { href: "/suppliers", label: "Nhà cung cấp", icon: Truck, resource: "supplier" },
+  { href: "/approvals", label: "Phê duyệt", icon: CheckCheck },
   { href: "/users", label: "Người dùng", icon: Users, resource: "user" },
 ];
 

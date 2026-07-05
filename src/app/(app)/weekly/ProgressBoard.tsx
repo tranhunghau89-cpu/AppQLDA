@@ -26,6 +26,7 @@ export interface ProgressRow {
   milestoneDone: number;
   milestoneTotal: number;
   doneTypes: string[];
+  lateTypes: Record<string, number>;
   latest: TimelineEntry | null;
   timeline: TimelineEntry[];
 }
@@ -133,7 +134,14 @@ function RowGroup({
           {r.location ? <span className="ml-1.5 text-xs text-slate-400">· {r.location}</span> : null}
         </td>
         <td className="px-3 py-2.5">
-          <Badge tone={st?.tone ?? "slate"}>{st?.label ?? r.status}</Badge>
+          <div className="flex items-center gap-1.5">
+            <Badge tone={st?.tone ?? "slate"}>{st?.label ?? r.status}</Badge>
+            {Object.keys(r.lateTypes).length > 0 && (
+              <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
+                trễ {Object.keys(r.lateTypes).length} mốc
+              </span>
+            )}
+          </div>
         </td>
         <td className="px-3 py-2.5">
           <div className="flex items-center gap-2">
@@ -170,10 +178,14 @@ function RowGroup({
                   className={`rounded-full px-2 py-0.5 text-xs ${
                     r.doneTypes.includes(type)
                       ? "bg-green-100 text-green-700"
-                      : "bg-slate-100 text-slate-400"
+                      : r.lateTypes[type] != null
+                        ? "bg-red-100 font-medium text-red-700"
+                        : "bg-slate-100 text-slate-400"
                   }`}
+                  title={r.lateTypes[type] != null ? `Quá hạn kế hoạch ${r.lateTypes[type]} ngày` : undefined}
                 >
                   {opt.label}
+                  {r.lateTypes[type] != null ? ` (trễ ${r.lateTypes[type]}n)` : ""}
                 </span>
               ))}
               <Link

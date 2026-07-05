@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { FolderKanban, Hammer, CheckCircle2, TrendingUp } from "lucide-react";
+import { FolderKanban, Hammer, CheckCircle2, TrendingUp, AlertTriangle } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { PROJECT_STATUS } from "@/lib/constants";
+import { PROJECT_STATUS, MILESTONE_TYPE_MAP } from "@/lib/constants";
 import { computeProfit } from "@/lib/profit";
 import { formatVND, formatDate } from "@/lib/utils";
 import { StatusChart, CostSaleChart } from "./DashboardCharts";
@@ -28,6 +28,7 @@ export default async function DashboardPage() {
         },
       },
       costSummary: { select: { revenue: true, cost: true } },
+      milestones: { select: { type: true, done: true, planDate: true } },
     },
   });
 
@@ -66,6 +67,23 @@ export default async function DashboardPage() {
     .slice(0, 6)
     .reverse();
 
+  // Mốc trễ hạn: chưa xong mà quá ngày kế hoạch
+  const nowTs = Date.now();
+  const lateItems: { code: string; id: string; type: string; days: number }[] = [];
+  for (const p of projects) {
+    for (const m of p.milestones) {
+      if (!m.done && m.planDate && m.planDate.getTime() < nowTs) {
+        lateItems.push({
+          code: p.code,
+          id: p.id,
+          type: m.type,
+          days: Math.floor((nowTs - m.planDate.getTime()) / 86400000),
+        });
+      }
+    }
+  }
+  lateItems.sort((a, b) => b.days - a.days);
+
   const recent = projects.slice(0, 5);
 
   return (
@@ -100,6 +118,36 @@ export default async function DashboardPage() {
           />
         )}
       </div>
+
+      {lateItems.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" /> Mốc trễ hạn ({lateItems.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {lateItems.slice(0, 12).map((it, i) => (
+                <Link
+                  key={i}
+                  href={`/projects/${it.id}`}
+                  className="rounded-lg bg-red-50 px-3 py-1.5 text-sm text-red-700 hover:bg-red-100"
+                >
+                  <span className="font-mono font-semibold">{it.code}</span> ·{" "}
+                  {MILESTONE_TYPE_MAP[it.type]?.label ?? it.type} —{" "}
+                  <span className="font-semibold">trễ {it.days} ngày</span>
+                </Link>
+              ))}
+              {lateItems.length > 12 && (
+                <span className="px-2 py-1.5 text-sm text-slate-400">
+                  +{lateItems.length - 12} mốc khác
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {canViewProfit && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

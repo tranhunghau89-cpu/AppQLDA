@@ -28,7 +28,7 @@ export default async function ProgressPage() {
       name: true,
       status: true,
       location: true,
-      milestones: { select: { type: true, done: true } },
+      milestones: { select: { type: true, done: true, planDate: true, actualDate: true } },
       weeklyLogs: {
         orderBy: [{ year: "desc" }, { week: "desc" }],
         select: { year: true, week: true, note: true },
@@ -70,6 +70,13 @@ export default async function ProgressPage() {
 
   const rows: ProgressRow[] = projects.map((p) => {
     const doneTypes = p.milestones.filter((m) => m.done).map((m) => m.type);
+    const now = Date.now();
+    const lateTypes: Record<string, number> = {};
+    for (const m of p.milestones) {
+      if (!m.done && m.planDate && m.planDate.getTime() < now) {
+        lateTypes[m.type] = Math.floor((now - m.planDate.getTime()) / 86400000);
+      }
+    }
 
     const noteEntries: TimelineEntry[] = (notesByProject.get(p.id) ?? []).map((n) => ({
       key: `note-${n.id}`,
@@ -146,6 +153,7 @@ export default async function ProgressPage() {
       milestoneDone: doneTypes.length,
       milestoneTotal: MILESTONE_TYPE.length,
       doneTypes,
+      lateTypes,
       latest: timeline[0] ?? null,
       timeline,
     };

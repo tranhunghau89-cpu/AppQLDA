@@ -75,6 +75,7 @@ model Project {
   weeklyLogs     WeeklyLog[]
   progressNotes  ProjectNote[]
   docVersions    DocVersion[]
+  proposals      Proposal[]
   estimateItems  EstimateItem[]
   contracts      Contract[]
   purchaseOrders PurchaseOrder[]
@@ -228,6 +229,26 @@ model DocVersion {
   createdAt  DateTime  @default(now())
 
   @@index([projectId, docType, createdAt])
+}
+
+// Đề xuất & phê duyệt online (mua hàng, thanh toán...).
+model Proposal {
+  id           String    @id @default(cuid())
+  title        String
+  kind         String    @default("MUA_HANG") // MUA_HANG | THANH_TOAN | KHAC
+  amount       Float?
+  content      String?
+  projectId    String?
+  project      Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  status       String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  createdBy    String
+  decidedBy    String?
+  decisionNote String?
+  decidedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([status, createdAt])
 }
 
 model EstimateItem {

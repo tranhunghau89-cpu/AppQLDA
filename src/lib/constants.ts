@@ -164,3 +164,18 @@ export const DOC_STATUS: Option[] = [
   { value: "SUPERSEDED", label: "Bị thay thế", tone: "amber" },
 ];
 export const DOC_STATUS_MAP = map(DOC_STATUS);
+
+// ----- Đề xuất & phê duyệt -----
+export const PROPOSAL_KIND: Option[] = [
+  { value: "MUA_HANG", label: "Mua hàng / vật tư", tone: "blue" },
+  { value: "THANH_TOAN", label: "Thanh toán", tone: "amber" },
+  { value: "KHAC", label: "Khác", tone: "slate" },
+];
+export const PROPOSAL_KIND_MAP = map(PROPOSAL_KIND);
+
+export const PROPOSAL_STATUS: Option[] = [
+  { value: "PENDING", label: "Chờ duyệt", tone: "amber" },
+  { value: "APPROVED", label: "Đã duyệt", tone: "green" },
+  { value: "REJECTED", label: "Từ chối", tone: "red" },
+];
+export const PROPOSAL_STATUS_MAP = map(PROPOSAL_STATUS);
