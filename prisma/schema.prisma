@@ -76,6 +76,7 @@ model Project {
   progressNotes  ProjectNote[]
   docVersions    DocVersion[]
   proposals      Proposal[]
+  payments       Payment[]
   estimateItems  EstimateItem[]
   contracts      Contract[]
   purchaseOrders PurchaseOrder[]
@@ -206,14 +207,25 @@ model WeeklyLog {
 }
 
 model ProjectNote {
-  id         String   @id @default(cuid())
+  id         String      @id @default(cuid())
   projectId  String
-  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   content    String
   authorName String?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime    @default(now())
+  images     NoteImage[]
 
   @@index([projectId, createdAt])
+}
+
+// Ảnh đính kèm ghi chú (lưu trên Supabase Storage, chỉ giữ key).
+model NoteImage {
+  id        String      @id @default(cuid())
+  noteId    String
+  note      ProjectNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  key       String // đường dẫn trong bucket
+  mime      String      @default("image/jpeg")
+  createdAt DateTime    @default(now())
 }
 
 model DocVersion {
@@ -249,6 +261,26 @@ model Proposal {
   updatedAt    DateTime  @updatedAt
 
   @@index([status, createdAt])
+}
+
+// Thanh toán theo đợt: THU (từ CĐT) / CHI (cho NCC, thầu phụ).
+model Payment {
+  id          String    @id @default(cuid())
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  direction   String // THU | CHI
+  counterpart String? // tên CĐT / NCC
+  name        String // Tạm ứng, Đợt 1, Quyết toán...
+  amount      Float? // số tiền theo kế hoạch
+  dueDate     DateTime? // hạn thu / hạn trả
+  paidDate    DateTime? // ngày thực thu / thực trả
+  paidAmount  Float? // số tiền thực tế
+  note        String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([projectId, direction])
+  @@index([direction, dueDate])
 }
 
 model EstimateItem {

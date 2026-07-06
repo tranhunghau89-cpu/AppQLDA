@@ -4,8 +4,10 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePermission, requireSession } from "@/lib/auth";
-import { projectNoteDb } from "@/lib/project-notes";
+import { projectNoteDb, noteImageDb } from "@/lib/project-notes";
+import { uploadFile, isStorageConfigured } from "@/lib/storage";
 import { docVersionDb } from "@/lib/doc-versions";
+import { paymentDb } from "@/lib/payments";
 import {
   PROJECT_STATUS_MAP,
   PROJECT_COMPONENT_MAP,
@@ -201,7 +203,7 @@ export async function setProjectSupplier(
 
 export async function addProjectNote(
   projectId: string,
-  content: string
+  form: FormData
 ): Promise<ActionResult> {
   let session;
   try {
@@ -209,16 +211,37 @@ export async function addProjectNote(
   } catch {
     return { ok: false, error: "Bạn không có quyền thêm ghi chú." };
   }
-  const trimmed = content.trim();
+  const trimmed = String(form.get("content") ?? "").trim();
   if (!trimmed) return { ok: false, error: "Nội dung ghi chú không được để trống." };
   if (trimmed.length > 2000) return { ok: false, error: "Ghi chú quá dài (tối đa 2000 ký tự)." };
+
+  const files = form
+    .getAll("images")
+    .filter((f): f is File => f instanceof File && f.size > 0);
+  if (files.length > 5) return { ok: false, error: "Tối đa 5 ảnh mỗi ghi chú." };
+  for (const f of files) {
+    if (!f.type.startsWith("image/")) return { ok: false, error: `"${f.name}" không phải file ảnh.` };
+    if (f.size > 5 * 1024 * 1024) return { ok: false, error: `Ảnh "${f.name}" vượt 5MB.` };
+  }
+  if (files.length > 0 && !isStorageConfigured()) {
+    return { ok: false, error: "Chưa cấu hình Supabase Storage để lưu ảnh." };
+  }
 
   const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } });
   if (!project) return { ok: false, error: "Không tìm thấy dự án." };
 
-  await projectNoteDb.create({
+  const note = await projectNoteDb.create({
     data: { projectId, content: trimmed, authorName: session.name },
   });
+
+  for (const f of files) {
+    const safe = f.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-60);
+    const key = `notes/${projectId}/${note.id}/${Date.now()}-${safe}`;
+    const buf = Buffer.from(await f.arrayBuffer());
+    await uploadFile(key, buf, f.type || "image/jpeg");
+    await noteImageDb.create({ data: { noteId: note.id, key, mime: f.type || "image/jpeg" } });
+  }
+
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/weekly");
   return { ok: true };
@@ -308,5 +331,90 @@ export async function deleteDocVersion(
   await docVersionDb.delete({ where: { id: docId } });
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/weekly");
+  return { ok: true };
+}
+
+// ================= Thanh toán theo đợt =================
+
+export async function addPayment(projectId: string, form: FormData): Promise<ActionResult> {
+  try {
+    await requirePermission("cost", "edit");
+  } catch {
+    return { ok: false, error: "Bạn không có quyền thêm đợt thanh toán." };
+  }
+  const direction = String(form.get("direction") ?? "");
+  if (direction !== "THU" && direction !== "CHI") {
+    return { ok: false, error: "Loại thanh toán không hợp lệ." };
+  }
+  const name = String(form.get("name") ?? "").trim();
+  if (!name) return { ok: false, error: "Nhập tên đợt (Tạm ứng, Đợt 1...)." };
+  const amountRaw = String(form.get("amount") ?? "").replace(/[.,\s]/g, "");
+  const amount = amountRaw ? Number(amountRaw) : null;
+  if (amount !== null && (!Number.isFinite(amount) || amount < 0)) {
+    return { ok: false, error: "Số tiền không hợp lệ." };
+  }
+  const dueRaw = String(form.get("dueDate") ?? "").trim();
+  const counterpart = String(form.get("counterpart") ?? "").trim();
+  const note = String(form.get("note") ?? "").trim();
+
+  const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } });
+  if (!project) return { ok: false, error: "Không tìm thấy dự án." };
+
+  await paymentDb.create({
+    data: {
+      projectId,
+      direction,
+      counterpart: counterpart || null,
+      name,
+      amount,
+      dueDate: dueRaw ? new Date(dueRaw) : null,
+      note: note || null,
+    },
+  });
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/");
+  return { ok: true };
+}
+
+export async function markPaymentPaid(
+  paymentId: string,
+  projectId: string,
+  paidDateStr: string,
+  paidAmountStr: string
+): Promise<ActionResult> {
+  try {
+    await requirePermission("cost", "edit");
+  } catch {
+    return { ok: false, error: "Bạn không có quyền cập nhật thanh toán." };
+  }
+  const found = await paymentDb.findUnique({ where: { id: paymentId } });
+  if (!found) return { ok: false, error: "Không tìm thấy đợt thanh toán." };
+
+  const paidRaw = paidAmountStr.replace(/[.,\s]/g, "");
+  const paidAmount = paidRaw ? Number(paidRaw) : (found.amount ?? null);
+  if (paidAmount !== null && (!Number.isFinite(paidAmount) || paidAmount < 0)) {
+    return { ok: false, error: "Số tiền thực tế không hợp lệ." };
+  }
+  await paymentDb.update({
+    where: { id: paymentId },
+    data: {
+      paidDate: paidDateStr ? new Date(paidDateStr) : new Date(),
+      paidAmount,
+    },
+  });
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/");
+  return { ok: true };
+}
+
+export async function deletePayment(paymentId: string, projectId: string): Promise<ActionResult> {
+  try {
+    await requirePermission("cost", "edit");
+  } catch {
+    return { ok: false, error: "Bạn không có quyền xóa đợt thanh toán." };
+  }
+  await paymentDb.delete({ where: { id: paymentId } });
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/");
   return { ok: true };
 }

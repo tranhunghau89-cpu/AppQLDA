@@ -25,3 +25,20 @@ interface ProjectNoteDelegate {
 }
 
 export const projectNoteDb = (db as unknown as { projectNote: ProjectNoteDelegate }).projectNote;
+
+export interface NoteImageRow {
+  id: string;
+  noteId: string;
+  key: string;
+  mime: string;
+}
+
+interface NoteImageDelegate {
+  findMany(args?: {
+    where?: { noteId?: string | { in: string[] } };
+    orderBy?: Record<string, "asc" | "desc">;
+  }): Promise<NoteImageRow[]>;
+  create(args: { data: { noteId: string; key: string; mime: string } }): Promise<NoteImageRow>;
+}
+
+export const noteImageDb = (db as unknown as { noteImage: NoteImageDelegate }).noteImage;

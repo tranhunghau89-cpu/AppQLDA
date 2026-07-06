@@ -15,6 +15,7 @@ export interface TimelineEntry {
   label: string; // "10:35 04/07/2026" hoặc "Tuần 27/2026"
   author: string | null;
   content: string;
+  images?: string[];
 }
 
 export interface ProgressRow {
@@ -103,15 +104,17 @@ function RowGroup({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const submit = () => {
-    const content = inputRef.current?.value ?? "";
-    if (!content.trim()) return;
+    if (!formRef.current) return;
+    const form = new FormData(formRef.current);
+    if (!String(form.get("content") ?? "").trim()) return;
     setError(null);
     startTransition(async () => {
-      const res = await addProjectNote(r.id, content);
+      const res = await addProjectNote(r.id, form);
       if (!res.ok) setError(res.error);
-      else if (inputRef.current) inputRef.current.value = "";
+      else formRef.current?.reset();
     });
   };
 
@@ -197,9 +200,10 @@ function RowGroup({
               </Link>
             </div>
             {canEdit && (
-              <div className="mb-3 space-y-2">
+              <form ref={formRef} className="mb-3 space-y-2">
                 <textarea
                   ref={inputRef}
+                  name="content"
                   rows={2}
                   placeholder="Thêm ghi chú tiến độ... (thời gian lưu tự động, Ctrl+Enter để lưu)"
                   className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
@@ -208,9 +212,20 @@ function RowGroup({
                     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) submit();
                   }}
                 />
-                <div className="flex items-center justify-between gap-3">
-                  {error ? <p className="text-sm text-red-600">{error}</p> : <span />}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      name="images"
+                      accept="image/*"
+                      multiple
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-xs text-slate-500 file:mr-2 file:rounded-md file:border-0 file:bg-slate-100 file:px-2.5 file:py-1 file:text-xs file:text-slate-600"
+                    />
+                    {error && <p className="text-sm text-red-600">{error}</p>}
+                  </div>
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       submit();
@@ -221,7 +236,7 @@ function RowGroup({
                     {pending ? "Đang lưu..." : "Thêm ghi chú"}
                   </button>
                 </div>
-              </div>
+              </form>
             )}
             {r.timeline.length === 0 ? (
               <p className="text-sm text-slate-400">Chưa có ghi chú nào.</p>
@@ -240,7 +255,19 @@ function RowGroup({
                       {t.kind === "week" ? " · nhật ký tuần (cũ)" : ""}
                     </div>
                     <div className="flex items-start justify-between gap-2">
-                      <p className="mt-0.5 whitespace-pre-wrap text-sm text-slate-800">{t.content}</p>
+                      <div>
+                        <p className="mt-0.5 whitespace-pre-wrap text-sm text-slate-800">{t.content}</p>
+                        {t.images && t.images.length > 0 && (
+                          <div className="mt-1.5 flex flex-wrap gap-2">
+                            {t.images.map((url, i) => (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <a key={i} href={url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                                <img src={url} alt="Ảnh" className="h-16 w-16 rounded-md border border-slate-200 object-cover hover:opacity-80" />
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                       {canDelete && t.kind === "note" && t.noteId && (
                         <button
                           onClick={(e) => {

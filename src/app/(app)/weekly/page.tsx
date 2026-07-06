@@ -1,7 +1,8 @@
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
 import { can, type Role } from "@/lib/rbac";
-import { projectNoteDb } from "@/lib/project-notes";
+import { projectNoteDb, noteImageDb } from "@/lib/project-notes";
+import { signedUrl } from "@/lib/storage";
 import { docVersionDb } from "@/lib/doc-versions";
 import { weekRange } from "@/lib/week";
 import { MILESTONE_TYPE, DOC_TYPE_MAP, DOC_STATUS_MAP, PO_CATEGORY_MAP } from "@/lib/constants";
@@ -37,6 +38,17 @@ export default async function ProgressPage() {
   });
 
   const allNotes = await projectNoteDb.findMany({ orderBy: { createdAt: "desc" } });
+  const allNoteImgs = allNotes.length
+    ? await noteImageDb.findMany({ where: { noteId: { in: allNotes.map((n) => n.id) } } })
+    : [];
+  const imgUrlByNote = new Map<string, string[]>();
+  for (const im of allNoteImgs) {
+    const url = await signedUrl(im.key);
+    if (!url) continue;
+    const list = imgUrlByNote.get(im.noteId) ?? [];
+    list.push(url);
+    imgUrlByNote.set(im.noteId, list);
+  }
   const allDocs = await docVersionDb.findMany({ orderBy: [{ createdAt: "desc" }] });
   const docsByProject = new Map<string, typeof allDocs>();
   for (const d of allDocs) {
@@ -86,6 +98,7 @@ export default async function ProgressPage() {
       label: fmtDateTime(n.createdAt),
       author: n.authorName,
       content: n.content,
+      images: imgUrlByNote.get(n.id) ?? [],
     }));
 
     const weekEntries: TimelineEntry[] = p.weeklyLogs

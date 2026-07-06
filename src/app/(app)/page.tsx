@@ -1,14 +1,15 @@
 import Link from "next/link";
-import { FolderKanban, Hammer, CheckCircle2, TrendingUp, AlertTriangle } from "lucide-react";
+import { FolderKanban, Hammer, CheckCircle2, TrendingUp, AlertTriangle, Download } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { PROJECT_STATUS, MILESTONE_TYPE_MAP } from "@/lib/constants";
+import { PROJECT_STATUS, MILESTONE_TYPE, MILESTONE_TYPE_MAP } from "@/lib/constants";
 import { computeProfit } from "@/lib/profit";
 import { formatVND, formatDate } from "@/lib/utils";
 import { StatusChart, CostSaleChart } from "./DashboardCharts";
+import { paymentDb } from "@/lib/payments";
 
 export default async function DashboardPage() {
   const session = await requireSession();
@@ -84,15 +85,48 @@ export default async function DashboardPage() {
   }
   lateItems.sort((a, b) => b.days - a.days);
 
+  // Dòng tiền từ các đợt thanh toán
+  const canViewDebt = can(session.role, "debt", "view");
+  let cash = { thuPlan: 0, thuPaid: 0, chiPlan: 0, chiPaid: 0, dueSoon: 0, overdue: 0 };
+  if (canViewDebt) {
+    const pays = await paymentDb.findMany({});
+    const soon = Date.now() + 14 * 86400000;
+    for (const x of pays) {
+      const plan = x.amount ?? 0;
+      const paid = x.paidAmount ?? 0;
+      if (x.direction === "THU") {
+        cash.thuPlan += plan;
+        cash.thuPaid += x.paidDate ? (x.paidAmount ?? plan) : 0;
+      } else {
+        cash.chiPlan += plan;
+        cash.chiPaid += x.paidDate ? (x.paidAmount ?? plan) : 0;
+      }
+      void paid;
+      if (!x.paidDate && x.dueDate) {
+        if (x.dueDate.getTime() < Date.now()) cash.overdue += 1;
+        else if (x.dueDate.getTime() < soon) cash.dueSoon += 1;
+      }
+    }
+  }
+  const hasCash = cash.thuPlan + cash.chiPlan + cash.thuPaid + cash.chiPaid > 0;
+
   const recent = projects.slice(0, 5);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Tổng quan</h1>
-        <p className="text-sm text-slate-500">
-          Xin chào {session.name} — bức tranh toàn cảnh dự án
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">Tổng quan</h1>
+          <p className="text-sm text-slate-500">
+            Xin chào {session.name} — bức tranh toàn cảnh dự án
+          </p>
+        </div>
+        <a
+          href="/api/reports/summary"
+          className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
+          <Download className="h-4 w-4" /> Xuất báo cáo Excel
+        </a>
       </div>
 
       {/* Thẻ thống kê */}
@@ -118,6 +152,42 @@ export default async function DashboardPage() {
           />
         )}
       </div>
+
+      {canViewDebt && hasCash && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Dòng tiền (theo đợt thanh toán)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-lg bg-slate-50 px-3 py-2">
+                <div className="text-xs text-slate-500">Đã thu / KH thu</div>
+                <div className="font-semibold text-blue-600">
+                  {formatVND(cash.thuPaid)}
+                  <span className="text-xs font-normal text-slate-400"> / {formatVND(cash.thuPlan)}</span>
+                </div>
+              </div>
+              <div className="rounded-lg bg-slate-50 px-3 py-2">
+                <div className="text-xs text-slate-500">Đã chi / KH chi</div>
+                <div className="font-semibold text-amber-600">
+                  {formatVND(cash.chiPaid)}
+                  <span className="text-xs font-normal text-slate-400"> / {formatVND(cash.chiPlan)}</span>
+                </div>
+              </div>
+              <div className="rounded-lg bg-slate-50 px-3 py-2">
+                <div className="text-xs text-slate-500">Đến hạn 14 ngày tới</div>
+                <div className="font-semibold text-slate-900">{cash.dueSoon} đợt</div>
+              </div>
+              <div className="rounded-lg bg-slate-50 px-3 py-2">
+                <div className="text-xs text-slate-500">Quá hạn</div>
+                <div className={`font-semibold ${cash.overdue > 0 ? "text-red-600" : "text-green-600"}`}>
+                  {cash.overdue} đợt
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {lateItems.length > 0 && (
         <Card>
@@ -209,6 +279,21 @@ export default async function DashboardPage() {
                 </span>
               </div>
               <div className="flex items-center gap-4">
+                {(() => {
+                  const doneCount = p.milestones.filter((m) => m.done).length;
+                  const pct = Math.round((doneCount / MILESTONE_TYPE.length) * 100);
+                  return (
+                    <span className="flex items-center gap-2" title={`${doneCount}/${MILESTONE_TYPE.length} mốc hoàn thành`}>
+                      <span className="h-1.5 w-24 overflow-hidden rounded-full bg-slate-100">
+                        <span
+                          className="block h-full rounded-full bg-green-500"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </span>
+                      <span className="w-9 text-right text-xs font-medium text-slate-500">{pct}%</span>
+                    </span>
+                  );
+                })()}
                 <StatusBadge status={p.status} />
                 <span className="text-sm text-slate-400">{formatDate(p.updatedAt)}</span>
               </div>

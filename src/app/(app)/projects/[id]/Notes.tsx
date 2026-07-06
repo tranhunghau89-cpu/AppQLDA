@@ -9,6 +9,7 @@ export interface NoteItem {
   content: string;
   authorName: string | null;
   createdAt: string; // ISO
+  images: string[]; // signed URLs
 }
 
 export function formatDateTime(iso: string): string {
@@ -35,15 +36,17 @@ export function ProjectNotes({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const ref = useRef<HTMLTextAreaElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const submit = () => {
-    const content = ref.current?.value ?? "";
-    if (!content.trim()) return;
+    if (!formRef.current) return;
+    const form = new FormData(formRef.current);
+    if (!String(form.get("content") ?? "").trim()) return;
     setError(null);
     startTransition(async () => {
-      const res = await addProjectNote(projectId, content);
+      const res = await addProjectNote(projectId, form);
       if (!res.ok) setError(res.error);
-      else if (ref.current) ref.current.value = "";
+      else formRef.current?.reset();
     });
   };
 
@@ -58,9 +61,10 @@ export function ProjectNotes({
   return (
     <div className="space-y-4">
       {canEdit && (
-        <div className="space-y-2">
+        <form ref={formRef} className="space-y-2">
           <textarea
             ref={ref}
+            name="content"
             rows={2}
             placeholder="Ghi chú tiến độ, vướng mắc, chỉ đạo... (thời gian được lưu tự động)"
             className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
@@ -68,9 +72,19 @@ export function ProjectNotes({
               if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) submit();
             }}
           />
-          <div className="flex items-center justify-between gap-3">
-            {error ? <p className="text-sm text-red-600">{error}</p> : <span />}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <input
+                type="file"
+                name="images"
+                accept="image/*"
+                multiple
+                className="text-xs text-slate-500 file:mr-2 file:rounded-md file:border-0 file:bg-slate-100 file:px-2.5 file:py-1 file:text-xs file:text-slate-600"
+              />
+              {error && <p className="text-sm text-red-600">{error}</p>}
+            </div>
             <button
+              type="button"
               onClick={submit}
               disabled={pending}
               className="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
@@ -78,7 +92,7 @@ export function ProjectNotes({
               {pending ? "Đang lưu..." : "Thêm ghi chú"}
             </button>
           </div>
-        </div>
+        </form>
       )}
 
       {notes.length === 0 ? (
@@ -95,6 +109,20 @@ export function ProjectNotes({
                     {n.authorName ? ` · ${n.authorName}` : ""}
                   </div>
                   <p className="mt-0.5 whitespace-pre-wrap text-sm text-slate-800">{n.content}</p>
+                  {n.images.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-2">
+                      {n.images.map((url, i) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <a key={i} href={url} target="_blank" rel="noreferrer">
+                          <img
+                            src={url}
+                            alt="Ảnh ghi chú"
+                            className="h-20 w-20 rounded-md border border-slate-200 object-cover hover:opacity-80"
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {canDelete && (
                   <button
