@@ -183,14 +183,14 @@ function extractImages(
   return out;
 }
 
+// Danh mục chuẩn hóa: KCT | XA_GO | TON | VTP
 function categoryOf(file: string): string {
   const n = norm(file);
-  if (n.includes("dhbl") || n.includes("_bl_") || /dhbl/.test(n)) return "BL";
+  if (n.includes("kct") || n.includes("ketcau")) return "KCT";
+  if (n.includes("xago") || n.includes("xg")) return "XA_GO";
   if (n.includes("dhton") || n.includes("ton")) return "TON";
-  if (n.includes("panel")) return "PANEL";
-  if (n.includes("cualua")) return "CUALUA";
-  if (n.includes("dhpk")) return "PK";
-  return "KHAC";
+  // BL, panel, cửa lùa, phụ kiện... gom về Vật tư phụ
+  return "VTP";
 }
 
 function orderDateOf(stem: string): Date | null {
@@ -208,7 +208,7 @@ async function main() {
   const projects = await db.project.findMany({ select: { id: true, code: true, name: true } });
   const byNorm = new Map(projects.map((p) => [norm(p.name), p]));
 
-  const compFor: Record<string, string[]> = { BL: ["BLLK", "BL_NEO"], TON: ["TON"], PANEL: ["TON"] };
+  const compFor: Record<string, string[]> = { KCT: ["KCT"], XA_GO: ["XA_GO"], TON: ["TON"], VTP: ["BLLK", "BL_NEO"] };
 
   console.log("\nFile".padEnd(34), "Dự án".padEnd(7), "Loại".padEnd(6), "Dòng", "  TL(kg)", " Ảnh", " NCC");
   console.log("-".repeat(96));
