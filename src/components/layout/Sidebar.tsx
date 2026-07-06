@@ -52,12 +52,11 @@ export function Sidebar({ role }: { role: Role }) {
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-slate-200 bg-white">
       <div className="flex h-16 items-center gap-2 border-b border-slate-100 px-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-600 text-sm font-bold text-white">
-          QL
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="Xây Dựng Dubai" className="h-10 w-10 object-contain" />
         <div className="leading-tight">
-          <div className="text-sm font-semibold text-slate-900">QLDA Thép</div>
-          <div className="text-xs text-slate-400">Kết cấu thép</div>
+          <div className="text-sm font-bold text-blue-600">XÂY DỰNG DUBAI</div>
+          <div className="text-[11px] text-slate-400">Trao giá trị vững bền</div>
         </div>
       </div>
       <nav className="flex-1 space-y-1 p-3">

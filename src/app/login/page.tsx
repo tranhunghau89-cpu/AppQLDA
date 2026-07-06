@@ -77,12 +77,10 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
       <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-blue-600 text-lg font-bold text-white">
-            QL
-          </div>
-          <h1 className="text-xl font-semibold text-slate-900">
-            Quản lý dự án kết cấu thép
-          </h1>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Xây Dựng Dubai" className="mx-auto mb-3 h-20 w-20 object-contain" />
+          <h1 className="text-xl font-bold text-blue-600">XÂY DỰNG DUBAI</h1>
+          <p className="text-sm font-medium text-slate-700">Hệ thống quản lý dự án kết cấu thép</p>
           <p className="mt-1 text-sm text-slate-500">Đăng nhập để tiếp tục</p>
         </div>
 

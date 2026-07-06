@@ -8,8 +8,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "QLDA Kết cấu thép",
-  description: "Hệ thống quản lý dự án thi công kết cấu thép",
+  title: "Xây Dựng Dubai — QLDA Kết cấu thép",
+  description: "Hệ thống quản lý dự án thi công kết cấu thép — Trao giá trị vững bền",
+  icons: { icon: "/logo.png" },
 };
 
 export default function RootLayout({
