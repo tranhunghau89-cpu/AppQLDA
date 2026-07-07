@@ -3,9 +3,9 @@
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Trash2, Download } from "lucide-react";
-import { BT_GROUPS, BT_GROUP_MAP } from "@/lib/takeoff";
+import { BT_GROUPS, BT_GROUP_MAP } from "@/lib/takeoff-shared";
 import { STEEL_SECTIONS } from "@/lib/steel-data";
-import type { TakeoffRow } from "@/lib/takeoff";
+import type { TakeoffRow } from "@/lib/takeoff-shared";
 import { addTakeoffItem, deleteTakeoffItem } from "./actions";
 
 function fmt(v: number | null | undefined, d = 2): string {
