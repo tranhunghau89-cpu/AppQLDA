@@ -77,6 +77,7 @@ model Project {
   docVersions    DocVersion[]
   proposals      Proposal[]
   payments       Payment[]
+  takeoffItems   TakeoffItem[]
   estimateItems  EstimateItem[]
   contracts      Contract[]
   purchaseOrders PurchaseOrder[]
@@ -281,6 +282,31 @@ model Payment {
 
   @@index([projectId, direction])
   @@index([direction, dueDate])
+}
+
+// Bóc tách khối lượng: cấu kiện bê tông (móng/cột/dầm/sàn/vách/lanh tô) & thép (hình/tổ hợp/bản mã).
+model TakeoffItem {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kind       String // BT | THEP_HINH | TO_HOP | BAN_MA
+  group      String? // BT: FD|CL|FR|FL|WA|LT
+  code       String? // FD1, C1, DK1...
+  name       String
+  spec       String? // mã thép hình hoặc mô tả tổ hợp
+  dims       String? // JSON kích thước nhập
+  qty        Float    @default(1)
+  concrete   Float? // m3
+  formwork   Float? // m2
+  rebarRatio Float? // kg/m3
+  rebar      Float? // kg
+  steel      Float? // kg thép hình / tổ hợp / bản mã
+  note       String?
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([projectId, kind])
 }
 
 model EstimateItem {

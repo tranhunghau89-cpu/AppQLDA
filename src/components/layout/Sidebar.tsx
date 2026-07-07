@@ -7,6 +7,7 @@ import {
   FolderKanban,
   CalendarRange,
   GanttChart,
+  Ruler,
   CheckCheck,
   Calculator,
   FileSignature,
@@ -42,6 +43,7 @@ const NAV: NavItem[] = [
   { href: "/debts", label: "Công nợ", icon: HandCoins, resource: "debt" },
   { href: "/customers", label: "Chủ đầu tư", icon: Building2, resource: "customer" },
   { href: "/suppliers", label: "Nhà cung cấp", icon: Truck, resource: "supplier" },
+  { href: "/tools", label: "Tra cứu & Bóc KL", icon: Ruler },
   { href: "/approvals", label: "Phê duyệt", icon: CheckCheck },
   { href: "/users", label: "Người dùng", icon: Users, resource: "user" },
 ];
