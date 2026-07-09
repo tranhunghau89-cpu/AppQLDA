@@ -18,7 +18,8 @@
     "import:orders": "tsx scripts/import-orders.ts",
     "import:thcp": "tsx scripts/import-thcp.ts",
     "import:pricebook": "tsx scripts/import-pricebook.ts",
-    "import:quote": "tsx scripts/import-quote.ts"
+    "import:quote": "tsx scripts/import-quote.ts",
+    "import:missing": "tsx scripts/import-missing-projects.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
