@@ -18,7 +18,7 @@ model User {
   email        String   @unique
   name         String
   passwordHash String
-  role         String   @default("SALES") // ADMIN | SALES | ENGINEERING | PROCUREMENT | ACCOUNTING
+  role         String   @default("SALES") // ADMIN | SALES | ENGINEERING | PROCUREMENT
   active       Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -73,11 +73,6 @@ model Project {
   suppliers      ProjectSupplier[]
   milestones     Milestone[]
   weeklyLogs     WeeklyLog[]
-  progressNotes  ProjectNote[]
-  docVersions    DocVersion[]
-  proposals      Proposal[]
-  payments       Payment[]
-  takeoffItems   TakeoffItem[]
   estimateItems  EstimateItem[]
   contracts      Contract[]
   purchaseOrders PurchaseOrder[]
@@ -91,12 +86,11 @@ model PurchaseOrder {
   project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   orderNo      String? // số/tên đơn
   orderDate    DateTime?
-  category     String // KCT | XA_GO | TON | VTP
+  category     String // BL | TON | PANEL | CUALUA | PK | KHAC
   supplierId   String?
   supplier     Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   status       String    @default("DRAFT") // DRAFT | ORDERED | RECEIVED
   orderedDate  DateTime?
-  expectedDate DateTime? // dự kiến giao
   receivedDate DateTime?
   value        Float? // Σ thành tiền
   totalWeight  Float? // Σ trọng lượng (kg)
@@ -205,108 +199,6 @@ model WeeklyLog {
   note           String?
 
   @@unique([projectId, year, week])
-}
-
-model ProjectNote {
-  id         String      @id @default(cuid())
-  projectId  String
-  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  content    String
-  authorName String?
-  createdAt  DateTime    @default(now())
-  images     NoteImage[]
-
-  @@index([projectId, createdAt])
-}
-
-// Ảnh đính kèm ghi chú (lưu trên Supabase Storage, chỉ giữ key).
-model NoteImage {
-  id        String      @id @default(cuid())
-  noteId    String
-  note      ProjectNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  key       String // đường dẫn trong bucket
-  mime      String      @default("image/jpeg")
-  createdAt DateTime    @default(now())
-}
-
-model DocVersion {
-  id         String    @id @default(cuid())
-  projectId  String
-  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  docType    String // BAO_GIA | HOP_DONG | SHOP_DRAWING
-  version    String // R0, R1, v1...
-  issuedAt   DateTime? // ngày phát hành / gửi
-  status     String    @default("DRAFT") // DRAFT | SENT | APPROVED | SUPERSEDED
-  note       String?
-  authorName String?
-  createdAt  DateTime  @default(now())
-
-  @@index([projectId, docType, createdAt])
-}
-
-// Đề xuất & phê duyệt online (mua hàng, thanh toán...).
-model Proposal {
-  id           String    @id @default(cuid())
-  title        String
-  kind         String    @default("MUA_HANG") // MUA_HANG | THANH_TOAN | KHAC
-  amount       Float?
-  content      String?
-  projectId    String?
-  project      Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  status       String    @default("PENDING") // PENDING | APPROVED | REJECTED
-  createdBy    String
-  decidedBy    String?
-  decisionNote String?
-  decidedAt    DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  @@index([status, createdAt])
-}
-
-// Thanh toán theo đợt: THU (từ CĐT) / CHI (cho NCC, thầu phụ).
-model Payment {
-  id          String    @id @default(cuid())
-  projectId   String
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  direction   String // THU | CHI
-  counterpart String? // tên CĐT / NCC
-  name        String // Tạm ứng, Đợt 1, Quyết toán...
-  amount      Float? // số tiền theo kế hoạch
-  dueDate     DateTime? // hạn thu / hạn trả
-  paidDate    DateTime? // ngày thực thu / thực trả
-  paidAmount  Float? // số tiền thực tế
-  note        String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@index([projectId, direction])
-  @@index([direction, dueDate])
-}
-
-// Bóc tách khối lượng: cấu kiện bê tông (móng/cột/dầm/sàn/vách/lanh tô) & thép (hình/tổ hợp/bản mã).
-model TakeoffItem {
-  id         String   @id @default(cuid())
-  projectId  String
-  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  kind       String // BT | THEP_HINH | TO_HOP | BAN_MA
-  group      String? // BT: FD|CL|FR|FL|WA|LT
-  code       String? // FD1, C1, DK1...
-  name       String
-  spec       String? // mã thép hình hoặc mô tả tổ hợp
-  dims       String? // JSON kích thước nhập
-  qty        Float    @default(1)
-  concrete   Float? // m3
-  formwork   Float? // m2
-  rebarRatio Float? // kg/m3
-  rebar      Float? // kg
-  steel      Float? // kg thép hình / tổ hợp / bản mã
-  note       String?
-  sortOrder  Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([projectId, kind])
 }
 
 model EstimateItem {

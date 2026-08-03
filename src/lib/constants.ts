@@ -106,10 +106,12 @@ export const CONTRACT_STATUS_MAP = map(CONTRACT_STATUS);
 
 // ----- Đơn đặt hàng (mua hàng) -----
 export const PO_CATEGORY: Option[] = [
-  { value: "KCT", label: "Kết cấu thép", tone: "amber" },
-  { value: "XA_GO", label: "Xà gồ", tone: "purple" },
-  { value: "TON", label: "Tôn", tone: "blue" },
-  { value: "VTP", label: "Vật tư phụ", tone: "slate" },
+  { value: "BL", label: "Bulong & liên kết", tone: "amber" },
+  { value: "TON", label: "Tôn & bao che", tone: "blue" },
+  { value: "PANEL", label: "Panel", tone: "purple" },
+  { value: "CUALUA", label: "Cửa lùa", tone: "slate" },
+  { value: "PK", label: "Phụ kiện", tone: "slate" },
+  { value: "KHAC", label: "Khác", tone: "slate" },
 ];
 export const PO_CATEGORY_MAP = map(PO_CATEGORY);
 
@@ -148,34 +150,3 @@ export function labelOf(
   if (!value) return "—";
   return map[value]?.label ?? value;
 }
-
-// ----- Hồ sơ dự án & phiên bản (Báo giá / Hợp đồng / Shopdrawing) -----
-export const DOC_TYPE: Option[] = [
-  { value: "BAO_GIA", label: "Báo giá", tone: "blue" },
-  { value: "HOP_DONG", label: "Hợp đồng", tone: "green" },
-  { value: "SHOP_DRAWING", label: "Shopdrawing", tone: "purple" },
-];
-export const DOC_TYPE_MAP = map(DOC_TYPE);
-
-export const DOC_STATUS: Option[] = [
-  { value: "DRAFT", label: "Nháp", tone: "slate" },
-  { value: "SENT", label: "Đã gửi", tone: "blue" },
-  { value: "APPROVED", label: "Được duyệt", tone: "green" },
-  { value: "SUPERSEDED", label: "Bị thay thế", tone: "amber" },
-];
-export const DOC_STATUS_MAP = map(DOC_STATUS);
-
-// ----- Đề xuất & phê duyệt -----
-export const PROPOSAL_KIND: Option[] = [
-  { value: "MUA_HANG", label: "Mua hàng / vật tư", tone: "blue" },
-  { value: "THANH_TOAN", label: "Thanh toán", tone: "amber" },
-  { value: "KHAC", label: "Khác", tone: "slate" },
-];
-export const PROPOSAL_KIND_MAP = map(PROPOSAL_KIND);
-
-export const PROPOSAL_STATUS: Option[] = [
-  { value: "PENDING", label: "Chờ duyệt", tone: "amber" },
-  { value: "APPROVED", label: "Đã duyệt", tone: "green" },
-  { value: "REJECTED", label: "Từ chối", tone: "red" },
-];
-export const PROPOSAL_STATUS_MAP = map(PROPOSAL_STATUS);
