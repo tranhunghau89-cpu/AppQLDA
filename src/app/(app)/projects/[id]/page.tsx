@@ -7,6 +7,7 @@ import { can } from "@/lib/rbac";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatVND, formatDate, formatNumber } from "@/lib/utils";
 import { StatusChanger, SupplierAssigner } from "./ProjectDetail";
+import { ProjectMembers, type MemberUser } from "./ProjectMembers";
 import { Milestones, type MilestoneValue } from "./Milestones";
 import { ProjectNotes } from "./Notes";
 import { DocVersions } from "./DocVersions";
@@ -162,6 +163,29 @@ export default async function ProjectDetailPage({
     assigned[link.component] = { id: link.supplier.id, name: link.supplier.name };
   }
 
+  let memberData: { members: MemberUser[]; allUsers: MemberUser[] } | null = null;
+  if (session.role === "ADMIN") {
+    const [memberRows, users] = await Promise.all([
+      db.projectMember.findMany({
+        where: { projectId: id },
+        include: { user: { select: { id: true, name: true, role: true } } },
+      }),
+      db.user.findMany({
+        where: { active: true },
+        select: { id: true, name: true, role: true },
+        orderBy: { name: "asc" },
+      }),
+    ]);
+    memberData = {
+      members: memberRows.map((m) => ({
+        id: m.user.id,
+        name: m.user.name,
+        role: m.user.role as MemberUser["role"],
+      })),
+      allUsers: users.map((u) => ({ id: u.id, name: u.name, role: u.role as MemberUser["role"] })),
+    };
+  }
+
   const dim =
     project.kK || project.kL || project.kH
       ? `${formatNumber(project.kK)} × ${formatNumber(project.kL)} × ${formatNumber(project.kH)}`
@@ -222,6 +246,14 @@ export default async function ProjectDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      {memberData && (
+        <ProjectMembers
+          projectId={project.id}
+          members={memberData.members}
+          allUsers={memberData.allUsers}
+        />
+      )}
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
