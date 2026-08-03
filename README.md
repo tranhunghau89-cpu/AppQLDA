@@ -19,13 +19,19 @@ npm run db:seed             # tạo 4 user + dữ liệu mẫu
 npm run dev                 # http://localhost:3000
 ```
 
-### Tài khoản mẫu (mật khẩu: `123456`)
+### Tài khoản mẫu (chỉ dùng cho môi trường dev)
+`npm run db:seed` tạo sẵn các tài khoản dưới đây với **mật khẩu mặc định dùng cho phát triển cục bộ**.
+
 | Email | Vai trò |
 |-------|---------|
 | admin@cty.com | Ban giám đốc / Quản lý (toàn quyền) |
 | sales@cty.com | Kinh doanh / CĐT |
 | kythuat@cty.com | Kỹ thuật / Thiết kế |
 | vattu@cty.com | Vật tư / Mua hàng |
+
+> ⚠️ **Bảo mật production:** KHÔNG dùng mật khẩu seed mặc định trên môi trường thật.
+> Sau khi deploy, đăng nhập bằng tài khoản quản trị và **đổi mật khẩu tất cả tài khoản** trong mục
+> **Người dùng** (`/users`). Không ghi mật khẩu thật vào repo/README.
 
 ## Nhập dữ liệu thật từ Excel
 Đặt `TD_DA.xlsx` ở thư mục cha (cùng cấp `AppQLDA`) rồi:

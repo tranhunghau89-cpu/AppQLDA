@@ -11,7 +11,9 @@ const USERS = [
 ];
 
 async function seedUsers() {
-  const passwordHash = await bcrypt.hash("123456", 10);
+  // Dev mặc định "123456"; production đặt SEED_PASSWORD mạnh (hoặc đổi trong /users sau khi deploy).
+  const seedPassword = process.env.SEED_PASSWORD || "123456";
+  const passwordHash = await bcrypt.hash(seedPassword, 10);
   for (const u of USERS) {
     await db.user.upsert({
       where: { email: u.email },
@@ -214,7 +216,7 @@ async function main() {
     projects: await db.project.count(),
     estimates: await db.estimateItem.count(),
   };
-  console.log("Seed xong:", counts, "(mật khẩu user: 123456)");
+  console.log("Seed xong:", counts, "(mật khẩu user: SEED_PASSWORD hoặc mặc định dev)");
 }
 
 main()

@@ -7,6 +7,7 @@ import { canAccessProject } from "@/lib/scope";
 import { addProjectNote, addPayment } from "@/app/(app)/projects/actions";
 import { saveEstimateItem } from "@/app/(app)/projects/[id]/estimate/actions";
 import { paymentDb } from "@/lib/payments";
+import { parseViNumber } from "@/lib/utils";
 import { ESTIMATE_GROUP } from "@/lib/constants";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -19,12 +20,7 @@ async function scope(projectId: string): Promise<{ ok: false; error: string } | 
   return null;
 }
 
-function num(s: string | undefined): number | null {
-  const t = (s ?? "").replace(/[.,\s]/g, "");
-  if (!t) return null;
-  const n = Number(t);
-  return Number.isFinite(n) ? n : null;
-}
+const num = parseViNumber;
 
 const strip = (s: string) =>
   s
@@ -77,13 +73,6 @@ export async function quickPurchase(projectId: string, form: FormData): Promise<
   } catch {
     return { ok: false, error: "Bạn không có quyền nhập đơn hàng." };
   }
-
-  const num = (s: string): number | null => {
-    const t = s.replace(/[.,\s]/g, "");
-    if (!t) return null;
-    const n = Number(t);
-    return Number.isFinite(n) ? n : null;
-  };
 
   const names = form.getAll("itemName").map(String);
   const units = form.getAll("itemUnit").map(String);

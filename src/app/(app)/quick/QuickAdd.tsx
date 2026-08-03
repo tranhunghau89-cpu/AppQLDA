@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea, Select, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { ESTIMATE_GROUP, PO_CATEGORY } from "@/lib/constants";
+import { parseViNumber } from "@/lib/utils";
 import {
   quickNote,
   quickPayment,
@@ -17,6 +18,12 @@ import {
   bulkPayment,
 } from "./actions";
 import { PasteTable, type PasteColumn } from "./PasteTable";
+
+// Chuỗi số VN ("12.496,57") → chuỗi số chuẩn ("12496.57") cho server; rỗng nếu không hợp lệ.
+const numStr = (s: string): string => {
+  const n = parseViNumber(s);
+  return n != null ? String(n) : "";
+};
 
 export interface QuickProject {
   id: string;
@@ -454,9 +461,9 @@ function EstimateForm({ onSubmit, pending }: { onSubmit: SubmitFn; pending: bool
   const [qty, setQty] = useState("");
   const [price, setPrice] = useState("");
   const amount = useMemo(() => {
-    const q = Number(qty.replace(/[.,\s]/g, ""));
-    const p = Number(price.replace(/[.,\s]/g, ""));
-    return Number.isFinite(q) && Number.isFinite(p) && qty && price ? q * p : null;
+    const q = parseViNumber(qty);
+    const p = parseViNumber(price);
+    return q != null && p != null ? q * p : null;
   }, [qty, price]);
   return (
     <div className="space-y-3">
@@ -495,8 +502,8 @@ function EstimateForm({ onSubmit, pending }: { onSubmit: SubmitFn; pending: bool
               fd.set("groupCode", groupCode);
               fd.set("name", name);
               fd.set("unit", unit);
-              fd.set("designQty", qty);
-              fd.set("unitPrice", price);
+              fd.set("designQty", numStr(qty));
+              fd.set("unitPrice", numStr(price));
               fd.set("amount", amount != null ? String(amount) : "");
               return fd;
             },

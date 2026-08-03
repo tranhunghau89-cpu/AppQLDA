@@ -6,7 +6,7 @@ import { LayoutTemplate } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
-import { formatNumber, formatVND } from "@/lib/utils";
+import { formatNumber, formatVND, parseViNumber } from "@/lib/utils";
 import { computeTemplateLines, type TemplateLine } from "@/lib/estimateTemplate";
 import { applyEstimateTemplate } from "./actions";
 
@@ -17,17 +17,7 @@ export interface TemplateForClient {
   lines: TemplateLine[];
 }
 
-// Định dạng VN: "." = phân cách nghìn, "," = thập phân (vd "12.496,57" = 12496.57).
-const parseNum = (s: string | undefined): number | null => {
-  const t = (s ?? "")
-    .trim()
-    .replace(/\s/g, "")
-    .replace(/\./g, "")
-    .replace(/,/g, ".");
-  if (!t) return null;
-  const n = Number(t);
-  return Number.isFinite(n) ? n : null;
-};
+const parseNum = (s: string | undefined): number | null => parseViNumber(s);
 
 export function ApplyTemplate({
   projectId,

@@ -19,6 +19,23 @@ export function formatVND(value: number | null | undefined): string {
   return `${vnd.format(Math.round(value))} ₫`;
 }
 
+/**
+ * Parse số nhập kiểu Việt Nam: "." = phân cách nghìn, "," = thập phân.
+ * "12.496,57" → 12496.57 · "1.130" → 1130 · "100.000.000" → 100000000.
+ * Rỗng / không hợp lệ → null. (Dùng cho ô nhập text; ô <input type=number> không cần.)
+ */
+export function parseViNumber(input: string | number | null | undefined): number | null {
+  if (typeof input === "number") return Number.isFinite(input) ? input : null;
+  const t = (input ?? "")
+    .trim()
+    .replace(/\s/g, "")
+    .replace(/\./g, "")
+    .replace(/,/g, ".");
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
+
 /** Định dạng ngày dd/MM/yyyy. */
 export function formatDate(value: Date | string | null | undefined): string {
   if (!value) return "—";
