@@ -47,15 +47,15 @@ const s = (v: string | number | null): string => (v == null ? "" : String(v));
 export function TemplateEditor({ initial }: { initial: EditorTemplate }) {
   const router = useRouter();
   const idRef = useRef(0);
-  const mkUid = () => String(idRef.current++);
+  const mkUid = () => `new-${idRef.current++}`;
 
   const [name, setName] = useState(initial.name);
   const [code, setCode] = useState(initial.code ?? "");
   const [description, setDescription] = useState(initial.description ?? "");
   const [active, setActive] = useState(initial.active);
   const [lines, setLines] = useState<LineState[]>(
-    initial.lines.map((l) => ({
-      uid: mkUid(),
+    initial.lines.map((l, i) => ({
+      uid: `init-${i}`,
       groupLabel: l.groupLabel,
       name: l.name,
       unit: s(l.unit),
