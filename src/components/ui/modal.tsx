@@ -4,18 +4,26 @@ import * as React from "react";
 import { X } from "lucide-react";
 import { Button } from "./button";
 
+const MODAL_WIDTH: Record<string, string> = {
+  md: "max-w-lg",
+  lg: "max-w-2xl",
+  xl: "max-w-5xl",
+};
+
 export function Modal({
   open,
   onClose,
   title,
   children,
   footer,
+  size = "md",
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  size?: "md" | "lg" | "xl";
 }) {
   if (!open) return null;
 
@@ -25,7 +33,7 @@ export function Modal({
       onMouseDown={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-xl bg-white shadow-xl"
+        className={`w-full ${MODAL_WIDTH[size]} rounded-xl bg-white shadow-xl`}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">

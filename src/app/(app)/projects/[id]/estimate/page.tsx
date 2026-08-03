@@ -4,7 +4,8 @@ import { ArrowLeft, Download } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
-import { EstimateEditor, type EstimateRow } from "./EstimateEditor";
+import { EstimateEditor, type EstimateRow, type SectionInfo } from "./EstimateEditor";
+import type { TemplateForClient } from "./ApplyTemplate";
 
 export default async function EstimatePage({
   params,
@@ -20,8 +21,9 @@ export default async function EstimatePage({
     include: {
       estimateItems: {
         include: { supplier: { select: { name: true } } },
-        orderBy: [{ groupCode: "asc" }, { sortOrder: "asc" }],
+        orderBy: [{ sortOrder: "asc" }],
       },
+      estimateSections: { orderBy: { sortOrder: "asc" } },
     },
   });
   if (!project) notFound();
@@ -31,8 +33,44 @@ export default async function EstimatePage({
     select: { id: true, name: true },
   });
 
+  const templateRows = await db.estimateTemplate.findMany({
+    where: { active: true },
+    orderBy: { sortOrder: "asc" },
+    include: { lines: { orderBy: { sortOrder: "asc" } } },
+  });
+
+  const templates: TemplateForClient[] = templateRows.map((t) => ({
+    id: t.id,
+    name: t.name,
+    code: t.code,
+    lines: t.lines.map((l) => ({
+      id: l.id,
+      groupLabel: l.groupLabel,
+      name: l.name,
+      unit: l.unit,
+      defaultUnitPrice: l.defaultUnitPrice,
+      role: l.role,
+      feedsParam: l.feedsParam,
+      takesFromParam: l.takesFromParam,
+      factor: l.factor,
+      defaultQty: l.defaultQty,
+      groupCode: l.groupCode,
+      note: l.note,
+      sortOrder: l.sortOrder,
+    })),
+  }));
+
+  const sections: SectionInfo[] = project.estimateSections.map((s) => ({
+    id: s.id,
+    name: s.name,
+    code: s.code,
+    sortOrder: s.sortOrder,
+  }));
+
   const rows: EstimateRow[] = project.estimateItems.map((it) => ({
     id: it.id,
+    sectionId: it.sectionId,
+    groupLabel: it.groupLabel,
     groupCode: it.groupCode,
     name: it.name,
     unit: it.unit,
@@ -45,6 +83,7 @@ export default async function EstimatePage({
     orderStatus: it.orderStatus,
     dispatchStatus: it.dispatchStatus,
     note: it.note,
+    sortOrder: it.sortOrder,
   }));
 
   return (
@@ -73,6 +112,8 @@ export default async function EstimatePage({
       <EstimateEditor
         projectId={project.id}
         items={rows}
+        sections={sections}
+        templates={templates}
         suppliers={suppliers}
         salePrice={project.salePrice}
         area={project.area}

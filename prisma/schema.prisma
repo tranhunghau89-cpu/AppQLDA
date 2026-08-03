@@ -93,6 +93,7 @@ model Project {
   payments       Payment[]
   takeoffItems   TakeoffItem[]
   estimateItems  EstimateItem[]
+  estimateSections EstimateSection[]
   contracts      Contract[]
   purchaseOrders PurchaseOrder[]
   costSummary    CostSummary?
@@ -328,6 +329,9 @@ model EstimateItem {
   id             String    @id @default(cuid())
   projectId      String
   project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sectionId      String? // Hạng mục (Khung mái, Vách...) — null = chưa phân
+  section        EstimateSection? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  groupLabel     String? // Nhóm cấp 2 (Bulong neo, Máng nước...) hiển thị theo mẫu
   groupCode      String // KCT|XA_GO|TON|BL_NEO|BLLK|VT_PHU|NHAN_CONG|VAN_CHUYEN|MAY|KHAC
   name           String
   unit           String?
@@ -342,6 +346,56 @@ model EstimateItem {
   note           String?
   sortOrder      Int       @default(0)
   createdAt      DateTime  @default(now())
+
+  @@index([sectionId])
+}
+
+// ----- Mẫu hạng mục dự toán (Khung mái, Vách, Canopy, Nóc gió, Dầm sàn...) -----
+model EstimateTemplate {
+  id          String                 @id @default(cuid())
+  name        String // "Khung mái"
+  code        String? // "A"
+  description String?
+  sortOrder   Int                    @default(0)
+  active      Boolean                @default(true)
+  lines       EstimateTemplateLine[]
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+}
+
+model EstimateTemplateLine {
+  id               String           @id @default(cuid())
+  templateId       String
+  template         EstimateTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  groupLabel       String // Nhóm cấp 2: "Bulong neo", "Kết cấu thép"...
+  name             String // "Thép tổ hợp"
+  unit             String?
+  defaultUnitPrice Float?
+  role             String // INPUT | DERIVED
+  feedsParam       String? // INPUT: nạp KL vào tham số này
+  takesFromParam   String? // DERIVED: KL = param × factor
+  factor           Float?           @default(1)
+  defaultQty       Float?
+  groupCode        String // map ESTIMATE_GROUP cho bảng lợi nhuận theo nhóm
+  note             String?
+  sortOrder        Int              @default(0)
+
+  @@index([templateId])
+}
+
+// ----- Hạng mục thực trong 1 dự án (sinh khi áp mẫu) -----
+model EstimateSection {
+  id         String         @id @default(cuid())
+  projectId  String
+  project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name       String // "Khung mái"
+  code       String? // "A"
+  templateId String? // nguồn mẫu (tham chiếu, không FK cứng)
+  sortOrder  Int            @default(0)
+  createdAt  DateTime       @default(now())
+  items      EstimateItem[]
+
+  @@index([projectId])
 }
 
 // ----- Tổng hợp chi phí (quyết toán thực tế) -----

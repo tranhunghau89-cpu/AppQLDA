@@ -1,19 +1,22 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
-import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
+import { Table, Tr, Td } from "@/components/ui/table";
 import { ESTIMATE_GROUP, ESTIMATE_GROUP_MAP } from "@/lib/constants";
 import { formatVND, formatNumber } from "@/lib/utils";
 import { computeAmount, computeProfit, formatPercent } from "@/lib/profit";
-import { saveEstimateItem, deleteEstimateItem } from "./actions";
+import { saveEstimateItem, deleteEstimateItem, deleteEstimateSection } from "./actions";
+import { ApplyTemplate, type TemplateForClient } from "./ApplyTemplate";
 
 export interface EstimateRow {
   id: string;
+  sectionId: string | null;
+  groupLabel: string | null;
   groupCode: string;
   name: string;
   unit: string | null;
@@ -26,6 +29,14 @@ export interface EstimateRow {
   orderStatus: string | null;
   dispatchStatus: string | null;
   note: string | null;
+  sortOrder: number;
+}
+
+export interface SectionInfo {
+  id: string;
+  name: string;
+  code: string | null;
+  sortOrder: number;
 }
 
 export interface SupplierOpt {
@@ -33,9 +44,13 @@ export interface SupplierOpt {
   name: string;
 }
 
+const UNSECTIONED = "__none__";
+
 export function EstimateEditor({
   projectId,
   items,
+  sections,
+  templates,
   suppliers,
   salePrice,
   area,
@@ -43,6 +58,8 @@ export function EstimateEditor({
 }: {
   projectId: string;
   items: EstimateRow[];
+  sections: SectionInfo[];
+  templates: TemplateForClient[];
   suppliers: SupplierOpt[];
   salePrice: number | null;
   area: number | null;
@@ -59,18 +76,47 @@ export function EstimateEditor({
     [items, salePrice, area]
   );
 
-  const grouped = useMemo(() => {
-    const map = new Map<string, EstimateRow[]>();
+  // Gom: Hạng mục (Section) → Nhóm (groupLabel, fallback nhãn groupCode).
+  const sectionBlocks = useMemo(() => {
+    const bySection = new Map<string, EstimateRow[]>();
     for (const it of items) {
-      const arr = map.get(it.groupCode) ?? [];
+      const key = it.sectionId ?? UNSECTIONED;
+      const arr = bySection.get(key) ?? [];
       arr.push(it);
-      map.set(it.groupCode, arr);
+      bySection.set(key, arr);
     }
-    return ESTIMATE_GROUP.filter((g) => map.has(g.value)).map((g) => ({
-      group: g,
-      rows: map.get(g.value)!,
-    }));
-  }, [items]);
+
+    const groupRows = (rows: EstimateRow[]) => {
+      const sorted = [...rows].sort((a, b) => a.sortOrder - b.sortOrder);
+      const order: string[] = [];
+      const map = new Map<string, EstimateRow[]>();
+      for (const r of sorted) {
+        const label = r.groupLabel ?? ESTIMATE_GROUP_MAP[r.groupCode]?.label ?? r.groupCode;
+        if (!map.has(label)) {
+          map.set(label, []);
+          order.push(label);
+        }
+        map.get(label)!.push(r);
+      }
+      return order.map((label) => ({ label, rows: map.get(label)! }));
+    };
+
+    const blocks: {
+      id: string | null;
+      name: string;
+      code: string | null;
+      rows: EstimateRow[];
+      groups: { label: string; rows: EstimateRow[] }[];
+    }[] = [];
+
+    for (const s of [...sections].sort((a, b) => a.sortOrder - b.sortOrder)) {
+      const rows = bySection.get(s.id);
+      if (rows) blocks.push({ id: s.id, name: s.name, code: s.code, rows, groups: groupRows(rows) });
+    }
+    const none = bySection.get(UNSECTIONED);
+    if (none) blocks.push({ id: null, name: "Chưa phân hạng mục", code: null, rows: none, groups: groupRows(none) });
+    return blocks;
+  }, [items, sections]);
 
   function openNew() {
     setEditing(null);
@@ -106,80 +152,104 @@ export function EstimateEditor({
     });
   }
 
+  function onDeleteSection(id: string, name: string) {
+    if (!window.confirm(`Xóa cả hạng mục "${name}" và mọi dòng bên trong?`)) return;
+    start(async () => {
+      const res = await deleteEstimateSection(projectId, id);
+      if (!res.ok) alert(res.error);
+      else router.refresh();
+    });
+  }
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       {/* Bảng dự toán */}
       <div className="space-y-4 lg:col-span-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold text-slate-900">Bảng dự toán</h2>
           {canEdit && (
-            <Button size="sm" onClick={openNew}>
-              <Plus className="h-4 w-4" /> Thêm hạng mục
-            </Button>
+            <div className="flex gap-2">
+              <ApplyTemplate projectId={projectId} templates={templates} />
+              <Button size="sm" onClick={openNew}>
+                <Plus className="h-4 w-4" /> Thêm dòng
+              </Button>
+            </div>
           )}
         </div>
 
-        {grouped.length === 0 && (
+        {sectionBlocks.length === 0 && (
           <div className="rounded-xl border border-dashed border-slate-300 py-10 text-center text-slate-400">
-            Chưa có dòng dự toán nào
+            Chưa có dòng dự toán nào. Bấm <b>Thêm hạng mục từ mẫu</b> để bắt đầu nhanh.
           </div>
         )}
 
-        {grouped.map(({ group, rows }) => {
-          const subtotal = rows.reduce((s, r) => s + computeAmount(r), 0);
+        {sectionBlocks.map((block) => {
+          const sectionTotal = block.rows.reduce((s, r) => s + computeAmount(r), 0);
           return (
-            <div key={group.value} className="rounded-xl border border-slate-200 bg-white">
-              <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
-                <span className="font-semibold text-slate-800">{group.label}</span>
-                <span className="text-sm font-medium text-slate-600">
-                  {formatVND(subtotal)}
+            <div key={block.id ?? UNSECTIONED} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <div className="flex items-center justify-between bg-slate-800 px-4 py-2.5 text-white">
+                <span className="font-semibold">
+                  {block.code ? <span className="mr-2 rounded bg-white/20 px-1.5 py-0.5 text-xs">{block.code}</span> : null}
+                  {block.name}
                 </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold">{formatVND(sectionTotal)}</span>
+                  {canEdit && block.id && (
+                    <button
+                      className="text-white/70 hover:text-red-300"
+                      title="Xóa cả hạng mục"
+                      onClick={() => onDeleteSection(block.id!, block.name)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               </div>
-              <Table>
-                <THead>
-                  <tr>
-                    <Th>Hạng mục</Th>
-                    <Th className="text-right">KL TK</Th>
-                    <Th className="text-right">KL TT</Th>
-                    <Th className="text-right">Đơn giá</Th>
-                    <Th className="text-right">Thành tiền</Th>
-                    <Th>NCC</Th>
-                    {canEdit && <Th></Th>}
-                  </tr>
-                </THead>
-                <tbody>
-                  {rows.map((r) => (
-                    <Tr key={r.id}>
-                      <Td className="font-medium text-slate-900">
-                        {r.name}
-                        {r.unit ? <span className="text-slate-400"> ({r.unit})</span> : null}
-                      </Td>
-                      <Td className="text-right">{formatNumber(r.designQty)}</Td>
-                      <Td className="text-right">{formatNumber(r.actualQty)}</Td>
-                      <Td className="text-right">{formatNumber(r.unitPrice)}</Td>
-                      <Td className="text-right font-medium">{formatVND(computeAmount(r))}</Td>
-                      <Td className="text-slate-500">{r.supplierName ?? "—"}</Td>
-                      {canEdit && (
-                        <Td className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => openEdit(r)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-red-600 hover:bg-red-50"
-                              onClick={() => onDelete(r)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </Td>
-                      )}
-                    </Tr>
-                  ))}
-                </tbody>
-              </Table>
+
+              {block.groups.map((grp) => {
+                const subtotal = grp.rows.reduce((s, r) => s + computeAmount(r), 0);
+                return (
+                  <Fragment key={grp.label}>
+                    <div className="flex items-center justify-between border-y border-slate-100 bg-slate-50 px-4 py-1.5">
+                      <span className="text-sm font-semibold text-slate-700">{grp.label}</span>
+                      <span className="text-xs font-medium text-slate-500">{formatVND(subtotal)}</span>
+                    </div>
+                    <Table>
+                      <tbody>
+                        {grp.rows.map((r) => (
+                          <Tr key={r.id}>
+                            <Td className="pl-6 text-slate-800">
+                              {r.name}
+                              {r.note ? <span className="text-slate-400"> · {r.note}</span> : null}
+                            </Td>
+                            <Td className="text-slate-400">{r.unit ?? ""}</Td>
+                            <Td className="text-right">{formatNumber(r.actualQty ?? r.designQty)}</Td>
+                            <Td className="text-right">{formatNumber(r.unitPrice)}</Td>
+                            <Td className="text-right font-medium">{formatVND(computeAmount(r))}</Td>
+                            {canEdit && (
+                              <Td className="text-right">
+                                <div className="flex justify-end gap-1">
+                                  <Button variant="ghost" size="icon" onClick={() => openEdit(r)}>
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-red-600 hover:bg-red-50"
+                                    onClick={() => onDelete(r)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </Td>
+                            )}
+                          </Tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  </Fragment>
+                );
+              })}
             </div>
           );
         })}
