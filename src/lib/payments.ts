@@ -34,6 +34,17 @@ interface PaymentDelegate {
       note?: string | null;
     };
   }): Promise<PaymentRow>;
+  createMany(args: {
+    data: Array<{
+      projectId: string;
+      direction: string;
+      counterpart?: string | null;
+      name: string;
+      amount?: number | null;
+      dueDate?: Date | null;
+      note?: string | null;
+    }>;
+  }): Promise<{ count: number }>;
   update(args: {
     where: { id: string };
     data: { paidDate?: Date | null; paidAmount?: number | null; note?: string | null };

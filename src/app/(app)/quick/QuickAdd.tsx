@@ -1,13 +1,22 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Camera, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Select, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { ESTIMATE_GROUP, PO_CATEGORY } from "@/lib/constants";
-import { quickNote, quickPayment, quickEstimate, quickPurchase } from "./actions";
+import {
+  quickNote,
+  quickPayment,
+  quickEstimate,
+  quickPurchase,
+  bulkPurchase,
+  bulkEstimate,
+  bulkPayment,
+} from "./actions";
+import { PasteTable, type PasteColumn } from "./PasteTable";
 
 export interface QuickProject {
   id: string;
@@ -27,6 +36,30 @@ const TYPE_LABEL: Record<QuickType, string> = {
   estimate: "Dự toán / khối lượng",
 };
 
+const PUR_COLS: PasteColumn[] = [
+  { key: "name", label: "Tên vật tư", kind: "text" },
+  { key: "unit", label: "ĐV", kind: "text" },
+  { key: "qty", label: "SL", kind: "number" },
+  { key: "unitPrice", label: "Đơn giá", kind: "number" },
+];
+
+const EST_COLS: PasteColumn[] = [
+  { key: "groupCode", label: "Nhóm", kind: "select", options: ESTIMATE_GROUP.map((g) => ({ value: g.value, label: g.label })) },
+  { key: "name", label: "Hạng mục", kind: "text" },
+  { key: "unit", label: "ĐV", kind: "text" },
+  { key: "designQty", label: "Khối lượng", kind: "number" },
+  { key: "unitPrice", label: "Đơn giá", kind: "number" },
+];
+
+const PAY_COLS: PasteColumn[] = [
+  { key: "direction", label: "Thu/Chi", kind: "select", options: [{ value: "THU", label: "Thu" }, { value: "CHI", label: "Chi" }] },
+  { key: "name", label: "Tên đợt", kind: "text" },
+  { key: "amount", label: "Số tiền", kind: "number" },
+  { key: "dueDate", label: "Hạn (yyyy-mm-dd)", kind: "text" },
+  { key: "counterpart", label: "CĐT / NCC", kind: "text" },
+  { key: "note", label: "Ghi chú", kind: "text" },
+];
+
 export function QuickAdd({
   projects,
   allowed,
@@ -40,11 +73,22 @@ export function QuickAdd({
   const [open, setOpen] = useState(false);
   const [projectId, setProjectId] = useState(projects.length === 1 ? projects[0].id : "");
   const [type, setType] = useState<QuickType>(allowed[0] ?? "note");
+  const [mode, setMode] = useState<"single" | "paste">("single");
+  const [isDesktop, setIsDesktop] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedCount, setSavedCount] = useState(0);
   const [pending, start] = useTransition();
 
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 640px)");
+    const update = () => setIsDesktop(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   const canOpen = projects.length > 0 && allowed.length > 0;
+  const pasteMode = mode === "paste" && type !== "note" && isDesktop;
 
   function run(build: () => FormData, action: (pid: string, f: FormData) => Promise<{ ok: boolean; error?: string }>, reset: () => void) {
     if (!projectId) {
@@ -113,16 +157,64 @@ export function QuickAdd({
             ))}
           </div>
 
-          {type === "note" && <NoteForm onSubmit={(b, r) => run(b, quickNote, r)} pending={pending} />}
-          {type === "purchase" && (
-            <PurchaseForm suppliers={suppliers} onSubmit={(b, r) => run(b, quickPurchase, r)} pending={pending} />
+          {type !== "note" && isDesktop && (
+            <div className="inline-flex rounded-lg bg-slate-100 p-0.5 text-sm">
+              {(["single", "paste"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => {
+                    setMode(m);
+                    setError(null);
+                  }}
+                  className={`rounded-md px-3 py-1 font-medium ${
+                    mode === m ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  {m === "single" ? "Nhập 1 dòng" : "Dán bảng (Excel)"}
+                </button>
+              ))}
+            </div>
           )}
-          {type === "payment" && <PaymentForm onSubmit={(b, r) => run(b, quickPayment, r)} pending={pending} />}
-          {type === "estimate" && <EstimateForm onSubmit={(b, r) => run(b, quickEstimate, r)} pending={pending} />}
 
-          {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-          {savedCount > 0 && !error && (
-            <p className="text-sm text-green-600">✓ Đã lưu {savedCount} mục trong phiên này. Nhập tiếp hoặc đóng.</p>
+          {pasteMode ? (
+            <>
+              {type === "purchase" && <PurchasePaste key="pur" projectId={projectId} suppliers={suppliers} />}
+              {type === "estimate" && (
+                <PasteTable
+                  key="est"
+                  columns={EST_COLS}
+                  requiredKey="name"
+                  onConfirm={(rows) =>
+                    projectId ? bulkEstimate(projectId, rows) : Promise.resolve({ ok: false as const, error: "Chọn dự án trước." })
+                  }
+                />
+              )}
+              {type === "payment" && (
+                <PasteTable
+                  key="pay"
+                  columns={PAY_COLS}
+                  requiredKey="name"
+                  onConfirm={(rows) =>
+                    projectId ? bulkPayment(projectId, rows) : Promise.resolve({ ok: false as const, error: "Chọn dự án trước." })
+                  }
+                />
+              )}
+            </>
+          ) : (
+            <>
+              {type === "note" && <NoteForm onSubmit={(b, r) => run(b, quickNote, r)} pending={pending} />}
+              {type === "purchase" && (
+                <PurchaseForm suppliers={suppliers} onSubmit={(b, r) => run(b, quickPurchase, r)} pending={pending} />
+              )}
+              {type === "payment" && <PaymentForm onSubmit={(b, r) => run(b, quickPayment, r)} pending={pending} />}
+              {type === "estimate" && <EstimateForm onSubmit={(b, r) => run(b, quickEstimate, r)} pending={pending} />}
+
+              {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+              {savedCount > 0 && !error && (
+                <p className="text-sm text-green-600">✓ Đã lưu {savedCount} mục trong phiên này. Nhập tiếp hoặc đóng.</p>
+              )}
+            </>
           )}
         </div>
       </Modal>
@@ -312,6 +404,45 @@ function PaymentForm({ onSubmit, pending }: { onSubmit: SubmitFn; pending: boole
       >
         {pending ? "Đang lưu…" : "Lưu thanh toán"}
       </Button>
+    </div>
+  );
+}
+
+function PurchasePaste({ projectId, suppliers }: { projectId: string; suppliers: QuickSupplier[] }) {
+  const [supplierId, setSupplierId] = useState("");
+  const [category, setCategory] = useState(PO_CATEGORY[0]?.value ?? "KHAC");
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Nhà cung cấp">
+          <Select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
+            <option value="">— Chọn —</option>
+            {suppliers.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Loại">
+          <Select value={category} onChange={(e) => setCategory(e.target.value)}>
+            {PO_CATEGORY.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      </div>
+      <p className="text-xs text-slate-500">Các dòng vật tư dán vào sẽ tạo thành 1 đơn hàng (nháp) với NCC + loại ở trên.</p>
+      <PasteTable
+        columns={PUR_COLS}
+        requiredKey="name"
+        hint="Copy vùng ô vật tư từ Excel rồi dán. Cột theo thứ tự:"
+        onConfirm={(rows) =>
+          projectId ? bulkPurchase(projectId, supplierId, category, rows) : Promise.resolve({ ok: false as const, error: "Chọn dự án trước." })
+        }
+      />
     </div>
   );
 }
