@@ -53,3 +53,8 @@ cookies.txt
 
 # thu muc la khong lien quan
 MKT.LANDINGPAGE.SKILLS-main/
+
+# cookie files (session tokens)
+c2.txt
+ca.txt
+cv.txt

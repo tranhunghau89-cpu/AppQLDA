@@ -4,6 +4,17 @@
   --font-sans: var(--font-sans);
 }
 
+/* ===== Theme thương hiệu Xây Dựng Dubai =====
+   Navy đậm #2b3990 · Xanh dương #2f6bb3 · Xanh da trời #3fa9e0 */
+@theme {
+  --color-blue-50: #eef2fb;
+  --color-blue-100: #dbe4f6;
+  --color-blue-400: #3fa9e0;
+  --color-blue-500: #2f6bb3;
+  --color-blue-600: #2b3990;
+  --color-blue-700: #232e78;
+}
+
 html,
 body {
   height: 100%;

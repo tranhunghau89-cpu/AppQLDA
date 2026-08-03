@@ -3,11 +3,16 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireSession } from "@/lib/auth";
+import { projectNoteDb, noteImageDb } from "@/lib/project-notes";
+import { uploadFile, isStorageConfigured } from "@/lib/storage";
+import { docVersionDb } from "@/lib/doc-versions";
+import { paymentDb } from "@/lib/payments";
 import {
   PROJECT_STATUS_MAP,
   PROJECT_COMPONENT_MAP,
   MILESTONE_TYPE_MAP,
+  DOC_STATUS_MAP,
 } from "@/lib/constants";
 
 export type ActionResult =
@@ -191,5 +196,225 @@ export async function setProjectSupplier(
     });
   }
   revalidatePath(`/projects/${projectId}`);
+  return { ok: true };
+}
+
+// ================= Ghi chú dự án (nhật ký có mốc thời gian) =================
+
+export async function addProjectNote(
+  projectId: string,
+  form: FormData
+): Promise<ActionResult> {
+  let session;
+  try {
+    session = await requirePermission("project", "edit");
+  } catch {
+    return { ok: false, error: "Bạn không có quyền thêm ghi chú." };
+  }
+  const trimmed = String(form.get("content") ?? "").trim();
+  if (!trimmed) return { ok: false, error: "Nội dung ghi chú không được để trống." };
+  if (trimmed.length > 2000) return { ok: false, error: "Ghi chú quá dài (tối đa 2000 ký tự)." };
+
+  const files = form
+    .getAll("images")
+    .filter((f): f is File => f instanceof File && f.size > 0);
+  if (files.length > 5) return { ok: false, error: "Tối đa 5 ảnh mỗi ghi chú." };
+  for (const f of files) {
+    if (!f.type.startsWith("image/")) return { ok: false, error: `"${f.name}" không phải file ảnh.` };
+    if (f.size > 5 * 1024 * 1024) return { ok: false, error: `Ảnh "${f.name}" vượt 5MB.` };
+  }
+  if (files.length > 0 && !isStorageConfigured()) {
+    return { ok: false, error: "Chưa cấu hình Supabase Storage để lưu ảnh." };
+  }
+
+  const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } });
+  if (!project) return { ok: false, error: "Không tìm thấy dự án." };
+
+  const note = await projectNoteDb.create({
+    data: { projectId, content: trimmed, authorName: session.name },
+  });
+
+  for (const f of files) {
+    const safe = f.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-60);
+    const key = `notes/${projectId}/${note.id}/${Date.now()}-${safe}`;
+    const buf = Buffer.from(await f.arrayBuffer());
+    await uploadFile(key, buf, f.type || "image/jpeg");
+    await noteImageDb.create({ data: { noteId: note.id, key, mime: f.type || "image/jpeg" } });
+  }
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/weekly");
+  return { ok: true };
+}
+
+export async function deleteProjectNote(
+  noteId: string,
+  projectId: string
+): Promise<ActionResult> {
+  let session;
+  try {
+    session = await requireSession();
+  } catch {
+    return { ok: false, error: "Phiên đăng nhập hết hạn." };
+  }
+  if (session.role !== "ADMIN") {
+    return { ok: false, error: "Chỉ quản trị viên được xóa ghi chú." };
+  }
+  await projectNoteDb.delete({ where: { id: noteId } });
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/weekly");
+  return { ok: true };
+}
+
+// ================= Hồ sơ dự án & phiên bản =================
+
+const DOC_PERMISSION: Record<string, Parameters<typeof requirePermission>[0]> = {
+  BAO_GIA: "quote",
+  HOP_DONG: "contract",
+  SHOP_DRAWING: "progress",
+};
+
+export async function addDocVersion(
+  projectId: string,
+  form: FormData
+): Promise<ActionResult> {
+  const docType = String(form.get("docType") ?? "");
+  const resource = DOC_PERMISSION[docType];
+  if (!resource) return { ok: false, error: "Loại hồ sơ không hợp lệ." };
+
+  let session;
+  try {
+    session = await requirePermission(resource, "edit");
+  } catch {
+    return { ok: false, error: "Bạn không có quyền thêm phiên bản cho loại hồ sơ này." };
+  }
+
+  const version = String(form.get("version") ?? "").trim();
+  if (!version) return { ok: false, error: "Nhập số phiên bản (ví dụ R0, R1)." };
+  const status = String(form.get("status") ?? "DRAFT");
+  if (!(status in DOC_STATUS_MAP)) return { ok: false, error: "Trạng thái không hợp lệ." };
+  const issuedAtRaw = String(form.get("issuedAt") ?? "").trim();
+  const note = String(form.get("note") ?? "").trim();
+
+  const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } });
+  if (!project) return { ok: false, error: "Không tìm thấy dự án." };
+
+  await docVersionDb.create({
+    data: {
+      projectId,
+      docType,
+      version,
+      issuedAt: issuedAtRaw ? new Date(issuedAtRaw) : null,
+      status,
+      note: note || null,
+      authorName: session.name,
+    },
+  });
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/weekly");
+  return { ok: true };
+}
+
+export async function deleteDocVersion(
+  docId: string,
+  projectId: string
+): Promise<ActionResult> {
+  let session;
+  try {
+    session = await requireSession();
+  } catch {
+    return { ok: false, error: "Phiên đăng nhập hết hạn." };
+  }
+  if (session.role !== "ADMIN") {
+    return { ok: false, error: "Chỉ quản trị viên được xóa phiên bản hồ sơ." };
+  }
+  await docVersionDb.delete({ where: { id: docId } });
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/weekly");
+  return { ok: true };
+}
+
+// ================= Thanh toán theo đợt =================
+
+export async function addPayment(projectId: string, form: FormData): Promise<ActionResult> {
+  try {
+    await requirePermission("cost", "edit");
+  } catch {
+    return { ok: false, error: "Bạn không có quyền thêm đợt thanh toán." };
+  }
+  const direction = String(form.get("direction") ?? "");
+  if (direction !== "THU" && direction !== "CHI") {
+    return { ok: false, error: "Loại thanh toán không hợp lệ." };
+  }
+  const name = String(form.get("name") ?? "").trim();
+  if (!name) return { ok: false, error: "Nhập tên đợt (Tạm ứng, Đợt 1...)." };
+  const amountRaw = String(form.get("amount") ?? "").replace(/[.,\s]/g, "");
+  const amount = amountRaw ? Number(amountRaw) : null;
+  if (amount !== null && (!Number.isFinite(amount) || amount < 0)) {
+    return { ok: false, error: "Số tiền không hợp lệ." };
+  }
+  const dueRaw = String(form.get("dueDate") ?? "").trim();
+  const counterpart = String(form.get("counterpart") ?? "").trim();
+  const note = String(form.get("note") ?? "").trim();
+
+  const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } });
+  if (!project) return { ok: false, error: "Không tìm thấy dự án." };
+
+  await paymentDb.create({
+    data: {
+      projectId,
+      direction,
+      counterpart: counterpart || null,
+      name,
+      amount,
+      dueDate: dueRaw ? new Date(dueRaw) : null,
+      note: note || null,
+    },
+  });
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/");
+  return { ok: true };
+}
+
+export async function markPaymentPaid(
+  paymentId: string,
+  projectId: string,
+  paidDateStr: string,
+  paidAmountStr: string
+): Promise<ActionResult> {
+  try {
+    await requirePermission("cost", "edit");
+  } catch {
+    return { ok: false, error: "Bạn không có quyền cập nhật thanh toán." };
+  }
+  const found = await paymentDb.findUnique({ where: { id: paymentId } });
+  if (!found) return { ok: false, error: "Không tìm thấy đợt thanh toán." };
+
+  const paidRaw = paidAmountStr.replace(/[.,\s]/g, "");
+  const paidAmount = paidRaw ? Number(paidRaw) : (found.amount ?? null);
+  if (paidAmount !== null && (!Number.isFinite(paidAmount) || paidAmount < 0)) {
+    return { ok: false, error: "Số tiền thực tế không hợp lệ." };
+  }
+  await paymentDb.update({
+    where: { id: paymentId },
+    data: {
+      paidDate: paidDateStr ? new Date(paidDateStr) : new Date(),
+      paidAmount,
+    },
+  });
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/");
+  return { ok: true };
+}
+
+export async function deletePayment(paymentId: string, projectId: string): Promise<ActionResult> {
+  try {
+    await requirePermission("cost", "edit");
+  } catch {
+    return { ok: false, error: "Bạn không có quyền xóa đợt thanh toán." };
+  }
+  await paymentDb.delete({ where: { id: paymentId } });
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/");
   return { ok: true };
 }

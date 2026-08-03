@@ -8,6 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatVND, formatDate, formatNumber } from "@/lib/utils";
 import { StatusChanger, SupplierAssigner } from "./ProjectDetail";
 import { Milestones, type MilestoneValue } from "./Milestones";
+import { ProjectNotes } from "./Notes";
+import { DocVersions } from "./DocVersions";
+import { docVersionDb } from "@/lib/doc-versions";
+import { ProjectPayments } from "./Payments";
+import { paymentDb } from "@/lib/payments";
+import { projectNoteDb, noteImageDb } from "@/lib/project-notes";
+import { signedUrl } from "@/lib/storage";
 import { computeProfit, formatPercent } from "@/lib/profit";
 import { computeContractTotals } from "@/lib/contract";
 import { computeQuoteTotals } from "@/lib/quote";
@@ -83,6 +90,67 @@ export default async function ProjectDetailPage({
       note: m.note,
     };
   }
+
+  const noteRows = await projectNoteDb.findMany({
+    where: { projectId: id },
+    orderBy: { createdAt: "desc" },
+  });
+  const noteImgs = noteRows.length
+    ? await noteImageDb.findMany({ where: { noteId: { in: noteRows.map((n) => n.id) } } })
+    : [];
+  const imgUrlByNote = new Map<string, string[]>();
+  for (const im of noteImgs) {
+    const url = await signedUrl(im.key);
+    if (!url) continue;
+    const list = imgUrlByNote.get(im.noteId) ?? [];
+    list.push(url);
+    imgUrlByNote.set(im.noteId, list);
+  }
+  const notes = noteRows.map((n) => ({
+    id: n.id,
+    content: n.content,
+    authorName: n.authorName,
+    createdAt: n.createdAt.toISOString(),
+    images: imgUrlByNote.get(n.id) ?? [],
+  }));
+
+  const docRows = await docVersionDb.findMany({
+    where: { projectId: id },
+    orderBy: [{ docType: "asc" }, { createdAt: "desc" }],
+  });
+  const docs = docRows.map((d) => ({
+    id: d.id,
+    docType: d.docType,
+    version: d.version,
+    issuedAt: d.issuedAt?.toISOString() ?? null,
+    status: d.status,
+    note: d.note,
+    authorName: d.authorName,
+    createdAt: d.createdAt.toISOString(),
+  }));
+  const canEditTypes = [
+    can(session.role, "quote", "edit") ? "BAO_GIA" : null,
+    can(session.role, "contract", "edit") ? "HOP_DONG" : null,
+    can(session.role, "progress", "edit") ? "SHOP_DRAWING" : null,
+  ].filter((v): v is string => v !== null);
+
+  const paymentRows = await paymentDb.findMany({
+    where: { projectId: id },
+    orderBy: [{ direction: "asc" }, { dueDate: "asc" }],
+  });
+  const payments = paymentRows.map((x) => ({
+    id: x.id,
+    direction: x.direction,
+    counterpart: x.counterpart,
+    name: x.name,
+    amount: x.amount,
+    dueDate: x.dueDate?.toISOString() ?? null,
+    paidDate: x.paidDate?.toISOString() ?? null,
+    paidAmount: x.paidAmount,
+    note: x.note,
+  }));
+  const canEditPayment = can(session.role, "cost", "edit");
+  const canViewPayment = can(session.role, "debt", "view") || canEditPayment;
 
   const suppliers = await db.supplier.findMany({
     orderBy: [{ category: "asc" }, { name: "asc" }],
@@ -364,6 +432,45 @@ export default async function ProjectDetailPage({
             projectId={project.id}
             milestones={milestoneMap}
             canEdit={canEditProgress}
+          />
+        </CardContent>
+      </Card>
+
+      {canViewPayment && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Thanh toán theo đợt</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ProjectPayments projectId={project.id} payments={payments} canEdit={canEditPayment} />
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Hồ sơ & phiên bản</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DocVersions
+            projectId={project.id}
+            docs={docs}
+            canEditTypes={canEditTypes}
+            canDelete={session.role === "ADMIN"}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Nhật ký dự án</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ProjectNotes
+            projectId={project.id}
+            notes={notes}
+            canEdit={canEdit}
+            canDelete={session.role === "ADMIN"}
           />
         </CardContent>
       </Card>
