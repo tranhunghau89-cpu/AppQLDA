@@ -2,15 +2,17 @@ import Link from "next/link";
 import { FileSpreadsheet } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
+import { scopedByProjectWhere } from "@/lib/scope";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { PO_CATEGORY_MAP, PO_STATUS, PO_STATUS_MAP } from "@/lib/constants";
 import { formatVND, formatNumber, formatDate } from "@/lib/utils";
 
 export default async function PurchasesPage() {
-  await requireView("purchase");
+  const session = await requireView("purchase");
 
   const orders = await db.purchaseOrder.findMany({
+    where: await scopedByProjectWhere(session),
     orderBy: [{ orderDate: "desc" }, { category: "asc" }],
     include: {
       project: { select: { id: true, code: true, name: true } },

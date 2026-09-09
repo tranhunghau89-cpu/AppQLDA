@@ -2,14 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, FileSpreadsheet } from "lucide-react";
 import { db } from "@/lib/db";
-import { requireView } from "@/lib/auth";
+import { requireProjectView } from "@/lib/auth";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { formatVND, formatNumber } from "@/lib/utils";
 import { formatPercent } from "@/lib/profit";
 
 export default async function CostPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await requireView("cost");
+  await requireProjectView("cost", id);
 
   const project = await db.project.findUnique({
     where: { id },

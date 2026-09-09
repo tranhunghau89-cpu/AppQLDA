@@ -119,11 +119,24 @@ npm run import:orders      # bóc chi tiết từng dòng vật tư từ file đ
 
 Ma trận chi tiết ở `src/lib/rbac.ts`.
 
+## Bảo mật
+- **Phạm vi dự án**: user không phải ADMIN chỉ thấy dự án được gán qua `ProjectMember`
+  (mục "Thành viên dự án" trong trang chi tiết dự án). Người mới **chưa được gán sẽ không
+  thấy dự án nào** — dùng `npm run members:backfill` để gán hàng loạt khi mới bật.
+- **Thu hồi phiên**: khóa tài khoản / đổi mật khẩu / đổi vai trò tăng `User.tokenVersion`,
+  cắt mọi phiên đang mở ngay lần điều hướng kế tiếp.
+- **Chống dò mật khẩu**: 10 lần sai (theo IP hoặc email) trong 15 phút → chặn 15 phút.
+- **KHÔNG commit token/bí mật.** Nếu lỡ commit: xóa khỏi lịch sử git **và** xoay
+  `AUTH_SECRET`, cập nhật biến môi trường trên Vercel.
+
 ## Build & triển khai nội bộ
 ```bash
-npm run build
-npm start                   # chạy server production trên LAN
+npm run build       # prisma generate + next build — KHÔNG chạm DB
+npm run db:deploy   # prisma migrate deploy — áp migration lên DB thật (chạy riêng, có chủ đích)
+npm start           # chạy server production trên LAN
 ```
+> Trên Vercel, script `vercel-build` (generate + migrate deploy + build) được ưu tiên,
+> nên deploy vẫn tự áp migration như trước.
 Lên cloud: đổi datasource sang PostgreSQL, đặt `AUTH_SECRET` ngẫu nhiên trong biến môi trường,
 `npx prisma migrate deploy`, rồi deploy (VPS/Vercel).
 

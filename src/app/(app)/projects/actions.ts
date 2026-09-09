@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requirePermission, requireSession } from "@/lib/auth";
+import { denyProject, requirePermission, requireSession } from "@/lib/auth";
 import { projectNoteDb, noteImageDb } from "@/lib/project-notes";
 import { uploadFile, isStorageConfigured } from "@/lib/storage";
 import { docVersionDb } from "@/lib/doc-versions";
@@ -70,10 +70,17 @@ export async function saveProject(
   id: string | null,
   form: FormData
 ): Promise<ActionResult> {
-  try {
-    await requirePermission("project", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền chỉnh sửa dự án." };
+  let session;
+  if (id) {
+    const denied = await denyProject("project", "edit", id, "Bạn không có quyền chỉnh sửa dự án.");
+    if (denied) return denied;
+    session = await requireSession();
+  } else {
+    try {
+      session = await requirePermission("project", "edit");
+    } catch {
+      return { ok: false, error: "Bạn không có quyền chỉnh sửa dự án." };
+    }
   }
 
   const parsed = parse(form);
@@ -101,6 +108,13 @@ export async function saveProject(
     if (id) await db.project.update({ where: { id }, data });
     else {
       const created = await db.project.create({ data });
+      // Người tạo (không phải ADMIN) tự động là thành viên, nếu không họ sẽ mất
+      // quyền truy cập chính dự án vừa tạo.
+      if (session.role !== "ADMIN") {
+        await db.projectMember.create({
+          data: { projectId: created.id, userId: session.userId },
+        });
+      }
       revalidatePath("/projects");
       return { ok: true, id: created.id };
     }
@@ -117,11 +131,8 @@ export async function saveProject(
 }
 
 export async function deleteProject(id: string): Promise<ActionResult> {
-  try {
-    await requirePermission("project", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền xóa dự án." };
-  }
+  const denied = await denyProject("project", "edit", id, "Bạn không có quyền xóa dự án.");
+  if (denied) return denied;
   await db.project.delete({ where: { id } });
   revalidatePath("/projects");
   return { ok: true };
@@ -131,11 +142,8 @@ export async function updateStatus(
   id: string,
   status: string
 ): Promise<ActionResult> {
-  try {
-    await requirePermission("project", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền đổi trạng thái." };
-  }
+  const denied = await denyProject("project", "edit", id, "Bạn không có quyền đổi trạng thái.");
+  if (denied) return denied;
   if (!(status in PROJECT_STATUS_MAP))
     return { ok: false, error: "Trạng thái không hợp lệ." };
   await db.project.update({ where: { id }, data: { status } });
@@ -149,11 +157,8 @@ export async function upsertMilestone(
   type: string,
   values: { planDate: string; actualDate: string; done: boolean; note: string }
 ): Promise<ActionResult> {
-  try {
-    await requirePermission("progress", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền cập nhật tiến độ." };
-  }
+  const denied = await denyProject("progress", "edit", projectId, "Bạn không có quyền cập nhật tiến độ.");
+  if (denied) return denied;
   if (!(type in MILESTONE_TYPE_MAP))
     return { ok: false, error: "Loại mốc không hợp lệ." };
 
@@ -178,11 +183,8 @@ export async function setProjectSupplier(
   component: string,
   supplierId: string | null
 ): Promise<ActionResult> {
-  try {
-    await requirePermission("project", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền gán NCC." };
-  }
+  const denied = await denyProject("project", "edit", projectId, "Bạn không có quyền gán NCC.");
+  if (denied) return denied;
   if (!(component in PROJECT_COMPONENT_MAP))
     return { ok: false, error: "Hạng mục không hợp lệ." };
 
@@ -205,12 +207,9 @@ export async function addProjectNote(
   projectId: string,
   form: FormData
 ): Promise<ActionResult> {
-  let session;
-  try {
-    session = await requirePermission("project", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền thêm ghi chú." };
-  }
+  const denied = await denyProject("project", "edit", projectId, "Bạn không có quyền thêm ghi chú.");
+  if (denied) return denied;
+  const session = await requireSession();
   const trimmed = String(form.get("content") ?? "").trim();
   if (!trimmed) return { ok: false, error: "Nội dung ghi chú không được để trống." };
   if (trimmed.length > 2000) return { ok: false, error: "Ghi chú quá dài (tối đa 2000 ký tự)." };
@@ -282,12 +281,14 @@ export async function addDocVersion(
   const resource = DOC_PERMISSION[docType];
   if (!resource) return { ok: false, error: "Loại hồ sơ không hợp lệ." };
 
-  let session;
-  try {
-    session = await requirePermission(resource, "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền thêm phiên bản cho loại hồ sơ này." };
-  }
+  const denied = await denyProject(
+    resource,
+    "edit",
+    projectId,
+    "Bạn không có quyền thêm phiên bản cho loại hồ sơ này."
+  );
+  if (denied) return denied;
+  const session = await requireSession();
 
   const version = String(form.get("version") ?? "").trim();
   if (!version) return { ok: false, error: "Nhập số phiên bản (ví dụ R0, R1)." };
@@ -337,11 +338,8 @@ export async function deleteDocVersion(
 // ================= Thanh toán theo đợt =================
 
 export async function addPayment(projectId: string, form: FormData): Promise<ActionResult> {
-  try {
-    await requirePermission("cost", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền thêm đợt thanh toán." };
-  }
+  const denied = await denyProject("cost", "edit", projectId, "Bạn không có quyền thêm đợt thanh toán.");
+  if (denied) return denied;
   const direction = String(form.get("direction") ?? "");
   if (direction !== "THU" && direction !== "CHI") {
     return { ok: false, error: "Loại thanh toán không hợp lệ." };
@@ -382,13 +380,16 @@ export async function markPaymentPaid(
   paidDateStr: string,
   paidAmountStr: string
 ): Promise<ActionResult> {
-  try {
-    await requirePermission("cost", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền cập nhật thanh toán." };
-  }
   const found = await paymentDb.findUnique({ where: { id: paymentId } });
   if (!found) return { ok: false, error: "Không tìm thấy đợt thanh toán." };
+  // Lấy projectId từ chính bản ghi, không tin tham số từ client.
+  const denied = await denyProject(
+    "cost",
+    "edit",
+    found.projectId,
+    "Bạn không có quyền cập nhật thanh toán."
+  );
+  if (denied) return denied;
 
   const paidRaw = paidAmountStr.replace(/[.,\s]/g, "");
   const paidAmount = paidRaw ? Number(paidRaw) : (found.amount ?? null);
@@ -408,11 +409,15 @@ export async function markPaymentPaid(
 }
 
 export async function deletePayment(paymentId: string, projectId: string): Promise<ActionResult> {
-  try {
-    await requirePermission("cost", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền xóa đợt thanh toán." };
-  }
+  const found = await paymentDb.findUnique({ where: { id: paymentId } });
+  if (!found) return { ok: false, error: "Không tìm thấy đợt thanh toán." };
+  const denied = await denyProject(
+    "cost",
+    "edit",
+    found.projectId,
+    "Bạn không có quyền xóa đợt thanh toán."
+  );
+  if (denied) return denied;
   await paymentDb.delete({ where: { id: paymentId } });
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/");

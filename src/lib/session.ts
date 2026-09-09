@@ -11,6 +11,8 @@ export interface SessionUser {
   email: string;
   name: string;
   role: Role;
+  /** Khớp với User.tokenVersion trong DB; lệch -> phiên bị thu hồi. */
+  tokenVersion: number;
 }
 
 function secretKey(): Uint8Array {
@@ -35,6 +37,7 @@ export async function verifySession(token: string): Promise<SessionUser | null> 
       email: String(payload.email),
       name: String(payload.name),
       role: payload.role as Role,
+      tokenVersion: Number(payload.tokenVersion ?? 0),
     };
   } catch {
     return null;

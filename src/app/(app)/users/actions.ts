@@ -42,6 +42,12 @@ export async function saveUser(
 
   try {
     if (id) {
+      const before = await db.user.findUnique({
+        where: { id },
+        select: { role: true, active: true },
+      });
+      if (!before) return { ok: false, error: "Không tìm thấy người dùng." };
+
       const data: Record<string, unknown> = {
         email: d.email,
         name: d.name,
@@ -53,6 +59,12 @@ export async function saveUser(
           return { ok: false, error: "Mật khẩu tối thiểu 6 ký tự." };
         data.passwordHash = await hashPassword(d.password);
       }
+
+      // Đổi mật khẩu / đổi vai trò / khóa tài khoản phải cắt luôn các phiên đang mở.
+      const revoke =
+        !!data.passwordHash || before.role !== d.role || (before.active && !d.active);
+      if (revoke) data.tokenVersion = { increment: 1 };
+
       await db.user.update({ where: { id }, data });
     } else {
       if (!d.password || d.password.length < 6)

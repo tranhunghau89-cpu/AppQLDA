@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth";
+import { canAccessProject } from "@/lib/scope";
 import { proposalDb } from "@/lib/proposals";
 import { PROPOSAL_KIND_MAP } from "@/lib/constants";
 
@@ -26,6 +27,9 @@ export async function createProposal(form: FormData): Promise<ActionResult> {
   }
   const content = String(form.get("content") ?? "").trim();
   const projectId = String(form.get("projectId") ?? "").trim();
+  if (projectId && !(await canAccessProject(session, projectId))) {
+    return { ok: false, error: "Bạn không được phân công dự án này." };
+  }
 
   await proposalDb.create({
     data: {
@@ -58,6 +62,9 @@ export async function decideProposal(
   const found = await proposalDb.findUnique({ where: { id } });
   if (!found) return { ok: false, error: "Không tìm thấy đề xuất." };
   if (found.status !== "PENDING") return { ok: false, error: "Đề xuất đã được xử lý." };
+  if (found.projectId && !(await canAccessProject(session, found.projectId))) {
+    return { ok: false, error: "Bạn không được phân công dự án này." };
+  }
 
   await proposalDb.update({
     where: { id },
@@ -85,6 +92,9 @@ export async function deleteProposal(id: string): Promise<ActionResult> {
   const isOwner = found.createdBy === session.name && found.status === "PENDING";
   if (!isOwner && session.role !== "ADMIN") {
     return { ok: false, error: "Bạn không có quyền xóa đề xuất này." };
+  }
+  if (found.projectId && !(await canAccessProject(session, found.projectId))) {
+    return { ok: false, error: "Bạn không được phân công dự án này." };
   }
   await proposalDb.delete({ where: { id } });
   revalidatePath("/approvals");

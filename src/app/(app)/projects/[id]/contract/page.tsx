@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
-import { requireView } from "@/lib/auth";
+import { requireProjectView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { ContractEditor, type ContractView } from "./ContractEditor";
 
@@ -12,7 +12,7 @@ export default async function ContractPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await requireView("contract");
+  const session = await requireProjectView("contract", id);
   const canEdit = can(session.role, "contract", "edit");
 
   const project = await db.project.findUnique({

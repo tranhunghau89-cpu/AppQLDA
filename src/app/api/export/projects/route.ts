@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
+import { scopedProjectWhere } from "@/lib/scope";
 import { PROJECT_STATUS_MAP } from "@/lib/constants";
 import { computeProfit } from "@/lib/profit";
 
@@ -14,6 +15,7 @@ export async function GET() {
   const canViewProfit = can(session.role, "profit", "view");
 
   const projects = await db.project.findMany({
+    where: await scopedProjectWhere(session),
     orderBy: { code: "desc" },
     include: {
       customer: { select: { name: true } },

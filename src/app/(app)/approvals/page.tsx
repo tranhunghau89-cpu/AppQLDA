@@ -1,16 +1,16 @@
-import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
+import { myProjects, scopedByOptionalProjectWhere } from "@/lib/scope";
 import { proposalDb } from "@/lib/proposals";
 import { ProposalBoard, type ProposalItem } from "./ProposalBoard";
 
 export default async function ApprovalsPage() {
   const session = await requireSession();
 
-  const rows = await proposalDb.findMany({ orderBy: [{ createdAt: "desc" }] });
-  const projects = await db.project.findMany({
-    orderBy: { code: "desc" },
-    select: { id: true, code: true, name: true },
+  const rows = await proposalDb.findMany({
+    where: await scopedByOptionalProjectWhere(session),
+    orderBy: [{ createdAt: "desc" }],
   });
+  const projects = await myProjects(session);
   const codeById = new Map(projects.map((p) => [p.id, p.code]));
 
   const proposals: ProposalItem[] = rows.map((r) => ({

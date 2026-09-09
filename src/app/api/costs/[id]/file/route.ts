@@ -3,6 +3,7 @@ import path from "path";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
+import { canAccessProject } from "@/lib/scope";
 
 const MIME: Record<string, string> = {
   ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -19,7 +20,12 @@ export async function GET(
   if (!session) return new Response("Unauthorized", { status: 401 });
   if (!can(session.role, "cost", "view")) return new Response("Forbidden", { status: 403 });
 
-  const cs = await db.costSummary.findUnique({ where: { id }, select: { filePath: true } });
+  const cs = await db.costSummary.findUnique({
+    where: { id },
+    select: { filePath: true, projectId: true },
+  });
+  if (cs && !(await canAccessProject(session, cs.projectId)))
+    return new Response("Not found", { status: 404 });
   if (!cs?.filePath) return new Response("Không có file", { status: 404 });
   if (!fs.existsSync(cs.filePath))
     return new Response("File không tồn tại trên ổ đĩa", { status: 404 });

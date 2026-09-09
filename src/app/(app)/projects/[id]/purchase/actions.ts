@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/auth";
+import { denyProject } from "@/lib/auth";
 import { PO_CATEGORY_MAP, PO_STATUS_MAP } from "@/lib/constants";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -41,16 +41,58 @@ const orderSchema = z.object({
   note: z.string().trim().optional(),
 });
 
+
+/**
+ * Chặn khi thiếu quyền / ngoài phạm vi dự án; đối chiếu đơn hàng (và dòng vật tư,
+ * ảnh) có thực sự thuộc dự án đó không — các id này đến từ client.
+ */
+async function guard(
+  projectId: string,
+  fallback: string,
+  opts: { orderId?: string | null; itemId?: string | null; imageId?: string | null } = {}
+): Promise<ActionResult | null> {
+  const denied = await denyProject("purchase", "edit", projectId, fallback);
+  if (denied) return denied;
+
+  let orderId = opts.orderId ?? null;
+  if (opts.imageId) {
+    const img = await db.poItemImage.findUnique({
+      where: { id: opts.imageId },
+      select: { item: { select: { orderId: true } } },
+    });
+    if (!img) return { ok: false, error: "Không tìm thấy ảnh." };
+    orderId = img.item.orderId;
+  } else if (opts.itemId) {
+    const it = await db.purchaseOrderItem.findUnique({
+      where: { id: opts.itemId },
+      select: { orderId: true },
+    });
+    if (!it) return { ok: false, error: "Không tìm thấy dòng vật tư." };
+    if (opts.orderId && it.orderId !== opts.orderId) {
+      return { ok: false, error: "Dòng vật tư không thuộc đơn hàng này." };
+    }
+    orderId = it.orderId;
+  }
+
+  if (orderId) {
+    const o = await db.purchaseOrder.findUnique({
+      where: { id: orderId },
+      select: { projectId: true },
+    });
+    if (!o || o.projectId !== projectId) {
+      return { ok: false, error: "Đơn hàng không thuộc dự án này." };
+    }
+  }
+  return null;
+}
+
 export async function savePurchaseOrder(
   projectId: string,
   orderId: string | null,
   form: FormData
 ): Promise<ActionResult> {
-  try {
-    await requirePermission("purchase", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền chỉnh sửa đơn hàng." };
-  }
+  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa đơn hàng.", { orderId });
+  if (denied) return denied;
   const parsed = orderSchema.safeParse({
     orderNo: String(form.get("orderNo") ?? ""),
     orderDate: String(form.get("orderDate") ?? ""),
@@ -92,11 +134,8 @@ export async function deletePurchaseOrder(
   projectId: string,
   orderId: string
 ): Promise<ActionResult> {
-  try {
-    await requirePermission("purchase", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền xóa đơn hàng." };
-  }
+  const denied = await guard(projectId, "Bạn không có quyền xóa đơn hàng.", { orderId });
+  if (denied) return denied;
   await db.purchaseOrder.delete({ where: { id: orderId } });
   revalidatePath(`/projects/${projectId}/purchase`);
   revalidatePath("/purchases");
@@ -121,11 +160,11 @@ export async function savePurchaseItem(
   itemId: string | null,
   form: FormData
 ): Promise<ActionResult> {
-  try {
-    await requirePermission("purchase", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền chỉnh sửa vật tư." };
-  }
+  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa vật tư.", {
+    orderId,
+    itemId,
+  });
+  if (denied) return denied;
   const parsed = itemSchema.safeParse({
     category: String(form.get("category") ?? ""),
     groupName: String(form.get("groupName") ?? ""),
@@ -163,11 +202,8 @@ export async function deletePurchaseItem(
   orderId: string,
   itemId: string
 ): Promise<ActionResult> {
-  try {
-    await requirePermission("purchase", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền xóa vật tư." };
-  }
+  const denied = await guard(projectId, "Bạn không có quyền xóa vật tư.", { orderId, itemId });
+  if (denied) return denied;
   await db.purchaseOrderItem.delete({ where: { id: itemId } });
   await recompute(orderId);
   revalidatePath(`/projects/${projectId}/purchase`);
@@ -182,11 +218,8 @@ export async function uploadPurchaseItemImages(
   itemId: string,
   form: FormData
 ): Promise<ActionResult> {
-  try {
-    await requirePermission("purchase", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền thêm ảnh." };
-  }
+  const denied = await guard(projectId, "Bạn không có quyền thêm ảnh.", { itemId });
+  if (denied) return denied;
   const files = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
   if (!files.length) return { ok: false, error: "Chưa chọn ảnh." };
   for (const f of files) {
@@ -216,11 +249,8 @@ export async function deletePurchaseItemImage(
   projectId: string,
   imageId: string
 ): Promise<ActionResult> {
-  try {
-    await requirePermission("purchase", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền xóa ảnh." };
-  }
+  const denied = await guard(projectId, "Bạn không có quyền xóa ảnh.", { imageId });
+  if (denied) return denied;
   await db.poItemImage.delete({ where: { id: imageId } });
   revalidatePath(`/projects/${projectId}/purchase`);
   return { ok: true };

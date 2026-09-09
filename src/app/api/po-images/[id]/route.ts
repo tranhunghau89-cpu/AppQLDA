@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
+import { canAccessProject } from "@/lib/scope";
 
 export async function GET(
   _req: Request,
@@ -14,8 +15,14 @@ export async function GET(
 
   const img = await db.poItemImage.findUnique({
     where: { id },
-    select: { mime: true, data: true },
+    select: {
+      mime: true,
+      data: true,
+      item: { select: { order: { select: { projectId: true } } } },
+    },
   });
+  if (img && !(await canAccessProject(session, img.item.order.projectId)))
+    return new Response("Not found", { status: 404 });
   if (!img) return new Response("Không có ảnh", { status: 404 });
 
   const buf = Buffer.isBuffer(img.data) ? img.data : Buffer.from(img.data);

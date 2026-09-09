@@ -1,6 +1,8 @@
 import ExcelJS from "exceljs";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { can } from "@/lib/rbac";
+import { canAccessProject } from "@/lib/scope";
 import { takeoffDb, BT_GROUP_MAP } from "@/lib/takeoff";
 
 export async function GET(
@@ -9,7 +11,11 @@ export async function GET(
 ) {
   const session = await getSession();
   if (!session) return new Response("Unauthorized", { status: 401 });
+  if (!can(session.role, "project", "view"))
+    return new Response("Forbidden", { status: 403 });
   const { projectId } = await params;
+  if (!(await canAccessProject(session, projectId)))
+    return new Response("Not found", { status: 404 });
 
   const project = await db.project.findUnique({
     where: { id: projectId },

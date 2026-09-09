@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
+import { canAccessProject } from "@/lib/scope";
 import {
   takeoffDb, computeConcrete, computeBuiltUp, computePlate, BT_GROUP_MAP,
 } from "@/lib/takeoff";
@@ -31,6 +32,9 @@ export async function addTakeoffItem(projectId: string, form: FormData): Promise
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Không có quyền." };
   }
+  const session = await requireSession();
+  if (!(await canAccessProject(session, projectId)))
+    return { ok: false, error: "Bạn không được phân công dự án này." };
   const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } });
   if (!project) return { ok: false, error: "Chưa chọn dự án hợp lệ." };
 
@@ -114,11 +118,19 @@ export async function addTakeoffItem(projectId: string, form: FormData): Promise
 }
 
 export async function deleteTakeoffItem(id: string): Promise<ActionResult> {
+  let session;
   try {
-    await requireEditor();
+    session = await requireEditor();
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Không có quyền." };
   }
+  const found = await takeoffDb.findUnique({
+    where: { id },
+    select: { projectId: true },
+  });
+  if (!found) return { ok: false, error: "Không tìm thấy cấu kiện." };
+  if (!(await canAccessProject(session, found.projectId)))
+    return { ok: false, error: "Bạn không được phân công dự án này." };
   await takeoffDb.delete({ where: { id } });
   revalidatePath("/tools");
   return { ok: true };

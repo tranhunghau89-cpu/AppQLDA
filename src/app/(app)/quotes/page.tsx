@@ -2,14 +2,16 @@ import Link from "next/link";
 import { Tags } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
+import { scopedByProjectWhere } from "@/lib/scope";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { formatVND, formatDate } from "@/lib/utils";
 import { computeQuoteTotals } from "@/lib/quote";
 
 export default async function QuotesPage() {
-  await requireView("quote");
+  const session = await requireView("quote");
 
   const quotes = await db.quote.findMany({
+    where: await scopedByProjectWhere(session),
     orderBy: { createdAt: "desc" },
     include: {
       project: { select: { id: true, code: true, name: true } },

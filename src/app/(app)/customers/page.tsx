@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
+import { myProjectIds } from "@/lib/scope";
 import { getReceivables } from "@/lib/debt";
 import { CustomerManager } from "./CustomerManager";
 
@@ -14,7 +15,7 @@ export default async function CustomersPage() {
       orderBy: { name: "asc" },
       include: { _count: { select: { projects: true } } },
     }),
-    canViewDebt ? getReceivables() : Promise.resolve([]),
+    canViewDebt ? getReceivables(await myProjectIds(session)) : Promise.resolve([]),
   ]);
 
   const debtMap = new Map(receivables.map((r) => [r.customerId, r]));

@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/auth";
+import { denyProject } from "@/lib/auth";
 import { ESTIMATE_GROUP_MAP } from "@/lib/constants";
 import { computeTemplateLines, type TemplateLine } from "@/lib/estimateTemplate";
 
@@ -56,16 +56,34 @@ function parse(form: FormData) {
   });
 }
 
+
+/** Chặn khi thiếu quyền / ngoài phạm vi; đối chiếu dòng dự toán có thuộc dự án không. */
+async function guard(
+  projectId: string,
+  fallback: string,
+  itemId?: string | null
+): Promise<ActionResult | null> {
+  const denied = await denyProject("estimate", "edit", projectId, fallback);
+  if (denied) return denied;
+  if (itemId) {
+    const it = await db.estimateItem.findUnique({
+      where: { id: itemId },
+      select: { projectId: true },
+    });
+    if (!it || it.projectId !== projectId) {
+      return { ok: false, error: "Dòng dự toán không thuộc dự án này." };
+    }
+  }
+  return null;
+}
+
 export async function saveEstimateItem(
   projectId: string,
   id: string | null,
   form: FormData
 ): Promise<ActionResult> {
-  try {
-    await requirePermission("estimate", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền chỉnh sửa dự toán." };
-  }
+  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa dự toán.", id);
+  if (denied) return denied;
 
   const parsed = parse(form);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -98,11 +116,8 @@ export async function deleteEstimateItem(
   projectId: string,
   id: string
 ): Promise<ActionResult> {
-  try {
-    await requirePermission("estimate", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền xóa dòng dự toán." };
-  }
+  const denied = await guard(projectId, "Bạn không có quyền xóa dòng dự toán.", id);
+  if (denied) return denied;
   await db.estimateItem.delete({ where: { id } });
   revalidatePath(`/projects/${projectId}/estimate`);
   revalidatePath("/estimates");
@@ -114,11 +129,8 @@ export async function applyEstimateTemplate(
   projectId: string,
   payload: ApplyTemplatePayload
 ): Promise<ActionResult> {
-  try {
-    await requirePermission("estimate", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền chỉnh sửa dự toán." };
-  }
+  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa dự toán.");
+  if (denied) return denied;
 
   const template = await db.estimateTemplate.findUnique({
     where: { id: payload.templateId },
@@ -188,11 +200,8 @@ export async function deleteEstimateSection(
   projectId: string,
   sectionId: string
 ): Promise<ActionResult> {
-  try {
-    await requirePermission("estimate", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền xóa hạng mục." };
-  }
+  const denied = await guard(projectId, "Bạn không có quyền xóa hạng mục.");
+  if (denied) return denied;
   const section = await db.estimateSection.findUnique({
     where: { id: sectionId },
     select: { projectId: true },

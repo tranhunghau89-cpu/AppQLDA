@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
+import { canAccessProject } from "@/lib/scope";
 import { buildEstimateWorkbook, type ExportProject } from "@/lib/estimateExport";
 
 export async function GET(
@@ -12,6 +13,9 @@ export async function GET(
   if (!session) return new Response("Unauthorized", { status: 401 });
   if (!can(session.role, "estimate", "view"))
     return new Response("Forbidden", { status: 403 });
+
+  if (!(await canAccessProject(session, id)))
+    return new Response("Not found", { status: 404 });
 
   const project = await db.project.findUnique({
     where: { id },

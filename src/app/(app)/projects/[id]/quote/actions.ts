@@ -3,7 +3,8 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/auth";
+import { canAccessProject } from "@/lib/scope";
+import { denyProject, requirePermission, requireSession } from "@/lib/auth";
 import { computeQuoteTotals, sellFromBase } from "@/lib/quote";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -19,13 +20,48 @@ function paths(projectId: string) {
   revalidatePath("/quotes");
 }
 
-async function guard(): Promise<ActionResult | null> {
-  try {
-    await requirePermission("quote", "edit");
-    return null;
-  } catch {
-    return { ok: false, error: "Bạn không có quyền chỉnh sửa báo giá." };
+/**
+ * Chặn khi thiếu quyền / ngoài phạm vi dự án, và đối chiếu báo giá / phần / dòng
+ * có thuộc dự án đó không (mọi id đều đến từ client).
+ */
+async function guard(
+  projectId: string,
+  opts: { quoteId?: string | null; sectionId?: string | null; itemId?: string | null } = {}
+): Promise<ActionResult | null> {
+  const denied = await denyProject(
+    "quote",
+    "edit",
+    projectId,
+    "Bạn không có quyền chỉnh sửa báo giá."
+  );
+  if (denied) return denied;
+
+  const quoteIds = new Set<string>();
+  if (opts.quoteId) quoteIds.add(opts.quoteId);
+  if (opts.sectionId) {
+    const sec = await db.quoteSection.findUnique({
+      where: { id: opts.sectionId },
+      select: { quoteId: true },
+    });
+    if (!sec) return { ok: false, error: "Không tìm thấy phần/mục." };
+    quoteIds.add(sec.quoteId);
   }
+  if (opts.itemId) {
+    const it = await db.quoteItem.findUnique({
+      where: { id: opts.itemId },
+      select: { quoteId: true },
+    });
+    if (!it) return { ok: false, error: "Không tìm thấy dòng báo giá." };
+    quoteIds.add(it.quoteId);
+  }
+
+  for (const qid of quoteIds) {
+    const q = await db.quote.findUnique({ where: { id: qid }, select: { projectId: true } });
+    if (!q || q.projectId !== projectId) {
+      return { ok: false, error: "Báo giá không thuộc dự án này." };
+    }
+  }
+  return null;
 }
 
 // ---------- Quote (header) ----------
@@ -44,7 +80,7 @@ export async function saveQuote(
   quoteId: string | null,
   form: FormData
 ): Promise<ActionResult> {
-  const g = await guard();
+  const g = await guard(projectId, { quoteId });
   if (g) return g;
   const parsed = quoteSchema.safeParse({
     title: String(form.get("title") ?? ""),
@@ -76,7 +112,7 @@ export async function deleteQuote(
   projectId: string,
   quoteId: string
 ): Promise<ActionResult> {
-  const g = await guard();
+  const g = await guard(projectId, { quoteId });
   if (g) return g;
   await db.quote.delete({ where: { id: quoteId } });
   paths(projectId);
@@ -98,7 +134,7 @@ export async function saveSection(
   sectionId: string | null,
   form: FormData
 ): Promise<ActionResult> {
-  const g = await guard();
+  const g = await guard(projectId, { quoteId, sectionId });
   if (g) return g;
   const parsed = sectionSchema.safeParse({
     code: String(form.get("code") ?? ""),
@@ -143,7 +179,7 @@ export async function deleteSection(
   projectId: string,
   sectionId: string
 ): Promise<ActionResult> {
-  const g = await guard();
+  const g = await guard(projectId, { sectionId });
   if (g) return g;
   await db.quoteSection.delete({ where: { id: sectionId } });
   paths(projectId);
@@ -169,7 +205,7 @@ export async function saveItem(
   itemId: string | null,
   form: FormData
 ): Promise<ActionResult> {
-  const g = await guard();
+  const g = await guard(projectId, { quoteId, itemId });
   if (g) return g;
   const parsed = itemSchema.safeParse({
     sectionId: String(form.get("sectionId") ?? ""),
@@ -213,7 +249,7 @@ export async function deleteItem(
   projectId: string,
   itemId: string
 ): Promise<ActionResult> {
-  const g = await guard();
+  const g = await guard(projectId, { itemId });
   if (g) return g;
   await db.quoteItem.delete({ where: { id: itemId } });
   paths(projectId);
@@ -226,7 +262,7 @@ export async function cloneQuoteFrom(
   sourceQuoteId: string,
   markupOverride?: number | null
 ): Promise<ActionResult> {
-  const g = await guard();
+  const g = await guard(projectId);
   if (g) return g;
 
   const src = await db.quote.findUnique({
@@ -238,6 +274,12 @@ export async function cloneQuoteFrom(
     },
   });
   if (!src) return { ok: false, error: "Không tìm thấy báo giá nguồn." };
+
+  // Báo giá nguồn nằm ở dự án khác ⇒ dự án đó cũng phải trong phạm vi được giao.
+  const session = await requireSession();
+  if (!(await canAccessProject(session, src.projectId))) {
+    return { ok: false, error: "Bạn không được phân công dự án của báo giá nguồn." };
+  }
 
   const markup = markupOverride ?? src.markup ?? 1;
   const catalog = await db.workPrice.findMany({ select: { code: true, baseCost: true } });
@@ -303,7 +345,7 @@ export async function repriceQuote(
   projectId: string,
   quoteId: string
 ): Promise<ActionResult> {
-  const g = await guard();
+  const g = await guard(projectId, { quoteId });
   if (g) return g;
   const quote = await db.quote.findUnique({
     where: { id: quoteId },
@@ -332,7 +374,7 @@ export async function pushSalePrice(
   projectId: string,
   quoteId: string
 ): Promise<ActionResult> {
-  const g = await guard();
+  const g = await guard(projectId, { quoteId });
   if (g) return g;
   try {
     await requirePermission("project", "edit");

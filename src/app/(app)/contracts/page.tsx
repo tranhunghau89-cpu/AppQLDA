@@ -2,15 +2,17 @@ import Link from "next/link";
 import { FileText } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
+import { scopedByProjectWhere } from "@/lib/scope";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { CONTRACT_STATUS, CONTRACT_STATUS_MAP } from "@/lib/constants";
 import { formatVND, formatDate } from "@/lib/utils";
 
 export default async function ContractsPage() {
-  await requireView("contract");
+  const session = await requireView("contract");
 
   const contracts = await db.contract.findMany({
+    where: await scopedByProjectWhere(session),
     orderBy: [{ status: "asc" }, { signDate: "desc" }],
     include: {
       project: { select: { id: true, code: true, name: true } },

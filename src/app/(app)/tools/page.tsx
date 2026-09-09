@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
+import { canAccessProject, myProjects } from "@/lib/scope";
 import { takeoffDb } from "@/lib/takeoff";
 import { SteelLookup } from "./SteelLookup";
 import { TakeoffBoard } from "./TakeoffBoard";
@@ -15,11 +15,9 @@ export default async function ToolsPage({
   const tab = sp.tab === "takeoff" ? "takeoff" : "lookup";
   const projectId = sp.project ?? null;
 
-  const projects = await db.project.findMany({
-    orderBy: { code: "desc" },
-    select: { id: true, code: true, name: true },
-  });
-  const items = projectId
+  const projects = await myProjects(session);
+  const inScope = projectId ? await canAccessProject(session, projectId) : false;
+  const items = inScope && projectId
     ? await takeoffDb.findMany({
         where: { projectId },
         orderBy: [{ kind: "asc" }, { createdAt: "asc" }],

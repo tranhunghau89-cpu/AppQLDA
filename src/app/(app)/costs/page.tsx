@@ -2,14 +2,16 @@ import Link from "next/link";
 import { FileSpreadsheet } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
+import { scopedByProjectWhere } from "@/lib/scope";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { formatVND } from "@/lib/utils";
 import { formatPercent } from "@/lib/profit";
 
 export default async function CostsPage() {
-  await requireView("cost");
+  const session = await requireView("cost");
 
   const rows = await db.costSummary.findMany({
+    where: await scopedByProjectWhere(session),
     include: { project: { select: { id: true, code: true, name: true, location: true } } },
     orderBy: { profit: "desc" },
   });

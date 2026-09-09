@@ -1,7 +1,13 @@
 // Tổng hợp công nợ (chỉ đọc) từ dữ liệu sẵn có:
 //  - Phải thu theo Chủ đầu tư: quyết toán → hợp đồng → giá bán.
 //  - Phải trả theo Nhà cung cấp: đơn hàng (FK) + quyết toán (khớp tên).
+//
+// Cấu trúc: `buildReceivables` / `buildPayables` là hàm THUẦN (không chạm DB) để test được;
+// `getReceivables` / `getPayables` chỉ lo truy vấn + áp phạm vi dự án rồi gọi hàm thuần.
 import { db } from "@/lib/db";
+
+/** Phạm vi dự án được phép xem: "ALL" (ADMIN) hoặc danh sách id. */
+export type ProjectScope = string[] | "ALL";
 
 /** Chuẩn hóa tên để khớp NCC (giống import-thcp): bỏ dấu, đ→d, chỉ a-z0-9. */
 export function norm(s: unknown): string {
@@ -60,10 +66,56 @@ export interface SupplierDebt {
   totalPayable: number;
 }
 
+// ----- Đầu vào của các hàm thuần -----
+
+export interface ContractValueInput {
+  valueWithVat: number | null;
+  status: string;
+  signDate: Date | null;
+}
+
+export interface ReceivableProjectInput {
+  id: string;
+  code: string;
+  name: string;
+  salePrice: number | null;
+  customerId: string | null;
+  customer: { id: string; name: string } | null;
+  costSummary: {
+    revenue: number | null;
+    collectedWithVat: number | null;
+    receivable: number | null;
+  } | null;
+  contracts: ContractValueInput[];
+}
+
+export interface ProjectRefInput {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface SupplierInput {
+  id: string;
+  name: string;
+  category: string;
+}
+
+export interface PayableOrderInput {
+  supplierId: string | null;
+  value: number | null;
+  project: ProjectRefInput;
+}
+
+export interface PayableCategoryInput {
+  supplier: string | null;
+  value: number | null;
+  payment: number | null;
+  summary: { project: ProjectRefInput } | null;
+}
+
 /** Giá trị hợp đồng đại diện của 1 dự án: ưu tiên HĐ đã ký mới nhất. */
-function pickContractValue(
-  contracts: { valueWithVat: number | null; status: string; signDate: Date | null }[]
-): number | null {
+export function pickContractValue(contracts: ContractValueInput[]): number | null {
   if (contracts.length === 0) return null;
   const ranked = [...contracts].sort((a, b) => {
     const sa = a.status === "SIGNED" || a.status === "LIQUIDATED" ? 1 : 0;
@@ -74,23 +126,8 @@ function pickContractValue(
   return ranked[0].valueWithVat ?? null;
 }
 
-export async function getReceivables(): Promise<CustomerDebt[]> {
-  const projects = await db.project.findMany({
-    select: {
-      id: true,
-      code: true,
-      name: true,
-      salePrice: true,
-      customerId: true,
-      customer: { select: { id: true, name: true } },
-      costSummary: {
-        select: { revenue: true, collectedWithVat: true, receivable: true },
-      },
-      contracts: { select: { valueWithVat: true, status: true, signDate: true } },
-    },
-    orderBy: { code: "asc" },
-  });
-
+/** Gom công nợ phải thu theo chủ đầu tư. Hàm thuần — không chạm DB. */
+export function buildReceivables(projects: ReceivableProjectInput[]): CustomerDebt[] {
   const groups = new Map<string, CustomerDebt>();
 
   for (const p of projects) {
@@ -147,32 +184,19 @@ export async function getReceivables(): Promise<CustomerDebt[]> {
   return [...groups.values()].sort((a, b) => b.totalReceivable - a.totalReceivable);
 }
 
-export async function getPayables(): Promise<SupplierDebt[]> {
-  const [suppliers, orders, categories] = await Promise.all([
-    db.supplier.findMany({ select: { id: true, name: true, category: true } }),
-    db.purchaseOrder.findMany({
-      select: {
-        supplierId: true,
-        value: true,
-        project: { select: { id: true, code: true, name: true } },
-      },
-    }),
-    db.costCategory.findMany({
-      select: {
-        supplier: true,
-        value: true,
-        payment: true,
-        summary: { select: { project: { select: { id: true, code: true, name: true } } } },
-      },
-    }),
-  ]);
-
+/** Gom công nợ phải trả theo nhà cung cấp. Hàm thuần — không chạm DB. */
+export function buildPayables(
+  suppliers: SupplierInput[],
+  orders: PayableOrderInput[],
+  categories: PayableCategoryInput[]
+): SupplierDebt[] {
   // Khóa nhóm: supplierId nếu có/khớp được, ngược lại "name:<norm>".
-  const byNorm = new Map<string, { id: string; name: string; category: string }>();
+  const byNorm = new Map<string, SupplierInput>();
   for (const s of suppliers) {
     const n = norm(s.name);
     if (n && !byNorm.has(n)) byNorm.set(n, s);
   }
+  const byId = new Map(suppliers.map((s) => [s.id, s]));
 
   const groups = new Map<string, SupplierDebt>();
   function group(key: string, seed: () => SupplierDebt): SupplierDebt {
@@ -183,7 +207,7 @@ export async function getPayables(): Promise<SupplierDebt[]> {
     }
     return g;
   }
-  function project(g: SupplierDebt, p: { id: string; code: string; name: string }): ProjectPayable {
+  function project(g: SupplierDebt, p: ProjectRefInput): ProjectPayable {
     let pr = g.projects.find((x) => x.projectId === p.id);
     if (!pr) {
       pr = {
@@ -204,7 +228,7 @@ export async function getPayables(): Promise<SupplierDebt[]> {
   // Đơn hàng (FK supplierId).
   for (const o of orders) {
     if (!o.supplierId) continue;
-    const s = suppliers.find((x) => x.id === o.supplierId);
+    const s = byId.get(o.supplierId);
     if (!s) continue;
     const g = group(`id:${s.id}`, () => ({
       supplierId: s.id,
@@ -226,6 +250,7 @@ export async function getPayables(): Promise<SupplierDebt[]> {
     if (!c.supplier || !c.summary?.project) continue;
     const matched = byNorm.get(norm(c.supplier));
     const key = matched ? `id:${matched.id}` : `name:${norm(c.supplier)}`;
+    const supplierName = c.supplier;
     const g = group(key, () =>
       matched
         ? {
@@ -242,7 +267,7 @@ export async function getPayables(): Promise<SupplierDebt[]> {
           }
         : {
             supplierId: null,
-            name: c.supplier!,
+            name: supplierName,
             category: null,
             matched: false,
             projects: [],
@@ -277,4 +302,52 @@ export async function getPayables(): Promise<SupplierDebt[]> {
   return [...groups.values()]
     .filter((g) => g.totalBase > 0 || g.totalPaid > 0 || g.totalOrdered > 0)
     .sort((a, b) => b.totalPayable - a.totalPayable || b.totalBase - a.totalBase);
+}
+
+// ----- Truy vấn (áp phạm vi dự án được giao) -----
+
+export async function getReceivables(scope: ProjectScope = "ALL"): Promise<CustomerDebt[]> {
+  const projects = await db.project.findMany({
+    where: scope === "ALL" ? {} : { id: { in: scope } },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      salePrice: true,
+      customerId: true,
+      customer: { select: { id: true, name: true } },
+      costSummary: {
+        select: { revenue: true, collectedWithVat: true, receivable: true },
+      },
+      contracts: { select: { valueWithVat: true, status: true, signDate: true } },
+    },
+    orderBy: { code: "asc" },
+  });
+
+  return buildReceivables(projects);
+}
+
+export async function getPayables(scope: ProjectScope = "ALL"): Promise<SupplierDebt[]> {
+  const [suppliers, orders, categories] = await Promise.all([
+    db.supplier.findMany({ select: { id: true, name: true, category: true } }),
+    db.purchaseOrder.findMany({
+      where: scope === "ALL" ? {} : { projectId: { in: scope } },
+      select: {
+        supplierId: true,
+        value: true,
+        project: { select: { id: true, code: true, name: true } },
+      },
+    }),
+    db.costCategory.findMany({
+      where: scope === "ALL" ? {} : { summary: { projectId: { in: scope } } },
+      select: {
+        supplier: true,
+        value: true,
+        payment: true,
+        summary: { select: { project: { select: { id: true, code: true, name: true } } } },
+      },
+    }),
+  ]);
+
+  return buildPayables(suppliers, orders, categories);
 }

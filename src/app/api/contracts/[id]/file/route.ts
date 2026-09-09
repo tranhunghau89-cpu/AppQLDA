@@ -3,6 +3,7 @@ import path from "path";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
+import { canAccessProject } from "@/lib/scope";
 import { signedUrl } from "@/lib/storage";
 
 const MIME: Record<string, string> = {
@@ -24,8 +25,10 @@ export async function GET(
 
   const contract = await db.contract.findUnique({
     where: { id },
-    select: { filePath: true },
+    select: { filePath: true, projectId: true },
   });
+  if (contract && !(await canAccessProject(session, contract.projectId)))
+    return new Response("Not found", { status: 404 });
   if (!contract?.filePath) return new Response("Không có file", { status: 404 });
 
   // Local: đọc từ ổ đĩa nếu file còn tồn tại. Cloud: filePath là key Storage → redirect signed URL.

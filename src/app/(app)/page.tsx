@@ -3,6 +3,7 @@ import { FolderKanban, Hammer, CheckCircle2, TrendingUp, AlertTriangle, Download
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
+import { scopedProjectWhere } from "@/lib/scope";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PROJECT_STATUS, MILESTONE_TYPE, MILESTONE_TYPE_MAP } from "@/lib/constants";
@@ -16,6 +17,7 @@ export default async function DashboardPage() {
   const canViewProfit = can(session.role, "profit", "view");
 
   const projects = await db.project.findMany({
+    where: await scopedProjectWhere(session),
     orderBy: { updatedAt: "desc" },
     include: {
       customer: { select: { name: true } },
@@ -89,7 +91,9 @@ export default async function DashboardPage() {
   const canViewDebt = can(session.role, "debt", "view");
   let cash = { thuPlan: 0, thuPaid: 0, chiPlan: 0, chiPaid: 0, dueSoon: 0, overdue: 0 };
   if (canViewDebt) {
-    const pays = await paymentDb.findMany({});
+    const pays = await paymentDb.findMany({
+      where: { projectId: { in: projects.map((p) => p.id) } },
+    });
     const soon = Date.now() + 14 * 86400000;
     for (const x of pays) {
       const plan = x.amount ?? 0;

@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
+import { scopedProjectWhere } from "@/lib/scope";
 import { Badge } from "@/components/ui/badge";
 import { MILESTONE_TYPE, PROJECT_STATUS_MAP } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
 
 // Gantt toàn cảnh: mỗi dự án 1 hàng, các mốc kế hoạch/thực tế vẽ trên trục thời gian.
 export default async function GanttPage() {
-  await requireView("progress");
+  const session = await requireView("progress");
 
   const projects = await db.project.findMany({
+    where: await scopedProjectWhere(session),
     orderBy: { code: "desc" },
     select: {
       id: true,

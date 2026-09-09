@@ -2,14 +2,17 @@ import { db } from "@/lib/db";
 import { Download } from "lucide-react";
 import { requireView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
+import { scopedProjectWhere } from "@/lib/scope";
 import { ProjectList, type ProjectRow } from "./ProjectList";
 
 export default async function ProjectsPage() {
   const session = await requireView("project");
   const canEdit = can(session.role, "project", "edit");
+  const where = await scopedProjectWhere(session);
 
   const [projects, customers] = await Promise.all([
     db.project.findMany({
+      where,
       orderBy: { code: "desc" },
       include: { customer: { select: { name: true } } },
     }),
@@ -49,6 +52,13 @@ export default async function ProjectsPage() {
           <Download className="h-4 w-4" /> Xuất Excel
         </a>
       </div>
+      {rows.length === 0 && session.role !== "ADMIN" && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          Bạn chưa được phân công dự án nào. Liên hệ Ban giám đốc/Quản lý để được thêm vào
+          dự án (mục <span className="font-medium">Thành viên dự án</span> trong trang chi
+          tiết dự án).
+        </div>
+      )}
       <ProjectList projects={rows} customers={customers} canEdit={canEdit} />
     </div>
   );

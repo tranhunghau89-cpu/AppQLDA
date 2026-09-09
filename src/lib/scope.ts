@@ -38,3 +38,18 @@ export async function myProjects(session: SessionUser) {
     orderBy: { code: "asc" },
   });
 }
+
+/** Điều kiện `where` cho các bảng có cột `projectId` (Contract, PurchaseOrder, Quote…). */
+export async function scopedByProjectWhere(session: SessionUser) {
+  const ids = await myProjectIds(session);
+  return ids === "ALL" ? {} : { projectId: { in: ids } };
+}
+
+/**
+ * Điều kiện `where` cho bảng có `projectId` cho phép NULL (vd Proposal không gắn dự án).
+ * Bản ghi không gắn dự án luôn hiển thị.
+ */
+export async function scopedByOptionalProjectWhere(session: SessionUser) {
+  const ids = await myProjectIds(session);
+  return ids === "ALL" ? {} : { OR: [{ projectId: null }, { projectId: { in: ids } }] };
+}

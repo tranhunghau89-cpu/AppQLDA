@@ -2,13 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Tags } from "lucide-react";
 import { db } from "@/lib/db";
-import { requireView } from "@/lib/auth";
+import { requireProjectView } from "@/lib/auth";
+import { scopedByProjectWhere } from "@/lib/scope";
 import { can, type Role } from "@/lib/rbac";
 import { QuoteEditor, type QuoteView, type CatalogOption, type CloneSource } from "./QuoteEditor";
 
 export default async function QuotePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await requireView("quote");
+  const session = await requireProjectView("quote", id);
   const canEdit = can(session.role as Role, "quote", "edit");
 
   const project = await db.project.findUnique({
@@ -70,7 +71,9 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
     baseCost: c.baseCost,
   }));
 
+  // Chỉ được clone từ báo giá của dự án mình được phân công.
   const sourceRows = await db.quote.findMany({
+    where: await scopedByProjectWhere(session),
     orderBy: { createdAt: "desc" },
     select: {
       id: true,

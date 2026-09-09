@@ -2,6 +2,7 @@ import ExcelJS from "exceljs";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
+import { scopedByOptionalProjectWhere, scopedByProjectWhere, scopedProjectWhere } from "@/lib/scope";
 import {
   PROJECT_STATUS_MAP,
   MILESTONE_TYPE,
@@ -28,6 +29,7 @@ export async function GET() {
   const canViewDebt = can(session.role, "debt", "view");
 
   const projects = await db.project.findMany({
+    where: await scopedProjectWhere(session),
     orderBy: { code: "desc" },
     include: {
       customer: { select: { name: true } },
@@ -35,14 +37,20 @@ export async function GET() {
     },
   });
   const orders = await db.purchaseOrder.findMany({
+    where: await scopedByProjectWhere(session),
     orderBy: [{ orderDate: "desc" }],
     include: {
       project: { select: { code: true } },
       supplier: { select: { name: true } },
     },
   });
-  const proposals = await proposalDb.findMany({ orderBy: [{ createdAt: "desc" }] });
-  const payments = canViewDebt ? await paymentDb.findMany({}) : [];
+  const proposals = await proposalDb.findMany({
+    where: await scopedByOptionalProjectWhere(session),
+    orderBy: [{ createdAt: "desc" }],
+  });
+  const payments = canViewDebt
+    ? await paymentDb.findMany({ where: await scopedByProjectWhere(session) })
+    : [];
   const projCode = new Map(projects.map((p) => [p.id, p.code]));
 
   const now = Date.now();

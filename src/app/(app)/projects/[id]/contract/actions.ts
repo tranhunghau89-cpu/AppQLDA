@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/auth";
+import { denyProject } from "@/lib/auth";
 import { CONTRACT_STATUS_MAP } from "@/lib/constants";
 import { lineAmount } from "@/lib/contract";
 
@@ -42,16 +42,37 @@ const contractSchema = z.object({
   note: z.string().trim().optional(),
 });
 
+
+/**
+ * Chặn khi thiếu quyền / ngoài phạm vi dự án, hoặc khi hợp đồng không thuộc dự án đó.
+ * (contractId đến từ client nên phải đối chiếu với projectId, không tin tham số.)
+ */
+async function guard(
+  projectId: string,
+  fallback: string,
+  contractId?: string | null
+): Promise<ActionResult | null> {
+  const denied = await denyProject("contract", "edit", projectId, fallback);
+  if (denied) return denied;
+  if (contractId) {
+    const c = await db.contract.findUnique({
+      where: { id: contractId },
+      select: { projectId: true },
+    });
+    if (!c || c.projectId !== projectId) {
+      return { ok: false, error: "Hợp đồng không thuộc dự án này." };
+    }
+  }
+  return null;
+}
+
 export async function saveContract(
   projectId: string,
   contractId: string | null,
   form: FormData
 ): Promise<ActionResult> {
-  try {
-    await requirePermission("contract", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền chỉnh sửa hợp đồng." };
-  }
+  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa hợp đồng.", contractId);
+  if (denied) return denied;
   const parsed = contractSchema.safeParse({
     contractNo: String(form.get("contractNo") ?? ""),
     signDate: String(form.get("signDate") ?? ""),
@@ -95,11 +116,8 @@ export async function deleteContract(
   projectId: string,
   contractId: string
 ): Promise<ActionResult> {
-  try {
-    await requirePermission("contract", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền xóa hợp đồng." };
-  }
+  const denied = await guard(projectId, "Bạn không có quyền xóa hợp đồng.", contractId);
+  if (denied) return denied;
   await db.contract.delete({ where: { id: contractId } });
   revalidatePath(`/projects/${projectId}/contract`);
   revalidatePath("/contracts");
@@ -120,11 +138,8 @@ export async function saveContractItem(
   itemId: string | null,
   form: FormData
 ): Promise<ActionResult> {
-  try {
-    await requirePermission("contract", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền chỉnh sửa hạng mục." };
-  }
+  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa hạng mục.", contractId);
+  if (denied) return denied;
   const parsed = itemSchema.safeParse({
     name: String(form.get("name") ?? ""),
     unit: String(form.get("unit") ?? ""),
@@ -154,11 +169,8 @@ export async function deleteContractItem(
   contractId: string,
   itemId: string
 ): Promise<ActionResult> {
-  try {
-    await requirePermission("contract", "edit");
-  } catch {
-    return { ok: false, error: "Bạn không có quyền xóa hạng mục." };
-  }
+  const denied = await guard(projectId, "Bạn không có quyền xóa hạng mục.", contractId);
+  if (denied) return denied;
   await db.contractItem.delete({ where: { id: itemId } });
   await recompute(contractId);
   revalidatePath(`/projects/${projectId}/contract`);

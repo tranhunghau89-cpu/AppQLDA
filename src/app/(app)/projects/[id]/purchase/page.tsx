@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
-import { requireView } from "@/lib/auth";
+import { requireProjectView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { PurchaseEditor, type OrderView } from "./PurchaseEditor";
 
@@ -12,7 +12,7 @@ export default async function PurchasePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await requireView("purchase");
+  const session = await requireProjectView("purchase", id);
   const canEdit = can(session.role, "purchase", "edit");
 
   const project = await db.project.findUnique({

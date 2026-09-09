@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
+import { myProjectIds } from "@/lib/scope";
 import { getPayables } from "@/lib/debt";
 import { SupplierManager } from "./SupplierManager";
 
@@ -16,7 +17,7 @@ export default async function SuppliersPage() {
         _count: { select: { projectLinks: true, estimateItems: true } },
       },
     }),
-    canViewDebt ? getPayables() : Promise.resolve([]),
+    canViewDebt ? getPayables(await myProjectIds(session)) : Promise.resolve([]),
   ]);
 
   const debtMap = new Map(payables.filter((p) => p.supplierId).map((p) => [p.supplierId, p]));

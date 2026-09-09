@@ -1,12 +1,17 @@
 import { requireView } from "@/lib/auth";
+import { myProjectIds } from "@/lib/scope";
 import { getReceivables, getPayables } from "@/lib/debt";
 import { formatVND } from "@/lib/utils";
 import { ReceivableTable, PayableTable } from "./DebtTables";
 
 export default async function DebtsPage() {
-  await requireView("debt");
+  const session = await requireView("debt");
+  const scope = await myProjectIds(session);
 
-  const [receivables, payables] = await Promise.all([getReceivables(), getPayables()]);
+  const [receivables, payables] = await Promise.all([
+    getReceivables(scope),
+    getPayables(scope),
+  ]);
 
   const totReceivable = receivables.reduce((s, r) => s + r.totalReceivable, 0);
   const totPayable = payables.reduce((s, r) => s + r.totalPayable, 0);

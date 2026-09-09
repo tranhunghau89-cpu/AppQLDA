@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { Download } from "lucide-react";
 import { requireView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
+import { scopedProjectWhere } from "@/lib/scope";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { computeProfit, formatPercent } from "@/lib/profit";
@@ -13,6 +14,7 @@ export default async function EstimatesPage() {
   const canViewProfit = can(session.role, "profit", "view");
 
   const projects = await db.project.findMany({
+    where: await scopedProjectWhere(session),
     orderBy: { code: "desc" },
     include: {
       estimateItems: {
