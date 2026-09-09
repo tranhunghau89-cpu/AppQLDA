@@ -285,56 +285,60 @@ export async function cloneQuoteFrom(
   const catalog = await db.workPrice.findMany({ select: { code: true, baseCost: true } });
   const priceMap = new Map(catalog.map((c) => [c.code, c.baseCost]));
 
-  const newQuote = await db.quote.create({
-    data: {
-      projectId,
-      title: `${src.title} — sao từ ${src.project.code}`,
-      recipient: src.recipient,
-      location: src.location,
-      scope: src.scope,
-      markup,
-      clonedFromId: src.id,
-      note: `Tạo từ báo giá "${src.title}" (${src.project.code} ${src.project.name}); đơn giá lấy theo bảng đơn giá hiện tại.`,
-    },
+  // Toàn bộ bản sao (báo giá + phần/mục + dòng) nằm trong 1 giao dịch: đứt giữa
+  // chừng sẽ không để lại báo giá rỗng hoặc thiếu dòng.
+  await db.$transaction(async (tx) => {
+    const newQuote = await tx.quote.create({
+      data: {
+        projectId,
+        title: `${src.title} — sao từ ${src.project.code}`,
+        recipient: src.recipient,
+        location: src.location,
+        scope: src.scope,
+        markup,
+        clonedFromId: src.id,
+        note: `Tạo từ báo giá "${src.title}" (${src.project.code} ${src.project.name}); đơn giá lấy theo bảng đơn giá hiện tại.`,
+      },
+    });
+
+    // Tạo lại sections theo thứ tự (PHAN trước SUB nhờ sortOrder) + map id cũ -> mới.
+    const idMap = new Map<string, string>();
+    for (const s of src.sections) {
+      const created = await tx.quoteSection.create({
+        data: {
+          quoteId: newQuote.id,
+          code: s.code,
+          name: s.name,
+          kind: s.kind,
+          parentId: s.parentId ? idMap.get(s.parentId) ?? null : null,
+          area: s.area,
+          sortOrder: s.sortOrder,
+        },
+      });
+      idMap.set(s.id, created.id);
+    }
+
+    for (const it of src.items) {
+      const newSectionId = idMap.get(it.sectionId);
+      if (!newSectionId) continue;
+      const base = it.workCode ? priceMap.get(it.workCode) ?? it.baseCost : it.baseCost;
+      await tx.quoteItem.create({
+        data: {
+          quoteId: newQuote.id,
+          sectionId: newSectionId,
+          workCode: it.workCode,
+          name: it.name,
+          unit: it.unit,
+          qty: it.qty,
+          baseCost: base,
+          sellPrice: base != null ? sellFromBase(base, markup) : it.sellPrice,
+          spec: it.spec,
+          note: it.note,
+          sortOrder: it.sortOrder,
+        },
+      });
+    }
   });
-
-  // Tạo lại sections theo thứ tự (PHAN trước SUB nhờ sortOrder) + map id cũ -> mới.
-  const idMap = new Map<string, string>();
-  for (const s of src.sections) {
-    const created = await db.quoteSection.create({
-      data: {
-        quoteId: newQuote.id,
-        code: s.code,
-        name: s.name,
-        kind: s.kind,
-        parentId: s.parentId ? idMap.get(s.parentId) ?? null : null,
-        area: s.area,
-        sortOrder: s.sortOrder,
-      },
-    });
-    idMap.set(s.id, created.id);
-  }
-
-  for (const it of src.items) {
-    const newSectionId = idMap.get(it.sectionId);
-    if (!newSectionId) continue;
-    const base = it.workCode ? priceMap.get(it.workCode) ?? it.baseCost : it.baseCost;
-    await db.quoteItem.create({
-      data: {
-        quoteId: newQuote.id,
-        sectionId: newSectionId,
-        workCode: it.workCode,
-        name: it.name,
-        unit: it.unit,
-        qty: it.qty,
-        baseCost: base,
-        sellPrice: base != null ? sellFromBase(base, markup) : it.sellPrice,
-        spec: it.spec,
-        note: it.note,
-        sortOrder: it.sortOrder,
-      },
-    });
-  }
 
   paths(projectId);
   return { ok: true };
@@ -356,15 +360,18 @@ export async function repriceQuote(
   const catalog = await db.workPrice.findMany({ select: { code: true, baseCost: true } });
   const priceMap = new Map(catalog.map((c) => [c.code, c.baseCost]));
 
-  for (const it of quote.items) {
-    if (!it.workCode) continue;
-    const base = priceMap.get(it.workCode);
-    if (base == null) continue;
-    await db.quoteItem.update({
-      where: { id: it.id },
-      data: { baseCost: base, sellPrice: sellFromBase(base, markup) },
+  // Cập nhật hàng loạt trong 1 giao dịch: tránh báo giá còn một nửa giá cũ,
+  // một nửa giá mới nếu đứt kết nối giữa chừng.
+  const updates = quote.items
+    .filter((it) => it.workCode && priceMap.get(it.workCode) != null)
+    .map((it) => {
+      const base = priceMap.get(it.workCode!)!;
+      return db.quoteItem.update({
+        where: { id: it.id },
+        data: { baseCost: base, sellPrice: sellFromBase(base, markup) },
+      });
     });
-  }
+  if (updates.length > 0) await db.$transaction(updates);
   paths(projectId);
   return { ok: true };
 }

@@ -25,7 +25,7 @@ function d(iso: string | null): string {
   return `${String(x.getDate()).padStart(2, "0")}/${String(x.getMonth() + 1).padStart(2, "0")}/${x.getFullYear()}`;
 }
 
-function StatusChip({ p }: { p: PaymentItem }) {
+function StatusChip({ p, now }: { p: PaymentItem; now: number }) {
   if (p.paidDate) {
     return (
       <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-600">
@@ -33,8 +33,8 @@ function StatusChip({ p }: { p: PaymentItem }) {
       </span>
     );
   }
-  if (p.dueDate && new Date(p.dueDate).getTime() < Date.now()) {
-    const days = Math.floor((Date.now() - new Date(p.dueDate).getTime()) / 86400000);
+  if (p.dueDate && new Date(p.dueDate).getTime() < now) {
+    const days = Math.floor((now - new Date(p.dueDate).getTime()) / 86400000);
     return (
       <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
         quá hạn {days} ngày
@@ -58,6 +58,7 @@ function Section({
   pending,
   startTransition,
   counterpartPlaceholder,
+  now,
 }: {
   title: string;
   direction: "THU" | "CHI";
@@ -68,6 +69,7 @@ function Section({
   pending: boolean;
   startTransition: (fn: () => Promise<void>) => void;
   counterpartPlaceholder: string;
+  now: number;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const totalPlan = items.reduce((s, i) => s + (i.amount ?? 0), 0);
@@ -121,7 +123,7 @@ function Section({
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-medium text-slate-800">{p.name}</span>
-                <StatusChip p={p} />
+                <StatusChip p={p} now={now} />
               </div>
               <div className="mt-0.5 text-xs text-slate-500">
                 {vnd(p.amount)}
@@ -175,10 +177,14 @@ export function ProjectPayments({
   projectId,
   payments,
   canEdit,
+  now,
 }: {
   projectId: string;
   payments: PaymentItem[];
   canEdit: boolean;
+  /** Mốc thời gian lấy ở server — client KHÔNG tự đọc đồng hồ khi render
+   *  (tránh lệch hydration và vi phạm react-hooks/purity). */
+  now: number;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -197,6 +203,7 @@ export function ProjectPayments({
           pending={pending}
           startTransition={startTransition}
           counterpartPlaceholder="Tên CĐT (tùy chọn)"
+          now={now}
         />
         <Section
           title="CHI — cho NCC / thầu phụ"
@@ -208,6 +215,7 @@ export function ProjectPayments({
           pending={pending}
           startTransition={startTransition}
           counterpartPlaceholder="Tên NCC (tùy chọn)"
+          now={now}
         />
       </div>
     </div>

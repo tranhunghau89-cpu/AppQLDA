@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # `npm ci` chạy postinstall -> `prisma generate`, cần schema nhưng KHÔNG cần kết nối DB.
+      - name: Cài dependencies
+        run: npm ci
+
+      - name: Kiểm tra kiểu (TypeScript)
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      # `build` (khác `vercel-build`) chỉ generate + next build, KHÔNG chạm DB thật.
+      - name: Build
+        run: npm run build
+        env:
+          # Giá trị giả: chỉ để Prisma parse được URL lúc build; không có kết nối nào được mở.
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          DIRECT_URL: postgresql://ci:ci@localhost:5432/ci
+          AUTH_SECRET: ci-secret-khong-dung-cho-moi-truong-that-0123456789

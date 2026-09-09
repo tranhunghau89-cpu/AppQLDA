@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
 import { can, type Role } from "@/lib/rbac";
 import { scopedProjectWhere } from "@/lib/scope";
+import { serverNow } from "@/lib/now";
 import { projectNoteDb, noteImageDb } from "@/lib/project-notes";
 import { signedUrl } from "@/lib/storage";
 import { docVersionDb } from "@/lib/doc-versions";
@@ -93,9 +94,11 @@ export default async function ProgressPage() {
     notesByProject.set(n.projectId, list);
   }
 
+  // Một mốc thời gian duy nhất cho cả trang: render phải thuần (react-hooks/purity).
+  const now = serverNow();
+
   const rows: ProgressRow[] = projects.map((p) => {
     const doneTypes = p.milestones.filter((m) => m.done).map((m) => m.type);
-    const now = Date.now();
     const lateTypes: Record<string, number> = {};
     for (const m of p.milestones) {
       if (!m.done && m.planDate && m.planDate.getTime() < now) {

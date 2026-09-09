@@ -260,8 +260,8 @@ function RowGroup({
                         {t.images && t.images.length > 0 && (
                           <div className="mt-1.5 flex flex-wrap gap-2">
                             {t.images.map((url, i) => (
-                              // eslint-disable-next-line @next/next/no-img-element
                               <a key={i} href={url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={url} alt="Ảnh" className="h-16 w-16 rounded-md border border-slate-200 object-cover hover:opacity-80" />
                               </a>
                             ))}

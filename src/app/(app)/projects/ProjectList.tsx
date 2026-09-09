@@ -79,12 +79,6 @@ export function ProjectList({
     setError(null);
     setOpen(true);
   }
-  function openEdit(p: ProjectRow) {
-    setEditing(p);
-    setError(null);
-    setOpen(true);
-  }
-
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);

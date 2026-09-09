@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { scopedProjectWhere } from "@/lib/scope";
+import { serverNow } from "@/lib/now";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PROJECT_STATUS, MILESTONE_TYPE, MILESTONE_TYPE_MAP } from "@/lib/constants";
@@ -46,24 +47,20 @@ export default async function DashboardPage() {
   ).length;
   const done = projects.filter((p) => p.status === "HOAN_THANH").length;
 
-  let totalRevenue = 0;
-  let totalCost = 0;
   const costSale = projects.map((p) => {
     // Ưu tiên quyết toán thực tế (THCP) nếu có, ngược lại tính từ dự toán.
-    let sale: number;
-    let cost: number;
     if (p.costSummary) {
-      sale = p.costSummary.revenue ?? p.salePrice ?? 0;
-      cost = p.costSummary.cost ?? 0;
-    } else {
-      const s = computeProfit(p.estimateItems, p.salePrice, p.area);
-      sale = s.salePrice;
-      cost = s.totalCost;
+      return {
+        code: p.code,
+        sale: p.costSummary.revenue ?? p.salePrice ?? 0,
+        cost: p.costSummary.cost ?? 0,
+      };
     }
-    totalRevenue += sale;
-    totalCost += cost;
-    return { code: p.code, cost, sale };
+    const s = computeProfit(p.estimateItems, p.salePrice, p.area);
+    return { code: p.code, sale: s.salePrice, cost: s.totalCost };
   });
+  const totalRevenue = costSale.reduce((s, x) => s + x.sale, 0);
+  const totalCost = costSale.reduce((s, x) => s + x.cost, 0);
   const totalProfit = totalRevenue - totalCost;
   const topCostSale = [...costSale]
     .sort((a, b) => b.sale - a.sale)
@@ -71,7 +68,7 @@ export default async function DashboardPage() {
     .reverse();
 
   // Mốc trễ hạn: chưa xong mà quá ngày kế hoạch
-  const nowTs = Date.now();
+  const nowTs = serverNow();
   const lateItems: { code: string; id: string; type: string; days: number }[] = [];
   for (const p of projects) {
     for (const m of p.milestones) {
@@ -89,12 +86,12 @@ export default async function DashboardPage() {
 
   // Dòng tiền từ các đợt thanh toán
   const canViewDebt = can(session.role, "debt", "view");
-  let cash = { thuPlan: 0, thuPaid: 0, chiPlan: 0, chiPaid: 0, dueSoon: 0, overdue: 0 };
+  const cash = { thuPlan: 0, thuPaid: 0, chiPlan: 0, chiPaid: 0, dueSoon: 0, overdue: 0 };
   if (canViewDebt) {
     const pays = await paymentDb.findMany({
       where: { projectId: { in: projects.map((p) => p.id) } },
     });
-    const soon = Date.now() + 14 * 86400000;
+    const soon = nowTs + 14 * 86400000;
     for (const x of pays) {
       const plan = x.amount ?? 0;
       const paid = x.paidAmount ?? 0;
@@ -107,7 +104,7 @@ export default async function DashboardPage() {
       }
       void paid;
       if (!x.paidDate && x.dueDate) {
-        if (x.dueDate.getTime() < Date.now()) cash.overdue += 1;
+        if (x.dueDate.getTime() < nowTs) cash.overdue += 1;
         else if (x.dueDate.getTime() < soon) cash.dueSoon += 1;
       }
     }

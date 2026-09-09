@@ -19,7 +19,8 @@ export function ReceivableTable({ rows }: { rows: CustomerDebt[] }) {
   const toggle = (k: string) =>
     setOpen((s) => {
       const n = new Set(s);
-      n.has(k) ? n.delete(k) : n.add(k);
+      if (n.has(k)) n.delete(k);
+      else n.add(k);
       return n;
     });
 
@@ -94,7 +95,8 @@ export function PayableTable({ rows }: { rows: SupplierDebt[] }) {
   const toggle = (k: string) =>
     setOpen((s) => {
       const n = new Set(s);
-      n.has(k) ? n.delete(k) : n.add(k);
+      if (n.has(k)) n.delete(k);
+      else n.add(k);
       return n;
     });
 

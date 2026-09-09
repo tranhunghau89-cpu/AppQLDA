@@ -112,7 +112,7 @@ export function SteelLookup() {
           )}
         </div>
         <p className="text-xs text-slate-400">
-          Nguồn: bảng tra Toàn Thắng / Hữu Liên Á Châu (409 mã). Thép tròn tính cây 11,7m; V/ống/hộp cây 6m; H/I/U theo cột "Cây".
+          Nguồn: bảng tra Toàn Thắng / Hữu Liên Á Châu (409 mã). Thép tròn tính cây 11,7m; V/ống/hộp cây 6m; H/I/U theo cột &quot;Cây&quot;.
         </p>
       </div>
     </div>

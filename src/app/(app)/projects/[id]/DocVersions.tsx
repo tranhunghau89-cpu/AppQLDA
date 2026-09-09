@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { DOC_TYPE, DOC_TYPE_MAP, DOC_STATUS, DOC_STATUS_MAP } from "@/lib/constants";
+import { DOC_TYPE, DOC_STATUS, DOC_STATUS_MAP } from "@/lib/constants";
 import { addDocVersion, deleteDocVersion } from "../actions";
 
 export interface DocVersionItem {

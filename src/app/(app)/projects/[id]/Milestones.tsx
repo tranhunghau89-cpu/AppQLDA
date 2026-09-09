@@ -37,7 +37,8 @@ function Row({
   const [plan, setPlan] = useState(toInput(value.planDate));
   const [actual, setActual] = useState(toInput(value.actualDate));
   const [done, setDone] = useState(value.done);
-  const [note, setNote] = useState(value.note ?? "");
+  // Chưa có ô nhập ghi chú mốc trên UI; vẫn gửi giá trị hiện có lên server để không mất dữ liệu.
+  const [note] = useState(value.note ?? "");
   const [pending, start] = useTransition();
 
   function save() {

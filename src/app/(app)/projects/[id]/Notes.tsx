@@ -112,8 +112,10 @@ export function ProjectNotes({
                   {n.images.length > 0 && (
                     <div className="mt-1.5 flex flex-wrap gap-2">
                       {n.images.map((url, i) => (
-                        // eslint-disable-next-line @next/next/no-img-element
                         <a key={i} href={url} target="_blank" rel="noreferrer">
+                          {/* Ảnh hiện trường từ Supabase Storage (signed URL, hết hạn 1h)
+                              nên không dùng next/image được. */}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={url}
                             alt="Ảnh ghi chú"

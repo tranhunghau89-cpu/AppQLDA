@@ -64,10 +64,6 @@ export function ContractEditor({
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  function refresh() {
-    start(() => router.refresh());
-  }
-
   function onContractSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);

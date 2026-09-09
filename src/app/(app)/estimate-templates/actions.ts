@@ -77,17 +77,21 @@ export async function saveTemplate(
       };
     });
 
-  await db.estimateTemplate.update({
-    where: { id },
-    data: {
-      name,
-      code: payload.code?.trim() || null,
-      description: payload.description?.trim() || null,
-      active: payload.active,
-    },
+  // Một giao dịch: nếu createMany lỗi thì deleteMany cũng bị hoàn tác,
+  // tránh xóa trắng toàn bộ dòng của mẫu.
+  await db.$transaction(async (tx) => {
+    await tx.estimateTemplate.update({
+      where: { id },
+      data: {
+        name,
+        code: payload.code?.trim() || null,
+        description: payload.description?.trim() || null,
+        active: payload.active,
+      },
+    });
+    await tx.estimateTemplateLine.deleteMany({ where: { templateId: id } });
+    if (lines.length > 0) await tx.estimateTemplateLine.createMany({ data: lines });
   });
-  await db.estimateTemplateLine.deleteMany({ where: { templateId: id } });
-  if (lines.length > 0) await db.estimateTemplateLine.createMany({ data: lines });
 
   revalidatePath("/estimate-templates");
   revalidatePath(`/estimate-templates/${id}`);

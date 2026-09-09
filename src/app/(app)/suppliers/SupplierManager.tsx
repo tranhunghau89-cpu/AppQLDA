@@ -45,7 +45,8 @@ export function SupplierManager({
   const toggle = (id: string) =>
     setExpanded((s) => {
       const n = new Set(s);
-      n.has(id) ? n.delete(id) : n.add(id);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
       return n;
     });
   const colCount = 5 + (canViewDebt ? 1 : 0) + (canEdit ? 1 : 0);

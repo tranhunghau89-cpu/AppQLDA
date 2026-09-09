@@ -119,6 +119,15 @@ npm run import:orders      # bóc chi tiết từng dòng vật tư từ file đ
 
 Ma trận chi tiết ở `src/lib/rbac.ts`.
 
+## Kiểm tra chất lượng
+```bash
+npm run typecheck   # tsc --noEmit
+npm run lint        # eslint
+npm test            # vitest (129 test cho logic tài chính, RBAC, bóc khối lượng)
+```
+CI (`.github/workflows/ci.yml`) chạy đủ 4 bước typecheck → lint → test → build trên mỗi PR
+và mỗi lần push `master`.
+
 ## Bảo mật
 - **Phạm vi dự án**: user không phải ADMIN chỉ thấy dự án được gán qua `ProjectMember`
   (mục "Thành viên dự án" trong trang chi tiết dự án). Người mới **chưa được gán sẽ không
@@ -127,7 +136,8 @@ Ma trận chi tiết ở `src/lib/rbac.ts`.
   cắt mọi phiên đang mở ngay lần điều hướng kế tiếp.
 - **Chống dò mật khẩu**: 10 lần sai (theo IP hoặc email) trong 15 phút → chặn 15 phút.
 - **KHÔNG commit token/bí mật.** Nếu lỡ commit: xóa khỏi lịch sử git **và** xoay
-  `AUTH_SECRET`, cập nhật biến môi trường trên Vercel.
+  `AUTH_SECRET` (sinh mới: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`),
+  cập nhật biến môi trường trên Vercel.
 
 ## Build & triển khai nội bộ
 ```bash

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireProjectView } from "@/lib/auth";
+import { serverNow } from "@/lib/now";
 import { can } from "@/lib/rbac";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatVND, formatDate, formatNumber } from "@/lib/utils";
@@ -474,7 +475,12 @@ export default async function ProjectDetailPage({
             <CardTitle>Thanh toán theo đợt</CardTitle>
           </CardHeader>
           <CardContent>
-            <ProjectPayments projectId={project.id} payments={payments} canEdit={canEditPayment} />
+            <ProjectPayments
+              projectId={project.id}
+              payments={payments}
+              canEdit={canEditPayment}
+              now={serverNow()}
+            />
           </CardContent>
         </Card>
       )}

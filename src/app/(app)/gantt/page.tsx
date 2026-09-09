@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
 import { scopedProjectWhere } from "@/lib/scope";
+import { serverNow } from "@/lib/now";
 import { Badge } from "@/components/ui/badge";
 import { MILESTONE_TYPE, PROJECT_STATUS_MAP } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
@@ -45,7 +46,7 @@ export default async function GanttPage() {
       }
     }
   }
-  const now = Date.now();
+  const now = serverNow();
   if (!Number.isFinite(min)) {
     min = now - 90 * 86400000;
     max = now + 90 * 86400000;
@@ -146,7 +147,7 @@ export default async function GanttPage() {
                           left: `${pos(p.startDate.getTime())}%`,
                           width: `${Math.max(
                             0.5,
-                            pos((p.endDate ?? new Date()).getTime()) - pos(p.startDate.getTime())
+                            pos(p.endDate ? p.endDate.getTime() : now) - pos(p.startDate.getTime())
                           )}%`,
                         }}
                         title={`${formatDate(p.startDate)} → ${p.endDate ? formatDate(p.endDate) : "nay"}`}
