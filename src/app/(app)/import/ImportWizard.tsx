@@ -23,10 +23,15 @@ export function ImportWizard({
   const [kind, setKind] = useState<ImportKind>(kinds.find((k) => k.sanSang)?.value ?? "estimate");
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [xong, setXong] = useState<string | null>(null);
+  // File vừa xem trước. Bộ nhập đơn hàng cần gửi lại chính file này khi xác nhận
+  // (ảnh biên dạng quá lớn để đi vòng qua client), nên phải giữ lại tham chiếu.
+  const [fileDaXem, setFileDaXem] = useState<File | null>(null);
 
   function onPreview(form: FormData) {
     setPreview(null);
     setXong(null);
+    const f = form.get("file");
+    setFileDaXem(f instanceof File ? f : null);
     start(async () => {
       const res = await previewImport(kind, form);
       if (!res.ok) toast.error(res.error);
@@ -36,8 +41,17 @@ export function ImportWizard({
 
   function onConfirm() {
     if (!preview) return;
+    let form: FormData | undefined;
+    if (preview.canFileKhiXacNhan) {
+      if (!fileDaXem) {
+        toast.error("Không còn giữ được file — hãy chọn lại file và xem trước lần nữa.");
+        return;
+      }
+      form = new FormData();
+      form.set("file", fileDaXem);
+    }
     start(async () => {
-      const res = await applyImport(preview.kind, preview.payload);
+      const res = await applyImport(preview.kind, preview.payload, form);
       if (!res.ok) {
         toast.error(res.thongDiep);
         return;
@@ -45,6 +59,7 @@ export function ImportWizard({
       toast.success(res.thongDiep);
       setXong(res.thongDiep);
       setPreview(null);
+      setFileDaXem(null);
       formRef.current?.reset();
       router.refresh();
     });
@@ -187,8 +202,15 @@ export function ImportWizard({
             <Button variant="outline" onClick={() => setPreview(null)} disabled={pending}>
               Hủy
             </Button>
-            <Button onClick={onConfirm} disabled={pending || preview.tongSoDong === 0}>
-              {pending ? "Đang ghi..." : `3. Xác nhận ghi ${preview.tongSoDong} dòng`}
+            <Button
+              onClick={onConfirm}
+              disabled={pending || preview.tongSoDong === 0 || preview.payload == null}
+            >
+              {pending
+                ? "Đang ghi..."
+                : preview.payload == null
+                  ? "Không ghi được — xem cảnh báo ở trên"
+                  : `3. Xác nhận ghi ${preview.tongSoDong} dòng`}
             </Button>
           </div>
         </section>

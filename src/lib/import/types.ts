@@ -49,8 +49,19 @@ export interface ImportPreview {
   /**
    * Dữ liệu đã bóc, gửi xuống client rồi gửi ngược lên khi xác nhận.
    * Server VẪN validate lại bằng zod trước khi ghi — không tin dữ liệu quay về.
+   *
+   * `null` = xem trước được nhưng KHÔNG ghi được (ví dụ đơn hàng không khớp dự án
+   * nào); giao diện sẽ khóa nút xác nhận.
    */
   payload: unknown;
+
+  /**
+   * Bước xác nhận phải GỬI LẠI file gốc, server bóc lại từ đầu thay vì tin payload.
+   *
+   * Dùng cho file có dữ liệu nhị phân nhúng (ảnh biên dạng trong đơn hàng): gửi vòng
+   * qua client rồi gửi ngược lên là vượt giới hạn body của server action.
+   */
+  canFileKhiXacNhan?: boolean;
 }
 
 export interface ImportResult {

@@ -4,14 +4,19 @@ import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth";
 import { applyEstimate, parseEstimate } from "@/lib/import/estimate";
 import { applyThcp, parseThcp } from "@/lib/import/thcp";
+import { applyOrder, parseOrder } from "@/lib/import/order";
 import type { ImportKind, ImportPreview, ImportResult } from "@/lib/import/types";
 
 export type PreviewResult =
   | { ok: true; preview: ImportPreview }
   | { ok: false; error: string };
 
-/** 20MB — file dự toán thật lớn nhất trong repo là ~2,8MB nên đây là dư. */
-const MAX_BYTES = 20 * 1024 * 1024;
+/**
+ * 10MB. File thật lớn nhất trong kho là 5,9MB (một file THCP), nên đây là dư một
+ * cách hợp lý. Phải đi cùng `serverActions.bodySizeLimit` trong next.config.ts —
+ * nếu chỉ nới ở đây thì Next chặn trước, và lỗi báo ra sẽ khó hiểu.
+ */
+const MAX_BYTES = 10 * 1024 * 1024;
 
 export async function previewImport(kind: ImportKind, form: FormData): Promise<PreviewResult> {
   try {
@@ -25,7 +30,7 @@ export async function previewImport(kind: ImportKind, form: FormData): Promise<P
     return { ok: false, error: "Chưa chọn file." };
   }
   if (file.size > MAX_BYTES) {
-    return { ok: false, error: `File ${(file.size / 1024 / 1024).toFixed(1)}MB, vượt giới hạn 20MB.` };
+    return { ok: false, error: `File ${(file.size / 1024 / 1024).toFixed(1)}MB, vượt giới hạn 10MB.` };
   }
   if (!/\.xlsx?$/i.test(file.name)) {
     return { ok: false, error: "Chỉ nhận file Excel (.xlsx / .xls)." };
@@ -39,6 +44,8 @@ export async function previewImport(kind: ImportKind, form: FormData): Promise<P
         return { ok: true, preview: await parseEstimate(buffer, file.name) };
       case "thcp":
         return { ok: true, preview: await parseThcp(buffer, file.name) };
+      case "order":
+        return { ok: true, preview: await parseOrder(buffer, file.name, file.size) };
       default:
         return { ok: false, error: "Loại nhập này chưa được hỗ trợ trên web." };
     }
@@ -55,7 +62,16 @@ export async function previewImport(kind: ImportKind, form: FormData): Promise<P
  * `payload` đi vòng qua client nên KHÔNG được tin — mỗi module tự validate lại bằng
  * zod trước khi ghi.
  */
-export async function applyImport(kind: ImportKind, payload: unknown): Promise<ImportResult> {
+export async function applyImport(
+  kind: ImportKind,
+  payload: unknown,
+  /**
+   * File gốc, gửi lại khi bản xem trước đặt `canFileKhiXacNhan`. Bộ nhập nào cần dữ
+   * liệu nhị phân trong file (ảnh biên dạng của đơn hàng) thì bóc lại từ file thay vì
+   * tin payload đi vòng qua client.
+   */
+  form?: FormData
+): Promise<ImportResult> {
   let session;
   try {
     session = await requirePermission("import", "edit");
@@ -72,6 +88,15 @@ export async function applyImport(kind: ImportKind, payload: unknown): Promise<I
       case "thcp":
         ketQua = await applyThcp(payload, session);
         break;
+      case "order": {
+        const f = form?.get("file");
+        const lai =
+          f instanceof File && f.size > 0 && f.size <= MAX_BYTES
+            ? { buffer: Buffer.from(await f.arrayBuffer()), name: f.name, size: f.size }
+            : null;
+        ketQua = await applyOrder(payload, lai, session);
+        break;
+      }
       default:
         return { ok: false, thongDiep: "Loại nhập này chưa được hỗ trợ trên web." };
     }
@@ -80,6 +105,7 @@ export async function applyImport(kind: ImportKind, payload: unknown): Promise<I
       revalidatePath("/projects");
       revalidatePath("/estimates");
       revalidatePath("/costs");
+      revalidatePath("/purchases");
       if (ketQua.projectId) revalidatePath(`/projects/${ketQua.projectId}`);
     }
     return ketQua;

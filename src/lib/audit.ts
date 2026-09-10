@@ -17,6 +17,7 @@ export const AUDIT_ENTITY = {
   Payment: "Đợt thanh toán",
   Quote: "Báo giá",
   WorkPrice: "Đơn giá (Mã CV)",
+  PurchaseOrder: "Đơn đặt hàng",
 } as const;
 
 export type AuditEntity = keyof typeof AUDIT_ENTITY;
@@ -157,4 +158,9 @@ export const FIELD_LABEL: Record<string, string> = {
   shortName: "Loại",
   spec: "TSKT",
   groupCode: "Nhóm",
+  duToan: "Dự toán",
+  quyetToan: "Quyết toán",
+  donHang: "Đơn đặt hàng",
+  chiPhi: "Chi phí",
+  value: "Giá trị",
 };

@@ -1,7 +1,7 @@
 # Phase 26 — Nhập Excel qua web
 
 > Ngày 2026-09-10. Theo `plan/23_RaSoat_KeHoachNangCap.md` mục Phase 26.
-> Trạng thái: phần 1 (Dự toán) và phần 2 (Tổng hợp chi phí) đã xong.
+> Trạng thái: phần 1 (Dự toán), phần 2 (Tổng hợp chi phí) và phần 3 (Đơn hàng) đã xong.
 
 Vấn đề gốc: 9 script nhập Excel (2.088 dòng) chỉ chạy được **bằng dòng lệnh trên máy
 người phát triển**. Người dùng thật không tự nhập được file nào, và bản thân script
@@ -37,7 +37,7 @@ Ba lớp dùng chung, đều có test:
 - **`lib/import/types.ts`** — `ImportPreview` / `ImportResult`, chung cho mọi loại.
 
 Bảo vệ: tài nguyên `import` trong RBAC, **chỉ ADMIN/Quản lý**. Kiểm tra quyền ở **cả
-hai** server action, không chỉ ở trang. Giới hạn 20MB, chỉ nhận `.xlsx`/`.xls`.
+hai** server action, không chỉ ở trang. Giới hạn 10MB (xem 26.4), chỉ nhận `.xlsx`/`.xls`.
 `payload` đi vòng qua client nên khi quay lại **luôn được zod validate lại** — không
 tin dữ liệu client gửi lên.
 
@@ -150,6 +150,84 @@ trùng; nếu khớp nhầm thì ghi đè quyết toán dự án khác.
 Một phát hiện phụ: `THCP 20X20 Tuyen Quang.xlsx` **không có dòng Doanh thu** nên LNTT
 để trống. Script cũ ghi doanh thu 0 mà không nói gì; giờ có cảnh báo.
 
+## 26.3 Nhập Đơn đặt hàng vật tư
+
+Cổng từ `scripts/import-orders.ts`. Một file = một đơn, nhưng trải trên **nhiều
+sheet** (mỗi sheet một loại vật tư) → `PurchaseOrder` + `PurchaseOrderItem` +
+`PoItemImage`.
+
+### Ba chỗ khác hẳn hai bộ nhập trước
+
+**1. Vị trí cột không cố định.** Mỗi file đặt hàng một kiểu, nên `doCot()` phải dò
+dòng tiêu đề để biết cột nào là "SL", cột nào là "Trọng lượng". Cố định chỉ số cột là
+hỏng ngay file thứ hai.
+
+**2. File có ảnh nhúng.** Ảnh biên dạng được chèn ngay dưới dòng vật tư mà nó minh
+họa; `ganAnhVaoDong()` gắn mỗi ảnh vào dòng gần nhất **phía trên** trong cùng sheet.
+Ảnh nằm trên dòng tiêu đề là logo công ty, bỏ.
+
+**3. Bước xác nhận phải GỬI LẠI FILE.** Đây là điểm thiết kế đáng nói nhất. Hai bộ
+nhập trước gửi dữ liệu đã bóc vòng qua client rồi nhận ngược lên. Với đơn hàng thì
+không được: ảnh biên dạng của **một** đơn đã tới ~900KB, gửi vòng như vậy là vượt giới
+hạn body của server action và tốn băng thông vô ích.
+
+Nên `ImportPreview` có thêm cờ `canFileKhiXacNhan`. Khi bật, giao diện giữ lại
+`File` vừa xem trước và gửi lại lúc xác nhận; server **bóc lại từ đầu** thay vì tin
+payload. Payload lúc này chỉ mang *quyết định* (`projectId`) cộng `fileName` +
+`fileSize` + `soDong` để **đối chiếu**: nếu file lúc xác nhận khác file đã xem
+trước, từ chối ghi. Người dùng đã duyệt một nội dung cụ thể — ghi một nội dung khác
+vào là phản bội đúng cái họ vừa xác nhận.
+
+Phụ thêm: bóc lại server-side thì dữ liệu ghi vào DB **không thể** bị client sửa, chặt
+hơn cả cách zod validate lại của hai bộ trước.
+
+### Đơn hàng KHÔNG tự tạo dự án mới
+
+Khác hai bộ nhập trước. Một đơn đặt hàng luôn thuộc về một dự án đã có, và tên file
+thì không đủ thông tin để dựng một dự án tử tế (không có địa điểm, không có chủ đầu
+tư, không có giá trị). Không khớp được thì bản xem trước vẫn hiện đầy đủ, nhưng
+`payload = null` và **nút xác nhận bị khóa** kèm lời giải thích.
+
+### Kiểm chứng trên 26 file thật
+
+Chạy trên toàn bộ `2_DuAn/RaDonHang/@2026/*/MH/`, đối chiếu 6 đơn mà script CLI đã
+ghi vào DB:
+
+| Kiểm tra | Kết quả |
+|---|---|
+| Số dòng vật tư | **6/6 khớp chính xác** |
+| Số ảnh biên dạng gắn được | **6/6 khớp** (17, 22, 25 ảnh…) |
+| Giá trị đơn và tổng trọng lượng | **6/6 khớp** |
+| Khớp đúng dự án | **6/6 đúng mã** |
+| File chưa từng nhập được | **20 file** — đây chính là phần script CLI bỏ sót |
+
+Con số 20 đáng chú ý: script CLI cắm cứng 4 thư mục trong mã nguồn, mà **cả 4 thư mục
+đó nay đã bị đổi tên**. Nói cách khác script đó hiện chạy là không ra gì. Bản web nhận
+file trực tiếp nên không có vấn đề này.
+
+Một phát hiện: **phần lớn đơn hàng thật không có cột thành tiền** — chúng chỉ theo dõi
+khối lượng. Điều đó hợp lệ, nhưng bản xem trước nói rõ "giá trị = 0" để không ai tưởng
+số tiền bị bóc sót.
+
+## 26.4 Một lỗi tự phát hiện: giới hạn 1MB của server action
+
+Đang làm phần 3 thì phát hiện phần 1 và phần 2 **đã có lỗi từ lúc giao**.
+
+Next mặc định chỉ cho body của server action tối đa **1MB**. Trang `/import` gửi
+nguyên file Excel qua server action, mà file thật thì:
+
+| Kho | File lớn nhất |
+|---|---|
+| `THCPMau/` | **5,9MB** (THCP 20X30 Hà Tĩnh a Duyên) |
+| `DuToanMau/` | **1,8MB** (K16L20_DB) |
+
+Nghĩa là **phần lớn file thật sẽ hỏng** khi tải lên, dù `import/actions.ts` tự đặt
+giới hạn 20MB — Next chặn trước, và lỗi báo ra thì khó hiểu.
+
+Đã sửa: `serverActions.bodySizeLimit = "12mb"` trong `next.config.ts`, và hạ giới
+hạn của app xuống **10MB** cho khớp. Cố ý không đặt cao hơn mức thực sự cần, vì cấu
+hình này áp cho **mọi** server action chứ không riêng trang nhập.
+
 ---
 
 ## Kiểm chứng chung
@@ -158,18 +236,22 @@ Một phát hiện phụ: `THCP 20X20 Tuyen Quang.xlsx` **không có dòng Doanh
 |---|---|
 | `npx tsc --noEmit` | ✅ sạch |
 | `npx eslint src` | ✅ 0 vấn đề |
-| `npm test` | ✅ **224/224** (thêm 68 test so với Phase 25) |
+| `npm test` | ✅ **252/252** (thêm 96 test so với Phase 25) |
 | `npm run build` | ✅ có route `/import` |
 | Dự toán: 15 file thật | ✅ 511 dòng, 6/6 đối chiếu khớp |
 | THCP: 18 file thật | ✅ 18/18 khớp số liệu **và** khớp đúng dự án |
+| Đơn hàng: 26 file thật | ✅ 6/6 đối chiếu khớp (kể cả số ảnh); 20 file mới nhập được |
 
 **Chưa kiểm chứng được:** giao diện `/import` trên trình duyệt (cần đăng nhập), và
 chưa thực sự bấm "Xác nhận" trên DB thật — mới chỉ chạy đến bước bóc tách + khớp.
 
 ## Việc còn lại của Phase 26
 
-1. Nhập **Đơn đặt hàng vật tư** (`scripts/import-orders.ts`).
-2. **Xuất PDF** báo giá / hợp đồng — làm bằng trang HTML tối ưu cho in, không thêm thư
+1. **Xuất PDF** báo giá / hợp đồng — làm bằng trang HTML tối ưu cho in, không thêm thư
    viện PDF.
-3. **Tìm kiếm toàn cục** (Ctrl+K).
-4. **Báo cáo theo kỳ** (tháng / quý).
+2. **Tìm kiếm toàn cục** (Ctrl+K).
+3. **Báo cáo theo kỳ** (tháng / quý).
+
+Ba bộ nhập còn lại (hợp đồng, bảng đơn giá, báo giá mẫu) **cố ý để nguyên ở CLI**: đó
+là việc làm một lần lúc dựng dữ liệu, không phải việc lặp lại hằng tuần như ba bộ đã
+chuyển lên web.
