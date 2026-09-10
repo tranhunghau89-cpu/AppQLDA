@@ -1,7 +1,7 @@
 # Phase 26 — Nhập Excel qua web
 
 > Ngày 2026-09-10. Theo `plan/23_RaSoat_KeHoachNangCap.md` mục Phase 26.
-> Trạng thái: phần 1 (Dự toán), phần 2 (Tổng hợp chi phí) và phần 3 (Đơn hàng) đã xong.
+> Trạng thái: nhập Excel (3 bộ) và xuất PDF đã xong.
 
 Vấn đề gốc: 9 script nhập Excel (2.088 dòng) chỉ chạy được **bằng dòng lệnh trên máy
 người phát triển**. Người dùng thật không tự nhập được file nào, và bản thân script
@@ -228,6 +228,69 @@ giới hạn 20MB — Next chặn trước, và lỗi báo ra thì khó hiểu.
 hạn của app xuống **10MB** cho khớp. Cố ý không đặt cao hơn mức thực sự cần, vì cấu
 hình này áp cho **mọi** server action chứ không riêng trang nhập.
 
+## 26.5 Xuất PDF báo giá / hợp đồng
+
+**Không thêm thư viện PDF nào.** Trang in là một trang HTML tối ưu cho khổ A4; người
+dùng bấm "In / Lưu PDF" và chọn *Lưu thành PDF* trong hộp thoại in sẵn có của trình
+duyệt.
+
+Lý do chọn cách này thay vì `pdfkit`/`puppeteer`:
+
+| | Trang HTML in | Thư viện PDF |
+|---|---|---|
+| Phông chữ tiếng Việt có dấu | trình duyệt lo | phải nhúng font, hay lỗi dấu |
+| Ngắt trang, lặp tiêu đề bảng | CSS `@page` + `thead` | tự tính |
+| Xem trước trước khi lưu | có sẵn | phải tự dựng |
+| Kích thước gói cài | 0 | +vài chục MB (puppeteer kéo cả Chromium) |
+| Chạy được trên Vercel | có | puppeteer rất phiền |
+
+Đánh đổi: người dùng phải tự tắt phần đầu/chân trang của trình duyệt trong hộp thoại
+in — CSS không tắt hộ được. Câu hướng dẫn đã ghi ngay cạnh nút bấm.
+
+### Hai đường dẫn mới
+
+- `/projects/[id]/quote/[quoteId]/print`
+- `/projects/[id]/contract/[contractId]/print`
+
+Cả hai nằm trong nhóm route **`(print)`, cố ý KHÔNG dùng `AppShell`**. Sidebar, thanh
+trên, nút thêm nhanh đều vô nghĩa trên giấy; bọc rồi ẩn bằng CSS thì vẫn phải tải và
+dựng cả cây đó. Vẫn được `proxy.ts` chặn đăng nhập, và mỗi trang tự gọi
+`requireProjectView` để kiểm quyền theo dự án.
+
+> **Một lỗ hổng đã bịt ngay khi viết:** quyền được kiểm theo `[id]` trên thanh địa chỉ,
+> nhưng báo giá thì tra theo `[quoteId]`. Nếu không kiểm `quote.projectId === id` thì
+> chỉ cần đổi `quoteId` trên URL là đọc được báo giá của dự án mình **không** được phân
+> công. Cả hai trang đều có dòng kiểm này.
+
+Nút "In / PDF" hiện với **mọi người xem được**, không gắn với quyền sửa — đã cho xem
+thì cho in.
+
+### `docTienVietNam()` — dòng "Bằng chữ"
+
+Báo giá và hợp đồng tiếng Việt bắt buộc có dòng này. Hàm thuần, **15 test**.
+
+Chỗ dễ sai nhất, và tôi đã viết sai ở lần đầu: **từ tỷ trở lên không chia tiếp** thành
+"nghìn tỷ", "triệu tỷ" như cách chia nhóm 3 chữ số máy móc. Tiếng Việt gộp toàn bộ
+phần trên 10⁹ thành một con số rồi mới đọc "tỷ":
+
+```
+1.500.000.000.000  →  "Một nghìn năm trăm tỷ đồng"
+                  ✗  "Một nghìn tỷ năm trăm tỷ đồng"   ← bản đầu của tôi
+```
+
+Các chỗ khác đã xử lý: ba biến âm bắt buộc (21 "mốt", 24 "tư", 25 "lăm"); "linh" chỉ
+xuất hiện sau hàng trăm; nhóm 0 ở **giữa** vẫn phải đọc (1.000.005 = "một triệu không
+trăm linh năm") nhưng nhóm 0 ở cuối thì bỏ hẳn (1.000.000 = "một triệu").
+
+Đã chạy trên **toàn bộ 15 hợp đồng thật** trong DB — mọi giá trị đọc ra đúng.
+
+### Thông tin công ty
+
+Đặt qua biến môi trường (`COMPANY_NAME`, `COMPANY_ADDRESS`, `COMPANY_PHONE`,
+`COMPANY_EMAIL`, `COMPANY_TAX_ID`, `COMPANY_WEBSITE`), có giá trị mặc định. Cố ý không
+làm thành bảng trong DB: một dòng dữ liệu gần như không bao giờ đổi, thêm cả model +
+trang quản trị chỉ để sửa số điện thoại thì đắt hơn giá trị nó mang lại.
+
 ---
 
 ## Kiểm chứng chung
@@ -236,21 +299,20 @@ hình này áp cho **mọi** server action chứ không riêng trang nhập.
 |---|---|
 | `npx tsc --noEmit` | ✅ sạch |
 | `npx eslint src` | ✅ 0 vấn đề |
-| `npm test` | ✅ **252/252** (thêm 96 test so với Phase 25) |
+| `npm test` | ✅ **267/267** (thêm 111 test so với Phase 25) |
 | `npm run build` | ✅ có route `/import` |
 | Dự toán: 15 file thật | ✅ 511 dòng, 6/6 đối chiếu khớp |
 | THCP: 18 file thật | ✅ 18/18 khớp số liệu **và** khớp đúng dự án |
 | Đơn hàng: 26 file thật | ✅ 6/6 đối chiếu khớp (kể cả số ảnh); 20 file mới nhập được |
+| Đọc tiền thành chữ trên 15 hợp đồng thật | ✅ đúng toàn bộ |
 
 **Chưa kiểm chứng được:** giao diện `/import` trên trình duyệt (cần đăng nhập), và
 chưa thực sự bấm "Xác nhận" trên DB thật — mới chỉ chạy đến bước bóc tách + khớp.
 
 ## Việc còn lại của Phase 26
 
-1. **Xuất PDF** báo giá / hợp đồng — làm bằng trang HTML tối ưu cho in, không thêm thư
-   viện PDF.
-2. **Tìm kiếm toàn cục** (Ctrl+K).
-3. **Báo cáo theo kỳ** (tháng / quý).
+1. **Tìm kiếm toàn cục** (Ctrl+K).
+2. **Báo cáo theo kỳ** (tháng / quý).
 
 Ba bộ nhập còn lại (hợp đồng, bảng đơn giá, báo giá mẫu) **cố ý để nguyên ở CLI**: đó
 là việc làm một lần lúc dựng dữ liệu, không phải việc lặp lại hằng tuần như ba bộ đã

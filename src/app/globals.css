@@ -25,3 +25,69 @@ body {
   color: #0f172a;
   font-family: var(--font-sans), system-ui, Arial, sans-serif;
 }
+
+/* ===== In ra giấy / lưu PDF =====
+   Trang in dùng chung cho báo giá và hợp đồng. Không thêm thư viện PDF nào: trình
+   duyệt nào cũng có sẵn "In → Lưu thành PDF", và cách này giữ đúng phông chữ tiếng
+   Việt, tự ngắt trang, và xem trước được ngay trên màn hình. */
+
+.trang-in {
+  background: #fff;
+  color: #000;
+}
+
+@media print {
+  /* Khổ A4, lề 15mm. Header/footer của trình duyệt do người dùng tự tắt trong hộp
+     thoại in — không có cách nào tắt từ CSS. */
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+
+  html,
+  body {
+    height: auto;
+    background: #fff !important;
+  }
+
+  body {
+    /* Buộc in đúng màu nền của ô tiêu đề bảng; mặc định trình duyệt bỏ nền để tiết
+       kiệm mực, làm bảng mất hết đường phân biệt. */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-size: 11pt;
+  }
+
+  /* Thanh công cụ, nút bấm, điều hướng — không có chỗ trên giấy. */
+  .khong-in {
+    display: none !important;
+  }
+
+  .trang-in {
+    margin: 0;
+    padding: 0;
+    max-width: none;
+    box-shadow: none;
+  }
+
+  /* Không để một dòng bảng bị cắt đôi giữa hai trang. */
+  tr,
+  img {
+    break-inside: avoid;
+  }
+
+  /* Lặp lại tiêu đề bảng ở mỗi trang giấy. */
+  thead {
+    display: table-header-group;
+  }
+
+  /* Khối chữ ký phải nằm trọn một chỗ, không được tách khỏi nhau. */
+  .giu-nguyen-khoi {
+    break-inside: avoid;
+  }
+
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
+}

@@ -2,11 +2,13 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Plus,
   Pencil,
   Trash2,
   Copy,
+  Printer,
   RefreshCw,
   ArrowUpFromLine,
   Receipt,
@@ -337,6 +339,7 @@ export function QuoteEditor({
         <QuoteCard
           key={q.id}
           q={q}
+          projectId={projectId}
           canEdit={canEdit}
           onEditQuote={() => openQuote(q)}
           onDeleteQuote={() => onDeleteQuote(q)}
@@ -551,6 +554,7 @@ export function QuoteEditor({
 
 function QuoteCard({
   q,
+  projectId,
   canEdit,
   onEditQuote,
   onDeleteQuote,
@@ -565,6 +569,7 @@ function QuoteCard({
   onDeleteItem,
 }: {
   q: QuoteView;
+  projectId: string;
   canEdit: boolean;
   onEditQuote: () => void;
   onDeleteQuote: () => void;
@@ -658,8 +663,18 @@ function QuoteCard({
             <p className="text-xs text-slate-400">Tạo từ: {q.clonedFromTitle}</p>
           )}
         </div>
-        {canEdit && (
-          <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/* In được thì ai xem được cũng nên in được — không gắn với quyền sửa. */}
+          <Link
+            href={`/projects/${projectId}/quote/${q.id}/print`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <Printer className="h-3.5 w-3.5" aria-hidden="true" /> In / PDF
+          </Link>
+          {canEdit && (
+            <>
             <Button variant="outline" size="sm" onClick={onReprice}>
               <RefreshCw className="h-3.5 w-3.5" /> Cập nhật đơn giá
             </Button>
@@ -677,8 +692,9 @@ function QuoteCard({
             >
               <Trash2 className="h-4 w-4" />
             </Button>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       <Table>

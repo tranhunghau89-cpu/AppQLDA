@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, FileText, FileSignature } from "lucide-react";
+import Link from "next/link";
+import { Plus, Pencil, Trash2, FileText, FileSignature, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
@@ -160,7 +161,15 @@ export function ContractEditor({
                 </div>
                 {c.partyAInfo && <p className="text-xs text-slate-400">{c.partyAInfo}</p>}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href={`/projects/${projectId}/contract/${c.id}/print`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  <Printer className="h-4 w-4" aria-hidden="true" /> In / PDF
+                </Link>
                 {c.filePath && (
                   <a
                     href={`/api/contracts/${c.id}/file`}
