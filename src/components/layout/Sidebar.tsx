@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   FolderKanban,
+  BarChart3,
   CalendarRange,
   GanttChart,
   Ruler,
@@ -45,6 +46,7 @@ const NAV: NavItem[] = [
   { href: "/quotes", label: "Đơn giá & Báo giá", icon: Receipt, resource: "quote" },
   { href: "/costs", label: "Tổng hợp chi phí", icon: Wallet, resource: "cost" },
   { href: "/debts", label: "Công nợ", icon: HandCoins, resource: "debt" },
+  { href: "/reports", label: "Báo cáo theo kỳ", icon: BarChart3, resource: "cost" },
   { href: "/customers", label: "Chủ đầu tư", icon: Building2, resource: "customer" },
   { href: "/suppliers", label: "Nhà cung cấp", icon: Truck, resource: "supplier" },
   { href: "/tools", label: "Tra cứu & Bóc KL", icon: Ruler },

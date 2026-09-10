@@ -1,5 +1,6 @@
 import { LogOut, Menu } from "lucide-react";
 import { ROLE_LABEL, type Role } from "@/lib/rbac";
+import { GlobalSearch } from "./GlobalSearch";
 
 export function Topbar({
   name,
@@ -23,8 +24,14 @@ export function Topbar({
         <Menu className="h-5 w-5" />
       </button>
 
+      {/* Ô tìm kiếm đứng riêng bên trái để trên điện thoại nó không bị đẩy khỏi màn
+          hình khi tên người dùng dài. */}
+      <div className="min-w-0">
+        <GlobalSearch />
+      </div>
+
       <div className="flex min-w-0 flex-1 items-center justify-end gap-3 sm:gap-4">
-        <div className="min-w-0 text-right leading-tight">
+        <div className="hidden min-w-0 text-right leading-tight sm:block">
           <div className="truncate text-sm font-medium text-slate-900">{name}</div>
           <div className="truncate text-xs text-slate-400">{ROLE_LABEL[role]}</div>
         </div>

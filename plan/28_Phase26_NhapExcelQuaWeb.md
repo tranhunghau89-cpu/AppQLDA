@@ -1,7 +1,8 @@
-# Phase 26 — Nhập Excel qua web
+# Phase 26 — Nhập Excel, xuất PDF, tìm kiếm, báo cáo kỳ
 
 > Ngày 2026-09-10. Theo `plan/23_RaSoat_KeHoachNangCap.md` mục Phase 26.
-> Trạng thái: nhập Excel (3 bộ) và xuất PDF đã xong.
+> Trạng thái: **hoàn tất cả 4 mục** — nhập Excel (3 bộ), xuất PDF, tìm kiếm toàn cục,
+> báo cáo theo kỳ.
 
 Vấn đề gốc: 9 script nhập Excel (2.088 dòng) chỉ chạy được **bằng dòng lệnh trên máy
 người phát triển**. Người dùng thật không tự nhập được file nào, và bản thân script
@@ -291,6 +292,111 @@ trăm linh năm") nhưng nhóm 0 ở cuối thì bỏ hẳn (1.000.000 = "một 
 làm thành bảng trong DB: một dòng dữ liệu gần như không bao giờ đổi, thêm cả model +
 trang quản trị chỉ để sửa số điện thoại thì đắt hơn giá trị nó mang lại.
 
+## 26.6 Tìm kiếm toàn cục (Ctrl+K)
+
+Mở bằng **Ctrl+K** (⌘K trên Mac) hoặc bấm ô tìm kiếm trên thanh trên. Tìm được: dự án,
+chủ đầu tư, nhà cung cấp, hợp đồng, báo giá, mã đơn giá.
+
+### Quyết định đáng nói: lọc trên máy, không để SQL lọc
+
+Nghe ngược đời, nhưng có hai lý do:
+
+**1. Người Việt gõ không dấu.** "ha nam" phải ra "Hà Nam". SQL `contains` không làm
+được; muốn làm phải bật extension `unaccent` trên Postgres — tức là **đổi cấu hình cơ
+sở dữ liệu sản xuất** chỉ để phục vụ một ô tìm kiếm. (Đã kiểm: `unaccent` có sẵn trên
+Supabase nhưng **chưa bật**.)
+
+**2. Dữ liệu quá nhỏ để đáng gọi mạng.** Toàn bộ danh mục tìm được là **413 dòng ≈
+73KB JSON**. Tải một lần lúc mở hộp rồi lọc ngay trên máy:
+
+| | Lọc bằng SQL | Lọc trên máy |
+|---|---|---|
+| Mỗi lần gõ một chữ | 1 round-trip (~325ms, theo Phase 24) | **0,54ms** |
+| Gõ không dấu | phải bật `unaccent` | có sẵn nhờ `norm()` |
+| Số lần gọi máy chủ | mỗi lần gõ | **một lần mỗi phiên** |
+
+Đúng kết luận của Phase 24: thứ đáng tối ưu là **số round-trip**, không phải tốc độ
+truy vấn.
+
+### Bảo mật
+
+Danh mục được dựng cho **đúng người đang đăng nhập**, hai lớp lọc:
+
+- **RBAC** — vai trò không xem được loại nào thì loại đó không có trong danh mục.
+- **Phạm vi dự án** — chỉ dự án được phân công, và hợp đồng/báo giá thuộc các dự án đó.
+
+Lớp thứ hai là bắt buộc: thiếu nó, ô tìm kiếm trở thành đường vòng để đọc tên **mọi**
+dự án trong công ty — đúng thứ Phase 21 dựng lên để chặn.
+
+### Chấm điểm
+
+Thang điểm cố ý thô (khớp trọn vẹn > khớp đầu chuỗi > khớp giữa chuỗi, trường chính
+hơn trường phụ) — vài trăm dòng thì không cần gì tinh vi hơn. Điều quan trọng hơn là
+**thứ tự ổn định**: cùng điểm thì xếp theo loại rồi theo tên, để kết quả không nhảy
+lung tung giữa các lần gõ. **13 test**.
+
+Kiểm chứng trên dữ liệu thật, gõ đúng kiểu người dùng gõ:
+
+```
+"ha nam"    → K19L42_HN, K26L112, VLXD Hà Nam
+"son viet"  → Cty Sơn Việt, HĐ 2104/2026/HĐKT/SONVIET-DUBAI, K20L24_HN
+"n057"      → K20L50_HN            "lop ton" → 2 mã đơn giá Lợp tôn
+```
+
+### Một lỗi bị ESLint chặn đúng lúc
+
+Bản đầu tôi đếm số thứ tự phẳng bằng một biến `let flat` tăng dần trong lúc dựng danh
+sách đã gom nhóm. React 19 cấm sửa biến giữa lúc render (`react-hooks/immutability`).
+Đã chuyển sang tính sẵn chỉ số trong `useMemo`. Lỗi tương tự thứ hai: tải danh mục
+bằng `useEffect` rồi `setState` trong đó (`react-hooks/set-state-in-effect`) — đã
+chuyển việc tải vào chính hành động **mở** hộp tìm kiếm, chốt bằng `ref`. Cùng loại lỗi
+đã gặp ở AppShell của Phase 23.
+
+## 26.7 Báo cáo theo kỳ (tháng / quý / năm)
+
+Trang `/reports`, quyền `cost` (Kỹ thuật không vào được). Chọn kỳ bằng **link**, không
+cần JavaScript phía client — cùng cách đã dùng ở trang Nhật ký thay đổi của Phase 25.
+
+Mỗi kỳ hiện: tiền đã thu, tiền đã chi, dòng tiền ròng, hợp đồng ký mới, đơn hàng đặt,
+mốc hoàn thành, dự án khởi công / hoàn thành — kèm **% thay đổi so với kỳ liền trước**.
+
+### Chỗ dễ sai nhất: múi giờ
+
+Máy chủ trên Vercel chạy theo **UTC**, người dùng ở **UTC+7**. Lấy mốc kỳ bằng
+`new Date(nam, thang, 1)` thì ranh giới tháng rơi vào 07:00 sáng giờ Việt Nam — một
+khoản thu ghi ngày 01/09 bị đếm sang tháng 8. Sai một khoản ở đúng ranh giới tháng là
+loại lỗi không ai phát hiện cho tới lúc đối chiếu sổ sách.
+
+Mọi mốc kỳ đều dựng qua `nuaDemVN()`, và khoảng là **nửa mở** `tu <= x < den` — nếu
+đóng cả hai đầu thì khoản nằm đúng ranh giới bị đếm vào **cả hai** kỳ.
+
+**25 test**, trong đó có phép kiểm cộng dồn chạy trên dữ liệu thật:
+
+| Đối chiếu | Kết quả |
+|---|---|
+| Tổng 12 tháng = báo cáo cả năm | ✅ khớp (thu, chi, số HĐ, số mốc) |
+| Tổng 4 quý = báo cáo cả năm | ✅ khớp |
+| Giá trị hợp đồng 2026 | 7 HĐ · 8.585.684.640 ₫, cộng đúng từ hạng mục |
+
+Giá trị hợp đồng **tính lại từ hạng mục** chứ không đọc cột `valueWithVat` — nhiều
+dòng trong DB còn để trống, dùng thẳng thì báo cáo thiếu tiền mà không ai biết.
+
+### Một phát hiện về dữ liệu, nói thẳng ra thay vì giấu
+
+Chạy thử trên dữ liệu thật thì **mọi ô dòng tiền đều bằng 0**. Nguyên nhân không phải
+lỗi báo cáo:
+
+- Cả **5 đợt thanh toán** đều chưa được ghi `paidDate` (ngày thực thu / thực trả).
+- Cả **5 mốc** đều đã đánh dấu `done` nhưng không mốc nào có `actualDate`.
+
+Phase 25 từng ghi "không có đợt nào quá hạn" — đúng, nhưng vì `dueDate` cũng trống chứ
+không phải vì đã thu xong.
+
+Báo cáo **cố ý vẫn tính theo ngày thực tế** — đó mới là dòng tiền thật; lùi về ngày kế
+hoạch là bịa số. Thay vào đó, trang tự phát hiện và hiện một khối cảnh báo giải thích
+vì sao các ô bằng 0 và cần nhập gì để chúng có số. Người đọc thấy một việc cần làm,
+không phải một báo cáo hỏng.
+
 ---
 
 ## Kiểm chứng chung
@@ -299,21 +405,26 @@ trang quản trị chỉ để sửa số điện thoại thì đắt hơn giá 
 |---|---|
 | `npx tsc --noEmit` | ✅ sạch |
 | `npx eslint src` | ✅ 0 vấn đề |
-| `npm test` | ✅ **267/267** (thêm 111 test so với Phase 25) |
-| `npm run build` | ✅ có route `/import` |
+| `npm test` | ✅ **305/305** (thêm 149 test so với Phase 25) |
+| `npm run build` | ✅ có `/import`, `/reports` và hai route in |
 | Dự toán: 15 file thật | ✅ 511 dòng, 6/6 đối chiếu khớp |
 | THCP: 18 file thật | ✅ 18/18 khớp số liệu **và** khớp đúng dự án |
 | Đơn hàng: 26 file thật | ✅ 6/6 đối chiếu khớp (kể cả số ảnh); 20 file mới nhập được |
 | Đọc tiền thành chữ trên 15 hợp đồng thật | ✅ đúng toàn bộ |
+| Tìm kiếm trên 413 dòng thật, gõ không dấu | ✅ 0,54ms mỗi lần gõ |
+| Báo cáo kỳ: 12 tháng = 4 quý = cả năm | ✅ khớp trên dữ liệu thật |
 
-**Chưa kiểm chứng được:** giao diện `/import` trên trình duyệt (cần đăng nhập), và
-chưa thực sự bấm "Xác nhận" trên DB thật — mới chỉ chạy đến bước bóc tách + khớp.
+**Chưa kiểm chứng được** (đều vì cần một tài khoản đăng nhập):
 
-## Việc còn lại của Phase 26
+- Giao diện `/import`, `/reports`, hộp Ctrl+K và hai trang in trên trình duyệt thật.
+- Chưa thực sự bấm "Xác nhận" để ghi vào DB — mới chạy tới bước bóc tách + khớp dự án.
+- Chưa in thử ra PDF để soi cách ngắt trang trên tài liệu nhiều trang.
 
-1. **Tìm kiếm toàn cục** (Ctrl+K).
-2. **Báo cáo theo kỳ** (tháng / quý).
+Phần **logic** của cả bốn mục thì đã chạy trên dữ liệu thật và đối chiếu được, như
+bảng trên.
 
-Ba bộ nhập còn lại (hợp đồng, bảng đơn giá, báo giá mẫu) **cố ý để nguyên ở CLI**: đó
+## Việc còn lại
+
+Phase 26 đã xong cả bốn mục. Ba bộ nhập còn lại (hợp đồng, bảng đơn giá, báo giá mẫu) **cố ý để nguyên ở CLI**: đó
 là việc làm một lần lúc dựng dữ liệu, không phải việc lặp lại hằng tuần như ba bộ đã
 chuyển lên web.
