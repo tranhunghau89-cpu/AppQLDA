@@ -177,6 +177,29 @@ Quy ước test: chỉ test **hàm thuần**. Các module bóc Excel được t�
 (`*-parse.ts`, không khai báo `server-only`) chạy được trong Vitest và trong script `tsx`
 kiểm chứng ngoài Next; phần chạm DB nằm ở file riêng.
 
+### Kiểm thử phân quyền đầu-cuối
+`npm test` chỉ kiểm hàm thuần, không kiểm được rằng **HTTP thật sự chặn đúng người**.
+Năm kịch bản đó nằm ở một script riêng:
+
+```bash
+npm run dev        # cửa sổ 1
+npm run e2e        # cửa sổ 2
+```
+
+Không đặt tài khoản thì script vẫn chạy được kịch bản không cần đăng nhập (chống dò mật
+khẩu) và **bỏ qua** phần còn lại. Muốn chạy đủ, đặt thêm vào `.env`:
+
+| Biến | Ý nghĩa |
+|---|---|
+| `E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD` | một tài khoản ADMIN |
+| `E2E_USER_EMAIL` / `E2E_USER_PASSWORD` | một tài khoản **không phải** ADMIN |
+| `E2E_ALLOW_MUTATE=1` | bật kịch bản khóa tài khoản (có **ghi** vào DB, script tự mở khóa lại) |
+
+> Kịch bản chống dò mật khẩu cố ý chạy **cuối cùng**: nó làm chính IP đang chạy bị chặn
+> 15 phút, đặt trước thì mọi lần đăng nhập sau đó đều nhận 429. Chạy script hai lần liên
+> tiếp thì lần sau báo **bỏ qua** kịch bản đó (không phải trượt) — khởi động lại
+> `npm run dev` là xóa được bộ đếm.
+
 ## Bảo mật
 - **Phạm vi dự án**: user không phải ADMIN chỉ thấy dự án được gán qua `ProjectMember`
   (mục "Thành viên dự án" trong trang chi tiết dự án). Người mới **chưa được gán sẽ không

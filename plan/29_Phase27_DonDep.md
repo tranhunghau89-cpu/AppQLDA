@@ -153,9 +153,8 @@ sót thì chúng thành trang công khai — mà trên đó có giá bán và gi
 thật** (phạm vi dự án, thu hồi phiên khi khóa tài khoản, so sánh tầm nhìn ADMIN). Tôi
 không có mật khẩu, và không thử đoán mật khẩu tài khoản thật.
 
-Cần một trong hai:
-- một tài khoản dùng riêng cho kiểm thử trên DB thật, hoặc
-- một cơ sở dữ liệu riêng để kiểm thử, seed bằng `npm run db:seed`.
+Bù lại, cả năm kịch bản nay đã thành **script chạy được** (xem 27.10) — anh/chị đặt tài
+khoản vào `.env` rồi `npm run e2e` là xong, không phải làm thủ công từng bước.
 
 ## 27.9 CI — bỏ cảnh báo lặp lại và chỉnh phiên bản Node
 
@@ -176,6 +175,47 @@ sẽ lọt qua CI rồi mới nổ trên Vercel.
 > tới bản build đang chạy, cần quyết định có chủ đích chứ không nên sửa kèm trong một
 > commit dọn dẹp.
 
+## 27.10 Biến 5 kịch bản thủ công thành `npm run e2e`
+
+Năm kịch bản của `plan/24` nằm trong tài liệu suốt từ Phase 21 mà **chưa lần nào được
+chạy** — vì mỗi lần chạy là một quy trình thủ công. Đã viết thành script chạy được:
+`scripts/e2e-check.ts`.
+
+**Không thêm Playwright/Cypress.** Năm kịch bản này kiểm **phân quyền ở tầng HTTP**, không
+kiểm giao diện — chúng chỉ cần gọi request và đọc mã trạng thái. Thêm một bộ khung trình
+duyệt vào đây là đắt mà không mua thêm được gì.
+
+Script tự lo phần dựng bối cảnh: đọc DB (chỉ đọc) để tìm một dự án mà tài khoản thử
+**không** được gán, rồi kiểm cả trang lẫn API. Kịch bản "báo cáo chỉ chứa dự án được gán"
+phải mở file Excel trả về và soi từng mã dự án, vì `/api/reports/summary` trả về `.xlsx`
+chứ không phải JSON.
+
+Không có tài khoản thì script vẫn chạy kịch bản 4 và **bỏ qua** phần còn lại — chạy được
+ngay, không phải cấu hình gì.
+
+### Hai điều chỉ lộ ra khi thực sự chạy
+
+**1. Thứ tự kịch bản sai.** Bản đầu tôi đặt kịch bản 4 (dò mật khẩu) lên trước vì nó
+không cần tài khoản. Chạy thử thì hỏng ngay: bộ chặn đếm theo **IP**, nên 10 lần sai đó
+làm chính máy đang chạy bị khóa 15 phút, và mọi lần đăng nhập của bốn kịch bản sau đều
+nhận 429. Đã chuyển kịch bản 4 xuống **cuối cùng**.
+
+**2. Chạy hai lần liên tiếp báo trượt oan.** Bộ chặn nằm trong bộ nhớ tiến trình, nên lần
+chạy thứ hai trong vòng 15 phút bị chặn ngay từ request đầu. Đó là trạng thái môi trường,
+không phải lỗi mã. Script giờ nhận ra trường hợp này và báo **bỏ qua** kèm cách xử lý.
+
+Cả hai đều là lỗi của chính script, và cả hai chỉ lộ ra vì đã chạy thật thay vì viết xong
+rồi tin là nó đúng.
+
+### Kịch bản 3 có ghi vào DB
+
+Khóa tài khoản là một thao tác **ghi**, nên mặc định bị bỏ qua; bật bằng
+`E2E_ALLOW_MUTATE=1`. Script mở khóa lại trong khối `finally` để dù kiểm thất bại thì tài
+khoản vẫn được trả về nguyên trạng.
+
+`tokenVersion` **cố ý không hạ lại** — trường này chỉ được phép tăng; hạ lại là làm sống
+lại đúng những token mà thao tác khóa vừa giết.
+
 ---
 
 ## Kiểm chứng
@@ -189,6 +229,8 @@ sẽ lọt qua CI rồi mới nổ trên Vercel.
 | Token cũ trong lịch sử git | ✅ đã chết, kiểm bằng `jwtVerify` |
 | Chặn đăng nhập trên route mới | ✅ 7/7 đường dẫn |
 | Chống dò mật khẩu | ✅ 429 + `Retry-After: 900` sau 10 lần |
+| `npm run e2e` chạy không cần tài khoản | ✅ đạt 1, bỏ qua 4, không trượt |
+| `npm run e2e` chạy lại ngay lần hai | ✅ báo bỏ qua đúng, không trượt oan |
 | CI trên Node 22 với actions v5 | ✅ xanh, không còn cảnh báo deprecated |
 
 ## Việc còn lại của cả bản rà soát

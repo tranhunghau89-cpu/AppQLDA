@@ -26,7 +26,8 @@
     "import:pricebook": "tsx scripts/import-pricebook.ts",
     "import:quote": "tsx scripts/import-quote.ts",
     "import:missing": "tsx scripts/import-missing-projects.ts",
-    "members:backfill": "tsx scripts/backfill-project-members.ts"
+    "members:backfill": "tsx scripts/backfill-project-members.ts",
+    "e2e": "tsx scripts/e2e-check.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
