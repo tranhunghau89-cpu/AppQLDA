@@ -5,20 +5,42 @@
 // và đọc mã trạng thái — thêm một bộ khung trình duyệt vào đây là đắt mà không mua thêm
 // được gì.
 //
-// Cách chạy:
-//   1. Mở server ở một cửa sổ khác:  npm run dev
-//   2. Đặt tài khoản vào .env (hoặc biến môi trường):
-//        E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD    — tài khoản ADMIN
-//        E2E_USER_EMAIL  / E2E_USER_PASSWORD     — tài khoản KHÔNG phải ADMIN
-//   3. npm run e2e
+//   npm run dev        # cửa sổ 1
+//   npm run e2e        # cửa sổ 2
 //
-// Kịch bản 3 (khóa tài khoản) có GHI vào cơ sở dữ liệu nên mặc định bị bỏ qua; bật bằng
-// E2E_ALLOW_MUTATE=1. Script tự mở khóa lại sau khi kiểm, kể cả khi kiểm thất bại.
+// ---------------------------------------------------------------------------
+// HAI CÁCH LẤY PHIÊN ĐĂNG NHẬP
+//
+// A. Tài khoản thật — đặt E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD và
+//    E2E_USER_EMAIL / E2E_USER_PASSWORD. Script đăng nhập qua đúng form thật.
+//
+// B. Tài khoản thử tạm (mặc định) — script tự tạo HAI tài khoản dùng một lần rồi
+//    tự ký phiên bằng `signSession`, đúng hàm mà máy chủ vẫn dùng sau khi kiểm mật
+//    khẩu xong. Chạy xong xóa sạch.
+//
+// Vì sao cách B là mặc định:
+//   · Không cần mật khẩu của ai, không đọc và không đổi mật khẩu của bất kỳ ai.
+//   · KHÔNG đụng vào tài khoản đang dùng thật — mọi thao tác ghi chỉ nhắm vào hai
+//     tài khoản do chính script tạo ra.
+//   · Quan trọng nhất: sau `members:backfill`, **mọi tài khoản thật đều được gán
+//     TẤT CẢ dự án**, nên không còn dự án nào nằm ngoài phạm vi để mà kiểm. Muốn
+//     kiểm được kịch bản 1 và 2 thì bắt buộc phải có một tài khoản chỉ nắm một
+//     phần dự án.
+//
+// Cách B KHÔNG kiểm được form đăng nhập (nó bỏ qua bước so mật khẩu) — nhưng kịch
+// bản 4 đã kiểm đúng chỗ đó, còn kịch bản 1/2/3/5 nói về chuyện SAU khi đăng nhập.
+// ---------------------------------------------------------------------------
+import crypto from "crypto";
+import bcrypt from "bcryptjs";
 import ExcelJS from "exceljs";
 import { PrismaClient } from "@prisma/client";
+import { SESSION_COOKIE, signSession } from "../src/lib/session";
+import type { Role } from "../src/lib/rbac";
 
 const db = new PrismaClient();
 const BASE = process.env.E2E_BASE_URL ?? "http://localhost:3000";
+/** Số dự án gán cho tài khoản thử — phải nhỏ hơn tổng để còn dự án ngoài phạm vi. */
+const SO_DU_AN_GAN = 3;
 
 let soDat = 0;
 let soTruot = 0;
@@ -37,11 +59,17 @@ function boQua(ten: string, lyDo: string) {
   console.log(`  – ${ten} (bỏ qua: ${lyDo})`);
 }
 
-/** Một phiên đăng nhập: giữ cookie và không tự đi theo chuyển hướng. */
+/** Một phiên: giữ cookie và KHÔNG tự đi theo chuyển hướng (307 chính là thứ cần đo). */
 class Phien {
   private cookie = "";
 
-  async dangNhap(email: string, password: string): Promise<void> {
+  static tuToken(token: string): Phien {
+    const p = new Phien();
+    p.cookie = `${SESSION_COOKIE}=${token}`;
+    return p;
+  }
+
+  static async dangNhap(email: string, password: string): Promise<Phien> {
     const res = await fetch(`${BASE}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -51,25 +79,32 @@ class Phien {
     if (!res.ok) {
       throw new Error(`đăng nhập ${email} thất bại: ${res.status} ${await res.text()}`);
     }
-    // getSetCookie() giữ được nhiều cookie; nối lại thành header Cookie.
-    this.cookie = res.headers
+    const p = new Phien();
+    p.cookie = res.headers
       .getSetCookie()
       .map((c) => c.split(";")[0])
       .join("; ");
-    if (!this.cookie) throw new Error("máy chủ không trả cookie phiên");
+    if (!p.cookie) throw new Error("máy chủ không trả cookie phiên");
+    return p;
   }
 
   get(duongDan: string): Promise<Response> {
     return fetch(`${BASE}${duongDan}`, {
       headers: { Cookie: this.cookie },
-      // KHÔNG đi theo chuyển hướng: 307 về /login chính là thứ cần đo.
       redirect: "manual",
     });
   }
 }
 
-/** Đọc file Excel trả về từ /api/reports/summary, gom mọi mã dự án xuất hiện. */
-async function maDuAnTrongExcel(res: Response): Promise<Set<string>> {
+/**
+ * Đọc file Excel trả về từ /api/reports/summary, gom mọi mã dự án xuất hiện.
+ *
+ * Nhận vào tập mã THẬT lấy từ DB thay vì dò bằng biểu thức chính quy. Bản đầu tôi
+ * dùng regex `N\d{3}|DT\d{2}|DEMO\d+` và nó bỏ sót mất 57/123 mã — dữ liệu thật có
+ * tới sáu dạng mã (`N037`, `D24A-01`, `D24-04`, `DT01`, `D24B-02`, `DEMO1`). Phép
+ * kiểm khi đó vẫn "đạt" nhưng là đạt rỗng, vì nó không nhìn thấy phần lớn dữ liệu.
+ */
+async function maDuAnTrongExcel(res: Response, maHopLe: Set<string>): Promise<Set<string>> {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(await res.arrayBuffer());
   const ma = new Set<string>();
@@ -77,8 +112,7 @@ async function maDuAnTrongExcel(res: Response): Promise<Set<string>> {
     ws.eachRow((row) => {
       const v = row.getCell(1).value;
       const s = typeof v === "string" ? v.trim() : "";
-      // Mã dự án dạng N037 / DT01 / DEMO1.
-      if (/^(N\d{3}|DT\d{2}|DEMO\d+)$/.test(s)) ma.add(s);
+      if (maHopLe.has(s)) ma.add(s);
     });
   });
   return ma;
@@ -93,184 +127,326 @@ async function maDuAnTrongExcel(res: Response): Promise<Set<string>> {
  */
 async function kichBan4(): Promise<void> {
   console.log("\nKịch bản 4 — chống dò mật khẩu (chạy cuối vì nó khóa IP 15 phút)");
-  {
-    // Email không tồn tại: không đụng tới tài khoản thật nào, và không làm khóa nhầm
-    // ai cả. Bộ đếm theo IP vẫn bị dùng, nên chạy trên máy phát triển.
-    const email = `e2e-${Date.now()}@example.invalid`;
-    let ma429 = 0;
-    let retryAfter: string | null = null;
-    let lanBiChan = 0;
-    for (let i = 1; i <= 12; i++) {
-      const res = await fetch(`${BASE}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password: "sai-mat-khau" }),
-        redirect: "manual",
-      });
-      if (res.status === 429) {
-        if (!ma429) lanBiChan = i;
-        ma429++;
-        retryAfter ??= res.headers.get("Retry-After");
-      }
-      await res.text();
+  // Email không tồn tại: không đụng tới tài khoản thật nào, không khóa nhầm ai.
+  const email = `e2e-${Date.now()}@example.invalid`;
+  let ma429 = 0;
+  let retryAfter: string | null = null;
+  let lanBiChan = 0;
+  for (let i = 1; i <= 12; i++) {
+    const res = await fetch(`${BASE}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: "sai-mat-khau" }),
+      redirect: "manual",
+    });
+    if (res.status === 429) {
+      if (!ma429) lanBiChan = i;
+      ma429++;
+      retryAfter ??= res.headers.get("Retry-After");
     }
-    if (ma429 > 0 && lanBiChan === 11 && retryAfter) {
-      dat("10 lần sai rồi bị chặn", `lần ${lanBiChan} trả 429, Retry-After ${retryAfter}s`);
-    } else if (lanBiChan === 1) {
-      // Bộ chặn nằm trong bộ nhớ tiến trình và đếm theo IP, nên chạy script hai lần
-      // trong vòng 15 phút thì lần sau bị chặn ngay từ request đầu. Đó là trạng thái
-      // của môi trường chứ không phải lỗi mã — báo BỎ QUA, đừng báo trượt.
-      boQua(
-        "10 lần sai rồi bị chặn",
-        "IP đang bị chặn sẵn từ lần chạy trước; chờ hết 15 phút hoặc khởi động lại dev server"
-      );
-    } else if (ma429 > 0) {
-      truot("10 lần sai rồi bị chặn", `bị chặn từ lần ${lanBiChan} (mong đợi lần 11)`);
-    } else {
-      truot("10 lần sai rồi bị chặn", "không lần nào trả 429 — bộ chặn không hoạt động");
-    }
+    await res.text();
   }
+  if (ma429 > 0 && lanBiChan === 11 && retryAfter) {
+    dat("10 lần sai rồi bị chặn", `lần ${lanBiChan} trả 429, Retry-After ${retryAfter}s`);
+  } else if (lanBiChan === 1) {
+    // Bộ chặn nằm trong bộ nhớ tiến trình và đếm theo IP, nên chạy script hai lần
+    // trong vòng 15 phút thì lần sau bị chặn ngay từ request đầu. Đó là trạng thái
+    // của môi trường chứ không phải lỗi mã — báo BỎ QUA, đừng báo trượt.
+    boQua(
+      "10 lần sai rồi bị chặn",
+      "IP đang bị chặn sẵn từ lần chạy trước; chờ hết 15 phút hoặc khởi động lại dev server"
+    );
+  } else if (ma429 > 0) {
+    truot("10 lần sai rồi bị chặn", `bị chặn từ lần ${lanBiChan} (mong đợi lần 11)`);
+  } else {
+    truot("10 lần sai rồi bị chặn", "không lần nào trả 429 — bộ chặn không hoạt động");
+  }
+}
 
+interface TaiKhoanThu {
+  id: string;
+  email: string;
+  role: Role;
+  tokenVersion: number;
+}
+
+/** Tạo một tài khoản dùng một lần. Mật khẩu là chuỗi ngẫu nhiên bị vứt đi ngay. */
+async function taoTaiKhoanTam(role: Role, hau: string): Promise<TaiKhoanThu> {
+  const email = `e2e-tam-${hau}-${Date.now()}@example.invalid`;
+  // Băm một chuỗi ngẫu nhiên rồi quên nó: không ai đăng nhập được bằng tài khoản này,
+  // kể cả script — phiên được ký thẳng chứ không qua form.
+  const passwordHash = await bcrypt.hash(crypto.randomBytes(24).toString("hex"), 10);
+  const u = await db.user.create({
+    data: { email, name: `E2E tạm (${role})`, passwordHash, role, active: true },
+    select: { id: true, email: true, role: true, tokenVersion: true },
+  });
+  return { ...u, role: u.role as Role };
+}
+
+function kySession(u: TaiKhoanThu, tokenVersion = u.tokenVersion): Promise<string> {
+  return signSession({
+    userId: u.id,
+    email: u.email,
+    name: `E2E tạm (${u.role})`,
+    role: u.role,
+    tokenVersion,
+  });
 }
 
 async function main() {
+  console.log(`Kiểm thử end-to-end trên ${BASE}\n`);
+
   const adminEmail = process.env.E2E_ADMIN_EMAIL;
   const adminPass = process.env.E2E_ADMIN_PASSWORD;
   const userEmail = process.env.E2E_USER_EMAIL;
   const userPass = process.env.E2E_USER_PASSWORD;
+  const dungTaiKhoanThat = !!(adminEmail && adminPass && userEmail && userPass);
 
-  console.log(`Kiểm thử end-to-end trên ${BASE}\n`);
-
-  if (!adminEmail || !adminPass || !userEmail || !userPass) {
-    console.log("Kịch bản 1, 2, 3, 5 — cần tài khoản");
-    boQua(
-      "bốn kịch bản còn lại",
-      "chưa đặt E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD / E2E_USER_EMAIL / E2E_USER_PASSWORD"
-    );
-    await kichBan4();
-    ketLuan();
-    return;
-  }
-
-  const admin = new Phien();
-  const user = new Phien();
-  await admin.dangNhap(adminEmail, adminPass);
-  await user.dangNhap(userEmail, userPass);
-
-  const nguoiDung = await db.user.findUnique({
-    where: { email: userEmail },
-    select: { id: true, role: true, name: true },
+  const tatCa = await db.project.findMany({
+    select: { id: true, code: true, name: true },
+    orderBy: { code: "asc" },
   });
-  if (!nguoiDung) throw new Error(`không tìm thấy user ${userEmail} trong DB`);
-  if (nguoiDung.role === "ADMIN") {
-    throw new Error(`E2E_USER_EMAIL phải là tài khoản KHÔNG phải ADMIN (đang là ${nguoiDung.role})`);
+  // Tập mã thật, dùng để nhận ra dòng dự án trong file Excel xuất ra.
+  const moiMa = new Set(tatCa.map((p) => p.code));
+  if (tatCa.length < SO_DU_AN_GAN + 1) {
+    throw new Error(`cần ít nhất ${SO_DU_AN_GAN + 1} dự án để kiểm phạm vi, đang có ${tatCa.length}`);
   }
 
-  const duocGan = new Set(
-    (
-      await db.projectMember.findMany({
-        where: { userId: nguoiDung.id },
-        select: { projectId: true },
-      })
-    ).map((m) => m.projectId)
-  );
-  const tatCa = await db.project.findMany({ select: { id: true, code: true } });
-  const ngoaiPhamVi = tatCa.find((p) => !duocGan.has(p.id));
+  let admin: Phien;
+  let user: Phien;
+  let userId: string;
+  let nhan: string;
+  let duocGan: Set<string>;
+  let donDep: () => Promise<void> = async () => {};
+  let tamSales: TaiKhoanThu | null = null;
 
-  console.log(
-    `\nTài khoản thử: ${nguoiDung.name} (${nguoiDung.role}) — được gán ${duocGan.size}/${tatCa.length} dự án`
-  );
-
-  // ---- Kịch bản 1 ----
-  console.log("\nKịch bản 1 — dự án ngoài phạm vi phải ra 404");
-  if (!ngoaiPhamVi) {
-    boQua("trang dự án ngoài phạm vi", `${userEmail} đang được gán TẤT CẢ dự án`);
+  if (dungTaiKhoanThat) {
+    console.log("Dùng tài khoản thật (đăng nhập qua form)\n");
+    admin = await Phien.dangNhap(adminEmail, adminPass);
+    user = await Phien.dangNhap(userEmail, userPass);
+    const nd = await db.user.findUnique({
+      where: { email: userEmail },
+      select: { id: true, role: true, name: true },
+    });
+    if (!nd) throw new Error(`không tìm thấy user ${userEmail} trong DB`);
+    if (nd.role === "ADMIN") {
+      throw new Error(`E2E_USER_EMAIL phải là tài khoản KHÔNG phải ADMIN (đang là ${nd.role})`);
+    }
+    userId = nd.id;
+    nhan = `${nd.name} (${nd.role})`;
+    duocGan = new Set(
+      (await db.projectMember.findMany({ where: { userId: nd.id }, select: { projectId: true } })).map(
+        (m) => m.projectId
+      )
+    );
   } else {
-    const res = await user.get(`/projects/${ngoaiPhamVi.id}`);
-    if (res.status === 404) dat("trang dự án ngoài phạm vi trả 404", ngoaiPhamVi.code);
-    else truot("trang dự án ngoài phạm vi trả 404", `nhận ${res.status} cho ${ngoaiPhamVi.code}`);
+    console.log("Dùng tài khoản thử tạm (tự ký phiên; không đụng tài khoản thật nào)\n");
+    const tamAdmin = await taoTaiKhoanTam("ADMIN", "admin");
+    tamSales = await taoTaiKhoanTam("SALES", "sales");
+    const ganCho = tatCa.slice(0, SO_DU_AN_GAN);
+    await db.projectMember.createMany({
+      data: ganCho.map((p) => ({ projectId: p.id, userId: tamSales!.id })),
+    });
+
+    // Dọn dẹp phải chạy dù kiểm thành công hay thất bại. Xóa user kéo theo
+    // ProjectMember nhờ onDelete: Cascade.
+    donDep = async () => {
+      await db.user.deleteMany({
+        where: { id: { in: [tamAdmin.id, tamSales!.id] } },
+      });
+      console.log(`\n(đã xóa 2 tài khoản thử tạm)`);
+    };
+
+    admin = Phien.tuToken(await kySession(tamAdmin));
+    user = Phien.tuToken(await kySession(tamSales));
+    userId = tamSales.id;
+    nhan = `E2E tạm (SALES)`;
+    duocGan = new Set(ganCho.map((p) => p.id));
   }
 
-  // ---- Kịch bản 2 ----
-  console.log("\nKịch bản 2 — API cũng phải bị chặn, không chỉ trang");
-  if (!ngoaiPhamVi) {
-    boQua("xuất dự toán ngoài phạm vi", "không có dự án nào ngoài phạm vi");
-  } else {
-    const res = await user.get(`/api/export/estimate/${ngoaiPhamVi.id}`);
-    if (res.status === 404) dat("xuất dự toán ngoài phạm vi trả 404");
-    else truot("xuất dự toán ngoài phạm vi trả 404", `nhận ${res.status}`);
-  }
-  {
-    const res = await user.get("/api/reports/summary");
-    if (!res.ok) {
-      truot("báo cáo tổng hợp chỉ chứa dự án được gán", `nhận ${res.status}`);
+  try {
+    const ngoaiPhamVi = tatCa.find((p) => !duocGan.has(p.id));
+    const trongPhamVi = tatCa.find((p) => duocGan.has(p.id));
+    console.log(`Tài khoản thử: ${nhan} — được gán ${duocGan.size}/${tatCa.length} dự án`);
+
+    // ---- Kịch bản 1 ----
+    //
+    // `plan/24` viết kịch bản này là "phải ra 404". Chạy thật thì thấy trang trả **200**
+    // — kể cả với một id hoàn toàn không tồn tại. Đọc lại tài liệu Next 16
+    // (`file-conventions/loading.md`, mục Status Codes) thì đó là hành vi CÓ CHỦ ĐÍCH:
+    //
+    //   "When streaming, a 200 status code will be returned... Because the response
+    //    headers have already been sent, the status code cannot be updated."
+    //
+    // Streaming bắt đầu ngay khi có một Suspense boundary, mà app này có
+    // `(app)/loading.tsx`. Next bù lại bằng cách chèn <meta name="robots" content="noindex">
+    // vào HTML.
+    //
+    // Vậy assertion cũ SAI, không phải code sai. Thứ thật sự cần bảo đảm là **không lộ
+    // dữ liệu** — nên kiểm đúng điều đó. (Route API không stream nên vẫn trả 404 đúng,
+    // xem kịch bản 2.)
+    console.log("\nKịch bản 1 — trang dự án ngoài phạm vi không được lộ dữ liệu");
+    if (!ngoaiPhamVi) {
+      boQua("trang dự án ngoài phạm vi", "tài khoản này đang được gán TẤT CẢ dự án");
     } else {
-      const ma = await maDuAnTrongExcel(res);
-      const maDuocGan = new Set(
-        tatCa.filter((p) => duocGan.has(p.id)).map((p) => p.code)
-      );
-      const loRa = [...ma].filter((m) => !maDuocGan.has(m));
-      if (loRa.length === 0) {
-        dat("báo cáo tổng hợp chỉ chứa dự án được gán", `${ma.size} mã, không lọt mã nào`);
+      const res = await user.get(`/projects/${ngoaiPhamVi.id}`);
+      const html = await res.text();
+      const loTen = html.includes(ngoaiPhamVi.name);
+      const loMa = html.includes(ngoaiPhamVi.code);
+      if (!loTen && !loMa) {
+        dat(
+          "trang dự án ngoài phạm vi không chứa tên lẫn mã dự án",
+          `${ngoaiPhamVi.code}, HTTP ${res.status} (200 là đúng khi có streaming)`
+        );
       } else {
         truot(
-          "báo cáo tổng hợp chỉ chứa dự án được gán",
-          `LỘ ${loRa.length} dự án ngoài phạm vi: ${loRa.slice(0, 5).join(", ")}`
+          "trang dự án ngoài phạm vi không chứa tên lẫn mã dự án",
+          `LỘ ${loTen ? "tên" : ""}${loTen && loMa ? " và " : ""}${loMa ? "mã" : ""} của ${ngoaiPhamVi.code}`
         );
       }
     }
-  }
+    // Đối chứng: nếu dự án TRONG phạm vi cũng không hiện dữ liệu thì phép kiểm trên vô
+    // nghĩa — nó chỉ chứng minh trang hỏng, không chứng minh phạm vi có tác dụng.
+    if (trongPhamVi) {
+      const res = await user.get(`/projects/${trongPhamVi.id}`);
+      const html = await res.text();
+      if (res.status === 200 && html.includes(trongPhamVi.name)) {
+        dat("đối chứng: dự án TRONG phạm vi vẫn hiện đủ dữ liệu", trongPhamVi.code);
+      } else {
+        truot(
+          "đối chứng: dự án TRONG phạm vi vẫn hiện đủ dữ liệu",
+          `HTTP ${res.status}, có tên dự án: ${html.includes(trongPhamVi.name)}`
+        );
+      }
+    }
 
-  // ---- Kịch bản 5 ----
-  console.log("\nKịch bản 5 — ADMIN vẫn thấy đầy đủ");
-  {
-    const res = await admin.get("/api/reports/summary");
-    if (!res.ok) {
-      truot("ADMIN xuất được báo cáo tổng hợp", `nhận ${res.status}`);
+    // ---- Kịch bản 2 ----
+    console.log("\nKịch bản 2 — API cũng phải bị chặn, không chỉ trang");
+    if (!ngoaiPhamVi) {
+      boQua("xuất dự toán ngoài phạm vi", "không có dự án nào ngoài phạm vi");
     } else {
-      const ma = await maDuAnTrongExcel(res);
-      // Không đòi bằng đúng tổng số: báo cáo có thể lọc theo trạng thái. Chỉ cần ADMIN
-      // thấy NHIỀU HƠN người dùng bị giới hạn thì phạm vi mới thực sự có tác dụng.
-      if (ma.size >= duocGan.size) {
-        dat("ADMIN thấy ≥ số dự án của người dùng bị giới hạn", `${ma.size} mã`);
+      const res = await user.get(`/api/export/estimate/${ngoaiPhamVi.id}`);
+      if (res.status === 404) dat("xuất dự toán ngoài phạm vi trả 404", ngoaiPhamVi.code);
+      else truot("xuất dự toán ngoài phạm vi trả 404", `nhận ${res.status}`);
+    }
+    let soMaCuaUser = 0;
+    {
+      const res = await user.get("/api/reports/summary");
+      if (!res.ok) {
+        truot("báo cáo tổng hợp chỉ chứa dự án được gán", `nhận ${res.status}`);
       } else {
-        truot("ADMIN thấy ≥ số dự án của người dùng bị giới hạn", `ADMIN ${ma.size} < user ${duocGan.size}`);
+        const ma = await maDuAnTrongExcel(res, moiMa);
+        soMaCuaUser = ma.size;
+        const maDuocGan = new Set(tatCa.filter((p) => duocGan.has(p.id)).map((p) => p.code));
+        const loRa = [...ma].filter((m) => !maDuocGan.has(m));
+        if (ma.size === 0) {
+          // Đạt rỗng: không lọt mã nào chỉ vì chẳng đọc được mã nào. Phải báo trượt,
+          // nếu không thì một lỗi đọc file sẽ hiện ra thành "an toàn".
+          truot(
+            "báo cáo tổng hợp chỉ chứa dự án được gán",
+            "không đọc được mã dự án nào trong file — phép kiểm sẽ đạt rỗng"
+          );
+        } else if (loRa.length === 0) {
+          dat("báo cáo tổng hợp chỉ chứa dự án được gán", `${ma.size} mã, không lọt mã nào`);
+        } else {
+          truot(
+            "báo cáo tổng hợp chỉ chứa dự án được gán",
+            `LỘ ${loRa.length} dự án ngoài phạm vi: ${loRa.slice(0, 5).join(", ")}`
+          );
+        }
       }
     }
-  }
 
-  // ---- Kịch bản 3 ----
-  console.log("\nKịch bản 3 — khóa tài khoản phải cắt phiên đang mở");
-  if (process.env.E2E_ALLOW_MUTATE !== "1") {
-    boQua("khóa tài khoản cắt phiên", "kịch bản này GHI vào DB, bật bằng E2E_ALLOW_MUTATE=1");
-  } else {
-    const truoc = await db.user.findUniqueOrThrow({
-      where: { id: nguoiDung.id },
-      select: { active: true, tokenVersion: true },
-    });
-    try {
-      // Khóa đúng cách app vẫn làm: hạ active và tăng tokenVersion.
-      await db.user.update({
-        where: { id: nguoiDung.id },
-        data: { active: false, tokenVersion: { increment: 1 } },
-      });
-      const res = await user.get("/projects");
-      // getSession() thấy active=false hoặc tokenVersion lệch -> coi như chưa đăng nhập
-      // -> proxy đá về /login.
-      if (res.status === 307 || res.status === 302) {
-        dat("phiên bị cắt ngay lần điều hướng kế tiếp", `${res.status} → ${res.headers.get("location")}`);
+    // ---- Kịch bản 5 ----
+    console.log("\nKịch bản 5 — ADMIN vẫn thấy đầy đủ");
+    {
+      const res = await admin.get("/api/reports/summary");
+      if (!res.ok) {
+        truot("ADMIN xuất được báo cáo tổng hợp", `nhận ${res.status}`);
       } else {
-        truot("phiên bị cắt ngay lần điều hướng kế tiếp", `vẫn nhận ${res.status}`);
+        const ma = await maDuAnTrongExcel(res, moiMa);
+        if (ma.size > soMaCuaUser) {
+          dat("ADMIN thấy nhiều hơn tài khoản bị giới hạn", `${ma.size} mã so với ${soMaCuaUser}`);
+        } else {
+          truot(
+            "ADMIN thấy nhiều hơn tài khoản bị giới hạn",
+            `ADMIN ${ma.size} mã, tài khoản giới hạn ${soMaCuaUser} — phạm vi không có tác dụng`
+          );
+        }
       }
-    } finally {
-      // Trả lại nguyên trạng dù kiểm có thất bại hay không. tokenVersion CỐ Ý không
-      // hạ lại — nó chỉ được phép tăng; hạ lại là làm sống lại token cũ.
-      await db.user.update({
-        where: { id: nguoiDung.id },
-        data: { active: truoc.active },
-      });
-      console.log(`     (đã mở khóa lại ${userEmail}; người đó cần đăng nhập lại)`);
     }
+
+    // ---- Kịch bản 3 ----
+    console.log("\nKịch bản 3 — thu hồi phiên");
+    if (tamSales) {
+      // Với tài khoản thử tạm thì kiểm được đầy đủ mà không đụng ai: cả hai thao tác
+      // ghi dưới đây chỉ nhắm vào chính tài khoản do script tạo ra.
+
+      // 3a. Token mang tokenVersion cũ — đúng thứ xảy ra khi ADMIN đổi vai trò hoặc
+      //     đổi mật khẩu của một người đang mở tab.
+      await db.user.update({ where: { id: tamSales.id }, data: { tokenVersion: { increment: 1 } } });
+      const cu = Phien.tuToken(await kySession(tamSales, tamSales.tokenVersion));
+      {
+        const res = await cu.get("/projects");
+        if (res.status === 307 || res.status === 302) {
+          dat("token mang tokenVersion cũ bị từ chối", `${res.status} → ${res.headers.get("location")}`);
+        } else {
+          truot("token mang tokenVersion cũ bị từ chối", `vẫn nhận ${res.status}`);
+        }
+      }
+
+      // 3b. Khóa tài khoản.
+      const moi = await db.user.findUniqueOrThrow({
+        where: { id: tamSales.id },
+        select: { tokenVersion: true },
+      });
+      const hopLe = Phien.tuToken(await kySession(tamSales, moi.tokenVersion));
+      {
+        // Trước khi khóa thì token mới này phải dùng được — nếu không, phép kiểm sau
+        // chẳng chứng minh được gì.
+        const truocKhiKhoa = await hopLe.get("/projects");
+        if (truocKhiKhoa.status !== 200) {
+          truot("đối chứng: token mới dùng được trước khi khóa", `nhận ${truocKhiKhoa.status}`);
+        } else {
+          await db.user.update({ where: { id: tamSales.id }, data: { active: false } });
+          const res = await hopLe.get("/projects");
+          if (res.status === 307 || res.status === 302) {
+            dat("khóa tài khoản cắt phiên đang mở", `${res.status} → ${res.headers.get("location")}`);
+          } else {
+            truot("khóa tài khoản cắt phiên đang mở", `vẫn nhận ${res.status}`);
+          }
+        }
+      }
+    } else if (process.env.E2E_ALLOW_MUTATE !== "1") {
+      boQua(
+        "thu hồi phiên",
+        "với tài khoản THẬT thì kịch bản này phải khóa tài khoản đó; bật bằng E2E_ALLOW_MUTATE=1"
+      );
+    } else {
+      const truoc = await db.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { active: true },
+      });
+      try {
+        await db.user.update({
+          where: { id: userId },
+          data: { active: false, tokenVersion: { increment: 1 } },
+        });
+        const res = await user.get("/projects");
+        if (res.status === 307 || res.status === 302) {
+          dat("khóa tài khoản cắt phiên đang mở", `${res.status} → ${res.headers.get("location")}`);
+        } else {
+          truot("khóa tài khoản cắt phiên đang mở", `vẫn nhận ${res.status}`);
+        }
+      } finally {
+        // tokenVersion CỐ Ý không hạ lại — trường này chỉ được phép tăng; hạ lại là
+        // làm sống lại đúng những token mà thao tác khóa vừa giết.
+        await db.user.update({ where: { id: userId }, data: { active: truoc.active } });
+        console.log(`     (đã mở khóa lại ${userEmail}; người đó cần đăng nhập lại)`);
+      }
+    }
+  } finally {
+    await donDep();
   }
 
   await kichBan4();

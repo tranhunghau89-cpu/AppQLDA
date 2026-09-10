@@ -216,6 +216,109 @@ khoản vẫn được trả về nguyên trạng.
 `tokenVersion` **cố ý không hạ lại** — trường này chỉ được phép tăng; hạ lại là làm sống
 lại đúng những token mà thao tác khóa vừa giết.
 
+## 27.11 Đã chạy đủ 5/5 kịch bản — và kiểm cả giao diện
+
+Chạy trên **bản production** (`npm run build` + `npm start`), không phải dev server.
+
+### Vấn đề chặn: không còn dự án nào ngoài phạm vi
+
+Sau `members:backfill`, **cả 4 tài khoản không phải ADMIN đều được gán đủ 123 dự án**.
+Nghĩa là kịch bản 1 và 2 không có gì để kiểm — chúng cần một tài khoản chỉ nắm một phần.
+
+Cách giải: script tự tạo **hai tài khoản dùng một lần** (một ADMIN, một SALES gán đúng
+3 dự án), tự ký phiên bằng `signSession` — đúng hàm mà máy chủ vẫn gọi sau khi kiểm mật
+khẩu xong — rồi xóa sạch khi chạy xong.
+
+Vì sao chọn cách này thay vì mượn tài khoản thật:
+
+- Không cần, không đọc và không đổi mật khẩu của ai.
+- Mọi thao tác **ghi** chỉ nhắm vào hai tài khoản do chính script tạo ra. Không tài
+  khoản đang dùng thật nào bị khóa dù chỉ một giây.
+- Kiểm được kịch bản 3 đầy đủ mà không phải khóa tài khoản của người đang làm việc.
+
+Đã đối chiếu sau khi chạy: 0 tài khoản thử còn sót, 6 tài khoản thật nguyên trạng
+(`tokenVersion` vẫn 0, `active` vẫn true, vẫn 492 dòng gán như cũ).
+
+### Kết quả
+
+```
+Kịch bản 1 — trang dự án ngoài phạm vi không được lộ dữ liệu
+  ✔ không chứa tên lẫn mã dự án — D24-04
+  ✔ đối chứng: dự án TRONG phạm vi vẫn hiện đủ dữ liệu — D24-01
+Kịch bản 2 — API cũng phải bị chặn, không chỉ trang
+  ✔ xuất dự toán ngoài phạm vi trả 404 — D24-04
+  ✔ báo cáo tổng hợp chỉ chứa dự án được gán — 3 mã, không lọt mã nào
+Kịch bản 5 — ADMIN vẫn thấy đầy đủ
+  ✔ ADMIN thấy 123 mã so với 3
+Kịch bản 3 — thu hồi phiên
+  ✔ token mang tokenVersion cũ bị từ chối — 307 → /login
+  ✔ khóa tài khoản cắt phiên đang mở — 307 → /login
+Kịch bản 4 — chống dò mật khẩu
+  ✔ lần 11 trả 429, Retry-After 900s
+
+Đạt 8 · Trượt 0 · Bỏ qua 0
+```
+
+### Kịch bản 1 báo TRƯỢT ở lần chạy đầu — và assertion mới là cái sai
+
+`plan/24` viết kịch bản 1 là *"phải ra **404**"*. Chạy thật thì trang trả **200**.
+
+Trước khi kết luận có lỗ hổng, tôi kiểm thêm hai điều:
+
+1. Thân phản hồi **không chứa tên lẫn mã dự án** (61KB so với 96KB của trang hợp lệ),
+   và có chữ "không tìm thấy" → **không lộ dữ liệu**.
+2. Một id **hoàn toàn không tồn tại** cũng trả 200 → chuyện này không liên quan gì tới
+   phân quyền.
+
+Đọc `node_modules/next/dist/docs/.../loading.md` mục *Status Codes* thì đây là hành vi
+**có chủ đích** của Next:
+
+> *"When streaming, a 200 status code will be returned... Because the response headers
+> have already been sent to the client, the status code of the response cannot be
+> updated."*
+
+Streaming bắt đầu ngay khi có một Suspense boundary — mà app này có `(app)/loading.tsx`.
+Next bù lại bằng cách chèn `<meta name="robots" content="noindex">` vào HTML.
+
+Vậy **assertion sai, không phải code sai**. Đã sửa kịch bản 1 thành kiểm đúng thứ có ý
+nghĩa: *trang không được chứa tên hay mã của dự án ngoài phạm vi*, kèm một phép **đối
+chứng** rằng dự án trong phạm vi vẫn hiện đủ — thiếu đối chứng thì một trang hỏng hoàn
+toàn cũng "đạt".
+
+Route API vẫn trả 404 đúng, vì route handler không stream.
+
+### Một phép kiểm khác đang "đạt rỗng"
+
+Kịch bản 2 dò mã dự án trong file Excel xuất ra bằng regex `N\d{3}|DT\d{2}|DEMO\d+`.
+Dữ liệu thật có **sáu** dạng mã (`N037`, `D24A-01`, `D24-04`, `DT01`, `D24B-02`,
+`DEMO1`) nên regex chỉ thấy 66/123 mã — và với tài khoản thử thì thấy **0 mã**, tức là
+"không lọt mã nào" chỉ vì chẳng đọc được mã nào.
+
+Đã bỏ regex, đối chiếu thẳng với **tập mã thật lấy từ DB**, và thêm một chốt: đọc được
+0 mã thì báo **trượt**, không cho phép đạt rỗng. Sau khi sửa, con số trở nên có nghĩa:
+tài khoản giới hạn thấy đúng 3, ADMIN thấy 123.
+
+## 27.12 Kiểm giao diện trên trình duyệt
+
+Đăng nhập bằng tài khoản tạm qua **đúng form thật** rồi xem từng trang.
+
+| Trang | Kết quả |
+|---|---|
+| `/reports` | Chọn kỳ, khoảng ngày, **% so kỳ trước** đúng: tháng 4/2026 hợp đồng +10,8%, khởi công −25,0% (6 so với 8) |
+| Khối cảnh báo dòng tiền = 0 | Hiện đúng, nêu rõ 5 đợt thanh toán và 5 mốc còn thiếu ngày |
+| `/import` | Cả **ba** loại nhập đã bật, không còn mục nào xám |
+| `Ctrl+K` | Gõ **"ha nam"** không dấu → 3 dự án + 1 chủ đầu tư, gom nhóm đúng; ↓ rồi ↵ sang đúng trang dự án |
+| Trang in báo giá | Quốc hiệu, cây Phần/Mục, **Tổng cộng 1.383.091.561**, "Bằng chữ" đọc đúng cả nhóm `091` ở giữa |
+| Trang in hợp đồng | VAT 8% khớp (554.400.000 → 44.352.000 → 598.752.000), điều khoản thanh toán, khối chữ ký |
+| `/reports` trên điện thoại | Ô tìm kiếm thu về icon, chip chọn kỳ xuống dòng, thẻ xếp một cột |
+
+Một xác nhận ngoài dự kiến: lần đầu đăng nhập bị **chặn bởi chính bộ chống dò mật khẩu**
+(dư âm kịch bản 4 vừa chạy) — bộ chặn hoạt động đúng cả từ phía trình duyệt.
+
+**Chưa xem được:** màn hình *xem trước* khi nhập Excel (cần chọn file thật qua hộp thoại
+của hệ điều hành, công cụ tự động không mở được). Phần dữ liệu của nó thì đã đối chiếu
+kỹ trên 59 file thật ở Phase 26. Bước xem trước không ghi gì vào DB nên thử rất an toàn.
+
 ---
 
 ## Kiểm chứng
@@ -231,13 +334,19 @@ lại đúng những token mà thao tác khóa vừa giết.
 | Chống dò mật khẩu | ✅ 429 + `Retry-After: 900` sau 10 lần |
 | `npm run e2e` chạy không cần tài khoản | ✅ đạt 1, bỏ qua 4, không trượt |
 | `npm run e2e` chạy lại ngay lần hai | ✅ báo bỏ qua đúng, không trượt oan |
+| **5/5 kịch bản trên bản production** | ✅ **đạt 8, trượt 0, bỏ qua 0** |
+| Dọn tài khoản thử sau khi chạy | ✅ 0 còn sót; 6 tài khoản thật nguyên trạng |
+| Giao diện 6 trang trên trình duyệt | ✅ kể cả bản điện thoại |
 | CI trên Node 22 với actions v5 | ✅ xanh, không còn cảnh báo deprecated |
 
 ## Việc còn lại của cả bản rà soát
 
-1. **Kiểm thử 4 kịch bản còn lại** — cần một tài khoản để đăng nhập.
-2. **Xem giao diện trên trình duyệt thật** — `/import`, `/reports`, hộp `Ctrl+K`, hai
-   trang in. Phần logic đều đã chạy trên dữ liệu thật, nhưng chưa ai nhìn thấy chúng.
-3. **Nhập ngày thực thu / thực trả** cho các đợt thanh toán — nếu không, mọi ô dòng tiền
-   trong Báo cáo theo kỳ vẫn bằng 0 (đã phát hiện ở Phase 26).
-4. Tùy chọn: chuyển `MKT.LANDINGPAGE.SKILLS-main/` ra khỏi thư mục dự án (27.3).
+Kiểm thử và kiểm giao diện đã xong (27.11, 27.12). Còn lại đều là việc của người dùng:
+
+1. **Nhập ngày thực thu / thực trả** cho các đợt thanh toán — nếu không, mọi ô dòng tiền
+   trong Báo cáo theo kỳ vẫn bằng 0 (phát hiện ở Phase 26, xác nhận lại ở 27.11).
+2. **Xem thử màn hình xem trước khi nhập Excel** — chỉ cần kéo một file dự toán vào
+   `/import`; bước xem trước không ghi gì vào DB.
+3. Tùy chọn: chuyển `MKT.LANDINGPAGE.SKILLS-main/` ra khỏi thư mục dự án (27.3).
+4. Tùy chọn: xóa các file token khỏi lịch sử git (27.7) — token đã chết nên đây chỉ là
+   dọn dẹp, và cần anh/chị cho phép vì nó viết lại lịch sử chung.
