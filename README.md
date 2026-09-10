@@ -7,17 +7,25 @@ tiến độ, dự toán – chi phí – lợi nhuận, và phân quyền theo 
 ## Công nghệ
 - **Next.js 16** (App Router) + **React 19** + **TypeScript**
 - **Tailwind CSS v4** + Recharts (biểu đồ) + lucide-react (icon)
-- **Prisma 6** + **SQLite** (dev) — đổi sang PostgreSQL khi lên cloud (sửa `provider` trong `prisma/schema.prisma`)
-- Auth tự xây nhẹ: `jose` (JWT) + `bcryptjs` + cookie httpOnly + middleware
-- **ExcelJS** — import/export Excel
+- **Prisma 6** + **PostgreSQL** (Supabase, vùng Tokyo `ap-northeast-1`)
+- Auth tự xây nhẹ: `jose` (JWT) + `bcryptjs` + cookie httpOnly + `src/proxy.ts`
+- **ExcelJS** — nhập/xuất Excel
+
+> Next 16 đổi `middleware.ts` thành **`proxy.ts`**. Trước khi sửa code Next, đọc
+> `node_modules/next/dist/docs/` — bản này có nhiều thay đổi phá vỡ so với Next 14/15.
 
 ## Chạy lần đầu
 ```bash
 npm install
-npx prisma migrate dev      # tạo DB + bảng
+cp .env.example .env        # rồi điền DATABASE_URL + AUTH_SECRET
+npx prisma migrate deploy   # áp 12 migration lên DB
 npm run db:seed             # tạo 4 user + dữ liệu mẫu
 npm run dev                 # http://localhost:3000
 ```
+
+> ⚠️ Dùng `migrate deploy`, **không** dùng `migrate dev`, trừ khi anh/chị đang trỏ vào
+> một DB dùng riêng để phát triển. `migrate dev` có thể **xóa và dựng lại** cơ sở dữ
+> liệu khi thấy lịch sử migration lệch — trỏ nhầm vào DB thật là mất sạch.
 
 ### Tài khoản mẫu (chỉ dùng cho môi trường dev)
 `npm run db:seed` tạo sẵn các tài khoản dưới đây với **mật khẩu mặc định dùng cho phát triển cục bộ**.
@@ -28,12 +36,22 @@ npm run dev                 # http://localhost:3000
 | sales@cty.com | Kinh doanh / CĐT |
 | kythuat@cty.com | Kỹ thuật / Thiết kế |
 | vattu@cty.com | Vật tư / Mua hàng |
+| ketoan@cty.com | Kế toán / Tài chính |
 
 > ⚠️ **Bảo mật production:** KHÔNG dùng mật khẩu seed mặc định trên môi trường thật.
 > Sau khi deploy, đăng nhập bằng tài khoản quản trị và **đổi mật khẩu tất cả tài khoản** trong mục
 > **Người dùng** (`/users`). Không ghi mật khẩu thật vào repo/README.
 
 ## Nhập dữ liệu thật từ Excel
+
+> **Ba loại dùng thường xuyên nhất — Dự toán, Tổng hợp chi phí, Đơn đặt hàng — nay nhập
+> thẳng trên web tại `/import`** (Phase 26), có bước **xem trước** trước khi ghi. Các lệnh
+> CLI dưới đây vẫn chạy được và là cách duy nhất cho những loại còn lại (hợp đồng, bảng
+> đơn giá, báo giá mẫu) — đó đều là việc làm một lần lúc dựng dữ liệu.
+>
+> Bản web an toàn hơn ở hai điểm: cho **xem trước rồi mới ghi**, và bọc `$transaction`
+> quanh thao tác xóa-rồi-ghi-lại nên lỗi giữa chừng không để lại dữ liệu trống.
+
 Đặt `TD_DA.xlsx` ở thư mục cha (cùng cấp `AppQLDA`) rồi:
 ```bash
 npm run import              # nhập 56 dự án + CĐT + NCC từ sheet TongHop (chạy lại không nhân đôi)
@@ -101,6 +119,20 @@ npm run import:orders      # bóc chi tiết từng dòng vật tư từ file đ
 - **Đơn giá & Báo giá chi tiết**: bảng đơn giá theo Mã CV dùng chung; lập báo giá chi tiết theo dự án (Phần/Mục/dòng), tổng giá bán/giá gốc/lợi nhuận; clone từ báo giá cũ + cập nhật đơn giá; đẩy giá bán sang dự án.
 - **Công nợ**: tổng hợp tự động (chỉ đọc) — phải thu theo **chủ đầu tư** (giá trị HĐ/doanh thu − đã thu; nguồn: quyết toán → hợp đồng → giá bán) và phải trả theo **nhà cung cấp** (giá trị quyết toán − đã trả, khớp tên NCC; đơn hàng theo FK). Trang `/debts` có thẻ tổng + bảng bung chi tiết theo dự án; cột công nợ cũng nhúng trong trang Chủ đầu tư / Nhà cung cấp. *Đã trả vượt giá trị (gồm VAT) ⇒ coi như tất toán (còn phải trả = 0).*
 - **Chủ đầu tư / Nhà cung cấp**: CRUD, phân loại NCC.
+- **Nhập từ Excel** (`/import`, ADMIN): tải file lên → **xem trước** → xác nhận ghi. Hỗ trợ
+  Dự toán, Tổng hợp chi phí (quyết toán) và Đơn đặt hàng. Bước xem trước chỉ ĐỌC file,
+  chưa ghi gì vào DB.
+- **Báo cáo theo kỳ** (`/reports`): tháng/quý/năm — tiền đã thu/chi, dòng tiền ròng, HĐ ký
+  mới, đơn hàng, mốc hoàn thành, dự án khởi công/hoàn thành, kèm % so kỳ trước.
+- **Nhật ký thay đổi** (`/audit`, ADMIN): ai đổi gì lúc nào trên dự án, hợp đồng, báo giá,
+  đợt thanh toán, đơn giá. Thẻ "Lịch sử thay đổi" trên trang dự án chỉ hiện với vai trò
+  xem được lợi nhuận.
+- **Tìm kiếm toàn cục** (`Ctrl+K`): dự án, CĐT, NCC, hợp đồng, báo giá, mã đơn giá. **Gõ
+  không dấu vẫn ra** — "ha nam" tìm thấy "Hà Nam".
+- **In / Xuất PDF**: báo giá và hợp đồng có trang in riêng (khổ A4, có dòng "Bằng chữ").
+  Bấm **In / PDF** rồi chọn *Lưu thành PDF* trong hộp thoại in của trình duyệt.
+- **Nhắc việc hằng ngày**: Vercel Cron gọi `/api/cron/reminders` lúc 08:00 giờ VN — mốc trễ
+  hạn, đợt thanh toán quá hạn / sắp tới hạn.
 - **Người dùng** (ADMIN): quản lý tài khoản + vai trò.
 
 ## Phân quyền (tóm tắt)
@@ -110,23 +142,40 @@ npm run import:orders      # bóc chi tiết từng dòng vật tư từ file đ
 | Kinh doanh | Sửa | Xem | Xem | Sửa | Xem | Xem | Sửa | Xem | – |
 | Kỹ thuật | Sửa | Sửa | Xem | Xem | Xem | – | Xem | Xem | – |
 | Vật tư | Xem | Xem | Sửa | Xem | Sửa | – | – | Sửa | – |
+| Kế toán | Xem | – | Xem | Xem | Xem | Xem | Xem | Xem | – |
 
 **Tổng hợp chi phí (quyết toán)**: BGĐ sửa; Kinh doanh + Vật tư xem; Kỹ thuật không truy cập.
 
 **Đơn giá & Báo giá chi tiết**: BGĐ + Kinh doanh sửa; Vật tư + Kỹ thuật xem.
 
-**Công nợ**: BGĐ + Kinh doanh + Vật tư xem (chỉ đọc); Kỹ thuật không truy cập.
+**Công nợ**: BGĐ + Kinh doanh + Vật tư + Kế toán xem (chỉ đọc); Kỹ thuật không truy cập.
+
+**Nhập từ Excel** và **Nhật ký thay đổi**: chỉ BGĐ/Quản lý.
+
+**Báo cáo theo kỳ**: theo quyền `cost` — BGĐ, Kinh doanh, Vật tư, Kế toán; Kỹ thuật không
+truy cập.
 
 Ma trận chi tiết ở `src/lib/rbac.ts`.
+
+### Phạm vi dự án — lớp chặn thứ hai
+RBAC quyết định **loại dữ liệu** nào được xem; `ProjectMember` quyết định **dự án nào**.
+Hai lớp này độc lập và đều bắt buộc: một người Kinh doanh xem được hợp đồng, nhưng chỉ
+hợp đồng của dự án họ được gán. Áp cho cả trang danh sách, trang chi tiết, ô tìm kiếm
+`Ctrl+K` và báo cáo theo kỳ.
 
 ## Kiểm tra chất lượng
 ```bash
 npm run typecheck   # tsc --noEmit
 npm run lint        # eslint
-npm test            # vitest (129 test cho logic tài chính, RBAC, bóc khối lượng)
+npm test            # vitest — 305 test: logic tài chính, RBAC, bóc Excel, đọc tiền
+                    # thành chữ, tìm kiếm, mốc kỳ báo cáo
 ```
 CI (`.github/workflows/ci.yml`) chạy đủ 4 bước typecheck → lint → test → build trên mỗi PR
 và mỗi lần push `master`.
+
+Quy ước test: chỉ test **hàm thuần**. Các module bóc Excel được tách đôi — phần thuần
+(`*-parse.ts`, không khai báo `server-only`) chạy được trong Vitest và trong script `tsx`
+kiểm chứng ngoài Next; phần chạm DB nằm ở file riêng.
 
 ## Bảo mật
 - **Phạm vi dự án**: user không phải ADMIN chỉ thấy dự án được gán qua `ProjectMember`
@@ -135,9 +184,38 @@ và mỗi lần push `master`.
 - **Thu hồi phiên**: khóa tài khoản / đổi mật khẩu / đổi vai trò tăng `User.tokenVersion`,
   cắt mọi phiên đang mở ngay lần điều hướng kế tiếp.
 - **Chống dò mật khẩu**: 10 lần sai (theo IP hoặc email) trong 15 phút → chặn 15 phút.
-- **KHÔNG commit token/bí mật.** Nếu lỡ commit: xóa khỏi lịch sử git **và** xoay
-  `AUTH_SECRET` (sinh mới: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`),
-  cập nhật biến môi trường trên Vercel.
+- **Nhật ký thay đổi**: mọi thay đổi giá bán, giá trị hợp đồng, đợt thanh toán, đơn giá đều
+  ghi `AuditLog` (ai, lúc nào, trước → sau). Chỉ ADMIN đọc được ở `/audit`.
+- **Endpoint cron** (`/api/cron/reminders`) đi vòng qua đăng nhập vì Vercel Cron không gửi
+  cookie. Bù lại route tự bảo vệ: **chưa đặt `CRON_SECRET` thì từ chối MỌI request**, sai
+  secret trả 401.
+
+### Biến môi trường
+Danh sách đầy đủ kèm chú thích ở **`.env.example`**. Bắt buộc: `DATABASE_URL`,
+`DIRECT_URL`, `AUTH_SECRET`. Cần cho từng tính năng: `SUPABASE_URL` +
+`SUPABASE_SERVICE_ROLE_KEY` (lưu file), `CRON_SECRET` (nhắc việc), `COMPANY_*` (in báo giá).
+
+`.env` nằm trong `.gitignore` — **không bao giờ commit giá trị thật**.
+
+### KHÔNG commit token/bí mật
+Nếu lỡ commit, làm theo thứ tự sau — **bước 1 mới là bước cầm máu**:
+
+1. **Xoay bí mật ngay.** Sinh mới rồi cập nhật trên Vercel và redeploy:
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"   # AUTH_SECRET
+   node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"   # CRON_SECRET
+   ```
+   Xoay `AUTH_SECRET` làm **mọi JWT cũ mất hiệu lực ngay**, kể cả token đã lộ ra ngoài.
+   Mọi người phải đăng nhập lại — đó là cái giá phải trả và nó rẻ.
+2. **Rồi mới tính chuyện dọn lịch sử git.** Viết lại lịch sử (`git filter-repo` +
+   force-push) sẽ làm hỏng mọi bản clone đang có, nên chỉ làm khi bí mật còn giá trị —
+   ví dụ khóa API của bên thứ ba không xoay được. Với token phiên đã chết sau bước 1
+   thì đây chỉ là dọn dẹp, không phải xử lý sự cố.
+
+> Các file cookie phiên (`cookies.txt`, `c2.txt`, `ca.txt`, `cv.txt`) từng bị commit
+> nhầm và **vẫn còn trong lịch sử git**. `AUTH_SECRET` đã được xoay ngày 10/09/2026 nên
+> toàn bộ token trong đó đã hết hiệu lực (kiểm chứng: chữ ký không còn verify được).
+> Cả 4 tên file đã nằm trong `.gitignore`.
 
 ## Build & triển khai nội bộ
 ```bash
@@ -147,22 +225,51 @@ npm start           # chạy server production trên LAN
 ```
 > Trên Vercel, script `vercel-build` (generate + migrate deploy + build) được ưu tiên,
 > nên deploy vẫn tự áp migration như trước.
-Lên cloud: đổi datasource sang PostgreSQL, đặt `AUTH_SECRET` ngẫu nhiên trong biến môi trường,
-`npx prisma migrate deploy`, rồi deploy (VPS/Vercel).
+
+### Nhánh nào là bản đang chạy
+| Remote | Nhánh | Vai trò |
+|---|---|---|
+| `deployrepo` | **`main`** | **Bản đang chạy.** Vercel theo dõi nhánh này và tự deploy. |
+| `origin` | `master` | Bản sao dự phòng, không tự deploy. |
+
+Nhánh làm việc tại máy là **`master`**, nên lệnh đẩy bản deploy phải nêu rõ hai tên:
+
+```bash
+git push deployrepo master:main
+```
+
+CI chạy trên nhánh `main` của `deployrepo`; xong mới tới lượt Vercel deploy.
+
+> Nhánh `deploy` cũ đã bị xóa ở Phase 27 — nó tụt 33 commit sau `master` và không có
+> commit nào của riêng nó, giữ lại chỉ gây nhầm với `deployrepo/main`.
 
 ## Cấu trúc
 ```
 src/
+├── proxy.ts              ← chặn đăng nhập toàn site (Next 16 gọi tên này, không phải middleware.ts)
 ├── app/
-│   ├── (app)/            ← khu vực đã đăng nhập (sidebar)
+│   ├── (app)/            ← khu vực đã đăng nhập, có sidebar + thanh trên
 │   │   ├── page.tsx      ← dashboard
-│   │   ├── projects/     ← dự án + chi tiết + dự toán
-│   │   ├── weekly/       ← tiến độ tuần
-│   │   ├── estimates/    ← tổng hợp dự toán
-│   │   ├── customers/ suppliers/ users/
-│   ├── login/  api/auth/  api/export/
-├── components/ui/  components/layout/
-└── lib/                  ← db, auth, rbac, constants, profit, week
-plan/                     ← plan từng phase (00→08)
-scripts/import-excel.ts
+│   │   ├── projects/     ← dự án, chi tiết, dự toán, hợp đồng, báo giá, mua hàng
+│   │   ├── weekly/ gantt/            ← tiến độ tuần, kế hoạch
+│   │   ├── estimates/ costs/ debts/  ← dự toán, quyết toán, công nợ
+│   │   ├── contracts/ quotes/ catalog/
+│   │   ├── import/       ← nhập Excel qua web (Phase 26)
+│   │   ├── reports/      ← báo cáo theo kỳ (Phase 26)
+│   │   ├── audit/        ← nhật ký thay đổi (Phase 25)
+│   │   ├── customers/ suppliers/ users/ tools/ approvals/ estimate-templates/
+│   ├── (print)/          ← trang in báo giá / hợp đồng, CỐ Ý không dùng AppShell
+│   ├── login/  api/auth/  api/export/  api/cron/
+├── components/
+│   ├── layout/           ← AppShell, Sidebar, Topbar, GlobalSearch (Ctrl+K)
+│   ├── print/            ← khung trang in dùng chung
+│   ├── audit/  ui/
+└── lib/
+    ├── import/           ← bóc Excel: cells + 3 cặp *-parse.ts / *.ts
+    ├── auth · rbac · scope · session · rate-limit     ← bảo mật
+    ├── profit · contract · quote · debt · payments    ← nghiệp vụ tài chính
+    ├── audit · reminders · period · search · money-words
+    └── db · storage · text · utils · now · company
+plan/                     ← hồ sơ từng phase (00 → 28)
+scripts/                  ← 10 script CLI (3 bộ nhập đã chuyển lên web ở Phase 26)
 ```

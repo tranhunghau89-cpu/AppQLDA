@@ -8,6 +8,9 @@ const USERS = [
   { email: "sales@cty.com", name: "Phòng Kinh doanh", role: "SALES" },
   { email: "kythuat@cty.com", name: "Phòng Kỹ thuật", role: "ENGINEERING" },
   { email: "vattu@cty.com", name: "Phòng Vật tư", role: "PROCUREMENT" },
+  // Thiếu tài khoản này thì vai trò Kế toán không thử được, mà đây lại là vai trò có
+  // quyền tài chính rộng nhất sau ADMIN (sửa chi phí, sửa công nợ, xem lợi nhuận).
+  { email: "ketoan@cty.com", name: "Phòng Kế toán", role: "ACCOUNTING" },
 ];
 
 async function seedUsers() {
