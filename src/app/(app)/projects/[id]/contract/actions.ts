@@ -3,11 +3,31 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { denyProject } from "@/lib/auth";
+import { denyProject, requireSession } from "@/lib/auth";
+import { diffFields, recordAudit } from "@/lib/audit";
 import { CONTRACT_STATUS_MAP } from "@/lib/constants";
 import { lineAmount } from "@/lib/contract";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
+
+const CONTRACT_AUDIT_FIELDS = [
+  "contractNo",
+  "signDate",
+  "subject",
+  "partyAName",
+  "status",
+  "vatPercent",
+  "paymentTerms",
+  "note",
+] as const;
+const CONTRACT_AUDIT_SELECT = Object.fromEntries(
+  CONTRACT_AUDIT_FIELDS.map((f) => [f, true])
+) as Record<(typeof CONTRACT_AUDIT_FIELDS)[number], true>;
+
+const ITEM_AUDIT_FIELDS = ["name", "unit", "qty", "unitPrice", "amount"] as const;
+const ITEM_AUDIT_SELECT = Object.fromEntries(
+  ITEM_AUDIT_FIELDS.map((f) => [f, true])
+) as Record<(typeof ITEM_AUDIT_FIELDS)[number], true>;
 
 const num = z
   .union([z.string(), z.number()])
@@ -100,6 +120,10 @@ export async function saveContract(
     note: d.note || null,
   };
 
+  const truoc = contractId
+    ? await db.contract.findUnique({ where: { id: contractId }, select: CONTRACT_AUDIT_SELECT })
+    : null;
+
   let cid = contractId;
   if (cid) await db.contract.update({ where: { id: cid }, data });
   else {
@@ -107,6 +131,15 @@ export async function saveContract(
     cid = created.id;
   }
   await recompute(cid);
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "Contract",
+    entityId: cid,
+    entityLabel: d.contractNo || d.subject || null,
+    projectId,
+    action: contractId ? "UPDATE" : "CREATE",
+    changes: diffFields(truoc, data, CONTRACT_AUDIT_FIELDS),
+  });
   revalidatePath(`/projects/${projectId}/contract`);
   revalidatePath("/contracts");
   return { ok: true };
@@ -118,7 +151,20 @@ export async function deleteContract(
 ): Promise<ActionResult> {
   const denied = await guard(projectId, "Bạn không có quyền xóa hợp đồng.", contractId);
   if (denied) return denied;
+  const truoc = await db.contract.findUnique({
+    where: { id: contractId },
+    select: CONTRACT_AUDIT_SELECT,
+  });
   await db.contract.delete({ where: { id: contractId } });
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "Contract",
+    entityId: contractId,
+    entityLabel: truoc?.contractNo ?? truoc?.subject ?? null,
+    projectId,
+    action: "DELETE",
+    changes: diffFields(truoc, null, CONTRACT_AUDIT_FIELDS),
+  });
   revalidatePath(`/projects/${projectId}/contract`);
   revalidatePath("/contracts");
   return { ok: true };
@@ -156,9 +202,22 @@ export async function saveContractItem(
     unitPrice: d.unitPrice,
     amount: d.amount,
   };
-  if (itemId) await db.contractItem.update({ where: { id: itemId }, data });
-  else await db.contractItem.create({ data: { contractId, ...data } });
+  const truocItem = itemId
+    ? await db.contractItem.findUnique({ where: { id: itemId }, select: ITEM_AUDIT_SELECT })
+    : null;
+  let iid = itemId;
+  if (iid) await db.contractItem.update({ where: { id: iid }, data });
+  else iid = (await db.contractItem.create({ data: { contractId, ...data } })).id;
   await recompute(contractId);
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "ContractItem",
+    entityId: iid,
+    entityLabel: d.name,
+    projectId,
+    action: itemId ? "UPDATE" : "CREATE",
+    changes: diffFields(truocItem, data, ITEM_AUDIT_FIELDS),
+  });
   revalidatePath(`/projects/${projectId}/contract`);
   revalidatePath("/contracts");
   return { ok: true };
@@ -171,7 +230,20 @@ export async function deleteContractItem(
 ): Promise<ActionResult> {
   const denied = await guard(projectId, "Bạn không có quyền xóa hạng mục.", contractId);
   if (denied) return denied;
+  const truocItem = await db.contractItem.findUnique({
+    where: { id: itemId },
+    select: ITEM_AUDIT_SELECT,
+  });
   await db.contractItem.delete({ where: { id: itemId } });
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "ContractItem",
+    entityId: itemId,
+    entityLabel: truocItem?.name ?? null,
+    projectId,
+    action: "DELETE",
+    changes: diffFields(truocItem, null, ITEM_AUDIT_FIELDS),
+  });
   await recompute(contractId);
   revalidatePath(`/projects/${projectId}/contract`);
   revalidatePath("/contracts");

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireProjectView } from "@/lib/auth";
+import { AuditEntries, type AuditRow } from "@/components/audit/AuditEntries";
 import { serverNow } from "@/lib/now";
 import { can } from "@/lib/rbac";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,7 +45,7 @@ export default async function ProjectDetailPage({
 
   // Guard phân quyền ở trên đã chạy xong; 5 truy vấn dưới đây độc lập nhau nên chạy
   // song song thay vì nối tiếp — trước đây trang này tốn ~5 round-trip tới DB.
-  const [project, noteRows, docRows, paymentRows, suppliers] = await Promise.all([
+  const [project, noteRows, docRows, paymentRows, suppliers, auditRows] = await Promise.all([
     db.project.findUnique({
       where: { id },
       include: {
@@ -91,6 +92,19 @@ export default async function ProjectDetailPage({
       orderBy: [{ category: "asc" }, { name: "asc" }],
       select: { id: true, name: true, category: true },
     }),
+    // Nhật ký thay đổi của riêng dự án này — nằm trong cùng lượt song song nên
+    // không tốn thêm round-trip nào.
+    //
+    // CHỈ lấy khi người dùng được xem số liệu tiền: nhật ký chứa cả thay đổi giá bán,
+    // giá trị hợp đồng, số tiền thanh toán — đúng những thứ RBAC che khỏi Kỹ thuật và
+    // Vật tư. Hiện nó ra ở đây là lách chính cơ chế phân quyền.
+    can(session.role, "profit", "view")
+      ? db.auditLog.findMany({
+          where: { projectId: id },
+          orderBy: { createdAt: "desc" },
+          take: 30,
+        })
+      : Promise.resolve([]),
   ]);
   if (!project) notFound();
 
@@ -163,6 +177,19 @@ export default async function ProjectDetailPage({
   }));
   const canEditPayment = can(session.role, "cost", "edit");
   const canViewPayment = can(session.role, "debt", "view") || canEditPayment;
+
+  const auditLog: AuditRow[] = auditRows.map((r) => ({
+    id: r.id,
+    actorName: r.actorName,
+    actorRole: r.actorRole,
+    entity: r.entity,
+    entityId: r.entityId,
+    entityLabel: r.entityLabel,
+    projectId: r.projectId,
+    action: r.action,
+    changes: r.changes,
+    createdAt: r.createdAt.toISOString(),
+  }));
 
   const assigned: Record<string, { id: string; name: string }> = {};
   for (const link of project.suppliers) {
@@ -517,6 +544,23 @@ export default async function ProjectDetailPage({
           />
         </CardContent>
       </Card>
+
+      {can(session.role, "profit", "view") && (
+      <Card>
+        <CardHeader>
+          <CardTitle>Lịch sử thay đổi</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AuditEntries rows={auditLog} />
+          {auditLog.length === 30 && (
+            <p className="pt-2 text-xs text-slate-400">
+              Hiển thị 30 thay đổi gần nhất.
+              {session.role === "ADMIN" ? " Xem đầy đủ ở mục Nhật ký thay đổi." : ""}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+      )}
     </div>
   );
 }

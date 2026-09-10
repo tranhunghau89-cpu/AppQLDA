@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { denyProject, requirePermission, requireSession } from "@/lib/auth";
+import { diffFields, recordAudit } from "@/lib/audit";
 import { projectNoteDb, noteImageDb } from "@/lib/project-notes";
 import { uploadFile, isStorageConfigured } from "@/lib/storage";
 import { docVersionDb } from "@/lib/doc-versions";
@@ -18,6 +19,40 @@ import {
 export type ActionResult =
   | { ok: true; id?: string }
   | { ok: false; error: string };
+
+/** Các trường của Dự án được theo dõi trong nhật ký thay đổi. */
+const PROJECT_AUDIT_FIELDS = [
+  "code",
+  "name",
+  "buildingType",
+  "status",
+  "location",
+  "customerId",
+  "startDate",
+  "endDate",
+  "kK",
+  "kL",
+  "kH",
+  "area",
+  "salePrice",
+  "note",
+] as const;
+
+/** Các trường của Đợt thanh toán được theo dõi. */
+const PAYMENT_AUDIT_FIELDS = [
+  "direction",
+  "counterpart",
+  "name",
+  "amount",
+  "dueDate",
+  "paidDate",
+  "paidAmount",
+  "note",
+] as const;
+
+const PROJECT_AUDIT_SELECT = Object.fromEntries(
+  PROJECT_AUDIT_FIELDS.map((f) => [f, true])
+) as Record<(typeof PROJECT_AUDIT_FIELDS)[number], true>;
 
 const num = z
   .union([z.string(), z.number()])
@@ -104,10 +139,34 @@ export async function saveProject(
     note: d.note || null,
   };
 
+  // Chụp lại trạng thái trước khi sửa để so ra đúng những trường thực sự đổi.
+  const truoc = id
+    ? await db.project.findUnique({ where: { id }, select: PROJECT_AUDIT_SELECT })
+    : null;
+
   try {
-    if (id) await db.project.update({ where: { id }, data });
-    else {
+    if (id) {
+      await db.project.update({ where: { id }, data });
+      await recordAudit({
+        actor: session,
+        entity: "Project",
+        entityId: id,
+        entityLabel: d.code,
+        projectId: id,
+        action: "UPDATE",
+        changes: diffFields(truoc, data, PROJECT_AUDIT_FIELDS),
+      });
+    } else {
       const created = await db.project.create({ data });
+      await recordAudit({
+        actor: session,
+        entity: "Project",
+        entityId: created.id,
+        entityLabel: d.code,
+        projectId: created.id,
+        action: "CREATE",
+        changes: diffFields(null, data, PROJECT_AUDIT_FIELDS),
+      });
       // Người tạo (không phải ADMIN) tự động là thành viên, nếu không họ sẽ mất
       // quyền truy cập chính dự án vừa tạo.
       if (session.role !== "ADMIN") {
@@ -133,7 +192,18 @@ export async function saveProject(
 export async function deleteProject(id: string): Promise<ActionResult> {
   const denied = await denyProject("project", "edit", id, "Bạn không có quyền xóa dự án.");
   if (denied) return denied;
+  const session = await requireSession();
+  const truoc = await db.project.findUnique({ where: { id }, select: PROJECT_AUDIT_SELECT });
   await db.project.delete({ where: { id } });
+  await recordAudit({
+    actor: session,
+    entity: "Project",
+    entityId: id,
+    entityLabel: truoc?.code ?? null,
+    projectId: id,
+    action: "DELETE",
+    changes: diffFields(truoc, null, PROJECT_AUDIT_FIELDS),
+  });
   revalidatePath("/projects");
   return { ok: true };
 }
@@ -146,7 +216,21 @@ export async function updateStatus(
   if (denied) return denied;
   if (!(status in PROJECT_STATUS_MAP))
     return { ok: false, error: "Trạng thái không hợp lệ." };
+  const session = await requireSession();
+  const truoc = await db.project.findUnique({
+    where: { id },
+    select: { code: true, status: true },
+  });
   await db.project.update({ where: { id }, data: { status } });
+  await recordAudit({
+    actor: session,
+    entity: "Project",
+    entityId: id,
+    entityLabel: truoc?.code ?? null,
+    projectId: id,
+    action: "UPDATE",
+    changes: diffFields(truoc, { status }, ["status"]),
+  });
   revalidatePath("/projects");
   revalidatePath(`/projects/${id}`);
   return { ok: true };
@@ -358,7 +442,7 @@ export async function addPayment(projectId: string, form: FormData): Promise<Act
   const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } });
   if (!project) return { ok: false, error: "Không tìm thấy dự án." };
 
-  await paymentDb.create({
+  const taoMoi = await paymentDb.create({
     data: {
       projectId,
       direction,
@@ -368,6 +452,15 @@ export async function addPayment(projectId: string, form: FormData): Promise<Act
       dueDate: dueRaw ? new Date(dueRaw) : null,
       note: note || null,
     },
+  });
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "Payment",
+    entityId: taoMoi.id,
+    entityLabel: `${direction === "THU" ? "Thu" : "Chi"} — ${name}`,
+    projectId,
+    action: "CREATE",
+    changes: diffFields(null, taoMoi, PAYMENT_AUDIT_FIELDS),
   });
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/");
@@ -396,12 +489,21 @@ export async function markPaymentPaid(
   if (paidAmount !== null && (!Number.isFinite(paidAmount) || paidAmount < 0)) {
     return { ok: false, error: "Số tiền thực tế không hợp lệ." };
   }
-  await paymentDb.update({
+  const sau = await paymentDb.update({
     where: { id: paymentId },
     data: {
       paidDate: paidDateStr ? new Date(paidDateStr) : new Date(),
       paidAmount,
     },
+  });
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "Payment",
+    entityId: paymentId,
+    entityLabel: `${found.direction === "THU" ? "Thu" : "Chi"} — ${found.name}`,
+    projectId: found.projectId,
+    action: "UPDATE",
+    changes: diffFields(found, sau, PAYMENT_AUDIT_FIELDS),
   });
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/");
@@ -419,6 +521,15 @@ export async function deletePayment(paymentId: string, projectId: string): Promi
   );
   if (denied) return denied;
   await paymentDb.delete({ where: { id: paymentId } });
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "Payment",
+    entityId: paymentId,
+    entityLabel: `${found.direction === "THU" ? "Thu" : "Chi"} — ${found.name}`,
+    projectId: found.projectId,
+    action: "DELETE",
+    changes: diffFields(found, null, PAYMENT_AUDIT_FIELDS),
+  });
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/");
   return { ok: true };

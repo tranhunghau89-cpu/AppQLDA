@@ -5,9 +5,23 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { canAccessProject } from "@/lib/scope";
 import { denyProject, requirePermission, requireSession } from "@/lib/auth";
+import { diffFields, recordAudit } from "@/lib/audit";
 import { computeQuoteTotals, sellFromBase } from "@/lib/quote";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
+
+const QUOTE_AUDIT_FIELDS = [
+  "title",
+  "recipient",
+  "location",
+  "scope",
+  "quoteDate",
+  "markup",
+  "note",
+] as const;
+const QUOTE_AUDIT_SELECT = Object.fromEntries(
+  QUOTE_AUDIT_FIELDS.map((f) => [f, true])
+) as Record<(typeof QUOTE_AUDIT_FIELDS)[number], true>;
 
 const num = z
   .union([z.string(), z.number()])
@@ -102,8 +116,21 @@ export async function saveQuote(
     markup: d.markup ?? 1,
     note: d.note || null,
   };
-  if (quoteId) await db.quote.update({ where: { id: quoteId }, data });
-  else await db.quote.create({ data: { projectId, ...data } });
+  const truoc = quoteId
+    ? await db.quote.findUnique({ where: { id: quoteId }, select: QUOTE_AUDIT_SELECT })
+    : null;
+  let qid = quoteId;
+  if (qid) await db.quote.update({ where: { id: qid }, data });
+  else qid = (await db.quote.create({ data: { projectId, ...data } })).id;
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "Quote",
+    entityId: qid,
+    entityLabel: d.title,
+    projectId,
+    action: quoteId ? "UPDATE" : "CREATE",
+    changes: diffFields(truoc, data, QUOTE_AUDIT_FIELDS),
+  });
   paths(projectId);
   return { ok: true };
 }
@@ -114,7 +141,20 @@ export async function deleteQuote(
 ): Promise<ActionResult> {
   const g = await guard(projectId, { quoteId });
   if (g) return g;
+  const truoc = await db.quote.findUnique({
+    where: { id: quoteId },
+    select: QUOTE_AUDIT_SELECT,
+  });
   await db.quote.delete({ where: { id: quoteId } });
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "Quote",
+    entityId: quoteId,
+    entityLabel: truoc?.title ?? null,
+    projectId,
+    action: "DELETE",
+    changes: diffFields(truoc, null, QUOTE_AUDIT_FIELDS),
+  });
   paths(projectId);
   return { ok: true };
 }
@@ -394,7 +434,21 @@ export async function pushSalePrice(
   });
   if (!quote) return { ok: false, error: "Không tìm thấy báo giá." };
   const total = computeQuoteTotals(quote.items).sell;
+  const truocDA = await db.project.findUnique({
+    where: { id: projectId },
+    select: { code: true, salePrice: true },
+  });
   await db.project.update({ where: { id: projectId }, data: { salePrice: total } });
+  // Đây là thao tác ghi thẳng vào giá bán dự án — bắt buộc phải có vết.
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "Project",
+    entityId: projectId,
+    entityLabel: truocDA?.code ?? null,
+    projectId,
+    action: "UPDATE",
+    changes: diffFields(truocDA, { salePrice: total }, ["salePrice"]),
+  });
   revalidatePath(`/projects/${projectId}`);
   paths(projectId);
   return { ok: true };

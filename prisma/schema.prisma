@@ -544,3 +544,28 @@ model QuoteItem {
   sortOrder Int          @default(0)
   @@index([quoteId])
 }
+
+// ----- Nhật ký thay đổi (audit log) -----
+
+// Ghi lại AI đổi GÌ, LÚC NÀO trên các thực thể liên quan tới tiền.
+// Cố ý KHÔNG có khóa ngoại cứng tới Project/User: nhật ký phải sống sót cả khi dự án
+// hoặc tài khoản bị xóa — đó mới đúng mục đích truy vết.
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String
+  actorName   String // chụp lại tại thời điểm ghi, để đọc log không cần join
+  actorRole   String
+  entity      String // Project | Contract | ContractItem | Payment | Quote | WorkPrice
+  entityId    String
+  entityLabel String? // mô tả ngắn gọn (mã dự án, số HĐ, tên đợt...)
+  projectId   String? // để lọc theo dự án; tham chiếu mềm
+  action      String // CREATE | UPDATE | DELETE
+  // Chỉ những trường THỰC SỰ đổi: { salePrice: { truoc: 1000, sau: 1200 } }
+  changes     Json?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([projectId, createdAt])
+  @@index([entity, entityId])
+  @@index([actorId, createdAt])
+}

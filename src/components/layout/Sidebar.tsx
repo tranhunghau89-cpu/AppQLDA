@@ -19,6 +19,7 @@ import {
   Truck,
   Users,
   LayoutTemplate,
+  History,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -48,6 +49,7 @@ const NAV: NavItem[] = [
   { href: "/tools", label: "Tra cứu & Bóc KL", icon: Ruler },
   { href: "/approvals", label: "Phê duyệt", icon: CheckCheck },
   { href: "/estimate-templates", label: "Mẫu dự toán", icon: LayoutTemplate, resource: "template" },
+  { href: "/audit", label: "Nhật ký thay đổi", icon: History, resource: "audit" },
   { href: "/users", label: "Người dùng", icon: Users, resource: "user" },
 ];
 

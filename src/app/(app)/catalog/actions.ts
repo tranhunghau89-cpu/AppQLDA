@@ -3,11 +3,29 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireSession } from "@/lib/auth";
+import { diffFields, recordAudit } from "@/lib/audit";
 import { workGroupOf } from "@/lib/constants";
 import { computeBaseCost } from "@/lib/quote";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
+
+const WP_AUDIT_FIELDS = [
+  "code",
+  "name",
+  "shortName",
+  "spec",
+  "unit",
+  "groupCode",
+  "material",
+  "laborMachine",
+  "coefficient",
+  "baseCost",
+  "note",
+] as const;
+const WP_AUDIT_SELECT = Object.fromEntries(
+  WP_AUDIT_FIELDS.map((f) => [f, true])
+) as Record<(typeof WP_AUDIT_FIELDS)[number], true>;
 
 const num = z
   .union([z.string(), z.number()])
@@ -66,8 +84,20 @@ export async function saveWorkPrice(
   const dup = await db.workPrice.findUnique({ where: { code: d.code } });
   if (dup && dup.id !== id) return { ok: false, error: `Mã CV "${d.code}" đã tồn tại.` };
 
-  if (id) await db.workPrice.update({ where: { id }, data });
-  else await db.workPrice.create({ data });
+  const truoc = id
+    ? await db.workPrice.findUnique({ where: { id }, select: WP_AUDIT_SELECT })
+    : null;
+  let wid = id;
+  if (wid) await db.workPrice.update({ where: { id: wid }, data });
+  else wid = (await db.workPrice.create({ data })).id;
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "WorkPrice",
+    entityId: wid,
+    entityLabel: d.code,
+    action: id ? "UPDATE" : "CREATE",
+    changes: diffFields(truoc, data, WP_AUDIT_FIELDS),
+  });
   revalidatePath("/catalog");
   return { ok: true };
 }
@@ -78,7 +108,16 @@ export async function deleteWorkPrice(id: string): Promise<ActionResult> {
   } catch {
     return { ok: false, error: "Bạn không có quyền xóa mã đơn giá." };
   }
+  const truoc = await db.workPrice.findUnique({ where: { id }, select: WP_AUDIT_SELECT });
   await db.workPrice.delete({ where: { id } });
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "WorkPrice",
+    entityId: id,
+    entityLabel: truoc?.code ?? null,
+    action: "DELETE",
+    changes: diffFields(truoc, null, WP_AUDIT_FIELDS),
+  });
   revalidatePath("/catalog");
   return { ok: true };
 }

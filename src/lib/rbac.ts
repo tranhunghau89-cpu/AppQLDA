@@ -25,7 +25,8 @@ export type Resource =
   | "customer"
   | "supplier"
   | "user"
-  | "template";
+  | "template"
+  | "audit";
 
 export type Action = "view" | "edit";
 
@@ -45,6 +46,7 @@ const MATRIX: Record<Role, Partial<Record<Resource, Action[]>>> = {
     supplier: ["view", "edit"],
     user: ["view", "edit"],
     template: ["view", "edit"],
+    audit: ["view"],
   },
   SALES: {
     project: ["view", "edit"],

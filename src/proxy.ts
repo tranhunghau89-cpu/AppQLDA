@@ -1,7 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
 
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/logout"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/api/auth/login",
+  "/api/auth/logout",
+  // Cron của Vercel gọi không kèm cookie nên phải cho qua middleware. Bản thân route
+  // tự bảo vệ bằng CRON_SECRET và từ chối hết nếu secret chưa được đặt.
+  "/api/cron/",
+];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
