@@ -5,6 +5,7 @@ import { Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DOC_TYPE, DOC_STATUS, DOC_STATUS_MAP } from "@/lib/constants";
 import { addDocVersion, deleteDocVersion } from "../actions";
+import { useConfirm } from "@/components/ui/confirm";
 
 export interface DocVersionItem {
   id: string;
@@ -36,6 +37,7 @@ export function DocVersions({
   canDelete: boolean;
 }) {
   const [pending, startTransition] = useTransition();
+  const confirm = useConfirm();
   const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -48,8 +50,8 @@ export function DocVersions({
     });
   };
 
-  const remove = (docId: string) => {
-    if (!confirm("Xóa phiên bản hồ sơ này?")) return;
+  const remove = async (docId: string) => {
+    if (!(await confirm("Xóa phiên bản hồ sơ này?"))) return;
     startTransition(async () => {
       const res = await deleteDocVersion(docId, projectId);
       if (!res.ok) setError(res.error);
@@ -146,7 +148,7 @@ export function DocVersions({
                           <button
                             onClick={() => remove(d.id)}
                             className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500"
-                            title="Xóa phiên bản"
+                            title="Xóa phiên bản" aria-label="Xóa phiên bản"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>

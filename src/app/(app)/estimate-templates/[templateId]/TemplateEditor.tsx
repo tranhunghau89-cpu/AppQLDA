@@ -241,13 +241,13 @@ export function TemplateEditor({ initial }: { initial: EditorTemplate }) {
                     <input value={l.note} onChange={(e) => upd(l.uid, "note", e.target.value)} className="w-24 rounded border border-slate-200 px-1.5 py-1 text-xs" />
                   </td>
                   <td className="whitespace-nowrap px-1 py-0.5 text-right">
-                    <button onClick={() => move(l.uid, -1)} className="p-0.5 text-slate-400 hover:text-slate-700" title="Lên">
+                    <button onClick={() => move(l.uid, -1)} className="p-0.5 text-slate-400 hover:text-slate-700" title="Lên" aria-label="Lên">
                       <ArrowUp className="h-3.5 w-3.5" />
                     </button>
-                    <button onClick={() => move(l.uid, 1)} className="p-0.5 text-slate-400 hover:text-slate-700" title="Xuống">
+                    <button onClick={() => move(l.uid, 1)} className="p-0.5 text-slate-400 hover:text-slate-700" title="Xuống" aria-label="Xuống">
                       <ArrowDown className="h-3.5 w-3.5" />
                     </button>
-                    <button onClick={() => removeLine(l.uid)} className="p-0.5 text-red-500 hover:text-red-700" title="Xóa dòng">
+                    <button onClick={() => removeLine(l.uid)} className="p-0.5 text-red-500 hover:text-red-700" title="Xóa dòng" aria-label="Xóa dòng">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </td>

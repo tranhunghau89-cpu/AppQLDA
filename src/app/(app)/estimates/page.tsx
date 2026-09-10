@@ -86,12 +86,12 @@ export default async function EstimatesPage() {
             <tr>
               <Th>Mã</Th>
               <Th>Tên dự án</Th>
-              <Th>Trạng thái</Th>
+              <Th hideBelow="sm">Trạng thái</Th>
               <Th className="text-right">Tổng chi phí</Th>
               {canViewProfit && <Th className="text-right">Giá bán</Th>}
               {canViewProfit && <Th className="text-right">Lợi nhuận</Th>}
-              {canViewProfit && <Th className="text-right">Biên</Th>}
-              <Th className="text-right">CP/m²</Th>
+              {canViewProfit && <Th hideBelow="lg" className="text-right">Biên</Th>}
+              <Th hideBelow="md" className="text-right">CP/m²</Th>
             </tr>
           </THead>
           <tbody>
@@ -103,7 +103,7 @@ export default async function EstimatesPage() {
                   </Link>
                 </Td>
                 <Td className="font-medium text-slate-900">{r.name}</Td>
-                <Td>
+                <Td hideBelow="sm">
                   <StatusBadge status={r.status} />
                 </Td>
                 <Td className="text-right">{formatVND(r.totalCost)}</Td>
@@ -118,9 +118,9 @@ export default async function EstimatesPage() {
                   </Td>
                 )}
                 {canViewProfit && (
-                  <Td className="text-right">{formatPercent(r.margin)}</Td>
+                  <Td hideBelow="lg" className="text-right">{formatPercent(r.margin)}</Td>
                 )}
-                <Td className="text-right">
+                <Td hideBelow="md" className="text-right">
                   {r.costPerM2 != null ? formatVND(r.costPerM2) : "—"}
                 </Td>
               </Tr>

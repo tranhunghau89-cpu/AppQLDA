@@ -138,11 +138,11 @@ export function ProjectList({
               <Th>Mã</Th>
               <Th>Tên dự án</Th>
               <Th>Trạng thái</Th>
-              <Th>CĐT</Th>
-              <Th>Vị trí</Th>
-              <Th className="text-right">DT (m²)</Th>
-              <Th className="text-right">Giá bán</Th>
-              <Th>Bắt đầu</Th>
+              <Th hideBelow="lg">CĐT</Th>
+              <Th hideBelow="md">Vị trí</Th>
+              <Th hideBelow="lg" className="text-right">DT (m²)</Th>
+              <Th hideBelow="sm" className="text-right">Giá bán</Th>
+              <Th hideBelow="xl">Bắt đầu</Th>
             </tr>
           </THead>
           <tbody>
@@ -157,11 +157,13 @@ export function ProjectList({
                 <Td>
                   <StatusBadge status={p.status} />
                 </Td>
-                <Td>{p.customerName || "—"}</Td>
-                <Td>{p.location || "—"}</Td>
-                <Td className="text-right">{formatNumber(p.area)}</Td>
-                <Td className="text-right">{p.salePrice ? formatVND(p.salePrice) : "—"}</Td>
-                <Td>{formatDate(p.startDate)}</Td>
+                <Td hideBelow="lg">{p.customerName || "—"}</Td>
+                <Td hideBelow="md">{p.location || "—"}</Td>
+                <Td hideBelow="lg" className="text-right">{formatNumber(p.area)}</Td>
+                <Td hideBelow="sm" className="text-right">
+                  {p.salePrice ? formatVND(p.salePrice) : "—"}
+                </Td>
+                <Td hideBelow="xl">{formatDate(p.startDate)}</Td>
               </Tr>
             ))}
             {list.length === 0 && (
@@ -181,7 +183,7 @@ export function ProjectList({
         title={editing ? `Sửa dự án ${editing.code}` : "Thêm dự án"}
       >
         <form onSubmit={onSubmit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Mã dự án *">
               <Input name="code" defaultValue={editing?.code ?? ""} required />
             </Field>
@@ -189,7 +191,7 @@ export function ProjectList({
               <Input name="name" defaultValue={editing?.name ?? ""} required />
             </Field>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Field label="Loại công trình">
               <Input name="buildingType" defaultValue={editing?.buildingType ?? ""} />
             </Field>
@@ -216,7 +218,7 @@ export function ProjectList({
               ))}
             </Select>
           </Field>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Field label="Bước khung K">
               <Input name="kK" type="number" step="any" defaultValue={editing?.kK ?? ""} />
             </Field>
@@ -227,7 +229,7 @@ export function ProjectList({
               <Input name="kH" type="number" step="any" defaultValue={editing?.kH ?? ""} />
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Diện tích (m²)">
               <Input name="area" type="number" step="any" defaultValue={editing?.area ?? ""} />
             </Field>
@@ -235,7 +237,7 @@ export function ProjectList({
               <Input name="salePrice" type="number" step="any" defaultValue={editing?.salePrice ?? ""} />
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Ngày bắt đầu">
               <Input name="startDate" type="date" defaultValue={toInputDate(editing?.startDate ?? null)} />
             </Field>

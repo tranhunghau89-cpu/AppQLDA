@@ -125,7 +125,7 @@ export function QuickAdd({
           setError(null);
           setOpen(true);
         }}
-        className="fixed bottom-5 right-5 z-40 flex h-14 items-center gap-2 rounded-full bg-blue-600 px-5 text-white shadow-lg hover:bg-blue-700 sm:bottom-6 sm:right-6"
+        className="fixed bottom-5 right-5 z-30 flex h-14 items-center gap-2 rounded-full bg-blue-600 px-5 text-white shadow-lg hover:bg-blue-700 sm:bottom-6 sm:right-6"
       >
         <Plus className="h-5 w-5" />
         <span className="font-medium">Nhập nhanh</span>
@@ -291,7 +291,7 @@ function PurchaseForm({ suppliers, onSubmit, pending }: { suppliers: QuickSuppli
   const valid = rows.some((r) => r.name.trim());
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Nhà cung cấp">
           <Select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
             <option value="">— Chọn —</option>
@@ -361,7 +361,7 @@ function PaymentForm({ onSubmit, pending }: { onSubmit: SubmitFn; pending: boole
   const [note, setNote] = useState("");
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Loại">
           <Select value={direction} onChange={(e) => setDirection(e.target.value)}>
             <option value="THU">Thu (khách trả)</option>
@@ -375,7 +375,7 @@ function PaymentForm({ onSubmit, pending }: { onSubmit: SubmitFn; pending: boole
       <Field label="Tên đợt *">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tạm ứng, Đợt 1, Quyết toán…" />
       </Field>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Hạn (tùy chọn)">
           <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
         </Field>
@@ -420,7 +420,7 @@ function PurchasePaste({ projectId, suppliers }: { projectId: string; suppliers:
   const [category, setCategory] = useState(PO_CATEGORY[0]?.value ?? "KHAC");
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Nhà cung cấp">
           <Select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
             <option value="">— Chọn —</option>
@@ -467,7 +467,7 @@ function EstimateForm({ onSubmit, pending }: { onSubmit: SubmitFn; pending: bool
   }, [qty, price]);
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Nhóm">
           <Select value={groupCode} onChange={(e) => setGroupCode(e.target.value)}>
             {ESTIMATE_GROUP.map((g) => (
@@ -484,7 +484,7 @@ function EstimateForm({ onSubmit, pending }: { onSubmit: SubmitFn; pending: bool
       <Field label="Hạng mục *">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tên hạng mục" />
       </Field>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Khối lượng">
           <Input value={qty} onChange={(e) => setQty(e.target.value)} />
         </Field>

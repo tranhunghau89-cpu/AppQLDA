@@ -2,8 +2,7 @@ import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { myProjects } from "@/lib/scope";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { Topbar } from "@/components/layout/Topbar";
+import { AppShell } from "@/components/layout/AppShell";
 import { QuickAdd, type QuickType } from "@/app/(app)/quick/QuickAdd";
 
 export default async function AppLayout({
@@ -25,13 +24,9 @@ export default async function AppLayout({
   if (can(session.role, "estimate", "edit")) allowed.push("estimate");
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-slate-50">
-      <Sidebar role={session.role} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar name={session.name} role={session.role} />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
-      </div>
+    <AppShell role={session.role} name={session.name}>
+      {children}
       <QuickAdd projects={projects} allowed={allowed} suppliers={suppliers} />
-    </div>
+    </AppShell>
   );
 }

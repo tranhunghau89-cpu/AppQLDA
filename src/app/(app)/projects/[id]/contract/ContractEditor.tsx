@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { CONTRACT_STATUS, CONTRACT_STATUS_MAP } from "@/lib/constants";
 import { formatVND, formatNumber, formatDate } from "@/lib/utils";
 import { computeContractTotals, lineAmount } from "@/lib/contract";
+import { useConfirm } from "@/components/ui/confirm";
+import { useToast } from "@/components/ui/toast";
 import {
   saveContract,
   deleteContract,
@@ -63,6 +65,8 @@ export function ContractEditor({
 
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   function onContractSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -95,19 +99,19 @@ export function ContractEditor({
       }
     });
   }
-  function onDeleteContract(c: ContractView) {
-    if (!window.confirm(`Xóa hợp đồng "${c.contractNo ?? c.subject ?? ""}"?`)) return;
+  async function onDeleteContract(c: ContractView) {
+    if (!(await confirm(`Xóa hợp đồng "${c.contractNo ?? c.subject ?? ""}"?`))) return;
     start(async () => {
       const res = await deleteContract(projectId, c.id);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) toast.error(res.error);
       else router.refresh();
     });
   }
-  function onDeleteItem(contractId: string, item: ContractItemView) {
-    if (!window.confirm(`Xóa hạng mục "${item.name}"?`)) return;
+  async function onDeleteItem(contractId: string, item: ContractItemView) {
+    if (!(await confirm(`Xóa hạng mục "${item.name}"?`))) return;
     start(async () => {
       const res = await deleteContractItem(projectId, contractId, item.id);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) toast.error(res.error);
       else router.refresh();
     });
   }
@@ -293,7 +297,7 @@ export function ContractEditor({
         title={cEditing ? "Sửa hợp đồng" : "Thêm hợp đồng"}
       >
         <form onSubmit={onContractSubmit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Số hợp đồng">
               <Input name="contractNo" defaultValue={cEditing?.contractNo ?? ""} />
             </Field>
@@ -308,7 +312,7 @@ export function ContractEditor({
           <Field label="Trích yếu (V/v)">
             <Input name="subject" defaultValue={cEditing?.subject ?? ""} />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Chủ đầu tư (Bên A)">
               <Input name="partyAName" defaultValue={cEditing?.partyAName ?? ""} />
             </Field>
@@ -366,7 +370,7 @@ export function ContractEditor({
           <Field label="Tên hạng mục *">
             <Input name="name" defaultValue={iEditing?.name ?? ""} required />
           </Field>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Field label="Đơn vị">
               <Input name="unit" defaultValue={iEditing?.unit ?? ""} placeholder="m², bộ…" />
             </Field>

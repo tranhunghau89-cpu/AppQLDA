@@ -7,6 +7,7 @@ import { BT_GROUPS, BT_GROUP_MAP } from "@/lib/takeoff-shared";
 import { STEEL_SECTIONS } from "@/lib/steel-data";
 import type { TakeoffRow } from "@/lib/takeoff-shared";
 import { addTakeoffItem, deleteTakeoffItem } from "./actions";
+import { useConfirm } from "@/components/ui/confirm";
 
 function fmt(v: number | null | undefined, d = 2): string {
   if (v == null) return "—";
@@ -37,6 +38,7 @@ export function TakeoffBoard({
   const [group, setGroup] = useState("FD");
   const [steelQ, setSteelQ] = useState("");
   const [pending, startTransition] = useTransition();
+  const confirm = useConfirm();
   const [error, setError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -64,8 +66,8 @@ export function TakeoffBoard({
     });
   };
 
-  const remove = (id: string) => {
-    if (!confirm("Xóa dòng này?")) return;
+  const remove = async (id: string) => {
+    if (!(await confirm("Xóa dòng này?"))) return;
     startTransition(async () => {
       const res = await deleteTakeoffItem(id);
       if (!res.ok) setError(res.error);

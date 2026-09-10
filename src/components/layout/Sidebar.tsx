@@ -19,6 +19,7 @@ import {
   Truck,
   Users,
   LayoutTemplate,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -50,20 +51,47 @@ const NAV: NavItem[] = [
   { href: "/users", label: "Người dùng", icon: Users, resource: "user" },
 ];
 
-export function Sidebar({ role }: { role: Role }) {
+export function Sidebar({
+  role,
+  open,
+  onClose,
+}: {
+  role: Role;
+  /** Ngăn kéo đang mở (chỉ có tác dụng dưới lg). */
+  open: boolean;
+  onClose: () => void;
+}) {
   const pathname = usePathname();
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-slate-200 bg-white">
-      <div className="flex h-16 items-center gap-2 border-b border-slate-100 px-5">
+    <aside
+      id="sidebar-chinh"
+      aria-label="Điều hướng chính"
+      className={cn(
+        // Điện thoại/tablet: ngăn kéo trượt từ trái, nằm trên nội dung.
+        "fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white transition-transform duration-200 ease-out",
+        open ? "translate-x-0" : "-translate-x-full",
+        // Desktop: cột cố định như cũ, luôn hiện.
+        "lg:sticky lg:top-0 lg:h-dvh lg:w-60 lg:translate-x-0"
+      )}
+    >
+      <div className="flex h-16 shrink-0 items-center gap-2 border-b border-slate-100 px-5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.png" alt="Xây Dựng Dubai" className="h-10 w-10 object-contain" />
-        <div className="leading-tight">
-          <div className="text-sm font-bold text-blue-600">XÂY DỰNG DUBAI</div>
+        <div className="min-w-0 leading-tight">
+          <div className="truncate text-sm font-bold text-blue-600">XÂY DỰNG DUBAI</div>
           <div className="text-[11px] text-slate-400">Trao giá trị vững bền</div>
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Đóng menu"
+          className="ml-auto rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 lg:hidden"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
-      <nav className="flex-1 space-y-1 p-3">
+      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {NAV.filter((i) => !i.resource || can(role, i.resource, "view")).map((item) => {
           const active =
             item.href === "/"

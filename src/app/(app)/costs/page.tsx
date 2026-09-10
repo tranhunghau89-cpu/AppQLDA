@@ -54,11 +54,11 @@ export default async function CostsPage() {
             <tr>
               <Th>Dự án</Th>
               <Th className="text-right">Doanh thu</Th>
-              <Th className="text-right">Chi phí</Th>
+              <Th hideBelow="sm" className="text-right">Chi phí</Th>
               <Th className="text-right">LNTT</Th>
-              <Th className="text-right">Biên LN</Th>
-              <Th className="text-right">Còn phải thu</Th>
-              <Th>File</Th>
+              <Th hideBelow="lg" className="text-right">Biên LN</Th>
+              <Th hideBelow="md" className="text-right">Còn phải thu</Th>
+              <Th hideBelow="sm">File</Th>
             </tr>
           </THead>
           <tbody>
@@ -78,17 +78,17 @@ export default async function CostsPage() {
                     ) : null}
                   </Td>
                   <Td className="text-right">{formatVND(r.revenue ?? 0)}</Td>
-                  <Td className="text-right text-amber-700">{formatVND(r.cost ?? 0)}</Td>
+                  <Td hideBelow="sm" className="text-right text-amber-700">{formatVND(r.cost ?? 0)}</Td>
                   <Td className="text-right font-semibold text-green-700">{formatVND(r.profit ?? 0)}</Td>
-                  <Td className="text-right text-slate-600">{formatPercent(margin)}</Td>
-                  <Td className="text-right text-slate-600">
+                  <Td hideBelow="lg" className="text-right text-slate-600">{formatPercent(margin)}</Td>
+                  <Td hideBelow="md" className="text-right text-slate-600">
                     {r.collectionNote
                       ? r.collectionNote
                       : r.receivable != null
                         ? formatVND(r.receivable)
                         : "—"}
                   </Td>
-                  <Td>
+                  <Td hideBelow="sm">
                     {r.filePath ? (
                       <a
                         href={`/api/costs/${r.id}/file`}

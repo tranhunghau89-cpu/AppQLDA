@@ -2,6 +2,9 @@
 
 import { useRef, useState, useTransition } from "react";
 import { Trash2, CircleDollarSign } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm";
+import { Modal } from "@/components/ui/modal";
 import { addPayment, markPaymentPaid, deletePayment } from "../actions";
 
 export interface PaymentItem {
@@ -71,7 +74,11 @@ function Section({
   counterpartPlaceholder: string;
   now: number;
 }) {
+  const confirm = useConfirm();
   const formRef = useRef<HTMLFormElement>(null);
+  // Đợt đang xác nhận đã thu/đã trả — mở form trong modal thay vì 2 hộp prompt
+  // của trình duyệt (trên điện thoại prompt rất khó dùng và không nhập được ngày).
+  const [dangGhiNhan, setDangGhiNhan] = useState<PaymentItem | null>(null);
   const totalPlan = items.reduce((s, i) => s + (i.amount ?? 0), 0);
   const totalPaid = items.reduce((s, i) => s + (i.paidAmount ?? 0), 0);
 
@@ -85,17 +92,16 @@ function Section({
     });
   };
 
-  const markPaid = (p: PaymentItem) => {
-    const date = window.prompt("Ngày thực " + (direction === "THU" ? "thu" : "trả") + " (YYYY-MM-DD, bỏ trống = hôm nay):") ?? "";
-    const amt = window.prompt("Số tiền thực tế (bỏ trống = theo kế hoạch):") ?? "";
+  const markPaid = (p: PaymentItem, date: string, amt: string) => {
+    setDangGhiNhan(null);
     startTransition(async () => {
       const res = await markPaymentPaid(p.id, projectId, date.trim(), amt.trim());
       if (!res.ok) onError(res.error);
     });
   };
 
-  const remove = (p: PaymentItem) => {
-    if (!confirm("Xóa đợt thanh toán này?")) return;
+  const remove = async (p: PaymentItem) => {
+    if (!(await confirm("Xóa đợt thanh toán này?"))) return;
     startTransition(async () => {
       const res = await deletePayment(p.id, projectId);
       if (!res.ok) onError(res.error);
@@ -137,7 +143,7 @@ function Section({
               <div className="flex items-center gap-1.5">
                 {!p.paidDate && (
                   <button
-                    onClick={() => markPaid(p)}
+                    onClick={() => setDangGhiNhan(p)}
                     disabled={pending}
                     className="inline-flex items-center gap-1 rounded-md bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 hover:bg-green-100 disabled:opacity-50"
                   >
@@ -148,7 +154,7 @@ function Section({
                 <button
                   onClick={() => remove(p)}
                   className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500"
-                  title="Xóa"
+                  title="Xóa" aria-label="Xóa"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -169,7 +175,78 @@ function Section({
           </button>
         </form>
       )}
+
+      <GhiNhanThanhToan
+        payment={dangGhiNhan}
+        direction={direction}
+        onClose={() => setDangGhiNhan(null)}
+        onSubmit={markPaid}
+      />
     </div>
+  );
+}
+
+/** Form xác nhận đã thu / đã trả cho một đợt — thay 2 hộp prompt của trình duyệt. */
+function GhiNhanThanhToan({
+  payment,
+  direction,
+  onClose,
+  onSubmit,
+}: {
+  payment: PaymentItem | null;
+  direction: "THU" | "CHI";
+  onClose: () => void;
+  onSubmit: (p: PaymentItem, date: string, amount: string) => void;
+}) {
+  const nhan = direction === "THU" ? "thu" : "trả";
+  return (
+    <Modal
+      open={payment !== null}
+      onClose={onClose}
+      title={`Ghi nhận đã ${nhan}${payment ? ` — ${payment.name}` : ""}`}
+    >
+      {payment && (
+        <form
+          id="form-ghi-nhan"
+          action={(form: FormData) =>
+            onSubmit(payment, String(form.get("date") ?? ""), String(form.get("amount") ?? ""))
+          }
+          className="space-y-4"
+        >
+          <div>
+            <label htmlFor="gn-date" className="mb-1 block text-sm font-medium text-slate-700">
+              Ngày thực {nhan}
+            </label>
+            <input
+              id="gn-date"
+              name="date"
+              type="date"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            />
+            <p className="mt-1 text-xs text-slate-400">Bỏ trống = hôm nay.</p>
+          </div>
+          <div>
+            <label htmlFor="gn-amount" className="mb-1 block text-sm font-medium text-slate-700">
+              Số tiền thực tế (₫)
+            </label>
+            <input
+              id="gn-amount"
+              name="amount"
+              inputMode="numeric"
+              placeholder={payment.amount != null ? vnd(payment.amount) : ""}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            />
+            <p className="mt-1 text-xs text-slate-400">Bỏ trống = đúng theo kế hoạch.</p>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2 pt-1">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Hủy
+            </Button>
+            <Button type="submit">Xác nhận đã {nhan}</Button>
+          </div>
+        </form>
+      )}
+    </Modal>
   );
 }
 

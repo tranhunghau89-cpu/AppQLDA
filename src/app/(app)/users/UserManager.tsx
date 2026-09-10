@@ -10,6 +10,8 @@ import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ROLES, ROLE_LABEL } from "@/lib/rbac";
 import { saveUser, deleteUser } from "./actions";
+import { useConfirm } from "@/components/ui/confirm";
+import { useToast } from "@/components/ui/toast";
 
 export interface UserRow {
   id: string;
@@ -31,6 +33,8 @@ export function UserManager({
   const [editing, setEditing] = useState<UserRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const toast = useToast();
+  const confirm = useConfirm();
 
   function openNew() {
     setEditing(null);
@@ -57,11 +61,11 @@ export function UserManager({
     });
   }
 
-  function onDelete(u: UserRow) {
-    if (!window.confirm(`Xóa người dùng "${u.name}"?`)) return;
+  async function onDelete(u: UserRow) {
+    if (!(await confirm(`Xóa người dùng "${u.name}"?`))) return;
     start(async () => {
       const res = await deleteUser(u.id);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) toast.error(res.error);
       else router.refresh();
     });
   }
@@ -135,7 +139,7 @@ export function UserManager({
         title={editing ? "Sửa người dùng" : "Thêm người dùng"}
       >
         <form onSubmit={onSubmit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Tên *">
               <Input name="name" defaultValue={editing?.name ?? ""} required />
             </Field>

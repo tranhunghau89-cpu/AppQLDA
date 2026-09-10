@@ -11,6 +11,8 @@ import { WORK_GROUP, WORK_GROUP_MAP } from "@/lib/constants";
 import { formatNumber } from "@/lib/utils";
 import { computeBaseCost } from "@/lib/quote";
 import { saveWorkPrice, deleteWorkPrice } from "./actions";
+import { useConfirm } from "@/components/ui/confirm";
+import { useToast } from "@/components/ui/toast";
 
 export interface WorkPriceView {
   id: string;
@@ -46,6 +48,8 @@ export function CatalogEditor({
   const [m, setM] = useState(0);
   const [n, setN] = useState(0);
   const [h, setH] = useState(1);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -102,11 +106,11 @@ export function CatalogEditor({
       }
     });
   }
-  function onDelete(it: WorkPriceView) {
-    if (!window.confirm(`Xóa mã "${it.code} — ${it.name}"?`)) return;
+  async function onDelete(it: WorkPriceView) {
+    if (!(await confirm(`Xóa mã "${it.code} — ${it.name}"?`))) return;
     start(async () => {
       const res = await deleteWorkPrice(it.id);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) toast.error(res.error);
       else router.refresh();
     });
   }
@@ -200,7 +204,7 @@ export function CatalogEditor({
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? "Sửa mã đơn giá" : "Thêm mã đơn giá"}>
         <form onSubmit={onSubmit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Mã CV *">
               <Input name="code" defaultValue={editing?.code ?? ""} placeholder="AA.110" required />
             </Field>
@@ -211,7 +215,7 @@ export function CatalogEditor({
           <Field label="Nội dung công việc *">
             <Input name="name" defaultValue={editing?.name ?? ""} required />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Loại (rút gọn)">
               <Input name="shortName" defaultValue={editing?.shortName ?? ""} />
             </Field>
@@ -219,7 +223,7 @@ export function CatalogEditor({
               <Input name="spec" defaultValue={editing?.spec ?? ""} />
             </Field>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Field label="Vật tư (VT)">
               <Input
                 name="material"

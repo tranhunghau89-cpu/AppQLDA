@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { MILESTONE_TYPE } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
 import { upsertMilestone } from "../actions";
+import { useToast } from "@/components/ui/toast";
 
 export interface MilestoneValue {
   planDate: string | null;
@@ -40,6 +41,7 @@ function Row({
   // Chưa có ô nhập ghi chú mốc trên UI; vẫn gửi giá trị hiện có lên server để không mất dữ liệu.
   const [note] = useState(value.note ?? "");
   const [pending, start] = useTransition();
+  const toast = useToast();
 
   function save() {
     start(async () => {
@@ -49,7 +51,7 @@ function Row({
         done,
         note,
       });
-      if (!res.ok) alert(res.error);
+      if (!res.ok) toast.error(res.error);
       else router.refresh();
     });
   }

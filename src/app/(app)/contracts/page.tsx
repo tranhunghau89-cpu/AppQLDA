@@ -53,12 +53,12 @@ export default async function ContractsPage() {
             <tr>
               <Th>Dự án</Th>
               <Th>Số HĐ / Báo giá</Th>
-              <Th>Chủ đầu tư</Th>
+              <Th hideBelow="lg">Chủ đầu tư</Th>
               <Th className="text-center">Trạng thái</Th>
-              <Th className="text-right">Chưa VAT</Th>
+              <Th hideBelow="lg" className="text-right">Chưa VAT</Th>
               <Th className="text-right">Tổng (gồm VAT)</Th>
-              <Th>Ngày ký</Th>
-              <Th>File</Th>
+              <Th hideBelow="md">Ngày ký</Th>
+              <Th hideBelow="sm">File</Th>
             </tr>
           </THead>
           <tbody>
@@ -75,14 +75,14 @@ export default async function ContractsPage() {
                     </Link>
                   </Td>
                   <Td className="text-slate-700">{c.contractNo ?? c.subject ?? "—"}</Td>
-                  <Td className="text-slate-700">{c.partyAName ?? c.project.name}</Td>
+                  <Td hideBelow="lg" className="text-slate-700">{c.partyAName ?? c.project.name}</Td>
                   <Td className="text-center">
                     <Badge tone={st?.tone ?? "slate"}>{st?.label ?? c.status}</Badge>
                   </Td>
-                  <Td className="text-right">{formatVND(c.valueBeforeVat ?? 0)}</Td>
+                  <Td hideBelow="lg" className="text-right">{formatVND(c.valueBeforeVat ?? 0)}</Td>
                   <Td className="text-right font-medium">{formatVND(c.valueWithVat ?? 0)}</Td>
-                  <Td className="text-slate-500">{c.signDate ? formatDate(c.signDate) : "—"}</Td>
-                  <Td>
+                  <Td hideBelow="md" className="text-slate-500">{c.signDate ? formatDate(c.signDate) : "—"}</Td>
+                  <Td hideBelow="sm">
                     {c.filePath ? (
                       <a
                         href={`/api/contracts/${c.id}/file`}

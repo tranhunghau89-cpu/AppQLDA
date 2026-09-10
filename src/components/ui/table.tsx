@@ -1,6 +1,20 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
+/**
+ * Ẩn cột phụ dưới một breakpoint để bảng đọc được trên điện thoại.
+ * Bảng vẫn cuộn ngang được, nhưng cuộn 8 cột trên màn 375px là không dùng nổi —
+ * nên các cột thứ yếu được ẩn hẳn và chỉ hiện lại khi màn đủ rộng.
+ */
+type Hide = "sm" | "md" | "lg" | "xl";
+
+const HIDE: Record<Hide, string> = {
+  sm: "hidden sm:table-cell",
+  md: "hidden md:table-cell",
+  lg: "hidden lg:table-cell",
+  xl: "hidden xl:table-cell",
+};
+
 export function Table({
   className,
   ...props
@@ -35,12 +49,14 @@ export function THead({
 
 export function Th({
   className,
+  hideBelow,
   ...props
-}: React.ThHTMLAttributes<HTMLTableCellElement>) {
+}: React.ThHTMLAttributes<HTMLTableCellElement> & { hideBelow?: Hide }) {
   return (
     <th
       className={cn(
         "whitespace-nowrap border-r border-slate-200 px-3 py-2 font-semibold last:border-r-0",
+        hideBelow && HIDE[hideBelow],
         className
       )}
       {...props}
@@ -62,12 +78,14 @@ export function Tr({
 
 export function Td({
   className,
+  hideBelow,
   ...props
-}: React.TdHTMLAttributes<HTMLTableCellElement>) {
+}: React.TdHTMLAttributes<HTMLTableCellElement> & { hideBelow?: Hide }) {
   return (
     <td
       className={cn(
         "border-r border-slate-100 px-3 py-2 text-slate-700 last:border-r-0",
+        hideBelow && HIDE[hideBelow],
         className
       )}
       {...props}

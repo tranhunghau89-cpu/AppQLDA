@@ -6,6 +6,7 @@ import { Select } from "@/components/ui/form";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PROJECT_STATUS, PROJECT_COMPONENT } from "@/lib/constants";
 import { updateStatus, setProjectSupplier } from "../actions";
+import { useToast } from "@/components/ui/toast";
 
 export interface SupplierOption {
   id: string;
@@ -24,6 +25,7 @@ export function StatusChanger({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const toast = useToast();
 
   if (!canEdit) return <StatusBadge status={status} />;
 
@@ -36,7 +38,7 @@ export function StatusChanger({
         const next = e.target.value;
         start(async () => {
           const res = await updateStatus(projectId, next);
-          if (!res.ok) alert(res.error);
+          if (!res.ok) toast.error(res.error);
           else router.refresh();
         });
       }}
@@ -63,6 +65,7 @@ export function SupplierAssigner({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const toast = useToast();
   const [busy, setBusy] = useState<string | null>(null);
 
   function assign(component: string, supplierId: string) {
@@ -70,7 +73,7 @@ export function SupplierAssigner({
     start(async () => {
       const res = await setProjectSupplier(projectId, component, supplierId || null);
       setBusy(null);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) toast.error(res.error);
       else router.refresh();
     });
   }

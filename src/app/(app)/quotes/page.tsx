@@ -64,12 +64,12 @@ export default async function QuotesPage() {
             <tr>
               <Th>Dự án</Th>
               <Th>Tiêu đề báo giá</Th>
-              <Th className="text-center">TL</Th>
-              <Th className="text-right">Giá gốc</Th>
+              <Th hideBelow="lg" className="text-center">TL</Th>
+              <Th hideBelow="md" className="text-right">Giá gốc</Th>
               <Th className="text-right">Giá bán</Th>
-              <Th className="text-right">Lợi nhuận</Th>
-              <Th className="text-right">Biên</Th>
-              <Th>Ngày</Th>
+              <Th hideBelow="sm" className="text-right">Lợi nhuận</Th>
+              <Th hideBelow="lg" className="text-right">Biên</Th>
+              <Th hideBelow="md">Ngày</Th>
             </tr>
           </THead>
           <tbody>
@@ -84,14 +84,14 @@ export default async function QuotesPage() {
                   </Link>
                 </Td>
                 <Td className="text-slate-700">{q.title}</Td>
-                <Td className="text-center text-slate-500">×{q.markup ?? 1}</Td>
-                <Td className="text-right text-slate-500">{formatVND(q.totals.cost)}</Td>
+                <Td hideBelow="lg" className="text-center text-slate-500">×{q.markup ?? 1}</Td>
+                <Td hideBelow="md" className="text-right text-slate-500">{formatVND(q.totals.cost)}</Td>
                 <Td className="text-right font-medium">{formatVND(q.totals.sell)}</Td>
-                <Td className="text-right text-green-600">{formatVND(q.totals.profit)}</Td>
-                <Td className="text-right text-slate-600">
+                <Td hideBelow="sm" className="text-right text-green-600">{formatVND(q.totals.profit)}</Td>
+                <Td hideBelow="lg" className="text-right text-slate-600">
                   {q.totals.margin != null ? `${(q.totals.margin * 100).toFixed(1)}%` : "—"}
                 </Td>
-                <Td className="text-slate-500">{q.quoteDate ? formatDate(q.quoteDate) : "—"}</Td>
+                <Td hideBelow="md" className="text-slate-500">{q.quoteDate ? formatDate(q.quoteDate) : "—"}</Td>
               </Tr>
             ))}
             {rows.length === 0 && (

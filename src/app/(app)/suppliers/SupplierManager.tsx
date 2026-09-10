@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { formatVND } from "@/lib/utils";
 import { SUPPLIER_CATEGORY, SUPPLIER_CATEGORY_MAP } from "@/lib/constants";
 import { saveSupplier, deleteSupplier } from "./actions";
+import { useConfirm } from "@/components/ui/confirm";
+import { useToast } from "@/components/ui/toast";
 
 export interface SupplierRow {
   id: string;
@@ -41,6 +43,8 @@ export function SupplierManager({
   const [filter, setFilter] = useState<string>("ALL");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [pending, start] = useTransition();
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const toggle = (id: string) =>
     setExpanded((s) => {
@@ -81,11 +85,11 @@ export function SupplierManager({
     });
   }
 
-  function onDelete(s: SupplierRow) {
-    if (!window.confirm(`Xóa NCC "${s.name}"?`)) return;
+  async function onDelete(s: SupplierRow) {
+    if (!(await confirm(`Xóa NCC "${s.name}"?`))) return;
     start(async () => {
       const res = await deleteSupplier(s.id);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) toast.error(res.error);
       else router.refresh();
     });
   }
@@ -231,7 +235,7 @@ export function SupplierManager({
               ))}
             </Select>
           </Field>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Người phụ trách">
               <Input name="contactPerson" defaultValue={editing?.contactPerson ?? ""} />
             </Field>

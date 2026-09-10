@@ -7,6 +7,8 @@ import { Plus, Copy, Trash2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { createTemplate, duplicateTemplate, deleteTemplate, toggleTemplateActive } from "./actions";
+import { useConfirm } from "@/components/ui/confirm";
+import { useToast } from "@/components/ui/toast";
 
 export interface TemplateRow {
   id: string;
@@ -19,26 +21,28 @@ export interface TemplateRow {
 export function TemplateList({ templates }: { templates: TemplateRow[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const toast = useToast();
+  const confirm = useConfirm();
 
   function onCreate() {
     start(async () => {
       const res = await createTemplate();
       if (res.ok) router.push(`/estimate-templates/${res.id}`);
-      else alert(res.error);
+      else toast.error(res.error);
     });
   }
   function onDuplicate(id: string) {
     start(async () => {
       const res = await duplicateTemplate(id);
       if (res.ok) router.push(`/estimate-templates/${res.id}`);
-      else alert(res.error);
+      else toast.error(res.error);
     });
   }
-  function onDelete(id: string, name: string) {
-    if (!window.confirm(`Xóa mẫu "${name}"? (Các hạng mục đã tạo ở dự án không bị ảnh hưởng)`)) return;
+  async function onDelete(id: string, name: string) {
+    if (!(await confirm(`Xóa mẫu "${name}"? (Các hạng mục đã tạo ở dự án không bị ảnh hưởng)`))) return;
     start(async () => {
       const res = await deleteTemplate(id);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) toast.error(res.error);
       else router.refresh();
     });
   }
@@ -99,18 +103,18 @@ export function TemplateList({ templates }: { templates: TemplateRow[] }) {
                 <Td className="text-right">
                   <div className="flex justify-end gap-1">
                     <Link href={`/estimate-templates/${t.id}`}>
-                      <Button variant="ghost" size="icon" title="Sửa">
+                      <Button variant="ghost" size="icon" title="Sửa" aria-label="Sửa">
                         <Pencil className="h-4 w-4" />
                       </Button>
                     </Link>
-                    <Button variant="ghost" size="icon" title="Nhân bản" onClick={() => onDuplicate(t.id)} disabled={pending}>
+                    <Button variant="ghost" size="icon" title="Nhân bản" aria-label="Nhân bản" onClick={() => onDuplicate(t.id)} disabled={pending}>
                       <Copy className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
                       className="text-red-600 hover:bg-red-50"
-                      title="Xóa"
+                      title="Xóa" aria-label="Xóa"
                       onClick={() => onDelete(t.id, t.name)}
                       disabled={pending}
                     >

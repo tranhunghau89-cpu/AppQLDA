@@ -17,6 +17,8 @@ import { Modal } from "@/components/ui/modal";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { formatVND, formatNumber, formatDate } from "@/lib/utils";
 import { computeQuoteTotals, lineSell, sellFromBase } from "@/lib/quote";
+import { useConfirm } from "@/components/ui/confirm";
+import { useToast } from "@/components/ui/toast";
 import {
   saveQuote,
   deleteQuote,
@@ -123,6 +125,8 @@ export function QuoteEditor({
 
   // ----- clone modal -----
   const [cOpen, setCOpen] = useState(false);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   function refresh() {
     setError(null);
@@ -150,11 +154,11 @@ export function QuoteEditor({
       }
     });
   }
-  function onDeleteQuote(q: QuoteView) {
-    if (!window.confirm(`Xóa báo giá "${q.title}"? (kèm toàn bộ phần & dòng)`)) return;
+  async function onDeleteQuote(q: QuoteView) {
+    if (!(await confirm(`Xóa báo giá "${q.title}"? (kèm toàn bộ phần & dòng)`))) return;
     start(async () => {
       const res = await deleteQuote(projectId, q.id);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) toast.error(res.error);
       else refresh();
     });
   }
@@ -190,11 +194,11 @@ export function QuoteEditor({
       }
     });
   }
-  function onDeleteSection(s: SectionView) {
-    if (!window.confirm(`Xóa "${s.code} — ${s.name}"? (kèm dòng bên trong)`)) return;
+  async function onDeleteSection(s: SectionView) {
+    if (!(await confirm(`Xóa "${s.code} — ${s.name}"? (kèm dòng bên trong)`))) return;
     start(async () => {
       const res = await deleteSection(projectId, s.id);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) toast.error(res.error);
       else refresh();
     });
   }
@@ -261,11 +265,11 @@ export function QuoteEditor({
       }
     });
   }
-  function onDeleteItem(it: ItemView) {
-    if (!window.confirm(`Xóa dòng "${it.name}"?`)) return;
+  async function onDeleteItem(it: ItemView) {
+    if (!(await confirm(`Xóa dòng "${it.name}"?`))) return;
     start(async () => {
       const res = await deleteItem(projectId, it.id);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) toast.error(res.error);
       else refresh();
     });
   }
@@ -292,20 +296,20 @@ export function QuoteEditor({
       }
     });
   }
-  function onReprice(q: QuoteView) {
-    if (!window.confirm("Cập nhật lại giá gốc từ bảng đơn giá (đơn giá bán = giá gốc × TL)?"))
+  async function onReprice(q: QuoteView) {
+    if (!(await confirm("Cập nhật lại giá gốc từ bảng đơn giá (đơn giá bán = giá gốc × TL)?")))
       return;
     start(async () => {
       const res = await repriceQuote(projectId, q.id);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) toast.error(res.error);
       else refresh();
     });
   }
-  function onPush(q: QuoteView, total: number) {
-    if (!window.confirm(`Đặt giá bán dự án = tổng báo giá (${formatVND(total)})?`)) return;
+  async function onPush(q: QuoteView, total: number) {
+    if (!(await confirm(`Đặt giá bán dự án = tổng báo giá (${formatVND(total)})?`))) return;
     start(async () => {
       const res = await pushSalePrice(projectId, q.id);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) toast.error(res.error);
       else refresh();
     });
   }
@@ -358,7 +362,7 @@ export function QuoteEditor({
           <Field label="Tiêu đề *">
             <Input name="title" defaultValue={qEditing?.title ?? ""} required />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Kính gửi">
               <Input name="recipient" defaultValue={qEditing?.recipient ?? ""} />
             </Field>
@@ -369,7 +373,7 @@ export function QuoteEditor({
           <Field label="Hạng mục">
             <Input name="scope" defaultValue={qEditing?.scope ?? ""} />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Ngày báo giá">
               <Input
                 name="quoteDate"
@@ -411,7 +415,7 @@ export function QuoteEditor({
               </Select>
             </Field>
           )}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Mã (A / I) *">
               <Input name="code" defaultValue={sEditing?.code ?? ""} required />
             </Field>
@@ -462,7 +466,7 @@ export function QuoteEditor({
               required
             />
           </Field>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Field label="Đơn vị">
               <Input name="unit" value={f.unit} onChange={(e) => setF((p) => ({ ...p, unit: e.target.value }))} />
             </Field>
@@ -479,7 +483,7 @@ export function QuoteEditor({
               <Input name="spec" value={f.spec} onChange={(e) => setF((p) => ({ ...p, spec: e.target.value }))} />
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Giá gốc">
               <Input
                 name="baseCost"
@@ -705,7 +709,7 @@ function QuoteCard({
                 {canEdit && (
                   <Td className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => onAddSub(phan.id)} title="Thêm mục con">
+                      <Button variant="ghost" size="icon" onClick={() => onAddSub(phan.id)} title="Thêm mục con" aria-label="Thêm mục con">
                         <Plus className="h-3.5 w-3.5" />
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => onEditSection(phan)}>

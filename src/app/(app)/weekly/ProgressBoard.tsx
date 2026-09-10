@@ -6,6 +6,7 @@ import { ChevronDown, ChevronRight, ExternalLink, Trash2 } from "lucide-react";
 import { addProjectNote, deleteProjectNote } from "../projects/actions";
 import { Badge } from "@/components/ui/badge";
 import { PROJECT_STATUS_MAP, MILESTONE_TYPE_MAP } from "@/lib/constants";
+import { useConfirm } from "@/components/ui/confirm";
 
 export interface TimelineEntry {
   key: string;
@@ -44,16 +45,16 @@ export function ProgressBoard({
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
       <table className="w-full text-sm">
         <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
           <tr>
             <th className="w-8 px-3 py-2.5" />
             <th className="px-3 py-2.5">Mã</th>
             <th className="px-3 py-2.5">Tên dự án</th>
-            <th className="px-3 py-2.5">Trạng thái</th>
-            <th className="px-3 py-2.5">Mốc công việc</th>
-            <th className="px-3 py-2.5">Ghi chú mới nhất</th>
+            <th className="hidden px-3 py-2.5 sm:table-cell">Trạng thái</th>
+            <th className="hidden px-3 py-2.5 md:table-cell">Mốc công việc</th>
+            <th className="hidden px-3 py-2.5 lg:table-cell">Ghi chú mới nhất</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -102,6 +103,7 @@ function RowGroup({
   toggle: () => void;
 }) {
   const [pending, startTransition] = useTransition();
+  const confirm = useConfirm();
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -118,8 +120,8 @@ function RowGroup({
     });
   };
 
-  const removeNote = (noteId: string) => {
-    if (!confirm("Xóa ghi chú này?")) return;
+  const removeNote = async (noteId: string) => {
+    if (!(await confirm("Xóa ghi chú này?"))) return;
     startTransition(async () => {
       const res = await deleteProjectNote(noteId, r.id);
       if (!res.ok) setError(res.error);
@@ -135,8 +137,20 @@ function RowGroup({
         <td className="px-3 py-2.5 font-medium text-slate-800">
           {r.name}
           {r.location ? <span className="ml-1.5 text-xs text-slate-400">· {r.location}</span> : null}
+          {/* Màn hẹp: gộp trạng thái + tiến độ mốc vào ngay dưới tên, vì 3 cột kia bị ẩn. */}
+          <div className="mt-1 flex flex-wrap items-center gap-1.5 sm:hidden">
+            <Badge tone={st?.tone ?? "slate"}>{st?.label ?? r.status}</Badge>
+            {Object.keys(r.lateTypes).length > 0 && (
+              <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
+                trễ {Object.keys(r.lateTypes).length} mốc
+              </span>
+            )}
+            <span className="text-xs font-normal text-slate-500">
+              {r.milestoneDone}/{r.milestoneTotal} mốc
+            </span>
+          </div>
         </td>
-        <td className="px-3 py-2.5">
+        <td className="hidden px-3 py-2.5 sm:table-cell">
           <div className="flex items-center gap-1.5">
             <Badge tone={st?.tone ?? "slate"}>{st?.label ?? r.status}</Badge>
             {Object.keys(r.lateTypes).length > 0 && (
@@ -146,7 +160,7 @@ function RowGroup({
             )}
           </div>
         </td>
-        <td className="px-3 py-2.5">
+        <td className="hidden px-3 py-2.5 md:table-cell">
           <div className="flex items-center gap-2">
             <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-100">
               <div className="h-full rounded-full bg-green-500" style={{ width: `${pct}%` }} />
@@ -156,7 +170,7 @@ function RowGroup({
             </span>
           </div>
         </td>
-        <td className="max-w-[320px] px-3 py-2.5">
+        <td className="hidden max-w-[320px] px-3 py-2.5 lg:table-cell">
           {r.latest ? (
             <div>
               <div className="text-xs text-slate-400">
@@ -275,7 +289,7 @@ function RowGroup({
                             removeNote(t.noteId!);
                           }}
                           className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500"
-                          title="Xóa ghi chú"
+                          title="Xóa ghi chú" aria-label="Xóa ghi chú"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>

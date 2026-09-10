@@ -1,22 +1,41 @@
-import { LogOut } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 import { ROLE_LABEL, type Role } from "@/lib/rbac";
 
-export function Topbar({ name, role }: { name: string; role: Role }) {
+export function Topbar({
+  name,
+  role,
+  onOpenMenu,
+}: {
+  name: string;
+  role: Role;
+  /** Mở ngăn kéo điều hướng — chỉ hiện dưới lg. */
+  onOpenMenu: () => void;
+}) {
   return (
-    <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6">
-      <div />
-      <div className="flex items-center gap-4">
-        <div className="text-right leading-tight">
-          <div className="text-sm font-medium text-slate-900">{name}</div>
-          <div className="text-xs text-slate-400">{ROLE_LABEL[role]}</div>
+    <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 sm:px-6">
+      <button
+        type="button"
+        onClick={onOpenMenu}
+        aria-label="Mở menu"
+        aria-controls="sidebar-chinh"
+        className="-ml-1 rounded-md p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
+      <div className="flex min-w-0 flex-1 items-center justify-end gap-3 sm:gap-4">
+        <div className="min-w-0 text-right leading-tight">
+          <div className="truncate text-sm font-medium text-slate-900">{name}</div>
+          <div className="truncate text-xs text-slate-400">{ROLE_LABEL[role]}</div>
         </div>
         <form action="/api/auth/logout" method="post">
           <button
             type="submit"
-            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
+            aria-label="Đăng xuất"
+            className="flex items-center gap-2 rounded-md px-2 py-2 text-sm text-slate-600 hover:bg-slate-100 sm:px-3"
           >
             <LogOut className="h-4 w-4" />
-            Đăng xuất
+            <span className="hidden sm:inline">Đăng xuất</span>
           </button>
         </form>
       </div>

@@ -20,6 +20,8 @@ import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { PO_CATEGORY, PO_CATEGORY_MAP, PO_STATUS, PO_STATUS_MAP } from "@/lib/constants";
 import { cn, formatVND, formatNumber, formatDate } from "@/lib/utils";
+import { useConfirm } from "@/components/ui/confirm";
+import { useToast } from "@/components/ui/toast";
 import {
   savePurchaseOrder,
   deletePurchaseOrder,
@@ -93,6 +95,8 @@ export function PurchaseEditor({
   const [oOpen, setOOpen] = useState(false);
   const [oEditing, setOEditing] = useState<OrderView | null>(null);
   const [iOpen, setIOpen] = useState(false);
+  const toast = useToast();
+  const confirm = useConfirm();
   const [iOrderId, setIOrderId] = useState<string | null>(null);
   const [iEditing, setIEditing] = useState<OrderItemView | null>(null);
 
@@ -139,19 +143,19 @@ export function PurchaseEditor({
       }
     });
   }
-  function onDeleteOrder(o: OrderView) {
-    if (!window.confirm(`Xóa đơn hàng "${o.orderNo ?? ""}" và toàn bộ dòng vật tư?`)) return;
+  async function onDeleteOrder(o: OrderView) {
+    if (!(await confirm(`Xóa đơn hàng "${o.orderNo ?? ""}" và toàn bộ dòng vật tư?`))) return;
     start(async () => {
       const res = await deletePurchaseOrder(projectId, o.id);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) toast.error(res.error);
       else router.refresh();
     });
   }
-  function onDeleteItem(orderId: string, item: OrderItemView) {
-    if (!window.confirm(`Xóa "${item.name}"?`)) return;
+  async function onDeleteItem(orderId: string, item: OrderItemView) {
+    if (!(await confirm(`Xóa "${item.name}"?`))) return;
     start(async () => {
       const res = await deletePurchaseItem(projectId, orderId, item.id);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) toast.error(res.error);
       else router.refresh();
     });
   }
@@ -248,7 +252,7 @@ export function PurchaseEditor({
       {/* Modal đơn hàng */}
       <Modal open={oOpen} onClose={() => setOOpen(false)} title={oEditing ? "Sửa đơn hàng" : "Thêm đơn hàng"}>
         <form onSubmit={onOrderSubmit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Số / tên đơn">
               <Input name="orderNo" defaultValue={oEditing?.orderNo ?? ""} />
             </Field>
@@ -256,7 +260,7 @@ export function PurchaseEditor({
               <Input name="orderDate" type="date" defaultValue={d10(oEditing?.orderDate ?? null)} />
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Loại đơn *">
               <Select name="category" defaultValue={oEditing?.category ?? "BL"}>
                 {PO_CATEGORY.map((c) => (
@@ -286,7 +290,7 @@ export function PurchaseEditor({
               ))}
             </Select>
           </Field>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Field label="Ngày đặt">
               <Input name="orderedDate" type="date" defaultValue={d10(oEditing?.orderedDate ?? null)} />
             </Field>
@@ -318,7 +322,7 @@ export function PurchaseEditor({
       {/* Modal vật tư */}
       <Modal open={iOpen} onClose={() => setIOpen(false)} title={iEditing ? "Sửa vật tư" : "Thêm vật tư"}>
         <form onSubmit={onItemSubmit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Loại (sheet)">
               <Input name="category" defaultValue={iEditing?.category ?? ""} placeholder="BLLK, Tôn mái…" />
             </Field>
@@ -329,7 +333,7 @@ export function PurchaseEditor({
           <Field label="Tên hàng, quy cách *">
             <Input name="name" defaultValue={iEditing?.name ?? ""} required />
           </Field>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Field label="SL">
               <Input name="qty" type="number" step="any" defaultValue={iEditing?.qty ?? ""} />
             </Field>
@@ -763,6 +767,8 @@ function ItemImages({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
@@ -773,15 +779,15 @@ function ItemImages({
     setBusy(true);
     const res = await uploadPurchaseItemImages(projectId, item.id, fd);
     setBusy(false);
-    if (!res.ok) alert(res.error);
+    if (!res.ok) toast.error(res.error);
     else onRefresh();
   }
   async function onDelete(imgId: string) {
-    if (!window.confirm("Xóa ảnh biên dạng này?")) return;
+    if (!(await confirm("Xóa ảnh biên dạng này?"))) return;
     setBusy(true);
     const res = await deletePurchaseItemImage(projectId, imgId);
     setBusy(false);
-    if (!res.ok) alert(res.error);
+    if (!res.ok) toast.error(res.error);
     else onRefresh();
   }
 
@@ -796,7 +802,7 @@ function ItemImages({
             href={`/api/po-images/${imgId}`}
             target="_blank"
             rel="noopener noreferrer"
-            title="Mở hình biên dạng"
+            title="Mở hình biên dạng" aria-label="Mở hình biên dạng"
             className="block"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -810,7 +816,7 @@ function ItemImages({
             <button
               type="button"
               onClick={() => onDelete(imgId)}
-              title="Xóa ảnh"
+              title="Xóa ảnh" aria-label="Xóa ảnh"
               className="absolute -right-1.5 -top-1.5 hidden rounded-full bg-red-600 p-0.5 text-white shadow group-hover:block hover:bg-red-700"
             >
               <X className="h-2.5 w-2.5" />
@@ -824,7 +830,7 @@ function ItemImages({
             type="button"
             disabled={busy}
             onClick={() => inputRef.current?.click()}
-            title="Thêm ảnh biên dạng"
+            title="Thêm ảnh biên dạng" aria-label="Thêm ảnh biên dạng"
             className="flex h-8 w-8 items-center justify-center rounded border border-dashed border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-500 disabled:opacity-50"
           >
             <ImagePlus className="h-4 w-4" />

@@ -10,6 +10,8 @@ import { Modal } from "@/components/ui/modal";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { formatVND } from "@/lib/utils";
 import { saveCustomer, deleteCustomer } from "./actions";
+import { useConfirm } from "@/components/ui/confirm";
+import { useToast } from "@/components/ui/toast";
 
 export interface CustomerRow {
   id: string;
@@ -38,6 +40,8 @@ export function CustomerManager({
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [pending, start] = useTransition();
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const toggle = (id: string) =>
     setExpanded((s) => {
@@ -73,11 +77,11 @@ export function CustomerManager({
     });
   }
 
-  function onDelete(c: CustomerRow) {
-    if (!window.confirm(`Xóa CĐT "${c.name}"?`)) return;
+  async function onDelete(c: CustomerRow) {
+    if (!(await confirm(`Xóa CĐT "${c.name}"?`))) return;
     start(async () => {
       const res = await deleteCustomer(c.id);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) toast.error(res.error);
       else router.refresh();
     });
   }
@@ -201,7 +205,7 @@ export function CustomerManager({
           <Field label="Tên CĐT *">
             <Input name="name" defaultValue={editing?.name ?? ""} required />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Người phụ trách">
               <Input name="contactPerson" defaultValue={editing?.contactPerson ?? ""} />
             </Field>

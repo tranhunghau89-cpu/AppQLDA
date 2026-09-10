@@ -55,14 +55,14 @@ export default async function PurchasesPage() {
             <tr>
               <Th>Dự án</Th>
               <Th>Đơn hàng</Th>
-              <Th className="text-center">Loại</Th>
-              <Th>Nhà cung cấp</Th>
+              <Th hideBelow="sm" className="text-center">Loại</Th>
+              <Th hideBelow="md">Nhà cung cấp</Th>
               <Th className="text-center">Trạng thái</Th>
-              <Th className="text-right">Số dòng</Th>
-              <Th className="text-right">Giá trị</Th>
-              <Th className="text-right">KL (kg)</Th>
-              <Th>Ngày đặt</Th>
-              <Th>File</Th>
+              <Th hideBelow="xl" className="text-right">Số dòng</Th>
+              <Th hideBelow="sm" className="text-right">Giá trị</Th>
+              <Th hideBelow="lg" className="text-right">KL (kg)</Th>
+              <Th hideBelow="lg">Ngày đặt</Th>
+              <Th hideBelow="md">File</Th>
             </tr>
           </THead>
           <tbody>
@@ -80,18 +80,18 @@ export default async function PurchasesPage() {
                     </Link>
                   </Td>
                   <Td className="text-slate-600">{o.orderNo ?? "—"}</Td>
-                  <Td className="text-center">
+                  <Td hideBelow="sm" className="text-center">
                     <Badge tone={cat?.tone ?? "slate"}>{cat?.label ?? o.category}</Badge>
                   </Td>
-                  <Td className="text-slate-700">{o.supplier?.name ?? "—"}</Td>
+                  <Td hideBelow="md" className="text-slate-700">{o.supplier?.name ?? "—"}</Td>
                   <Td className="text-center">
                     <Badge tone={st?.tone ?? "slate"}>{st?.label ?? o.status}</Badge>
                   </Td>
-                  <Td className="text-right">{o._count.items}</Td>
-                  <Td className="text-right">{o.value ? formatVND(o.value) : "—"}</Td>
-                  <Td className="text-right">{formatNumber(o.totalWeight)}</Td>
-                  <Td className="text-slate-500">{o.orderDate ? formatDate(o.orderDate) : "—"}</Td>
-                  <Td>
+                  <Td hideBelow="xl" className="text-right">{o._count.items}</Td>
+                  <Td hideBelow="sm" className="text-right">{o.value ? formatVND(o.value) : "—"}</Td>
+                  <Td hideBelow="lg" className="text-right">{formatNumber(o.totalWeight)}</Td>
+                  <Td hideBelow="lg" className="text-slate-500">{o.orderDate ? formatDate(o.orderDate) : "—"}</Td>
+                  <Td hideBelow="md">
                     {o.filePath ? (
                       <a
                         href={`/api/purchases/${o.id}/file`}

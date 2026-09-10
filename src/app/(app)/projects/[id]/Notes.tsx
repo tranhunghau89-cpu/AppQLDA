@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { Trash2 } from "lucide-react";
 import { addProjectNote, deleteProjectNote } from "../actions";
+import { useConfirm } from "@/components/ui/confirm";
 
 export interface NoteItem {
   id: string;
@@ -34,6 +35,7 @@ export function ProjectNotes({
   canDelete: boolean;
 }) {
   const [pending, startTransition] = useTransition();
+  const confirm = useConfirm();
   const [error, setError] = useState<string | null>(null);
   const ref = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -50,8 +52,8 @@ export function ProjectNotes({
     });
   };
 
-  const remove = (noteId: string) => {
-    if (!confirm("Xóa ghi chú này?")) return;
+  const remove = async (noteId: string) => {
+    if (!(await confirm("Xóa ghi chú này?"))) return;
     startTransition(async () => {
       const res = await deleteProjectNote(noteId, projectId);
       if (!res.ok) setError(res.error);
@@ -130,7 +132,7 @@ export function ProjectNotes({
                   <button
                     onClick={() => remove(n.id)}
                     className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500"
-                    title="Xóa ghi chú"
+                    title="Xóa ghi chú" aria-label="Xóa ghi chú"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>

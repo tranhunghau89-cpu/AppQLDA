@@ -5,6 +5,9 @@ import Link from "next/link";
 import { Trash2, Check, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PROPOSAL_KIND, PROPOSAL_KIND_MAP, PROPOSAL_STATUS_MAP } from "@/lib/constants";
+import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm";
+import { Modal } from "@/components/ui/modal";
 import { createProposal, decideProposal, deleteProposal } from "./actions";
 
 export interface ProposalItem {
@@ -48,6 +51,7 @@ export function ProposalBoard({
   userName: string;
 }) {
   const [pending, startTransition] = useTransition();
+  const confirm = useConfirm();
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("ALL");
   const formRef = useRef<HTMLFormElement>(null);
@@ -61,23 +65,26 @@ export function ProposalBoard({
     });
   };
 
-  const decide = (id: string, decision: "APPROVED" | "REJECTED") => {
-    const note =
-      window.prompt(
-        decision === "APPROVED" ? "Ghi chú khi duyệt (có thể bỏ trống):" : "Lý do từ chối:"
-      ) ?? "";
+  // Quyết định đang chờ nhập ghi chú — mở modal thay vì prompt của trình duyệt.
+  const [dangQuyetDinh, setDangQuyetDinh] = useState<{
+    id: string;
+    decision: "APPROVED" | "REJECTED";
+  } | null>(null);
+
+  const decide = (id: string, decision: "APPROVED" | "REJECTED", note: string) => {
     if (decision === "REJECTED" && !note.trim()) {
       setError("Cần nhập lý do khi từ chối.");
       return;
     }
+    setDangQuyetDinh(null);
     startTransition(async () => {
       const res = await decideProposal(id, decision, note);
       if (!res.ok) setError(res.error);
     });
   };
 
-  const remove = (id: string) => {
-    if (!confirm("Xóa đề xuất này?")) return;
+  const remove = async (id: string) => {
+    if (!(await confirm("Xóa đề xuất này?"))) return;
     startTransition(async () => {
       const res = await deleteProposal(id);
       if (!res.ok) setError(res.error);
@@ -215,14 +222,14 @@ export function ProposalBoard({
                   {isAdmin && p.status === "PENDING" && (
                     <>
                       <button
-                        onClick={() => decide(p.id, "APPROVED")}
+                        onClick={() => setDangQuyetDinh({ id: p.id, decision: "APPROVED" })}
                         disabled={pending}
                         className="inline-flex items-center gap-1 rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
                       >
                         <Check className="h-4 w-4" /> Duyệt
                       </button>
                       <button
-                        onClick={() => decide(p.id, "REJECTED")}
+                        onClick={() => setDangQuyetDinh({ id: p.id, decision: "REJECTED" })}
                         disabled={pending}
                         className="inline-flex items-center gap-1 rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
                       >
@@ -234,7 +241,7 @@ export function ProposalBoard({
                     <button
                       onClick={() => remove(p.id)}
                       className="rounded p-1.5 text-slate-300 hover:bg-red-50 hover:text-red-500"
-                      title="Xóa đề xuất"
+                      title="Xóa đề xuất" aria-label="Xóa đề xuất"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -245,6 +252,54 @@ export function ProposalBoard({
           );
         })}
       </div>
+
+      <Modal
+        open={dangQuyetDinh !== null}
+        onClose={() => setDangQuyetDinh(null)}
+        title={dangQuyetDinh?.decision === "APPROVED" ? "Duyệt đề xuất" : "Từ chối đề xuất"}
+      >
+        {dangQuyetDinh && (
+          <form
+            action={(form: FormData) =>
+              decide(dangQuyetDinh.id, dangQuyetDinh.decision, String(form.get("note") ?? ""))
+            }
+            className="space-y-4"
+          >
+            <div>
+              <label htmlFor="qd-note" className="mb-1 block text-sm font-medium text-slate-700">
+                {dangQuyetDinh.decision === "APPROVED" ? "Ghi chú khi duyệt" : "Lý do từ chối"}
+                {dangQuyetDinh.decision === "REJECTED" && (
+                  <span className="text-red-500"> *</span>
+                )}
+              </label>
+              <textarea
+                id="qd-note"
+                name="note"
+                rows={3}
+                required={dangQuyetDinh.decision === "REJECTED"}
+                autoFocus
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                placeholder={
+                  dangQuyetDinh.decision === "APPROVED"
+                    ? "Có thể bỏ trống"
+                    : "Nêu rõ lý do để người đề xuất chỉnh sửa"
+                }
+              />
+            </div>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setDangQuyetDinh(null)}>
+                Hủy
+              </Button>
+              <Button
+                type="submit"
+                variant={dangQuyetDinh.decision === "APPROVED" ? "primary" : "danger"}
+              >
+                {dangQuyetDinh.decision === "APPROVED" ? "Duyệt" : "Từ chối"}
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 }

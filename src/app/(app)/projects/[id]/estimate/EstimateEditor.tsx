@@ -12,6 +12,8 @@ import { formatVND, formatNumber } from "@/lib/utils";
 import { computeAmount, computeProfit, formatPercent } from "@/lib/profit";
 import { saveEstimateItem, deleteEstimateItem, deleteEstimateSection } from "./actions";
 import { ApplyTemplate, type TemplateForClient } from "./ApplyTemplate";
+import { useConfirm } from "@/components/ui/confirm";
+import { useToast } from "@/components/ui/toast";
 
 export interface EstimateRow {
   id: string;
@@ -70,6 +72,8 @@ export function EstimateEditor({
   const [editing, setEditing] = useState<EstimateRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const summary = useMemo(
     () => computeProfit(items, salePrice, area),
@@ -143,20 +147,20 @@ export function EstimateEditor({
     });
   }
 
-  function onDelete(it: EstimateRow) {
-    if (!window.confirm(`Xóa "${it.name}"?`)) return;
+  async function onDelete(it: EstimateRow) {
+    if (!(await confirm(`Xóa "${it.name}"?`))) return;
     start(async () => {
       const res = await deleteEstimateItem(projectId, it.id);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) toast.error(res.error);
       else router.refresh();
     });
   }
 
-  function onDeleteSection(id: string, name: string) {
-    if (!window.confirm(`Xóa cả hạng mục "${name}" và mọi dòng bên trong?`)) return;
+  async function onDeleteSection(id: string, name: string) {
+    if (!(await confirm(`Xóa cả hạng mục "${name}" và mọi dòng bên trong?`))) return;
     start(async () => {
       const res = await deleteEstimateSection(projectId, id);
-      if (!res.ok) alert(res.error);
+      if (!res.ok) toast.error(res.error);
       else router.refresh();
     });
   }
@@ -197,7 +201,7 @@ export function EstimateEditor({
                   {canEdit && block.id && (
                     <button
                       className="text-white/70 hover:text-red-300"
-                      title="Xóa cả hạng mục"
+                      title="Xóa cả hạng mục" aria-label="Xóa cả hạng mục"
                       onClick={() => onDeleteSection(block.id!, block.name)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -313,7 +317,7 @@ export function EstimateEditor({
         title={editing ? "Sửa hạng mục dự toán" : "Thêm hạng mục dự toán"}
       >
         <form onSubmit={onSubmit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Nhóm *">
               <Select name="groupCode" defaultValue={editing?.groupCode ?? "KCT"}>
                 {ESTIMATE_GROUP.map((g) => (
@@ -330,7 +334,7 @@ export function EstimateEditor({
           <Field label="Tên hạng mục *">
             <Input name="name" defaultValue={editing?.name ?? ""} required />
           </Field>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Field label="KL thiết kế">
               <Input name="designQty" type="number" step="any" defaultValue={editing?.designQty ?? ""} />
             </Field>
@@ -354,7 +358,7 @@ export function EstimateEditor({
               ))}
             </Select>
           </Field>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Đặt hàng">
               <Input name="orderStatus" defaultValue={editing?.orderStatus ?? ""} />
             </Field>
