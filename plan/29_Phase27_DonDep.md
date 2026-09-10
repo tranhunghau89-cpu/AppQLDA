@@ -157,6 +157,25 @@ Cần một trong hai:
 - một tài khoản dùng riêng cho kiểm thử trên DB thật, hoặc
 - một cơ sở dữ liệu riêng để kiểm thử, seed bằng `npm run db:seed`.
 
+## 27.9 CI — bỏ cảnh báo lặp lại và chỉnh phiên bản Node
+
+Mỗi lần CI chạy đều kèm một cảnh báo:
+
+> *Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced
+> to run on Node.js 24: `actions/checkout@v4`, `actions/setup-node@v4`.*
+
+Đã nâng cả hai lên **v5**.
+
+Nhân tiện chỉnh `node-version` từ **20 → 22**. Lý do: Next 16 yêu cầu Node ≥ 20.9, nhưng
+máy phát triển đang chạy **Node 24**. Để CI ở đúng mức sàn tối thiểu thì nó không còn
+kiểm chứng đúng cái mà người ta thực sự chạy — một lỗi chỉ xuất hiện từ Node 22 trở lên
+sẽ lọt qua CI rồi mới nổ trên Vercel.
+
+> **Chưa động tới phiên bản Node của Vercel.** Repo không khai báo `engines.node` cũng
+> không có `.nvmrc`, nên Vercel đang tự chọn. Ghim nó lại là một thay đổi ảnh hưởng thẳng
+> tới bản build đang chạy, cần quyết định có chủ đích chứ không nên sửa kèm trong một
+> commit dọn dẹp.
+
 ---
 
 ## Kiểm chứng
@@ -170,6 +189,7 @@ Cần một trong hai:
 | Token cũ trong lịch sử git | ✅ đã chết, kiểm bằng `jwtVerify` |
 | Chặn đăng nhập trên route mới | ✅ 7/7 đường dẫn |
 | Chống dò mật khẩu | ✅ 429 + `Retry-After: 900` sau 10 lần |
+| CI trên Node 22 với actions v5 | ✅ xanh, không còn cảnh báo deprecated |
 
 ## Việc còn lại của cả bản rà soát
 

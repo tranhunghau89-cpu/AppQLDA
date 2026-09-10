@@ -9,11 +9,16 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      # v5 chay tren Node 24 cua runner. Ban v4 target Node 20 va da bi GitHub bao
+      # deprecated — moi lan chay CI deu hien mot canh bao.
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          # Next 16 yeu cau >= 20.9. Chon 22 (LTS) thay vi 20: may phat trien dang
+          # chay Node 24, de CI o muc san toi thieu thi no khong con kiem chung dung
+          # cai ma nguoi ta thuc su chay.
+          node-version: 22
           cache: npm
 
       # `npm ci` chạy postinstall -> `prisma generate`, cần schema nhưng KHÔNG cần kết nối DB.
