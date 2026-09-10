@@ -15,27 +15,29 @@ export default async function PurchasePage({
   const session = await requireProjectView("purchase", id);
   const canEdit = can(session.role, "purchase", "edit");
 
-  const project = await db.project.findUnique({
-    where: { id },
-    include: {
-      purchaseOrders: {
-        orderBy: [{ category: "asc" }, { createdAt: "asc" }],
-        include: {
-          supplier: { select: { id: true, name: true } },
-          items: {
-            orderBy: { sortOrder: "asc" },
-            include: { images: { orderBy: { sortOrder: "asc" }, select: { id: true } } },
+  // 2 truy vấn độc lập -> chạy song song (guard phân quyền đã xong ở trên).
+  const [project, suppliers] = await Promise.all([
+    db.project.findUnique({
+      where: { id },
+      include: {
+        purchaseOrders: {
+          orderBy: [{ category: "asc" }, { createdAt: "asc" }],
+          include: {
+            supplier: { select: { id: true, name: true } },
+            items: {
+              orderBy: { sortOrder: "asc" },
+              include: { images: { orderBy: { sortOrder: "asc" }, select: { id: true } } },
+            },
           },
         },
       },
-    },
-  });
+    }),
+    db.supplier.findMany({
+      orderBy: [{ category: "asc" }, { name: "asc" }],
+      select: { id: true, name: true },
+    }),
+  ]);
   if (!project) notFound();
-
-  const suppliers = await db.supplier.findMany({
-    orderBy: [{ category: "asc" }, { name: "asc" }],
-    select: { id: true, name: true },
-  });
 
   const orders: OrderView[] = project.purchaseOrders.map((o) => ({
     id: o.id,

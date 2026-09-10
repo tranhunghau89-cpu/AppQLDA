@@ -44,24 +44,37 @@ export default async function ProgressPage() {
   const pids = projects.map((p) => p.id);
   const inScope = { projectId: { in: pids } };
 
-  const allNotes = await projectNoteDb.findMany({
-    where: inScope,
-    orderBy: { createdAt: "desc" },
-  });
+  // 3 truy vấn độc lập -> 1 lượt song song.
+  const [allNotes, allDocs, allPosRaw] = await Promise.all([
+    projectNoteDb.findMany({ where: inScope, orderBy: { createdAt: "desc" } }),
+    docVersionDb.findMany({ where: inScope, orderBy: [{ createdAt: "desc" }] }),
+    db.purchaseOrder.findMany({
+      where: inScope,
+      select: {
+        id: true,
+        projectId: true,
+        orderNo: true,
+        category: true,
+        orderedDate: true,
+        receivedDate: true,
+        supplier: { select: { name: true } },
+      },
+    }),
+  ]);
+
   const allNoteImgs = allNotes.length
     ? await noteImageDb.findMany({ where: { noteId: { in: allNotes.map((n) => n.id) } } })
     : [];
+  // signedUrl gọi API Supabase Storage cho TỪNG ảnh. Trước đây await tuần tự trong
+  // vòng lặp: 20 ảnh = 20 lượt gọi nối đuôi nhau. Nay gọi song song.
   const imgUrlByNote = new Map<string, string[]>();
-  for (const im of allNoteImgs) {
-    const url = await signedUrl(im.key);
-    if (!url) continue;
+  const urls = await Promise.all(allNoteImgs.map((im) => signedUrl(im.key)));
+  allNoteImgs.forEach((im, i) => {
+    const url = urls[i];
+    if (!url) return;
     const list = imgUrlByNote.get(im.noteId) ?? [];
     list.push(url);
     imgUrlByNote.set(im.noteId, list);
-  }
-  const allDocs = await docVersionDb.findMany({
-    where: inScope,
-    orderBy: [{ createdAt: "desc" }],
   });
   const docsByProject = new Map<string, typeof allDocs>();
   for (const d of allDocs) {
@@ -69,18 +82,7 @@ export default async function ProgressPage() {
     list.push(d);
     docsByProject.set(d.projectId, list);
   }
-  const allPos = await db.purchaseOrder.findMany({
-    where: inScope,
-    select: {
-      id: true,
-      projectId: true,
-      orderNo: true,
-      category: true,
-      orderedDate: true,
-      receivedDate: true,
-      supplier: { select: { name: true } },
-    },
-  });
+  const allPos = allPosRaw;
   const posByProject = new Map<string, typeof allPos>();
   for (const o of allPos) {
     const list = posByProject.get(o.projectId) ?? [];

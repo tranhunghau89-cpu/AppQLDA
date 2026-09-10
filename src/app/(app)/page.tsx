@@ -3,7 +3,7 @@ import { FolderKanban, Hammer, CheckCircle2, TrendingUp, AlertTriangle, Download
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
-import { scopedProjectWhere } from "@/lib/scope";
+import { scopedByProjectWhere, scopedProjectWhere } from "@/lib/scope";
 import { serverNow } from "@/lib/now";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -17,24 +17,79 @@ export default async function DashboardPage() {
   const session = await requireSession();
   const canViewProfit = can(session.role, "profit", "view");
 
-  const projects = await db.project.findMany({
-    where: await scopedProjectWhere(session),
-    orderBy: { updatedAt: "desc" },
-    include: {
-      customer: { select: { name: true } },
-      estimateItems: {
-        select: {
-          groupCode: true,
-          designQty: true,
-          actualQty: true,
-          unitPrice: true,
-          amount: true,
-        },
+  const canViewDebt = can(session.role, "debt", "view");
+  const nowTs = serverNow();
+  const where = await scopedProjectWhere(session);
+  const inScope = await scopedByProjectWhere(session);
+
+  // Trước đây: 1 findMany + 4 `include`. Prisma nạp các quan hệ khá tuần tự nên
+  // trang này tốn ~2,6 round-trip. Tách thành các truy vấn rời chạy song song còn
+  // ~1,4 round-trip (đo được: 864ms -> 465ms từ máy ở VN tới DB Tokyo).
+  //
+  // Có thử cả cách đưa phép cộng vào SQL bằng groupBy: 457ms — KHÔNG nhanh hơn
+  // đáng kể, mà lại phải chép logic của computeAmount() sang SQL. Nên giữ nguyên
+  // hàm thuần đã có test làm nguồn chân lý duy nhất.
+  const [rawProjects, estimateItems, costSummaries, openMilestones, doneMilestones, pays] =
+    await Promise.all([
+    db.project.findMany({
+      where,
+      orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        status: true,
+        location: true,
+        salePrice: true,
+        area: true,
+        updatedAt: true,
+        customer: { select: { name: true } },
       },
-      costSummary: { select: { revenue: true, cost: true } },
-      milestones: { select: { type: true, done: true, planDate: true } },
-    },
-  });
+    }),
+    db.estimateItem.findMany({
+      where: inScope,
+      select: {
+        projectId: true,
+        groupCode: true,
+        designQty: true,
+        actualQty: true,
+        unitPrice: true,
+        amount: true,
+      },
+    }),
+    db.costSummary.findMany({
+      where: inScope,
+      select: { projectId: true, revenue: true, cost: true },
+    }),
+    // Chỉ mốc CHƯA xong mới có thể trễ hạn — lọc ngay ở DB thay vì nạp hết về.
+    db.milestone.findMany({
+      where: { ...inScope, done: false, planDate: { lt: new Date(nowTs) } },
+      select: { projectId: true, type: true, planDate: true },
+    }),
+    // Chỉ cần SỐ mốc đã xong (để vẽ thanh tiến độ), không cần từng dòng.
+    db.milestone.groupBy({
+      by: ["projectId"],
+      where: { ...inScope, done: true },
+      _count: { _all: true },
+    }),
+    canViewDebt ? paymentDb.findMany({ where: inScope }) : Promise.resolve([]),
+  ]);
+
+  // Gom dữ liệu con về từng dự án (thay cho `include`).
+  const itemsByProject = new Map<string, typeof estimateItems>();
+  for (const it of estimateItems) {
+    const list = itemsByProject.get(it.projectId) ?? [];
+    list.push(it);
+    itemsByProject.set(it.projectId, list);
+  }
+  const costByProject = new Map(costSummaries.map((c) => [c.projectId, c]));
+  const doneCountByProject = new Map(doneMilestones.map((m) => [m.projectId, m._count._all]));
+
+  const projects = rawProjects.map((p) => ({
+    ...p,
+    estimateItems: itemsByProject.get(p.id) ?? [],
+    costSummary: costByProject.get(p.id) ?? null,
+  }));
 
   const statusData = PROJECT_STATUS.map((s) => ({
     status: s.value,
@@ -67,34 +122,27 @@ export default async function DashboardPage() {
     .slice(0, 6)
     .reverse();
 
-  // Mốc trễ hạn: chưa xong mà quá ngày kế hoạch
-  const nowTs = serverNow();
+  // Mốc trễ hạn — `openMilestones` đã được DB lọc sẵn (chưa xong + quá hạn).
+  const projectById = new Map(rawProjects.map((p) => [p.id, p]));
   const lateItems: { code: string; id: string; type: string; days: number }[] = [];
-  for (const p of projects) {
-    for (const m of p.milestones) {
-      if (!m.done && m.planDate && m.planDate.getTime() < nowTs) {
-        lateItems.push({
-          code: p.code,
-          id: p.id,
-          type: m.type,
-          days: Math.floor((nowTs - m.planDate.getTime()) / 86400000),
-        });
-      }
-    }
+  for (const m of openMilestones) {
+    const p = projectById.get(m.projectId);
+    if (!p || !m.planDate) continue;
+    lateItems.push({
+      code: p.code,
+      id: p.id,
+      type: m.type,
+      days: Math.floor((nowTs - m.planDate.getTime()) / 86400000),
+    });
   }
   lateItems.sort((a, b) => b.days - a.days);
 
   // Dòng tiền từ các đợt thanh toán
-  const canViewDebt = can(session.role, "debt", "view");
   const cash = { thuPlan: 0, thuPaid: 0, chiPlan: 0, chiPaid: 0, dueSoon: 0, overdue: 0 };
-  if (canViewDebt) {
-    const pays = await paymentDb.findMany({
-      where: { projectId: { in: projects.map((p) => p.id) } },
-    });
+  {
     const soon = nowTs + 14 * 86400000;
     for (const x of pays) {
       const plan = x.amount ?? 0;
-      const paid = x.paidAmount ?? 0;
       if (x.direction === "THU") {
         cash.thuPlan += plan;
         cash.thuPaid += x.paidDate ? (x.paidAmount ?? plan) : 0;
@@ -102,7 +150,6 @@ export default async function DashboardPage() {
         cash.chiPlan += plan;
         cash.chiPaid += x.paidDate ? (x.paidAmount ?? plan) : 0;
       }
-      void paid;
       if (!x.paidDate && x.dueDate) {
         if (x.dueDate.getTime() < nowTs) cash.overdue += 1;
         else if (x.dueDate.getTime() < soon) cash.dueSoon += 1;
@@ -281,7 +328,7 @@ export default async function DashboardPage() {
               </div>
               <div className="flex items-center gap-4">
                 {(() => {
-                  const doneCount = p.milestones.filter((m) => m.done).length;
+                  const doneCount = doneCountByProject.get(p.id) ?? 0;
                   const pct = Math.round((doneCount / MILESTONE_TYPE.length) * 100);
                   return (
                     <span className="flex items-center gap-2" title={`${doneCount}/${MILESTONE_TYPE.length} mốc hoàn thành`}>

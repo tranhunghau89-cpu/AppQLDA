@@ -39,6 +39,7 @@ model ProjectMember {
   createdAt DateTime @default(now())
 
   @@unique([projectId, userId])
+  @@index([userId])
 }
 
 model Customer {
@@ -102,6 +103,8 @@ model Project {
   costSummary    CostSummary?
   quotes         Quote[]
   members        ProjectMember[]
+  @@index([status])
+  @@index([customerId])
 }
 
 model PurchaseOrder {
@@ -125,6 +128,8 @@ model PurchaseOrder {
   updatedAt    DateTime  @updatedAt
 
   items PurchaseOrderItem[]
+  @@index([projectId])
+  @@index([supplierId])
 }
 
 model PurchaseOrderItem {
@@ -143,6 +148,7 @@ model PurchaseOrderItem {
   sortOrder Int           @default(0)
 
   images PoItemImage[]
+  @@index([orderId])
 }
 
 model PoItemImage {
@@ -153,6 +159,7 @@ model PoItemImage {
   data      Bytes // ảnh biên dạng nhúng từ file đơn
   sortOrder Int               @default(0)
   createdAt DateTime          @default(now())
+  @@index([itemId])
 }
 
 model Contract {
@@ -175,6 +182,7 @@ model Contract {
   updatedAt      DateTime       @updatedAt
 
   items ContractItem[]
+  @@index([projectId])
 }
 
 model ContractItem {
@@ -188,6 +196,7 @@ model ContractItem {
   amount     Float? // thành tiền
   sortOrder  Int      @default(0)
   createdAt  DateTime @default(now())
+  @@index([contractId])
 }
 
 model ProjectSupplier {
@@ -199,6 +208,7 @@ model ProjectSupplier {
   component  String // KCT|XA_GO|TON|BL_NEO|BLLK|LAP_DUNG
 
   @@unique([projectId, component])
+  @@index([supplierId])
 }
 
 model Milestone {
@@ -351,6 +361,8 @@ model EstimateItem {
   createdAt      DateTime  @default(now())
 
   @@index([sectionId])
+  @@index([projectId])
+  @@index([supplierId])
 }
 
 // ----- Mẫu hạng mục dự toán (Khung mái, Vách, Canopy, Nóc gió, Dầm sàn...) -----
@@ -434,6 +446,7 @@ model CostCategory {
   invoice   Float? // HÓA ĐƠN
   sortOrder Int         @default(0)
   items     CostItem[]
+  @@index([summaryId])
 }
 
 model CostItem {
@@ -447,6 +460,7 @@ model CostItem {
   ref        String? // Thời gian / HĐ
   note       String? // Ghi chú
   sortOrder  Int          @default(0)
+  @@index([categoryId])
 }
 
 // ----- Đơn giá & Báo giá chi tiết (Mã CV) -----
@@ -490,6 +504,7 @@ model Quote {
 
   sections QuoteSection[]
   items    QuoteItem[]
+  @@index([projectId])
 }
 
 // Phần (A/B/…) và mục con (I/II) — cây 2 cấp qua parentId.
@@ -507,6 +522,8 @@ model QuoteSection {
   sortOrder Int            @default(0)
 
   items QuoteItem[]
+  @@index([quoteId])
+  @@index([parentId])
 }
 
 // Dòng vật tư trong báo giá.
@@ -525,4 +542,5 @@ model QuoteItem {
   spec      String? // quy cách
   note      String?
   sortOrder Int          @default(0)
+  @@index([quoteId])
 }

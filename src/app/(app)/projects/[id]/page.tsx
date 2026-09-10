@@ -42,36 +42,56 @@ export default async function ProjectDetailPage({
   const session = await requireProjectView("project", id);
   const canEdit = can(session.role, "project", "edit");
 
-  const project = await db.project.findUnique({
-    where: { id },
-    include: {
-      customer: true,
-      suppliers: { include: { supplier: true } },
-      milestones: true,
-      estimateItems: {
-        select: {
-          groupCode: true,
-          designQty: true,
-          actualQty: true,
-          unitPrice: true,
-          amount: true,
+  // Guard phân quyền ở trên đã chạy xong; 5 truy vấn dưới đây độc lập nhau nên chạy
+  // song song thay vì nối tiếp — trước đây trang này tốn ~5 round-trip tới DB.
+  const [project, noteRows, docRows, paymentRows, suppliers] = await Promise.all([
+    db.project.findUnique({
+      where: { id },
+      include: {
+        customer: true,
+        suppliers: { include: { supplier: true } },
+        milestones: true,
+        estimateItems: {
+          select: {
+            groupCode: true,
+            designQty: true,
+            actualQty: true,
+            unitPrice: true,
+            amount: true,
+          },
+        },
+        contracts: {
+          orderBy: [{ status: "asc" }, { createdAt: "asc" }],
+          include: { items: { select: { qty: true, unitPrice: true, amount: true } } },
+        },
+        purchaseOrders: {
+          orderBy: [{ category: "asc" }, { createdAt: "asc" }],
+          include: { supplier: { select: { name: true } }, _count: { select: { items: true } } },
+        },
+        costSummary: { select: { id: true, revenue: true, cost: true, profit: true } },
+        quotes: {
+          orderBy: { createdAt: "desc" },
+          include: { items: { select: { qty: true, sellPrice: true, baseCost: true } } },
         },
       },
-      contracts: {
-        orderBy: [{ status: "asc" }, { createdAt: "asc" }],
-        include: { items: { select: { qty: true, unitPrice: true, amount: true } } },
-      },
-      purchaseOrders: {
-        orderBy: [{ category: "asc" }, { createdAt: "asc" }],
-        include: { supplier: { select: { name: true } }, _count: { select: { items: true } } },
-      },
-      costSummary: { select: { id: true, revenue: true, cost: true, profit: true } },
-      quotes: {
-        orderBy: { createdAt: "desc" },
-        include: { items: { select: { qty: true, sellPrice: true, baseCost: true } } },
-      },
-    },
-  });
+    }),
+    projectNoteDb.findMany({
+      where: { projectId: id },
+      orderBy: { createdAt: "desc" },
+    }),
+    docVersionDb.findMany({
+      where: { projectId: id },
+      orderBy: [{ docType: "asc" }, { createdAt: "desc" }],
+    }),
+    paymentDb.findMany({
+      where: { projectId: id },
+      orderBy: [{ direction: "asc" }, { dueDate: "asc" }],
+    }),
+    db.supplier.findMany({
+      orderBy: [{ category: "asc" }, { name: "asc" }],
+      select: { id: true, name: true, category: true },
+    }),
+  ]);
   if (!project) notFound();
 
   const canEditProgress = can(session.role, "progress", "edit");
@@ -93,21 +113,19 @@ export default async function ProjectDetailPage({
     };
   }
 
-  const noteRows = await projectNoteDb.findMany({
-    where: { projectId: id },
-    orderBy: { createdAt: "desc" },
-  });
   const noteImgs = noteRows.length
     ? await noteImageDb.findMany({ where: { noteId: { in: noteRows.map((n) => n.id) } } })
     : [];
+  // Gọi signedUrl song song thay vì tuần tự từng ảnh (mỗi lần là 1 API call Storage).
   const imgUrlByNote = new Map<string, string[]>();
-  for (const im of noteImgs) {
-    const url = await signedUrl(im.key);
-    if (!url) continue;
+  const noteImgUrls = await Promise.all(noteImgs.map((im) => signedUrl(im.key)));
+  noteImgs.forEach((im, i) => {
+    const url = noteImgUrls[i];
+    if (!url) return;
     const list = imgUrlByNote.get(im.noteId) ?? [];
     list.push(url);
     imgUrlByNote.set(im.noteId, list);
-  }
+  });
   const notes = noteRows.map((n) => ({
     id: n.id,
     content: n.content,
@@ -116,10 +134,6 @@ export default async function ProjectDetailPage({
     images: imgUrlByNote.get(n.id) ?? [],
   }));
 
-  const docRows = await docVersionDb.findMany({
-    where: { projectId: id },
-    orderBy: [{ docType: "asc" }, { createdAt: "desc" }],
-  });
   const docs = docRows.map((d) => ({
     id: d.id,
     docType: d.docType,
@@ -136,10 +150,6 @@ export default async function ProjectDetailPage({
     can(session.role, "progress", "edit") ? "SHOP_DRAWING" : null,
   ].filter((v): v is string => v !== null);
 
-  const paymentRows = await paymentDb.findMany({
-    where: { projectId: id },
-    orderBy: [{ direction: "asc" }, { dueDate: "asc" }],
-  });
   const payments = paymentRows.map((x) => ({
     id: x.id,
     direction: x.direction,
@@ -153,11 +163,6 @@ export default async function ProjectDetailPage({
   }));
   const canEditPayment = can(session.role, "cost", "edit");
   const canViewPayment = can(session.role, "debt", "view") || canEditPayment;
-
-  const suppliers = await db.supplier.findMany({
-    orderBy: [{ category: "asc" }, { name: "asc" }],
-    select: { id: true, name: true, category: true },
-  });
 
   const assigned: Record<string, { id: string; name: string }> = {};
   for (const link of project.suppliers) {

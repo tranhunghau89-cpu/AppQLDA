@@ -16,28 +16,29 @@ export default async function EstimatePage({
   const session = await requireProjectView("estimate", id);
   const canEdit = can(session.role, "estimate", "edit");
 
-  const project = await db.project.findUnique({
-    where: { id },
-    include: {
-      estimateItems: {
-        include: { supplier: { select: { name: true } } },
-        orderBy: [{ sortOrder: "asc" }],
+  // 3 truy vấn độc lập -> chạy song song (guard phân quyền đã xong ở trên).
+  const [project, suppliers, templateRows] = await Promise.all([
+    db.project.findUnique({
+      where: { id },
+      include: {
+        estimateItems: {
+          include: { supplier: { select: { name: true } } },
+          orderBy: [{ sortOrder: "asc" }],
+        },
+        estimateSections: { orderBy: { sortOrder: "asc" } },
       },
-      estimateSections: { orderBy: { sortOrder: "asc" } },
-    },
-  });
+    }),
+    db.supplier.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    db.estimateTemplate.findMany({
+      where: { active: true },
+      orderBy: { sortOrder: "asc" },
+      include: { lines: { orderBy: { sortOrder: "asc" } } },
+    }),
+  ]);
   if (!project) notFound();
-
-  const suppliers = await db.supplier.findMany({
-    orderBy: { name: "asc" },
-    select: { id: true, name: true },
-  });
-
-  const templateRows = await db.estimateTemplate.findMany({
-    where: { active: true },
-    orderBy: { sortOrder: "asc" },
-    include: { lines: { orderBy: { sortOrder: "asc" } } },
-  });
 
   const templates: TemplateForClient[] = templateRows.map((t) => ({
     id: t.id,

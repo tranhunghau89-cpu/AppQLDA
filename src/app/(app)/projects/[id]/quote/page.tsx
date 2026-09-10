@@ -12,21 +12,37 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
   const session = await requireProjectView("quote", id);
   const canEdit = can(session.role as Role, "quote", "edit");
 
-  const project = await db.project.findUnique({
-    where: { id },
-    select: { id: true, code: true, name: true, location: true },
-  });
+  // 4 truy vấn độc lập -> chạy song song (guard phân quyền đã xong ở trên).
+  const [project, rawQuotes, catalogRows, sourceRows] = await Promise.all([
+    db.project.findUnique({
+      where: { id },
+      select: { id: true, code: true, name: true, location: true },
+    }),
+    db.quote.findMany({
+      where: { projectId: id },
+      orderBy: { createdAt: "desc" },
+      include: {
+        sections: { orderBy: { sortOrder: "asc" } },
+        items: { orderBy: { sortOrder: "asc" } },
+        clonedFrom: { select: { title: true } },
+      },
+    }),
+    db.workPrice.findMany({
+      orderBy: [{ groupCode: "asc" }, { sortOrder: "asc" }],
+      select: { code: true, name: true, unit: true, baseCost: true },
+    }),
+    // Chỉ được clone từ báo giá của dự án mình được phân công.
+    db.quote.findMany({
+      where: await scopedByProjectWhere(session),
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        project: { select: { code: true, name: true } },
+      },
+    }),
+  ]);
   if (!project) notFound();
-
-  const rawQuotes = await db.quote.findMany({
-    where: { projectId: id },
-    orderBy: { createdAt: "desc" },
-    include: {
-      sections: { orderBy: { sortOrder: "asc" } },
-      items: { orderBy: { sortOrder: "asc" } },
-      clonedFrom: { select: { title: true } },
-    },
-  });
 
   const quotes: QuoteView[] = rawQuotes.map((q) => ({
     id: q.id,
@@ -60,10 +76,6 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
     })),
   }));
 
-  const catalogRows = await db.workPrice.findMany({
-    orderBy: [{ groupCode: "asc" }, { sortOrder: "asc" }],
-    select: { code: true, name: true, unit: true, baseCost: true },
-  });
   const catalog: CatalogOption[] = catalogRows.map((c) => ({
     code: c.code,
     name: c.name,
@@ -71,16 +83,6 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
     baseCost: c.baseCost,
   }));
 
-  // Chỉ được clone từ báo giá của dự án mình được phân công.
-  const sourceRows = await db.quote.findMany({
-    where: await scopedByProjectWhere(session),
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      title: true,
-      project: { select: { code: true, name: true } },
-    },
-  });
   const cloneSources: CloneSource[] = sourceRows.map((s) => ({
     id: s.id,
     label: `${s.project.code} · ${s.title}`,
