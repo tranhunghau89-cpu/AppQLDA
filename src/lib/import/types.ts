@@ -1,0 +1,60 @@
+// Khung chung cho việc nhập Excel qua web.
+//
+// Luồng: upload -> parse (CHỈ đọc, không đụng DB) -> xem trước -> xác nhận -> apply.
+// Việc tách parse khỏi apply là điểm mấu chốt: người dùng thấy trước hệ thống hiểu
+// file thế nào rồi mới quyết định ghi, thay vì chạy script CLI rồi mới biết sai.
+import "server-only";
+
+export const IMPORT_KIND = {
+  estimate: "Dự toán chi tiết",
+  thcp: "Tổng hợp chi phí (quyết toán)",
+  order: "Đơn đặt hàng vật tư",
+} as const;
+
+export type ImportKind = keyof typeof IMPORT_KIND;
+
+/** Mô tả cách file được khớp vào một dự án. */
+export interface ProjectMatch {
+  /** null = sẽ tạo dự án mới khi xác nhận. */
+  projectId: string | null;
+  code: string | null;
+  name: string;
+  /** Giải thích cho người dùng vì sao khớp vào đây. */
+  cachKhop: string;
+  taoMoi: boolean;
+}
+
+export interface PreviewStat {
+  nhan: string;
+  giaTri: string;
+}
+
+/** Một dòng trong bảng xem trước — cố ý để dạng chuỗi cho dễ hiển thị. */
+export interface PreviewRow {
+  cot: string[];
+}
+
+export interface ImportPreview {
+  kind: ImportKind;
+  fileName: string;
+  duAn: ProjectMatch;
+  /** Số liệu tổng hợp hiện lên đầu (diện tích, tổng chi phí, số dòng...). */
+  thongKe: PreviewStat[];
+  /** Cảnh báo — không chặn, nhưng người dùng nên đọc trước khi xác nhận. */
+  canhBao: string[];
+  tieuDeCot: string[];
+  /** Chỉ vài dòng đầu để xem; số thật nằm ở `tongSoDong`. */
+  dongMau: PreviewRow[];
+  tongSoDong: number;
+  /**
+   * Dữ liệu đã bóc, gửi xuống client rồi gửi ngược lên khi xác nhận.
+   * Server VẪN validate lại bằng zod trước khi ghi — không tin dữ liệu quay về.
+   */
+  payload: unknown;
+}
+
+export interface ImportResult {
+  ok: boolean;
+  thongDiep: string;
+  projectId?: string;
+}

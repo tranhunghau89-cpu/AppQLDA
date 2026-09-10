@@ -5,21 +5,13 @@
 // Cấu trúc: `buildReceivables` / `buildPayables` là hàm THUẦN (không chạm DB) để test được;
 // `getReceivables` / `getPayables` chỉ lo truy vấn + áp phạm vi dự án rồi gọi hàm thuần.
 import { db } from "@/lib/db";
+import { norm } from "@/lib/text";
 
 /** Phạm vi dự án được phép xem: "ALL" (ADMIN) hoặc danh sách id. */
 export type ProjectScope = string[] | "ALL";
 
-/** Chuẩn hóa tên để khớp NCC (giống import-thcp): bỏ dấu, đ→d, chỉ a-z0-9. */
-export function norm(s: unknown): string {
-  if (typeof s !== "string") return "";
-  return s
-    .replace(/đ/g, "d")
-    .replace(/Đ/g, "D")
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-}
+// Chuẩn hóa tên để khớp NCC — dùng chung với phần nhập Excel (xem lib/text.ts).
+export { norm } from "@/lib/text";
 
 export type ReceivableSource = "QUYETTOAN" | "HOPDONG" | "GIABAN" | "NONE";
 
