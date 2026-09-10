@@ -55,3 +55,13 @@ export function dims(fileBase: string): string | null {
   const m = fileBase.match(/^(K\d+L\d+)/i);
   return m ? m[1].toUpperCase() : null;
 }
+
+/**
+ * Giao dien toi thieu cua mot worksheet - de test khong can file Excel that.
+ * `columnCount` la tuy chon vi chi vai bo boc tach can toi no.
+ */
+export interface SheetLike {
+  rowCount: number;
+  columnCount?: number;
+  getCell(row: number, col: number): { value: CellValue };
+}

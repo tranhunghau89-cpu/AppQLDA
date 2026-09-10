@@ -1,8 +1,9 @@
 // Bóc tách file dự toán (sheet "TongHop") — phần THUẦN, không chạm DB và không
 // "server-only", nên chạy được cả trong test lẫn script kiểm tra ngoài Next.
 // Phần đọc file + ghi DB nằm ở estimate.ts.
-import type { CellValue } from "exceljs";
-import { norm, num, text } from "./cells";
+import { norm, num, text, type SheetLike } from "./cells";
+
+export type { SheetLike };
 
 /** Nhãn nhóm cấp 1 theo cột A của sheet TongHop. */
 const GROUP_LABEL: Record<string, string> = {
@@ -62,12 +63,6 @@ export interface KetQuaBocTach {
   total: number;
   dong: DongDuToan[];
   canhBao: string[];
-}
-
-/** Giao diện tối thiểu của một worksheet — để test không cần file Excel thật. */
-export interface SheetLike {
-  rowCount: number;
-  getCell(row: number, col: number): { value: CellValue };
 }
 
 /**

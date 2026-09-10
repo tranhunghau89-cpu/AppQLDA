@@ -6,7 +6,7 @@ import { ImportWizard } from "./ImportWizard";
 /** Loại nào đã chuyển sang web, loại nào còn phải chạy CLI. */
 const HO_TRO: Record<ImportKind, { moTa: string; sanSang: boolean }> = {
   estimate: { moTa: "File dự toán, sheet TongHop — mỗi file 1 dự án", sanSang: true },
-  thcp: { moTa: "File tổng hợp chi phí / quyết toán", sanSang: false },
+  thcp: { moTa: "Quyết toán hoặc sổ giá thành — mỗi file 1 dự án", sanSang: true },
   order: { moTa: "File đơn đặt hàng vật tư", sanSang: false },
 };
 
@@ -34,9 +34,9 @@ export default async function ImportPage() {
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
         <div className="font-medium text-slate-800">Các loại chưa chuyển lên web</div>
         <p className="mt-1 text-xs">
-          Hợp đồng, bảng đơn giá, báo giá mẫu, đơn hàng và tổng hợp chi phí vẫn nhập bằng
-          lệnh trên máy phát triển (<code className="font-mono">npm run import:*</code>).
-          Đây đều là những việc làm một lần hoặc hiếm khi lặp lại.
+          Hợp đồng, bảng đơn giá, báo giá mẫu và đơn hàng vẫn nhập bằng lệnh trên máy
+          phát triển (<code className="font-mono">npm run import:*</code>). Đây đều là
+          những việc làm một lần hoặc hiếm khi lặp lại.
         </p>
       </div>
     </div>

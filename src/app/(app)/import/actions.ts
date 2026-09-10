@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth";
 import { applyEstimate, parseEstimate } from "@/lib/import/estimate";
+import { applyThcp, parseThcp } from "@/lib/import/thcp";
 import type { ImportKind, ImportPreview, ImportResult } from "@/lib/import/types";
 
 export type PreviewResult =
@@ -36,6 +37,8 @@ export async function previewImport(kind: ImportKind, form: FormData): Promise<P
     switch (kind) {
       case "estimate":
         return { ok: true, preview: await parseEstimate(buffer, file.name) };
+      case "thcp":
+        return { ok: true, preview: await parseThcp(buffer, file.name) };
       default:
         return { ok: false, error: "Loại nhập này chưa được hỗ trợ trên web." };
     }
@@ -66,6 +69,9 @@ export async function applyImport(kind: ImportKind, payload: unknown): Promise<I
       case "estimate":
         ketQua = await applyEstimate(payload, session);
         break;
+      case "thcp":
+        ketQua = await applyThcp(payload, session);
+        break;
       default:
         return { ok: false, thongDiep: "Loại nhập này chưa được hỗ trợ trên web." };
     }
@@ -73,6 +79,7 @@ export async function applyImport(kind: ImportKind, payload: unknown): Promise<I
     if (ketQua.ok) {
       revalidatePath("/projects");
       revalidatePath("/estimates");
+      revalidatePath("/costs");
       if (ketQua.projectId) revalidatePath(`/projects/${ketQua.projectId}`);
     }
     return ketQua;
