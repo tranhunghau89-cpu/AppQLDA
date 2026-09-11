@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
+import { Chip } from "@/components/ui/chip";
 import { useActionForm } from "@/components/ui/useActionForm";
 import { ModalActions } from "../projects/[id]/quote/ModalActions";
 import { lapBaoGiaNhanh } from "./actions";
@@ -258,36 +259,5 @@ function HopThoai({
         />
       </form>
     </Modal>
-  );
-}
-
-function Chip({
-  chon,
-  tat,
-  onClick,
-  children,
-}: {
-  chon: boolean;
-  tat?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={chon}
-      disabled={tat}
-      onClick={onClick}
-      className={
-        "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors " +
-        (tat
-          ? "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300"
-          : chon
-            ? "border-blue-600 bg-blue-600 text-white"
-            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50")
-      }
-    >
-      {children}
-    </button>
   );
 }

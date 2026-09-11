@@ -29,10 +29,15 @@ import { PrintHeader, PrintPage, dongNgayThang } from "@/components/print/PrintF
  */
 export default async function ClientQuotePrintPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ quoteId: string }>;
+  searchParams: Promise<{ xem?: string }>;
 }) {
   const { quoteId } = await params;
+  // `?xem=1`: trang này đang nằm trong khung xem trước ở /client-quote, nơi đã có sẵn
+  // nút in và nút đóng — thanh công cụ của riêng nó chỉ tổ thừa một tầng nút nữa.
+  const trongKhungXem = (await searchParams).xem === "1";
 
   const quote = await db.clientQuote.findUnique({
     where: { id: quoteId },
@@ -101,7 +106,7 @@ export default async function ClientQuotePrintPage({
 
   return (
     <>
-      <PrintToolbar quayVe={quayVe} nhan="Quay lại báo giá" />
+      {!trongKhungXem && <PrintToolbar quayVe={quayVe} nhan="Quay lại báo giá" />}
 
       <PrintPage>
         {/* ===================== TRANG 1 ===================== */}

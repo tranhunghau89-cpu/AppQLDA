@@ -9,6 +9,7 @@ import { HeaderModal, type GoiY } from "./HeaderModal";
 import { LineModal, type LineModalState } from "./LineModal";
 import { SpecModal, type SpecModalState } from "./SpecModal";
 import { TermsModal, type TermsModalState } from "./TermsModal";
+import { XemTruoc } from "./XemTruoc";
 import type { TemplateOption } from "@/lib/quoteTemplatePick";
 import type { ClientQuoteView, CustomerOption, LineView, SpecView } from "./types";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
@@ -43,6 +44,9 @@ export function ClientQuoteEditor({
   const [lineModal, setLineModal] = useState<LineModalState | null>(null);
   const [specModal, setSpecModal] = useState<SpecModalState | null>(null);
   const [termsModal, setTermsModal] = useState<TermsModalState | null>(null);
+  // Xem trước không phải form nên không đi qua closeAll — đóng lại thì chẳng có gì
+  // để nạp lại.
+  const [xemTruoc, setXemTruoc] = useState<{ id: string; title: string } | null>(null);
 
   function closeAll() {
     setHeaderModal(null);
@@ -89,9 +93,15 @@ export function ClientQuoteEditor({
           onEditSpec={(s: SpecView) =>
             setSpecModal({ quoteId: q.id, editing: s, defaultGroup: s.groupCode })
           }
-          onEditTerms={() =>
-            setTermsModal({ quoteId: q.id, stages: q.stages, payments: q.payments })
+          onEditTerms={(tongSauThue) =>
+            setTermsModal({
+              quoteId: q.id,
+              stages: q.stages,
+              payments: q.payments,
+              tongSauThue,
+            })
           }
+          onPreview={() => setXemTruoc({ id: q.id, title: q.title })}
         />
       ))}
 
@@ -123,6 +133,14 @@ export function ClientQuoteEditor({
           state={specModal}
           onClose={() => setSpecModal(null)}
           onDone={closeAll}
+        />
+      )}
+
+      {xemTruoc && (
+        <XemTruoc
+          quoteId={xemTruoc.id}
+          tieuDe={xemTruoc.title}
+          onClose={() => setXemTruoc(null)}
         />
       )}
 

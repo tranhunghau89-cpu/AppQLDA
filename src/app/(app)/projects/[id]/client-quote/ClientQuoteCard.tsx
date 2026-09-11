@@ -3,19 +3,20 @@
 import { useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, Printer, FileText, ListChecks, RotateCcw, RefreshCw } from "lucide-react";
+import { Plus, Pencil, Trash2, Printer, Eye, FileText, ListChecks, RotateCcw, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
-import { formatVND, formatNumber, formatQty, formatDate } from "@/lib/utils";
+import { formatVND, formatNumber, formatQty } from "@/lib/utils";
 import { computeClientQuoteTotals, lineAmount, partTotals, sumStageDays } from "@/lib/clientQuote";
 import { docTienVietNam } from "@/lib/money-words";
 import { CLIENT_QUOTE_STATUS_MAP, QUOTE_SPEC_GROUP_MAP, VAT_TU_TAG_MAP } from "@/lib/constants";
 import { moTaHangMuc, specsHienThi, tagsDangDung } from "@/lib/clientQuoteSpecs";
 import { InteractionLog } from "@/components/crm/InteractionLog";
 import { StatusBar } from "./StatusBar";
+import { ThongTinIn } from "./ThongTinIn";
 import { clearPriceOverride, deleteClientQuote, deleteLine, deleteSpec, recomputePrices } from "./actions";
 import type { ClientQuoteView, LineView, SpecView } from "./types";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
@@ -32,6 +33,7 @@ export function ClientQuoteCard({
   onAddSpec,
   onEditSpec,
   onEditTerms,
+  onPreview,
 }: {
   q: ClientQuoteView;
   chu: ChuBaoGia;
@@ -43,7 +45,8 @@ export function ClientQuoteCard({
   onEditLine: (l: LineView) => void;
   onAddSpec: (groupCode: string) => void;
   onEditSpec: (s: SpecView) => void;
-  onEditTerms: () => void;
+  onEditTerms: (tongSauThue: number) => void;
+  onPreview: () => void;
 }) {
   const router = useRouter();
   const [, start] = useTransition();
@@ -128,12 +131,6 @@ export function ClientQuoteCard({
             <span className="font-semibold text-slate-900">{q.title}</span>
             <Badge tone={trangThai?.tone ?? "slate"}>{trangThai?.label ?? q.status}</Badge>
           </div>
-          <div className="text-sm text-slate-500">
-            {q.recipient && <span>Kính gửi: {q.recipient} · </span>}
-            {q.scope && <span>{q.scope} · </span>}
-            {q.quoteDate ? formatDate(q.quoteDate) : "—"}
-            {q.expiryDate ? ` · hiệu lực đến ${formatDate(q.expiryDate)}` : ""}
-          </div>
           {(q.derivedFromTitle || q.clonedFromTitle) && (
             <p className="text-xs text-slate-400">
               {q.derivedFromTitle && `Sinh từ báo giá chi tiết: ${q.derivedFromTitle}`}
@@ -142,7 +139,11 @@ export function ClientQuoteCard({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          {/* In được thì ai xem được cũng nên in được — không gắn với quyền sửa. */}
+          {/* Xem trước và in đều là quyền XEM — ai mở được báo giá thì cũng nên
+              nhìn được tờ giấy sẽ gửi đi. */}
+          <Button variant="outline" size="sm" onClick={onPreview}>
+            <Eye className="h-3.5 w-3.5" /> Xem trước bản in
+          </Button>
           <Link
             href={`/bao-gia/${q.id}/print`}
             target="_blank"
@@ -158,7 +159,7 @@ export function ClientQuoteCard({
                   <RefreshCw className="h-3.5 w-3.5" /> Tính lại đơn giá
                 </Button>
               )}
-              <Button variant="outline" size="sm" onClick={onEditTerms}>
+              <Button variant="outline" size="sm" onClick={() => onEditTerms(tong.withVat)}>
                 <ListChecks className="h-3.5 w-3.5" /> Điều khoản
               </Button>
               <Button variant="ghost" size="icon" onClick={onEdit} aria-label="Sửa báo giá">
@@ -177,6 +178,8 @@ export function ClientQuoteCard({
           )}
         </div>
       </div>
+
+      <ThongTinIn q={q} canEdit={canEdit} onEdit={onEdit} />
 
       {/* ---- Bảng báo giá theo hạng mục ---- */}
       <Table>

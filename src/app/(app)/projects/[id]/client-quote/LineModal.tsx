@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Input, Textarea, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
+import { Chip } from "@/components/ui/chip";
 import { useActionForm } from "@/components/ui/useActionForm";
 import { VAT_TU_TAG } from "@/lib/constants";
 import { lineAmount } from "@/lib/clientQuote";
@@ -118,24 +119,17 @@ export function LineModal({
             {VAT_TU_TAG.map((t) => {
               const chon = tags.includes(t.value);
               return (
-                <button
+                <Chip
                   key={t.value}
-                  type="button"
-                  aria-pressed={chon}
+                  chon={chon}
                   onClick={() =>
                     setTags((p) =>
                       p.includes(t.value) ? p.filter((x) => x !== t.value) : [...p, t.value]
                     )
                   }
-                  className={cn(
-                    "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
-                    chon
-                      ? "border-blue-600 bg-blue-600 text-white"
-                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                  )}
                 >
                   {t.label}
-                </button>
+                </Chip>
               );
             })}
           </div>
