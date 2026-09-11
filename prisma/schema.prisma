@@ -648,6 +648,9 @@ model ClientQuoteLine {
   note     String? // Ghi chú / Quy cách
 
   // --- vết sinh tự động ---
+  // Hạng mục này dùng những loại vật tư nào (xem VAT_TU_TAG). Bảng vật liệu ở
+  // mục 2 chỉ in dòng có nhãn thuộc một hạng mục đang có.
+  tags            String[]
   sourceSectionId String? // phần nào của báo giá chi tiết đã sinh ra đơn giá này
   priceOverridden Boolean @default(false) // true = người dùng sửa tay; "Tính lại" bỏ qua dòng này
   steelFrameKey   String? // khóa hạng mục bên SteelFrame để rót khối lượng (xem plan/30)
@@ -662,6 +665,8 @@ model ClientQuoteSpec {
   quoteId   String
   quote     ClientQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
   groupCode String      @default("A") // A | B
+  // Loại vật tư (VAT_TU_TAG). Để TRỐNG = vật tư dùng chung, luôn in.
+  tag       String?
   name      String // "Thép tấm tổ hợp"
   spec      String? // "fy = 2.450 kG/cm2"
   origin    String? // cột "Ghi chú và xuất xứ"

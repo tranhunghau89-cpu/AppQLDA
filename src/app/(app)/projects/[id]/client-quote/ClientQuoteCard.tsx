@@ -12,7 +12,8 @@ import { useToast } from "@/components/ui/toast";
 import { formatVND, formatNumber, formatQty, formatDate } from "@/lib/utils";
 import { computeClientQuoteTotals, lineAmount, partTotals, sumStageDays } from "@/lib/clientQuote";
 import { docTienVietNam } from "@/lib/money-words";
-import { CLIENT_QUOTE_STATUS_MAP, QUOTE_SPEC_GROUP_MAP } from "@/lib/constants";
+import { CLIENT_QUOTE_STATUS_MAP, QUOTE_SPEC_GROUP_MAP, VAT_TU_TAG_MAP } from "@/lib/constants";
+import { moTaHangMuc, specsHienThi, tagsDangDung } from "@/lib/clientQuoteSpecs";
 import { clearPriceOverride, deleteClientQuote, deleteLine, deleteSpec, recomputePrices } from "./actions";
 import type { ClientQuoteView, LineView, SpecView } from "./types";
 
@@ -99,10 +100,13 @@ export function ClientQuoteCard({
     p.lines.push(l);
   }
 
+  // Giống hệt bản in: chỉ hiện vật liệu có nhãn thuộc một hạng mục đang có.
+  const specs = specsHienThi(q.specs, tagsDangDung(q.lines));
+  const soAn = q.specs.length - specs.length;
   const nhomVatLieu = ["A", "B"].map((g) => ({
     code: g,
     label: QUOTE_SPEC_GROUP_MAP[g]?.label ?? g,
-    rows: q.specs.filter((s) => s.groupCode === g),
+    rows: specs.filter((s) => s.groupCode === g),
   }));
 
   const colSpan = canEdit ? 7 : 6;
@@ -212,9 +216,18 @@ export function ClientQuoteCard({
                         </Badge>
                       )}
                     </div>
-                    {(l.detail ?? q.lineDetail) && (
+                    {moTaHangMuc(l.detail, q.lineDetail, specs, l.tags) && (
                       <div className="whitespace-pre-line text-xs text-slate-400">
-                        {l.detail ?? q.lineDetail}
+                        {moTaHangMuc(l.detail, q.lineDetail, specs, l.tags)}
+                      </div>
+                    )}
+                    {l.tags.length > 0 && (
+                      <div className="mt-0.5 flex flex-wrap gap-1">
+                        {l.tags.map((t) => (
+                          <span key={t} className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
+                            {VAT_TU_TAG_MAP[t]?.label ?? t}
+                          </span>
+                        ))}
                       </div>
                     )}
                     {l.note && <div className="text-xs text-slate-400">{l.note}</div>}
@@ -292,7 +305,8 @@ export function ClientQuoteCard({
       {/* ---- Vật liệu & thông số kỹ thuật ---- */}
       <details className="border-t border-slate-100 p-4">
         <summary className="cursor-pointer text-sm font-medium text-slate-700">
-          Vật liệu áp dụng và thông số kỹ thuật ({q.specs.length} dòng)
+          Vật liệu áp dụng và thông số kỹ thuật ({specs.length} dòng in ra
+          {soAn > 0 ? `, ẩn ${soAn} dòng do chưa có hạng mục dùng tới` : ""})
         </summary>
         <div className="mt-3 space-y-4">
           {nhomVatLieu.map((nhom) => (

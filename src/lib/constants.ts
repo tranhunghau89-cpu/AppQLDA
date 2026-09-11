@@ -194,6 +194,26 @@ export const CLIENT_QUOTE_STATUS_MAP = map(CLIENT_QUOTE_STATUS);
 /** Còn phải theo đuổi — nguồn cho bản tin nhắc việc hằng ngày. */
 export const CLIENT_QUOTE_OPEN = ["DA_GUI", "DAM_PHAN"];
 
+/**
+ * Nhãn loại vật tư — sợi dây nối hạng mục (mục 1) với bảng vật liệu (mục 2).
+ *
+ * Mỗi dòng vật liệu mang một nhãn; mỗi hạng mục khai nó dùng những nhãn nào. Khi in,
+ * bảng vật liệu chỉ hiện những dòng có nhãn thuộc một hạng mục đang có — không bán
+ * thưng vách thì không in tôn thưng.
+ *
+ * Dòng vật liệu KHÔNG mang nhãn là vật tư dùng chung (que hàn, sơn, bulong, keo vít):
+ * công trình kết cấu thép nào cũng có, nên luôn in.
+ */
+export const VAT_TU_TAG: Option[] = [
+  { value: "KHUNG_THEP", label: "Khung thép" },
+  { value: "TON_MAI", label: "Tôn mái & phụ kiện mái" },
+  { value: "TON_THUNG", label: "Tôn thưng / vách" },
+  { value: "CUA_TROI", label: "Cửa trời" },
+  { value: "MAI_HIEN", label: "Mái hiên" },
+  { value: "SAN", label: "Sàn" },
+];
+export const VAT_TU_TAG_MAP = map(VAT_TU_TAG);
+
 /** Hai nhóm của bảng "Vật liệu áp dụng và thông số kỹ thuật". */
 export const QUOTE_SPEC_GROUP: Option[] = [
   { value: "A", label: "Vật liệu kết cấu thép" },

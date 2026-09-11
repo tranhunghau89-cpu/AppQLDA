@@ -219,10 +219,19 @@ describe("dữ liệu mặc định đã ship", () => {
     expect(DEFAULT_SPECS.filter((s) => s.groupCode === "B")).toHaveLength(6);
   });
 
-  it("mô tả chung của hạng mục là các gạch đầu dòng", () => {
-    const dong = DEFAULT_LINE_DETAIL.split("\n");
-    expect(dong).toHaveLength(2);
-    expect(dong.every((d) => d.startsWith("- "))).toBe(true);
+  it("mô tả chung chỉ chứa câu dùng cho mọi hạng mục, không nhắc vật tư cụ thể", () => {
+    // Vật tư cụ thể sinh ra từ nhãn đã gắn cho hạng mục, không được gõ cứng ở đây —
+    // gõ cứng thì hạng mục thưng cũng bị in "tôn mái 0,45 mm".
+    expect(DEFAULT_LINE_DETAIL.startsWith("- ")).toBe(true);
+    expect(DEFAULT_LINE_DETAIL.toLowerCase()).not.toContain("tôn");
+  });
+
+  it("mọi dòng vật liệu mặc định đều khai nhãn hoặc cố ý để trống", () => {
+    // Nhãn sai chính tả thì dòng đó không bao giờ hiện — chốt bằng danh sách hợp lệ.
+    const hopLe = new Set(["KHUNG_THEP", "TON_MAI", "TON_THUNG", "CUA_TROI", "MAI_HIEN", "SAN"]);
+    expect(DEFAULT_SPECS.every((s) => s.tag === null || hopLe.has(s.tag))).toBe(true);
+    expect(DEFAULT_SPECS.some((s) => s.tag === "TON_MAI")).toBe(true);
+    expect(DEFAULT_SPECS.some((s) => s.tag === "TON_THUNG")).toBe(true);
   });
 
   it("mọi dòng vật liệu đều có tên", () => {

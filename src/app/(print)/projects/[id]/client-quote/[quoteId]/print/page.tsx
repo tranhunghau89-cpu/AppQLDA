@@ -8,6 +8,7 @@ import {
   partTotals,
   sumStageDays,
 } from "@/lib/clientQuote";
+import { moTaHangMuc, specsHienThi, tagsDangDung } from "@/lib/clientQuoteSpecs";
 import { docTienVietNam } from "@/lib/money-words";
 import { formatNumber, formatQty } from "@/lib/utils";
 import { PrintToolbar } from "@/components/print/PrintToolbar";
@@ -51,15 +52,21 @@ export default async function ClientQuotePrintPage({
     p.lines.push(l);
   }
 
-  // Mô tả chung của hạng mục in dưới tên mọi đầu việc; dòng nào có mô tả riêng
-  // thì mô tả riêng đè lên.
-  const moTaCua = (l: { detail: string | null }) => l.detail ?? quote.lineDetail;
+  // Bảng vật liệu chỉ giữ dòng có nhãn thuộc một hạng mục đang có, cộng vật tư dùng
+  // chung — báo giá không bán thưng vách thì không in tôn thưng.
+  const dangDung = tagsDangDung(quote.lines);
+  const specs = specsHienThi(quote.specs, dangDung);
+
+  // Mô tả dưới tên hạng mục ghép từ câu chung + chính những vật tư đã gắn cho nó,
+  // nên luôn khớp với bảng vật liệu ở mục 2, không phải gõ hai nơi.
+  const moTaCua = (l: { detail: string | null; tags: string[] }) =>
+    moTaHangMuc(l.detail, quote.lineDetail, specs, l.tags);
 
   // Số thứ tự tự đánh, chạy liên tục qua các phần — đúng như báo giá mẫu (01…05).
   let stt = 0;
 
-  const nhomA = quote.specs.filter((s) => s.groupCode === "A");
-  const nhomB = quote.specs.filter((s) => s.groupCode === "B");
+  const nhomA = specs.filter((s) => s.groupCode === "A");
+  const nhomB = specs.filter((s) => s.groupCode === "B");
 
   return (
     <>
@@ -203,7 +210,7 @@ export default async function ClientQuotePrintPage({
             <tbody>
               <NhomVatLieu ma="A" ten="Vật liệu kết cấu thép" rows={nhomA} />
               <NhomVatLieu ma="B" ten="Vật liệu tôn lợp và bao che" rows={nhomB} />
-              {quote.specs.length === 0 && (
+              {specs.length === 0 && (
                 <tr>
                   <Td colSpan={4} className="py-4 text-center italic text-slate-500">
                     Chưa có dòng vật liệu nào.

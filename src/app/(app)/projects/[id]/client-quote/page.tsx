@@ -96,6 +96,7 @@ export default async function ClientQuotePage({
       unitPrice: l.unitPrice,
       amount: l.amount,
       note: l.note,
+      tags: l.tags,
       sourceSectionId: l.sourceSectionId,
       priceOverridden: l.priceOverridden,
       steelFrameKey: l.steelFrameKey,
@@ -103,6 +104,7 @@ export default async function ClientQuotePage({
     specs: q.specs.map((sp) => ({
       id: sp.id,
       groupCode: sp.groupCode,
+      tag: sp.tag,
       name: sp.name,
       spec: sp.spec,
       origin: sp.origin,

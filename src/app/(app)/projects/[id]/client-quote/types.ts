@@ -13,6 +13,7 @@ export interface LineView {
   unitPrice: number | null;
   amount: number | null;
   note: string | null;
+  tags: string[];
   sourceSectionId: string | null;
   priceOverridden: boolean;
   steelFrameKey: string | null;
@@ -21,6 +22,7 @@ export interface LineView {
 export interface SpecView {
   id: string;
   groupCode: string; // A | B
+  tag: string | null;
   name: string;
   spec: string | null;
   origin: string | null;

@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { Input, Textarea, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { useActionForm } from "@/components/ui/useActionForm";
+import { VAT_TU_TAG } from "@/lib/constants";
 import { ModalActions } from "../quote/ModalActions";
 import { saveLine } from "./actions";
 import type { LineView } from "./types";
@@ -24,6 +26,7 @@ export function LineModal({
   onDone: () => void;
 }) {
   const { editing, quoteId } = state;
+  const [tags, setTags] = useState<string[]>(editing?.tags ?? []);
   const { error, pending, run } = useActionForm(onDone);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -57,7 +60,33 @@ export function LineModal({
         <Field label="Nội dung công việc *">
           <Input name="name" defaultValue={editing?.name ?? ""} required />
         </Field>
-        <Field label="Mô tả riêng của dòng này (để trống = dùng mô tả chung của hạng mục)">
+        <Field label="Vật tư sử dụng cho hạng mục này">
+          <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-md border border-slate-200 p-3">
+            {VAT_TU_TAG.map((t) => (
+              <label key={t.value} className="flex items-center gap-1.5 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-slate-300"
+                  checked={tags.includes(t.value)}
+                  onChange={(e) =>
+                    setTags((p) =>
+                      e.target.checked ? [...p, t.value] : p.filter((x) => x !== t.value)
+                    )
+                  }
+                />
+                {t.label}
+              </label>
+            ))}
+          </div>
+          {/* Gửi lên dạng chuỗi ngăn bằng dấu phẩy — cả form đi bằng FormData. */}
+          <input type="hidden" name="tags" value={tags.join(",")} />
+          <p className="mt-1 text-xs text-slate-400">
+            Quyết định bảng “Vật liệu &amp; thông số kỹ thuật” in ra những dòng nào, và
+            sinh luôn phần mô tả dưới tên hạng mục.
+          </p>
+        </Field>
+
+        <Field label="Mô tả riêng của dòng này (để trống = mô tả chung + vật tư đã chọn)">
           <Textarea
             name="detail"
             rows={3}

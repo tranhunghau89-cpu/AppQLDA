@@ -10,6 +10,11 @@
 
 export interface SpecSeed {
   groupCode: "A" | "B";
+  /**
+   * Nhãn loại vật tư (VAT_TU_TAG) — nối dòng này với hạng mục dùng nó.
+   * null = vật tư dùng chung, công trình nào cũng có nên luôn in.
+   */
+  tag: string | null;
   name: string;
   spec: string | null;
   origin: string | null;
@@ -18,23 +23,23 @@ export interface SpecSeed {
 /** Bảng "Vật liệu áp dụng và thông số kỹ thuật" — 10 dòng nhóm A, 6 dòng nhóm B. */
 export const DEFAULT_SPECS: SpecSeed[] = [
   // A — Vật liệu kết cấu thép
-  { groupCode: "A", name: "Thép tấm tổ hợp", spec: "fy = 2.450 kG/cm2", origin: "Q235 hoặc tương đương" },
-  { groupCode: "A", name: "Thép hình", spec: "fy = 2.100 kG/cm2", origin: "JIS G3193 hoặc tương đương" },
-  { groupCode: "A", name: "Xà gồ mái, vách", spec: "G350Z80", origin: "Mạ kẽm" },
-  { groupCode: "A", name: "Giằng, chống xà gồ", spec: "fy = 2.100 kG/cm2", origin: null },
-  { groupCode: "A", name: "Que hàn", spec: "E42 / tương đương", origin: null },
-  { groupCode: "A", name: "Làm sạch bề mặt", spec: "SA1.2", origin: "Làm sạch bằng phun bi" },
-  { groupCode: "A", name: "Sơn phủ", spec: "Sơn Alkyd, 80mcr", origin: "1 lớp chống rỉ, 2 lớp sơn màu" },
-  { groupCode: "A", name: "Bulong neo", spec: "Class 4*6", origin: "Mạ kẽm" },
-  { groupCode: "A", name: "Bu lông liên kết khung chính", spec: "Class 8*8", origin: "Mạ kẽm" },
-  { groupCode: "A", name: "Bu lông liên kết giằng, xà gồ", spec: "Class 5*6", origin: "Mạ kẽm" },
+  { groupCode: "A", tag: "KHUNG_THEP", name: "Thép tấm tổ hợp", spec: "fy = 2.450 kG/cm2", origin: "Q235 hoặc tương đương" },
+  { groupCode: "A", tag: "KHUNG_THEP", name: "Thép hình", spec: "fy = 2.100 kG/cm2", origin: "JIS G3193 hoặc tương đương" },
+  { groupCode: "A", tag: null, name: "Xà gồ mái, vách", spec: "G350Z80", origin: "Mạ kẽm" },
+  { groupCode: "A", tag: null, name: "Giằng, chống xà gồ", spec: "fy = 2.100 kG/cm2", origin: null },
+  { groupCode: "A", tag: null, name: "Que hàn", spec: "E42 / tương đương", origin: null },
+  { groupCode: "A", tag: null, name: "Làm sạch bề mặt", spec: "SA1.2", origin: "Làm sạch bằng phun bi" },
+  { groupCode: "A", tag: null, name: "Sơn phủ", spec: "Sơn Alkyd, 80mcr", origin: "1 lớp chống rỉ, 2 lớp sơn màu" },
+  { groupCode: "A", tag: null, name: "Bulong neo", spec: "Class 4*6", origin: "Mạ kẽm" },
+  { groupCode: "A", tag: null, name: "Bu lông liên kết khung chính", spec: "Class 8*8", origin: "Mạ kẽm" },
+  { groupCode: "A", tag: null, name: "Bu lông liên kết giằng, xà gồ", spec: "Class 5*6", origin: "Mạ kẽm" },
   // B — Vật liệu tôn lợp và bao che
-  { groupCode: "B", name: "Tôn mái sóng CN", spec: "0.45mm, AZ50G550", origin: "Tôn Đông Á or tương đương" },
-  { groupCode: "B", name: "Tôn thưng sóng CN", spec: "0.40mm, AZ50G550", origin: "Tôn Đông Á or tương đương" },
-  { groupCode: "B", name: "Máng nước khổ <800mm", spec: "0.45mm, AZ50G550", origin: "Tôn Đông Á or tương đương" },
-  { groupCode: "B", name: "Ke diềm phụ kiện", spec: "0.40mm, AZ50G550", origin: "Tôn Đông Á or tương đương" },
-  { groupCode: "B", name: "Ống nước", spec: "D90", origin: null },
-  { groupCode: "B", name: "Keo, vít các loại", spec: null, origin: "KCC - Hàn Quốc. Vít SEC" },
+  { groupCode: "B", tag: "TON_MAI", name: "Tôn mái sóng CN", spec: "0.45mm, AZ50G550", origin: "Tôn Đông Á or tương đương" },
+  { groupCode: "B", tag: "TON_THUNG", name: "Tôn thưng sóng CN", spec: "0.40mm, AZ50G550", origin: "Tôn Đông Á or tương đương" },
+  { groupCode: "B", tag: "TON_MAI", name: "Máng nước khổ <800mm", spec: "0.45mm, AZ50G550", origin: "Tôn Đông Á or tương đương" },
+  { groupCode: "B", tag: "TON_MAI", name: "Ke diềm phụ kiện", spec: "0.40mm, AZ50G550", origin: "Tôn Đông Á or tương đương" },
+  { groupCode: "B", tag: "TON_MAI", name: "Ống nước", spec: "D90", origin: null },
+  { groupCode: "B", tag: null, name: "Keo, vít các loại", spec: null, origin: "KCC - Hàn Quốc. Vít SEC" },
 ];
 
 export interface StageSeed {
@@ -82,15 +87,14 @@ export const DEFAULT_GREETING =
 export const DEFAULT_CLOSING = "Chân thành cảm ơn sự hợp tác của Quý khách hàng.";
 
 /**
- * Mô tả chung in dưới tên MỌI hạng mục.
+ * Câu mô tả chung in dưới tên MỌI hạng mục, đứng trước danh sách vật tư.
  *
- * Trong báo giá mẫu, hai dòng này lặp y hệt ở cả bốn hạng mục, nên để một chỗ rồi
- * dùng chung. Hạng mục nào cần khác (vd tôn thưng 0,40 mm thay vì tôn mái 0,45 mm)
- * thì điền riêng vào dòng đó để đè lên.
+ * CHỈ chứa những gì thật sự chung cho mọi hạng mục. Các dòng nói về vật tư cụ thể
+ * ("Tôn mái là tôn Đông Á 0,45 mm...") KHÔNG nằm ở đây — chúng sinh ra từ chính
+ * những vật tư đã gắn nhãn cho hạng mục đó, nên mô tả luôn khớp với bảng vật liệu
+ * ở mục 2 mà không phải gõ hai nơi.
  */
-export const DEFAULT_LINE_DETAIL =
-  "- Gia công sản xuất theo bản vẽ thiết kế.\n" +
-  "- Tôn mái là tôn Đông Á độ dày 0,45 mm mạ màu, 5 sóng công nghiệp.";
+export const DEFAULT_LINE_DETAIL = "- Gia công sản xuất theo bản vẽ thiết kế.";
 
 export const DEFAULT_COLOR_NOTE =
   "Màu được sử dụng trong là màu thông dụng tại kho ncc. Màu khác chi phí sẽ điều chỉnh theo mã màu cụ thể.";

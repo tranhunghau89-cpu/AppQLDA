@@ -3,7 +3,7 @@
 import { Input, Select, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { useActionForm } from "@/components/ui/useActionForm";
-import { QUOTE_SPEC_GROUP } from "@/lib/constants";
+import { QUOTE_SPEC_GROUP, VAT_TU_TAG } from "@/lib/constants";
 import { ModalActions } from "../quote/ModalActions";
 import { saveSpec } from "./actions";
 import type { SpecView } from "./types";
@@ -46,6 +46,21 @@ export function SpecModal({
             ))}
           </Select>
         </Field>
+        <Field label="Loại vật tư">
+          <Select name="tag" defaultValue={editing?.tag ?? ""}>
+            <option value="">— Dùng chung (luôn in) —</option>
+            {VAT_TU_TAG.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </Select>
+          <p className="mt-1 text-xs text-slate-400">
+            Dòng này chỉ in ra khi báo giá có hạng mục dùng loại vật tư đó. Để “Dùng
+            chung” cho những thứ công trình nào cũng có (que hàn, sơn, bulong, keo vít).
+          </p>
+        </Field>
+
         <Field label="Nội dung *">
           <Input name="name" defaultValue={editing?.name ?? ""} required />
         </Field>

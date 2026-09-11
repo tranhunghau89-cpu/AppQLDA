@@ -7,6 +7,7 @@ import { denyProject, requireSession } from "@/lib/auth";
 import { diffFields, recordAudit } from "@/lib/audit";
 import { validatePaymentPercents } from "@/lib/clientQuote";
 import { sectionSubtotals } from "@/lib/quote";
+import { doanNhan } from "@/lib/clientQuoteSpecs";
 import { deriveLines, repriceLines, type DeriveSpec } from "@/lib/clientQuoteDerive";
 import {
   DEFAULT_CLOSING,
@@ -336,6 +337,8 @@ const lineSchema = z.object({
   unitPrice: num,
   amount: num,
   note: z.string().trim().optional(),
+  /** Nhãn loại vật tư, gửi lên dạng "TON_MAI,KHUNG_THEP". */
+  tags: z.string().optional(),
 });
 
 export async function saveLine(
@@ -358,6 +361,7 @@ export async function saveLine(
     unitPrice: s(form, "unitPrice"),
     amount: s(form, "amount"),
     note: s(form, "note"),
+    tags: s(form, "tags"),
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
@@ -373,6 +377,11 @@ export async function saveLine(
     unitPrice: d.unitPrice,
     amount: d.amount,
     note: d.note || null,
+    // Lọc rỗng để không lưu nhãn ma: nhãn sai thì dòng vật liệu không bao giờ hiện.
+    tags: (d.tags ?? "")
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean),
   };
 
   if (lineId) {
@@ -427,6 +436,8 @@ export async function clearPriceOverride(
 
 const specSchema = z.object({
   groupCode: z.enum(["A", "B"]),
+  /** Nhãn loại vật tư; để trống = vật tư dùng chung, luôn in. */
+  tag: z.string().trim().optional(),
   name: z.string().trim().min(1, "Tên vật liệu không được để trống"),
   spec: z.string().trim().optional(),
   origin: z.string().trim().optional(),
@@ -443,6 +454,7 @@ export async function saveSpec(
 
   const parsed = specSchema.safeParse({
     groupCode: s(form, "groupCode"),
+    tag: s(form, "tag"),
     name: s(form, "name"),
     spec: s(form, "spec"),
     origin: s(form, "origin"),
@@ -451,6 +463,7 @@ export async function saveSpec(
   const d = parsed.data;
   const data = {
     groupCode: d.groupCode,
+    tag: d.tag || null,
     name: d.name,
     spec: d.spec || null,
     origin: d.origin || null,
@@ -663,7 +676,14 @@ export async function generateFromQuote(
       },
     });
     await tx.clientQuoteLine.createMany({
-      data: lines.map((l, i) => ({ quoteId: q.id, ...l, sortOrder: i })),
+      // Đoán sẵn nhãn vật tư từ tên phần ("...tôn phần mái" -> KHUNG_THEP + TON_MAI)
+      // để bảng vật liệu tự lọc đúng ngay, khỏi phải tick tay. Người lập sửa được.
+      data: lines.map((l, i) => ({
+        quoteId: q.id,
+        ...l,
+        tags: doanNhan(l.name),
+        sortOrder: i,
+      })),
     });
     await tx.clientQuoteSpec.createMany({
       data: DEFAULT_SPECS.map((sp, i) => ({ quoteId: q.id, ...sp, sortOrder: i })),
