@@ -125,16 +125,14 @@ export function QuoteCard({
           </Link>
           {canEdit && (
             <>
-              {/* Hai nút này cần một dự án có thật để ghi vào; ở cơ hội thì chưa có. */}
+              <Button variant="outline" size="sm" onClick={onGenerateClient}>
+                <FileOutput className="h-3.5 w-3.5" /> Tạo báo giá gửi khách
+              </Button>
+              {/* Đẩy giá bán cần một dự án có thật để ghi vào; ở cơ hội thì chưa có. */}
               {chu.loai === "DU_AN" && (
-                <>
-                  <Button variant="outline" size="sm" onClick={onGenerateClient}>
-                    <FileOutput className="h-3.5 w-3.5" /> Tạo báo giá gửi khách
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={onPush}>
-                    <ArrowUpFromLine className="h-3.5 w-3.5" /> Đẩy giá bán
-                  </Button>
-                </>
+                <Button variant="outline" size="sm" onClick={onPush}>
+                  <ArrowUpFromLine className="h-3.5 w-3.5" /> Đẩy giá bán
+                </Button>
               )}
               <Button variant="outline" size="sm" onClick={onReprice}>
                 <RefreshCw className="h-3.5 w-3.5" /> Cập nhật đơn giá

@@ -143,9 +143,9 @@ export function QuoteEditor({
         />
       )}
 
-      {genFor && chu.loai === "DU_AN" && (
+      {genFor && (
         <GenerateClientQuoteModal
-          projectId={chu.id}
+          chu={chu}
           quote={genFor}
           projectArea={projectArea}
           templates={templates}

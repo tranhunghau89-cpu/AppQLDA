@@ -6,7 +6,7 @@ import { requireProjectView } from "@/lib/auth";
 import { can, type Role } from "@/lib/rbac";
 import { templateChoices } from "@/lib/quoteTemplatePick";
 import { ClientQuoteEditor } from "./ClientQuoteEditor";
-import type { ClientQuoteView, CustomerOption } from "./types";
+import { napDuLieuBaoGiaKhach } from "./napDuLieu";
 
 export default async function ClientQuotePage({
   params,
@@ -20,8 +20,7 @@ export default async function ClientQuotePage({
   const canViewCrm = can(session.role as Role, "customer", "view");
   const canEditCrm = can(session.role as Role, "customer", "edit");
 
-  // 3 truy vấn độc lập -> chạy song song (guard phân quyền đã xong ở trên).
-  const [project, rawQuotes, customers] = await Promise.all([
+  const [project, duLieu] = await Promise.all([
     db.project.findUnique({
       where: { id },
       select: {
@@ -35,112 +34,12 @@ export default async function ClientQuotePage({
         customer: { select: { id: true, name: true, phone: true } },
       },
     }),
-    db.clientQuote.findMany({
-      where: { projectId: id },
-      orderBy: { createdAt: "desc" },
-      include: {
-        lines: { orderBy: { sortOrder: "asc" } },
-        specs: { orderBy: { sortOrder: "asc" } },
-        stages: { orderBy: { sortOrder: "asc" } },
-        payments: { orderBy: { sortOrder: "asc" } },
-        contacts: { orderBy: { contactDate: "desc" }, take: 50 },
-        derivedFrom: { select: { title: true } },
-        clonedFrom: { select: { title: true } },
-      },
-    }),
-    db.customer.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, contactPerson: true, phone: true },
-    }),
+    napDuLieuBaoGiaKhach({ loai: "DU_AN", id }, canViewCrm),
   ]);
   if (!project) notFound();
 
   // Cần buildingType của dự án nên phải chờ truy vấn trên xong mới hỏi được mẫu.
   const mau = await templateChoices(project.buildingType);
-
-  const iso = (d: Date | null) => (d ? d.toISOString() : null);
-
-  const quotes: ClientQuoteView[] = rawQuotes.map((q) => ({
-    id: q.id,
-    quoteNo: q.quoteNo,
-    title: q.title,
-    quoteDate: iso(q.quoteDate),
-    customerId: q.customerId,
-    recipient: q.recipient,
-    customerPhone: q.customerPhone,
-    location: q.location,
-    scope: q.scope,
-    salesName: q.salesName,
-    salesPhone: q.salesPhone,
-    salesEmail: q.salesEmail,
-    status: q.status,
-    sentDate: iso(q.sentDate),
-    validDays: q.validDays,
-    expiryDate: iso(q.expiryDate),
-    vatPercent: q.vatPercent,
-    warrantyMonths: q.warrantyMonths,
-    maintenanceMonths: q.maintenanceMonths,
-    loadRoof: q.loadRoof,
-    loadHanging: q.loadHanging,
-    loadFloor: q.loadFloor,
-    lineDetail: q.lineDetail,
-    greeting: q.greeting,
-    closing: q.closing,
-    colorNote: q.colorNote,
-    volumeNote: q.volumeNote,
-    excludeNote: q.excludeNote,
-    note: q.note,
-    derivedFromTitle: q.derivedFrom?.title ?? null,
-    clonedFromTitle: q.clonedFrom?.title ?? null,
-    lines: q.lines.map((l) => ({
-      id: l.id,
-      partCode: l.partCode,
-      partName: l.partName,
-      code: l.code,
-      name: l.name,
-      detail: l.detail,
-      unit: l.unit,
-      qty: l.qty,
-      unitPrice: l.unitPrice,
-      amount: l.amount,
-      note: l.note,
-      tags: l.tags,
-      sourceSectionId: l.sourceSectionId,
-      priceOverridden: l.priceOverridden,
-      steelFrameKey: l.steelFrameKey,
-    })),
-    specs: q.specs.map((sp) => ({
-      id: sp.id,
-      groupCode: sp.groupCode,
-      tag: sp.tag,
-      name: sp.name,
-      spec: sp.spec,
-      origin: sp.origin,
-      inDescription: sp.inDescription,
-    })),
-    stages: q.stages.map((st) => ({ id: st.id, name: st.name, days: st.days })),
-    // Không có quyền xem CĐT thì không gửi dữ liệu xuống trình duyệt, chứ không
-    // chỉ ẩn bằng CSS.
-    contacts: canViewCrm
-      ? q.contacts.map((n) => ({
-          id: n.id,
-          kind: n.kind,
-          contactDate: n.contactDate.toISOString(),
-          content: n.content,
-          authorName: n.authorName,
-          nextFollowUpDate: iso(n.nextFollowUpDate),
-        }))
-      : [],
-    payments: q.payments.map((p) => ({
-      id: p.id,
-      label: p.label,
-      percent: p.percent,
-      basis: p.basis,
-      note: p.note,
-    })),
-  }));
-
-  const customerOptions: CustomerOption[] = customers;
 
   return (
     <div className="space-y-6">
@@ -170,9 +69,9 @@ export default async function ClientQuotePage({
       </div>
 
       <ClientQuoteEditor
-        projectId={project.id}
-        quotes={quotes}
-        customers={customerOptions}
+        chu={{ loai: "DU_AN", id: project.id }}
+        quotes={duLieu.quotes}
+        customers={duLieu.customers}
         canEdit={canEdit}
         canViewCrm={canViewCrm}
         canEditCrm={canEditCrm}

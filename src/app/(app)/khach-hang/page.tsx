@@ -23,7 +23,7 @@ export default async function KhachHangPage() {
           orderBy: { createdAt: "desc" },
           include: {
             project: { select: { code: true } },
-            _count: { select: { quotes: true } },
+            _count: { select: { quotes: true, clientQuotes: true } },
           },
         },
         traoDoi: { orderBy: { contactDate: "desc" }, take: 30 },
@@ -67,6 +67,7 @@ export default async function KhachHangPage() {
       projectId: c.projectId,
       projectCode: c.project?.code ?? null,
       soDuToan: c._count.quotes,
+      soBaoGia: c._count.clientQuotes,
     })),
     henGanNhat:
       k.traoDoi

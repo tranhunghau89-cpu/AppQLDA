@@ -128,7 +128,8 @@ model CoHoi {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  quotes Quote[]
+  quotes       Quote[]
+  clientQuotes ClientQuote[]
 
   @@index([khachHangId])
   @@index([trangThai])
@@ -686,9 +687,13 @@ model QuoteItem {
 // Gộp chung thì một bản m² vừa tạo sẽ thành "báo giá mới nhất" và hiện 0 đ trên
 // dashboard dự án. Tách bảng làm lỗi đó không thể xảy ra.
 model ClientQuote {
-  id        String  @id @default(cuid())
-  projectId String
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  // Cùng luật một chủ như Quote: bản gửi khách sống ở cơ hội lúc còn chào giá, theo
+  // sang dự án khi ký hợp đồng. Xem chú thích ở model Quote.
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  coHoiId   String?
+  coHoi     CoHoi?   @relation(fields: [coHoiId], references: [id], onDelete: Cascade)
 
   quoteNo   String? // Số báo giá: BG-2026-014 (tự nhập)
   title     String // tiêu đề/phiên bản nội bộ
@@ -750,6 +755,7 @@ model ClientQuote {
   contacts CustomerNote[]
 
   @@index([projectId])
+  @@index([coHoiId])
   @@index([customerId])
   @@index([status, expiryDate]) // nguồn cho nhắc việc hằng ngày
 }
