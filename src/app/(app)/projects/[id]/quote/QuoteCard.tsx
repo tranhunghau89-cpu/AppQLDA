@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Table, THead, Th } from "@/components/ui/table";
 import { formatVND, formatDate } from "@/lib/utils";
 import { computeQuoteTotals, sectionSubtotals } from "@/lib/quote";
+import { duongDanIn, type ChuBaoGia } from "@/lib/quoteOwner";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
 import { QuoteRows } from "./QuoteRows";
@@ -32,7 +33,7 @@ import type { ItemView, QuoteView, SectionView } from "./types";
  */
 export function QuoteCard({
   q,
-  projectId,
+  chu,
   canEdit,
   onEditQuote,
   onGenerateClient,
@@ -43,7 +44,7 @@ export function QuoteCard({
   onEditItem,
 }: {
   q: QuoteView;
-  projectId: string;
+  chu: ChuBaoGia;
   canEdit: boolean;
   onEditQuote: () => void;
   onGenerateClient: () => void;
@@ -72,24 +73,24 @@ export function QuoteCard({
 
   async function onDeleteQuote() {
     if (!(await confirm(`Xóa báo giá "${q.title}"? (kèm toàn bộ phần & dòng)`))) return;
-    run(() => deleteQuote(projectId, q.id));
+    run(() => deleteQuote(chu, q.id));
   }
   async function onDeleteSection(s: SectionView) {
     if (!(await confirm(`Xóa "${s.code} — ${s.name}"? (kèm dòng bên trong)`))) return;
-    run(() => deleteSection(projectId, s.id));
+    run(() => deleteSection(chu, s.id));
   }
   async function onDeleteItem(it: ItemView) {
     if (!(await confirm(`Xóa dòng "${it.name}"?`))) return;
-    run(() => deleteItem(projectId, it.id));
+    run(() => deleteItem(chu, it.id));
   }
   async function onReprice() {
     if (!(await confirm("Cập nhật lại giá gốc từ bảng đơn giá (đơn giá bán = giá gốc × TL)?")))
       return;
-    run(() => repriceQuote(projectId, q.id));
+    run(() => repriceQuote(chu, q.id));
   }
   async function onPush() {
     if (!(await confirm(`Đặt giá bán dự án = tổng báo giá (${formatVND(totals.sell)})?`))) return;
-    run(() => pushSalePrice(projectId, q.id));
+    run(() => pushSalePrice(chu, q.id));
   }
 
   return (
@@ -115,7 +116,7 @@ export function QuoteCard({
         <div className="flex flex-wrap items-center gap-1.5">
           {/* In được thì ai xem được cũng nên in được — không gắn với quyền sửa. */}
           <Link
-            href={`/projects/${projectId}/quote/${q.id}/print`}
+            href={duongDanIn(chu, q.id)}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
@@ -124,14 +125,19 @@ export function QuoteCard({
           </Link>
           {canEdit && (
             <>
-              <Button variant="outline" size="sm" onClick={onGenerateClient}>
-                <FileOutput className="h-3.5 w-3.5" /> Tạo báo giá gửi khách
-              </Button>
+              {/* Hai nút này cần một dự án có thật để ghi vào; ở cơ hội thì chưa có. */}
+              {chu.loai === "DU_AN" && (
+                <>
+                  <Button variant="outline" size="sm" onClick={onGenerateClient}>
+                    <FileOutput className="h-3.5 w-3.5" /> Tạo báo giá gửi khách
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={onPush}>
+                    <ArrowUpFromLine className="h-3.5 w-3.5" /> Đẩy giá bán
+                  </Button>
+                </>
+              )}
               <Button variant="outline" size="sm" onClick={onReprice}>
                 <RefreshCw className="h-3.5 w-3.5" /> Cập nhật đơn giá
-              </Button>
-              <Button variant="outline" size="sm" onClick={onPush}>
-                <ArrowUpFromLine className="h-3.5 w-3.5" /> Đẩy giá bán
               </Button>
               <Button variant="ghost" size="icon" onClick={onEditQuote}>
                 <Pencil className="h-4 w-4" />

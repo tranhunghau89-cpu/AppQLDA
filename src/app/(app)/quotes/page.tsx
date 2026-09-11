@@ -2,7 +2,8 @@ import Link from "next/link";
 import { Tags } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
-import { scopedByProjectWhere } from "@/lib/scope";
+import { myProjectIds } from "@/lib/scope";
+import { whereBaoGiaTrongPhamVi } from "@/lib/crmScope";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { formatVND, formatDate } from "@/lib/utils";
 import { computeQuoteTotals } from "@/lib/quote";
@@ -10,11 +11,14 @@ import { computeQuoteTotals } from "@/lib/quote";
 export default async function QuotesPage() {
   const session = await requireView("quote");
 
+  // Dự toán sống ở hai nơi từ Phase 8.3, nên phạm vi cũng gộp hai nguồn: dự án được
+  // phân công và cơ hội của khách mình phụ trách.
   const quotes = await db.quote.findMany({
-    where: await scopedByProjectWhere(session),
+    where: whereBaoGiaTrongPhamVi(session, await myProjectIds(session)),
     orderBy: { createdAt: "desc" },
     include: {
       project: { select: { id: true, code: true, name: true } },
+      coHoi: { select: { id: true, tenCongTrinh: true } },
       items: { select: { qty: true, sellPrice: true, baseCost: true } },
     },
   });
@@ -62,7 +66,7 @@ export default async function QuotesPage() {
         <Table>
           <THead>
             <tr>
-              <Th>Dự án</Th>
+              <Th>Dự án / công trình</Th>
               <Th>Tiêu đề báo giá</Th>
               <Th hideBelow="lg" className="text-center">TL</Th>
               <Th hideBelow="md" className="text-right">Giá gốc</Th>
@@ -76,12 +80,26 @@ export default async function QuotesPage() {
             {rows.map((q) => (
               <Tr key={q.id}>
                 <Td className="font-medium">
-                  <Link
-                    href={`/projects/${q.project.id}/quote`}
-                    className="text-blue-600 hover:underline"
-                  >
-                    <span className="font-mono">{q.project.code}</span> {q.project.name}
-                  </Link>
+                  {q.project ? (
+                    <Link
+                      href={`/projects/${q.project.id}/quote`}
+                      className="text-blue-600 hover:underline"
+                    >
+                      <span className="font-mono">{q.project.code}</span> {q.project.name}
+                    </Link>
+                  ) : q.coHoi ? (
+                    <Link
+                      href={`/co-hoi/${q.coHoi.id}/quote`}
+                      className="text-blue-600 hover:underline"
+                    >
+                      {q.coHoi.tenCongTrinh}
+                      <span className="ml-1.5 rounded bg-amber-50 px-1.5 py-0.5 text-xs font-normal text-amber-700">
+                        đang chào giá
+                      </span>
+                    </Link>
+                  ) : (
+                    <span className="text-slate-400">—</span>
+                  )}
                 </Td>
                 <Td className="text-slate-700">{q.title}</Td>
                 <Td hideBelow="lg" className="text-center text-slate-500">×{q.markup ?? 1}</Td>

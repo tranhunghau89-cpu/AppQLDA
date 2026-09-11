@@ -21,7 +21,10 @@ export default async function KhachHangPage() {
         customer: { select: { id: true, name: true } },
         coHoi: {
           orderBy: { createdAt: "desc" },
-          include: { project: { select: { code: true } } },
+          include: {
+            project: { select: { code: true } },
+            _count: { select: { quotes: true } },
+          },
         },
         traoDoi: { orderBy: { contactDate: "desc" }, take: 30 },
       },
@@ -63,6 +66,7 @@ export default async function KhachHangPage() {
       note: c.note,
       projectId: c.projectId,
       projectCode: c.project?.code ?? null,
+      soDuToan: c._count.quotes,
     })),
     henGanNhat:
       k.traoDoi

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, Building } from "lucide-react";
+import { Plus, Pencil, Trash2, Building, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useConfirm } from "@/components/ui/confirm";
@@ -27,6 +27,7 @@ export interface CoHoiRow {
   note: string | null;
   projectId: string | null;
   projectCode: string | null;
+  soDuToan: number;
 }
 
 /** Danh sách công trình đang chào giá của một khách. */
@@ -112,6 +113,16 @@ export function CoHoiPanel({
                   {c.note && (
                     <p className="mt-1 whitespace-pre-line text-sm text-slate-600">{c.note}</p>
                   )}
+                  {/* Dự toán chi tiết sống ngay ở cơ hội — chưa cần mã dự án nào. */}
+                  <Link
+                    href={`/co-hoi/${c.id}/quote`}
+                    className="mt-1.5 inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:underline"
+                  >
+                    <Calculator className="h-3.5 w-3.5" />
+                    {c.soDuToan > 0
+                      ? `Dự toán chi tiết (${c.soDuToan})`
+                      : "Lập dự toán chi tiết"}
+                  </Link>
                 </div>
 
                 {canEdit && (

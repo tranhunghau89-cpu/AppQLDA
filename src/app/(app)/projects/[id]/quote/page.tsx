@@ -3,95 +3,27 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Tags } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireProjectView } from "@/lib/auth";
-import { scopedByProjectWhere } from "@/lib/scope";
 import { can, type Role } from "@/lib/rbac";
 import { templateChoices } from "@/lib/quoteTemplatePick";
 import { QuoteEditor } from "./QuoteEditor";
-import type { QuoteView, CatalogOption, CloneSource } from "./types";
+import { napDuLieuBaoGia } from "./napDuLieu";
 
 export default async function QuotePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await requireProjectView("quote", id);
   const canEdit = can(session.role as Role, "quote", "edit");
 
-  // 4 truy vấn độc lập -> chạy song song (guard phân quyền đã xong ở trên).
-  const [project, rawQuotes, catalogRows, sourceRows] = await Promise.all([
+  const [project, duLieu] = await Promise.all([
     db.project.findUnique({
       where: { id },
       select: { id: true, code: true, name: true, location: true, area: true, buildingType: true },
     }),
-    db.quote.findMany({
-      where: { projectId: id },
-      orderBy: { createdAt: "desc" },
-      include: {
-        sections: { orderBy: { sortOrder: "asc" } },
-        items: { orderBy: { sortOrder: "asc" } },
-        clonedFrom: { select: { title: true } },
-      },
-    }),
-    db.workPrice.findMany({
-      orderBy: [{ groupCode: "asc" }, { sortOrder: "asc" }],
-      select: { code: true, name: true, unit: true, baseCost: true },
-    }),
-    // Chỉ được clone từ báo giá của dự án mình được phân công.
-    db.quote.findMany({
-      where: await scopedByProjectWhere(session),
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        title: true,
-        project: { select: { code: true, name: true } },
-      },
-    }),
+    napDuLieuBaoGia(session, { loai: "DU_AN", id }),
   ]);
   if (!project) notFound();
 
   // Cần buildingType nên phải chờ truy vấn dự án xong mới hỏi được mẫu báo giá.
   const mau = await templateChoices(project.buildingType);
-
-  const quotes: QuoteView[] = rawQuotes.map((q) => ({
-    id: q.id,
-    title: q.title,
-    recipient: q.recipient,
-    location: q.location,
-    scope: q.scope,
-    quoteDate: q.quoteDate ? q.quoteDate.toISOString() : null,
-    markup: q.markup,
-    note: q.note,
-    clonedFromTitle: q.clonedFrom?.title ?? null,
-    sections: q.sections.map((s) => ({
-      id: s.id,
-      code: s.code,
-      name: s.name,
-      kind: s.kind,
-      parentId: s.parentId,
-      area: s.area,
-    })),
-    items: q.items.map((it) => ({
-      id: it.id,
-      sectionId: it.sectionId,
-      workCode: it.workCode,
-      name: it.name,
-      unit: it.unit,
-      qty: it.qty,
-      baseCost: it.baseCost,
-      sellPrice: it.sellPrice,
-      spec: it.spec,
-      note: it.note,
-    })),
-  }));
-
-  const catalog: CatalogOption[] = catalogRows.map((c) => ({
-    code: c.code,
-    name: c.name,
-    unit: c.unit,
-    baseCost: c.baseCost,
-  }));
-
-  const cloneSources: CloneSource[] = sourceRows.map((s) => ({
-    id: s.id,
-    label: `${s.project.code} · ${s.title}`,
-  }));
 
   return (
     <div className="space-y-6">
@@ -119,10 +51,10 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
       </div>
 
       <QuoteEditor
-        projectId={project.id}
-        quotes={quotes}
-        catalog={catalog}
-        cloneSources={cloneSources}
+        chu={{ loai: "DU_AN", id: project.id }}
+        quotes={duLieu.quotes}
+        catalog={duLieu.catalog}
+        cloneSources={duLieu.cloneSources}
         canEdit={canEdit}
         projectArea={project.area}
         templates={mau.options}

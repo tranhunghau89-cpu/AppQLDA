@@ -11,6 +11,7 @@ import { ItemModal, type ItemModalState } from "./ItemModal";
 import { CloneModal } from "./CloneModal";
 import { GenerateClientQuoteModal } from "./GenerateClientQuoteModal";
 import type { TemplateOption } from "@/lib/quoteTemplatePick";
+import type { ChuBaoGia } from "@/lib/quoteOwner";
 import type { CatalogOption, CloneSource, ItemView, QuoteView, SectionView } from "./types";
 
 /**
@@ -19,7 +20,7 @@ import type { CatalogOption, CloneSource, ItemView, QuoteView, SectionView } fro
  * theo bản ghi mới mà không cần đồng bộ gì thêm.
  */
 export function QuoteEditor({
-  projectId,
+  chu,
   quotes,
   catalog,
   cloneSources,
@@ -28,7 +29,8 @@ export function QuoteEditor({
   templates,
   templateGoiY,
 }: {
-  projectId: string;
+  /** Dự toán này thuộc dự án hay cơ hội chào giá — quyết định action ghi vào đâu. */
+  chu: ChuBaoGia;
   quotes: QuoteView[];
   catalog: CatalogOption[];
   cloneSources: CloneSource[];
@@ -99,7 +101,7 @@ export function QuoteEditor({
         <QuoteCard
           key={q.id}
           q={q}
-          projectId={projectId}
+          chu={chu}
           canEdit={canEdit}
           onEditQuote={() => setQuoteModal({ editing: q })}
           onGenerateClient={() => setGenFor(q)}
@@ -115,7 +117,7 @@ export function QuoteEditor({
 
       {quoteModal && (
         <QuoteHeaderModal
-          projectId={projectId}
+          chu={chu}
           editing={quoteModal.editing}
           onClose={() => setQuoteModal(null)}
           onDone={closeAll}
@@ -124,7 +126,7 @@ export function QuoteEditor({
 
       {sectionModal && (
         <SectionModal
-          projectId={projectId}
+          chu={chu}
           state={sectionModal}
           onClose={() => setSectionModal(null)}
           onDone={closeAll}
@@ -133,7 +135,7 @@ export function QuoteEditor({
 
       {itemModal && (
         <ItemModal
-          projectId={projectId}
+          chu={chu}
           catalog={catalog}
           state={itemModal}
           onClose={() => setItemModal(null)}
@@ -141,9 +143,9 @@ export function QuoteEditor({
         />
       )}
 
-      {genFor && (
+      {genFor && chu.loai === "DU_AN" && (
         <GenerateClientQuoteModal
-          projectId={projectId}
+          projectId={chu.id}
           quote={genFor}
           projectArea={projectArea}
           templates={templates}
@@ -154,7 +156,7 @@ export function QuoteEditor({
 
       {cloneOpen && (
         <CloneModal
-          projectId={projectId}
+          chu={chu}
           cloneSources={cloneSources}
           onClose={() => setCloneOpen(false)}
           onDone={closeAll}
