@@ -95,90 +95,90 @@ export default async function ClientQuotePrintPage({
           </p>
         )}
 
-        <MucTieuDe so="1" ten="Vật liệu áp dụng và thông số kỹ thuật của vật liệu" />
+        {/* Bảng giá đứng trước bảng vật liệu: người nhận báo giá mở ra là thấy ngay
+            con số, phần thông số kỹ thuật là tra cứu nên để sau. */}
+        <MucTieuDe so="1" ten="Báo giá" />
         <table className="mt-2 w-full border-collapse text-[10.5px]">
           <thead>
             <tr className="bg-green-50">
               <Th className="w-10 text-center">STT</Th>
-              <Th>Nội dung</Th>
-              <Th className="w-36 text-center">Thông số kỹ thuật</Th>
-              <Th className="w-48">Ghi chú và xuất xứ</Th>
+              <Th>Nội dung công việc</Th>
+              <Th className="w-14 text-center">Đơn vị</Th>
+              <Th className="w-20 text-right">Tổng khối lượng</Th>
+              <Th className="w-24 text-right">Đơn giá</Th>
+              <Th className="w-28 text-right">Thành tiền (VND)</Th>
+              <Th className="w-24">Ghi chú/ Quy cách</Th>
             </tr>
           </thead>
           <tbody>
-            <NhomVatLieu ma="A" ten="Vật liệu kết cấu thép" rows={nhomA} />
-            <NhomVatLieu ma="B" ten="Vật liệu tôn lợp và bao che" rows={nhomB} />
-            {quote.specs.length === 0 && (
+            {phans.map((phan) => (
+              <PhanGroup key={phan.code}>
+                <tr className="bg-slate-50 font-bold">
+                  <Td className="text-center">{phan.code}</Td>
+                  <Td colSpan={4}>{phan.name}</Td>
+                  <Td className="text-right text-blue-700">
+                    {formatNumber(tienPhan.get(phan.code) ?? 0)}
+                  </Td>
+                  <Td />
+                </tr>
+                {phan.lines.map((l) => (
+                  <tr key={l.id}>
+                    <Td className="text-center">{l.code ?? ""}</Td>
+                    <Td>
+                      {l.name}
+                      {l.detail && <div className="whitespace-pre-line">{l.detail}</div>}
+                    </Td>
+                    <Td className="text-center">{l.unit ?? ""}</Td>
+                    <Td className="text-right">{formatQty(l.qty)}</Td>
+                    <Td className="text-right">{formatNumber(l.unitPrice)}</Td>
+                    <Td className="text-right">{formatNumber(lineAmount(l))}</Td>
+                    <Td>{l.note ?? ""}</Td>
+                  </tr>
+                ))}
+              </PhanGroup>
+            ))}
+            {quote.lines.length === 0 && (
               <tr>
-                <Td colSpan={4} className="py-4 text-center italic text-slate-500">
-                  Chưa có dòng vật liệu nào.
+                <Td colSpan={7} className="py-4 text-center italic text-slate-500">
+                  Chưa có hạng mục nào.
                 </Td>
               </tr>
             )}
+
+            <DongTong nhan="Cộng trước thuế" tien={tong.beforeVat} />
+            <DongTong nhan={`Thuế VAT ${quote.vatPercent ?? 0}%`} tien={tong.vat} />
+            <DongTong nhan="Tổng giá trị sau thuế" tien={tong.withVat} dam />
           </tbody>
         </table>
 
+        <div className="giu-nguyen-khoi mt-2 text-center text-[11.5px] font-semibold italic">
+          {docTienVietNam(tong.withVat)}
+        </div>
+
         {/* ===================== TRANG 2 ===================== */}
         <div className="sang-trang-moi">
-          <MucTieuDe so="2" ten="Báo giá" />
+          <MucTieuDe so="2" ten="Vật liệu áp dụng và thông số kỹ thuật của vật liệu" />
           <table className="mt-2 w-full border-collapse text-[10.5px]">
             <thead>
               <tr className="bg-green-50">
                 <Th className="w-10 text-center">STT</Th>
-                <Th>Nội dung công việc</Th>
-                <Th className="w-14 text-center">Đơn vị</Th>
-                <Th className="w-20 text-right">Tổng khối lượng</Th>
-                <Th className="w-24 text-right">Đơn giá</Th>
-                <Th className="w-28 text-right">Thành tiền (VND)</Th>
-                <Th className="w-24">Ghi chú/ Quy cách</Th>
+                <Th>Nội dung</Th>
+                <Th className="w-36 text-center">Thông số kỹ thuật</Th>
+                <Th className="w-48">Ghi chú và xuất xứ</Th>
               </tr>
             </thead>
             <tbody>
-              {phans.map((phan) => (
-                <PhanGroup key={phan.code}>
-                  <tr className="bg-slate-50 font-bold">
-                    <Td className="text-center">{phan.code}</Td>
-                    <Td colSpan={4}>{phan.name}</Td>
-                    <Td className="text-right text-blue-700">
-                      {formatNumber(tienPhan.get(phan.code) ?? 0)}
-                    </Td>
-                    <Td />
-                  </tr>
-                  {phan.lines.map((l) => (
-                    <tr key={l.id}>
-                      <Td className="text-center">{l.code ?? ""}</Td>
-                      <Td>
-                        {l.name}
-                        {l.detail && (
-                          <div className="whitespace-pre-line">{l.detail}</div>
-                        )}
-                      </Td>
-                      <Td className="text-center">{l.unit ?? ""}</Td>
-                      <Td className="text-right">{formatQty(l.qty)}</Td>
-                      <Td className="text-right">{formatNumber(l.unitPrice)}</Td>
-                      <Td className="text-right">{formatNumber(lineAmount(l))}</Td>
-                      <Td>{l.note ?? ""}</Td>
-                    </tr>
-                  ))}
-                </PhanGroup>
-              ))}
-              {quote.lines.length === 0 && (
+              <NhomVatLieu ma="A" ten="Vật liệu kết cấu thép" rows={nhomA} />
+              <NhomVatLieu ma="B" ten="Vật liệu tôn lợp và bao che" rows={nhomB} />
+              {quote.specs.length === 0 && (
                 <tr>
-                  <Td colSpan={7} className="py-4 text-center italic text-slate-500">
-                    Chưa có hạng mục nào.
+                  <Td colSpan={4} className="py-4 text-center italic text-slate-500">
+                    Chưa có dòng vật liệu nào.
                   </Td>
                 </tr>
               )}
-
-              <DongTong nhan="Cộng trước thuế" tien={tong.beforeVat} />
-              <DongTong nhan={`Thuế VAT ${quote.vatPercent ?? 0}%`} tien={tong.vat} />
-              <DongTong nhan="Tổng giá trị sau thuế" tien={tong.withVat} dam />
             </tbody>
           </table>
-
-          <div className="giu-nguyen-khoi mt-2 text-center text-[11.5px] font-semibold italic">
-            {docTienVietNam(tong.withVat)}
-          </div>
         </div>
 
         {/* ===================== TRANG 3 ===================== */}
@@ -219,13 +219,13 @@ export default async function ClientQuotePrintPage({
                   <tbody>
                     {quote.payments.map((p) => (
                       <tr key={p.id}>
-                        <Td className="italic">+ {p.label}</Td>
-                        <Td className="w-14 text-center font-semibold">
+                        <TdTron className="italic">+ {p.label}</TdTron>
+                        <TdTron className="w-14 text-center font-semibold">
                           {p.percent != null ? `${formatNumber(p.percent)}%` : ""}
-                        </Td>
-                        <Td className="w-48">
+                        </TdTron>
+                        <TdTron className="w-48">
                           {[p.basis, p.note].filter(Boolean).join(", ")}
-                        </Td>
+                        </TdTron>
                       </tr>
                     ))}
                   </tbody>
@@ -305,6 +305,23 @@ function Td({
   );
 }
 
+/** Ô KHÔNG kẻ khung — dùng cho khối ghi chú cuối báo giá. */
+function TdTron({
+  children,
+  className = "",
+  colSpan,
+}: {
+  children?: React.ReactNode;
+  className?: string;
+  colSpan?: number;
+}) {
+  return (
+    <td colSpan={colSpan} className={`px-2 py-1 align-top ${className}`}>
+      {children}
+    </td>
+  );
+}
+
 function NhomVatLieu({
   ma,
   ten,
@@ -357,11 +374,11 @@ function GhiChu({
   if (!noiDung && !children) return null;
   return (
     <tr>
-      <Td className="w-8 text-center">{so}</Td>
-      <Td>
+      <TdTron className="w-8 text-center">{so}</TdTron>
+      <TdTron>
         {noiDung && <div className="whitespace-pre-line">{noiDung}</div>}
         {children}
-      </Td>
+      </TdTron>
     </tr>
   );
 }
@@ -374,9 +391,9 @@ function BangCon({ rows }: { rows: [string, number | null, string][] }) {
       <tbody>
         {rows.map(([ten, so, dv]) => (
           <tr key={ten}>
-            <Td className="italic">{ten}</Td>
-            <Td className="w-16 text-center font-semibold">{formatNumber(so)}</Td>
-            <Td className="w-24 italic">{dv}</Td>
+            <TdTron className="italic">{ten}</TdTron>
+            <TdTron className="w-16 text-center font-semibold">{formatNumber(so)}</TdTron>
+            <TdTron className="w-24 italic">{dv}</TdTron>
           </tr>
         ))}
       </tbody>
