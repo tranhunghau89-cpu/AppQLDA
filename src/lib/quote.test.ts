@@ -4,6 +4,7 @@ import {
   computeQuoteTotals,
   lineCost,
   lineSell,
+  sectionSubtotals,
   sellFromBase,
 } from "./quote";
 
@@ -78,5 +79,75 @@ describe("sellFromBase", () => {
 
   it("thiếu giá gốc -> 0", () => {
     expect(sellFromBase(null, 1.25)).toBe(0);
+  });
+});
+
+describe("sectionSubtotals", () => {
+  // Dòng rút gọn: chỉ cần qty × sellPrice, baseCost không ảnh hưởng.
+  const dong = (sectionId: string, tien: number) => ({
+    sectionId,
+    qty: 1,
+    baseCost: 0,
+    sellPrice: tien,
+  });
+
+  it("phần chỉ có dòng trực tiếp", () => {
+    const m = sectionSubtotals(
+      [{ id: "A", parentId: null }],
+      [dong("A", 100), dong("A", 250)]
+    );
+    expect(m.get("A")).toBe(350);
+  });
+
+  it("cộng cả dòng của các mục con vào phần gốc", () => {
+    const m = sectionSubtotals(
+      [
+        { id: "A", parentId: null },
+        { id: "I", parentId: "A" },
+        { id: "II", parentId: "A" },
+      ],
+      [dong("A", 10), dong("I", 20), dong("II", 30)]
+    );
+    expect(m.get("A")).toBe(60);
+    // Mục con KHÔNG có khóa riêng — chỉ phần gốc mới xuất hiện trong map.
+    expect(m.has("I")).toBe(false);
+  });
+
+  it("phần rỗng -> 0 chứ không undefined", () => {
+    const m = sectionSubtotals([{ id: "A", parentId: null }], []);
+    expect(m.get("A")).toBe(0);
+  });
+
+  it("dòng trỏ tới section không tồn tại thì bị bỏ qua, không ném lỗi", () => {
+    const m = sectionSubtotals(
+      [{ id: "A", parentId: null }],
+      [dong("A", 100), dong("KHONG_CO", 999)]
+    );
+    expect(m.get("A")).toBe(100);
+  });
+
+  it("section tự làm cha nó thì không lặp vô hạn", () => {
+    const m = sectionSubtotals(
+      [
+        { id: "A", parentId: null },
+        { id: "X", parentId: "X" },
+      ],
+      [dong("A", 100), dong("X", 999)]
+    );
+    expect(m.get("A")).toBe(100);
+    expect(m.has("X")).toBe(false);
+  });
+
+  it("hai phần gốc không lẫn tiền của nhau", () => {
+    const m = sectionSubtotals(
+      [
+        { id: "A", parentId: null },
+        { id: "B", parentId: null },
+        { id: "I", parentId: "B" },
+      ],
+      [dong("A", 10), dong("I", 20)]
+    );
+    expect(m.get("A")).toBe(10);
+    expect(m.get("B")).toBe(20);
   });
 });

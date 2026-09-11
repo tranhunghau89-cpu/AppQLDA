@@ -179,3 +179,34 @@ export const PROPOSAL_STATUS: Option[] = [
   { value: "REJECTED", label: "Từ chối", tone: "red" },
 ];
 export const PROPOSAL_STATUS_MAP = map(PROPOSAL_STATUS);
+
+// ----- Báo giá gửi khách -----
+
+export const CLIENT_QUOTE_STATUS: Option[] = [
+  { value: "NHAP", label: "Nháp", tone: "slate" },
+  { value: "DA_GUI", label: "Đã gửi", tone: "blue" },
+  { value: "DAM_PHAN", label: "Đang đàm phán", tone: "amber" },
+  { value: "CHOT", label: "Đã chốt", tone: "green" },
+  { value: "HUY", label: "Hủy", tone: "red" },
+];
+export const CLIENT_QUOTE_STATUS_MAP = map(CLIENT_QUOTE_STATUS);
+
+/** Còn phải theo đuổi — nguồn cho bản tin nhắc việc hằng ngày. */
+export const CLIENT_QUOTE_OPEN = ["DA_GUI", "DAM_PHAN"];
+
+/** Hai nhóm của bảng "Vật liệu áp dụng và thông số kỹ thuật". */
+export const QUOTE_SPEC_GROUP: Option[] = [
+  { value: "A", label: "Vật liệu kết cấu thép" },
+  { value: "B", label: "Vật liệu tôn lợp và bao che" },
+];
+export const QUOTE_SPEC_GROUP_MAP = map(QUOTE_SPEC_GROUP);
+
+// ----- Nhật ký trao đổi với chủ đầu tư -----
+export const CUSTOMER_CONTACT_KIND: Option[] = [
+  { value: "GOI", label: "Gọi điện", tone: "blue" },
+  { value: "GAP", label: "Gặp trực tiếp", tone: "purple" },
+  { value: "EMAIL", label: "Email", tone: "slate" },
+  { value: "ZALO", label: "Zalo / tin nhắn", tone: "green" },
+  { value: "KHAC", label: "Khác", tone: "slate" },
+];
+export const CUSTOMER_CONTACT_KIND_MAP = map(CUSTOMER_CONTACT_KIND);

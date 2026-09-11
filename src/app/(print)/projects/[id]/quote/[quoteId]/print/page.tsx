@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireProjectView } from "@/lib/auth";
-import { computeQuoteTotals, lineSell } from "@/lib/quote";
+import { computeQuoteTotals, lineSell, sectionSubtotals } from "@/lib/quote";
 import { docTienVietNam } from "@/lib/money-words";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { PrintToolbar } from "@/components/print/PrintToolbar";
@@ -34,6 +34,7 @@ export default async function QuotePrintPage({
   const goc = quote.sections.filter((s) => !s.parentId);
   const conCua = (parentId: string) => quote.sections.filter((s) => s.parentId === parentId);
   const dongCua = (sectionId: string) => quote.items.filter((it) => it.sectionId === sectionId);
+  const tienPhanCua = sectionSubtotals(quote.sections, quote.items);
 
   let stt = 0;
 
@@ -73,11 +74,7 @@ export default async function QuotePrintPage({
           <tbody>
             {goc.map((phan) => {
               const con = conCua(phan.id);
-              const trongPhan = [
-                ...dongCua(phan.id),
-                ...con.flatMap((c) => dongCua(c.id)),
-              ];
-              const tienPhan = trongPhan.reduce((s, it) => s + lineSell(it), 0);
+              const tienPhan = tienPhanCua.get(phan.id) ?? 0;
 
               return (
                 <Phan

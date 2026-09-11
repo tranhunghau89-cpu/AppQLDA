@@ -52,3 +52,50 @@ export function sellFromBase(
 ): number {
   return (baseCost ?? 0) * (markup ?? 1);
 }
+
+// ----- Cộng tiền theo "phần" -----
+
+export interface SectionNode {
+  id: string;
+  parentId: string | null;
+}
+
+/**
+ * Tổng tiền bán của từng PHẦN GỐC = dòng của chính nó + dòng của mọi mục con.
+ *
+ * Trả về map khóa bằng id của phần gốc (section không có parentId). Dòng trỏ tới
+ * một section không tồn tại thì bị bỏ qua — dữ liệu cũ có thể lệch, và trang in
+ * không được phép vỡ vì chuyện đó.
+ */
+export function sectionSubtotals(
+  sections: SectionNode[],
+  items: (QuoteLine & { sectionId: string })[]
+): Map<string, number> {
+  const chaCua = new Map(sections.map((s) => [s.id, s.parentId]));
+
+  const tong = new Map<string, number>();
+  for (const s of sections) {
+    if (!s.parentId) tong.set(s.id, 0);
+  }
+
+  for (const it of items) {
+    // Leo ngược lên gốc. Giới hạn số bước theo số section để một dữ liệu hỏng
+    // (section tự làm cha nó, hoặc vòng cha-con) không treo cả trang.
+    let id: string | null = it.sectionId;
+    for (let buoc = 0; id !== null && buoc <= sections.length; buoc++) {
+      const cha: string | null | undefined = chaCua.get(id);
+      if (cha === undefined) {
+        id = null; // section không tồn tại -> bỏ dòng này
+        break;
+      }
+      if (cha === null) break; // đã tới gốc
+      id = cha;
+    }
+    if (id === null) continue;
+    const truoc = tong.get(id);
+    if (truoc === undefined) continue; // gốc không nằm trong danh sách (vòng lặp)
+    tong.set(id, truoc + lineSell(it));
+  }
+
+  return tong;
+}

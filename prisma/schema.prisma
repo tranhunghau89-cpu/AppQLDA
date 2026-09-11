@@ -543,6 +543,7 @@ model QuoteItem {
   note      String?
   sortOrder Int          @default(0)
   @@index([quoteId])
+  @@index([sectionId])
 }
 
 // ----- Nhật ký thay đổi (audit log) -----

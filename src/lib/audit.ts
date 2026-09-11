@@ -18,6 +18,9 @@ export const AUDIT_ENTITY = {
   Quote: "Báo giá",
   WorkPrice: "Đơn giá (Mã CV)",
   PurchaseOrder: "Đơn đặt hàng",
+  ClientQuote: "Báo giá gửi khách",
+  QuoteTemplate: "Mẫu báo giá",
+  CustomerNote: "Nhật ký trao đổi",
 } as const;
 
 export type AuditEntity = keyof typeof AUDIT_ENTITY;
@@ -163,4 +166,22 @@ export const FIELD_LABEL: Record<string, string> = {
   donHang: "Đơn đặt hàng",
   chiPhi: "Chi phí",
   value: "Giá trị",
+  // Báo giá gửi khách
+  quoteNo: "Số báo giá",
+  scope: "Hạng mục",
+  customerPhone: "SĐT chủ đầu tư",
+  salesName: "Người phụ trách",
+  salesPhone: "SĐT người phụ trách",
+  salesEmail: "Email người phụ trách",
+  sentDate: "Ngày gửi",
+  validDays: "Hiệu lực (ngày)",
+  expiryDate: "Ngày hết hiệu lực",
+  warrantyMonths: "Bảo hành (tháng)",
+  maintenanceMonths: "Bảo trì (tháng)",
+  loadRoof: "Hoạt tải mái (kg/m2)",
+  loadHanging: "Tải treo (kg/m2)",
+  loadFloor: "Tải sàn (kg/m2)",
+  percent: "Tỷ lệ (%)",
+  days: "Số ngày",
+  templateId: "Mẫu báo giá",
 };

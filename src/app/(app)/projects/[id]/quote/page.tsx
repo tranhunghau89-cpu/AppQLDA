@@ -5,7 +5,8 @@ import { db } from "@/lib/db";
 import { requireProjectView } from "@/lib/auth";
 import { scopedByProjectWhere } from "@/lib/scope";
 import { can, type Role } from "@/lib/rbac";
-import { QuoteEditor, type QuoteView, type CatalogOption, type CloneSource } from "./QuoteEditor";
+import { QuoteEditor } from "./QuoteEditor";
+import type { QuoteView, CatalogOption, CloneSource } from "./types";
 
 export default async function QuotePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
