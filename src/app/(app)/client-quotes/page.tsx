@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
+import { can, type Role } from "@/lib/rbac";
+import { whereKhachHangTrongPhamVi } from "@/lib/crmScope";
+import { LapNhanh } from "./LapNhanh";
 import { myProjectIds } from "@/lib/scope";
 import { whereBaoGiaTrongPhamVi } from "@/lib/crmScope";
 import { docGiaiDoan, ghepLoc } from "@/lib/giaiDoan";
@@ -23,8 +26,11 @@ export default async function ClientQuotesPage({
   // của khách mình phụ trách.
   const pham = whereBaoGiaTrongPhamVi(session, await myProjectIds(session));
 
+  const canEdit = can(session.role as Role, "quote", "edit");
+  const canTaoKhach = can(session.role as Role, "customer", "edit");
+
   // Đếm trong CÙNG phạm vi, không phải toàn bảng.
-  const [quotes, soChaoGia, soDuAn] = await Promise.all([
+  const [quotes, soChaoGia, soDuAn, khachRows, mauRows] = await Promise.all([
     db.clientQuote.findMany({
       where: ghepLoc(pham, giaiDoan),
       orderBy: { createdAt: "desc" },
@@ -37,6 +43,31 @@ export default async function ClientQuotesPage({
     }),
     db.clientQuote.count({ where: ghepLoc(pham, "CHAO_GIA") }),
     db.clientQuote.count({ where: ghepLoc(pham, "DU_AN") }),
+    // Nguồn cho hộp thoại lập nhanh. Chỉ nạp khi thật sự lập được — không thì đây là
+    // danh sách khách gửi xuống trình duyệt mà chẳng để làm gì.
+    canEdit
+      ? db.khachHang.findMany({
+          where: whereKhachHangTrongPhamVi(session),
+          orderBy: { tenCty: "asc" },
+          select: {
+            id: true,
+            tenCty: true,
+            // Công trình đã thành dự án thì lập báo giá ở trang dự án, không ở đây.
+            coHoi: {
+              where: { projectId: null, trangThai: { not: "MAT" } },
+              orderBy: { createdAt: "desc" },
+              select: { id: true, tenCongTrinh: true },
+            },
+          },
+        })
+      : Promise.resolve([]),
+    canEdit
+      ? db.quoteTemplate.findMany({
+          where: { active: true },
+          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+          select: { id: true, name: true, buildingType: true },
+        })
+      : Promise.resolve([]),
   ]);
 
   const rows = quotes.map((q) => ({
@@ -50,11 +81,16 @@ export default async function ClientQuotesPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Báo giá gửi khách</h1>
-        <p className="text-sm text-slate-500">
-          Báo giá theo hạng mục (m²) — {rows.length} bản
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">Báo giá gửi khách</h1>
+          <p className="text-sm text-slate-500">
+            Báo giá theo hạng mục (m²) — {rows.length} bản
+          </p>
+        </div>
+        {canEdit && (
+          <LapNhanh khach={khachRows} mau={mauRows} canTaoKhach={canTaoKhach} />
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
