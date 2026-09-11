@@ -62,14 +62,16 @@ describe("formatNumber / formatVND", () => {
 });
 
 describe("formatQty", () => {
-  it("giữ 2 chữ số thập phân của khối lượng", () => {
+  it("giữ số lẻ thật của khối lượng", () => {
     // Chốt lỗi cũ: formatNumber làm tròn 15,6 -> 16 ngay trên báo giá gửi khách.
-    expect(formatQty(15.6)).toBe("15,60");
-    expect(formatQty(714.5)).toBe("714,50");
+    expect(formatQty(15.6)).toBe("15,6");
+    expect(formatQty(714.5)).toBe("714,5");
+    expect(formatQty(15.65)).toBe("15,65");
   });
 
-  it("số nguyên vẫn hiện 2 số lẻ như bản Excel mẫu", () => {
-    expect(formatQty(1000)).toBe("1.000,00");
+  it("số nguyên KHÔNG kèm đuôi ,00", () => {
+    expect(formatQty(1000)).toBe("1.000");
+    expect(formatQty(714)).toBe("714");
   });
 
   it("không có khối lượng -> gạch ngang", () => {
@@ -79,6 +81,6 @@ describe("formatQty", () => {
   });
 
   it("khối lượng 0 là giá trị thật, không phải thiếu dữ liệu", () => {
-    expect(formatQty(0)).toBe("0,00");
+    expect(formatQty(0)).toBe("0");
   });
 });

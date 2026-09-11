@@ -13,16 +13,14 @@ export function formatNumber(value: number | null | undefined): string {
   return vnd.format(Math.round(value));
 }
 
-const vndKhoiLuong = new Intl.NumberFormat("vi-VN", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
+const vndKhoiLuong = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 });
 
 /**
- * Định dạng KHỐI LƯỢNG (m², kg, cái…) — giữ 2 chữ số thập phân.
+ * Định dạng KHỐI LƯỢNG (m², kg, cái…) — giữ tối đa 2 chữ số thập phân, cắt số 0
+ * thừa ở đuôi: 1000 -> "1.000", 15,6 -> "15,6", 15,65 -> "15,65".
  *
  * Không dùng `formatNumber` cho khối lượng: hàm đó làm tròn về số nguyên vì nó
- * sinh ra để in tiền. Dùng nhầm thì 15,60 m² in ra thành 16 và 714,5 m² thành
+ * sinh ra để in tiền. Dùng nhầm thì 15,6 m² in ra thành 16 và 714,5 m² thành
  * 715 — sai khối lượng ngay trên văn bản gửi cho chủ đầu tư.
  */
 export function formatQty(value: number | null | undefined): string {
