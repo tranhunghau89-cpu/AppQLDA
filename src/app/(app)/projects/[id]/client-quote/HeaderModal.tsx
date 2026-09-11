@@ -172,6 +172,22 @@ export function HeaderModal({
           </Field>
         </fieldset>
 
+        <Field label="Mô tả chung của hạng mục (in dưới tên mọi đầu việc)">
+          <Textarea
+            name="lineDetail"
+            rows={3}
+            defaultValue={editing?.lineDetail ?? ""}
+            placeholder={
+              "- Gia công sản xuất theo bản vẽ thiết kế.\n" +
+              "- Tôn mái là tôn Đông Á độ dày 0,45 mm mạ màu, 5 sóng công nghiệp."
+            }
+          />
+          <p className="mt-1 text-xs text-slate-400">
+            Mỗi dòng là một gạch đầu dòng. Hạng mục nào cần mô tả khác thì điền riêng ở
+            dòng đó để đè lên.
+          </p>
+        </Field>
+
         {/* Các đoạn chữ in ra — để trống khi tạo mới thì hệ thống tự rót mẫu. */}
         <details className="rounded-lg border border-slate-200 p-3">
           <summary className="cursor-pointer text-xs font-semibold text-slate-500">

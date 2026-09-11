@@ -597,6 +597,10 @@ model ClientQuote {
   loadFloor         Float? // tải sàn     (kg/m2)
 
   // --- Đoạn chữ in ra (đè giá trị mẫu; để trống = dùng mẫu) ---
+  // Mô tả chung áp cho MỌI hạng mục — các gạch đầu dòng dưới tên đầu việc. Trong
+  // báo giá mẫu hai dòng này lặp y hệt ở cả 4 hạng mục, nên để một chỗ rồi dùng
+  // chung; dòng nào cần khác thì tự điền ClientQuoteLine.detail để đè lên.
+  lineDetail  String?
   greeting    String? // hai đoạn mở đầu
   closing     String? // "Chân thành cảm ơn sự hợp tác của Quý khách hàng."
   colorNote   String? // ghi chú 2 — màu sắc

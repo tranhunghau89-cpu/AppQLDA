@@ -63,6 +63,7 @@ export interface ClientQuoteView {
   loadRoof: number | null;
   loadHanging: number | null;
   loadFloor: number | null;
+  lineDetail: string | null;
   greeting: string | null;
   closing: string | null;
   colorNote: string | null;

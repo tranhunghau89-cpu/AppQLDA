@@ -9,7 +9,12 @@ import {
   validatePaymentPercents,
 } from "./clientQuote";
 import { docTienVietNam } from "./money-words";
-import { DEFAULT_PAYMENTS, DEFAULT_SPECS, DEFAULT_STAGES } from "./clientQuoteDefaults";
+import {
+  DEFAULT_LINE_DETAIL,
+  DEFAULT_PAYMENTS,
+  DEFAULT_SPECS,
+  DEFAULT_STAGES,
+} from "./clientQuoteDefaults";
 
 describe("lineAmount", () => {
   it("dòng m²: khối lượng × đơn giá", () => {
@@ -212,6 +217,12 @@ describe("dữ liệu mặc định đã ship", () => {
   it("bảng vật liệu có 10 dòng nhóm A và 6 dòng nhóm B", () => {
     expect(DEFAULT_SPECS.filter((s) => s.groupCode === "A")).toHaveLength(10);
     expect(DEFAULT_SPECS.filter((s) => s.groupCode === "B")).toHaveLength(6);
+  });
+
+  it("mô tả chung của hạng mục là các gạch đầu dòng", () => {
+    const dong = DEFAULT_LINE_DETAIL.split("\n");
+    expect(dong).toHaveLength(2);
+    expect(dong.every((d) => d.startsWith("- "))).toBe(true);
   });
 
   it("mọi dòng vật liệu đều có tên", () => {

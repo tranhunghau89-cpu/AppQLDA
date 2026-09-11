@@ -57,7 +57,7 @@ export function LineModal({
         <Field label="Nội dung công việc *">
           <Input name="name" defaultValue={editing?.name ?? ""} required />
         </Field>
-        <Field label="Diễn giải (mỗi dòng một gạch đầu dòng khi in)">
+        <Field label="Mô tả riêng của dòng này (để trống = dùng mô tả chung của hạng mục)">
           <Textarea
             name="detail"
             rows={3}

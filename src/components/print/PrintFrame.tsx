@@ -15,13 +15,23 @@ export function PrintHeader() {
   return (
     <header className="giu-nguyen-khoi mb-6 border-b-2 border-blue-600 pb-3">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="text-base font-bold uppercase text-blue-600">{c.ten}</div>
-          {lienHe.map((l) => (
-            <div key={l} className="text-[10.5px] leading-snug text-slate-600">
-              {l}
-            </div>
-          ))}
+        <div className="flex min-w-0 items-start gap-3">
+          {/* Dùng <img> thường chứ không phải next/image: trang này chỉ để in, và
+              next/image chèn thêm srcset/lazy-load — lúc in dễ ra ô trắng. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            alt={c.ten}
+            className="h-20 w-20 shrink-0 object-contain"
+          />
+          <div className="min-w-0">
+            <div className="text-base font-bold uppercase text-blue-600">{c.ten}</div>
+            {lienHe.map((l) => (
+              <div key={l} className="text-[10.5px] leading-snug text-slate-600">
+                {l}
+              </div>
+            ))}
+          </div>
         </div>
         <div className="shrink-0 text-center text-[10.5px] leading-snug">
           <div className="font-bold uppercase">Cộng hòa xã hội chủ nghĩa Việt Nam</div>
@@ -34,12 +44,6 @@ export function PrintHeader() {
 }
 
 /**
- * Khối chữ ký hai bên.
- *
- * `giu-nguyen-khoi` để trình duyệt không cắt đôi khối này giữa hai trang giấy — chữ
- * ký bên A nằm cuối trang 3 còn bên B sang trang 4 thì tờ in coi như hỏng.
- */
-/**
  * Dòng "Hà Nội, ngày 11 tháng 09 năm 2026".
  * Khối chữ ký và đầu trang báo giá gửi khách đều cần đúng chuỗi này.
  */
@@ -50,6 +54,12 @@ export function dongNgayThang(diaDiem?: string | null, ngay?: Date | null): stri
   return `${dau}ngày ${hai(ngay.getDate())} tháng ${hai(ngay.getMonth() + 1)} năm ${ngay.getFullYear()}`;
 }
 
+/**
+ * Khối chữ ký hai bên.
+ *
+ * `giu-nguyen-khoi` để trình duyệt không cắt đôi khối này giữa hai trang giấy — chữ
+ * ký bên A nằm cuối trang 3 còn bên B sang trang 4 thì tờ in coi như hỏng.
+ */
 export function PrintSignatures({
   traiTieuDe = "ĐẠI DIỆN BÊN A",
   phaiTieuDe = "ĐẠI DIỆN BÊN B",

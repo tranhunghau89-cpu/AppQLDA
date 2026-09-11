@@ -75,6 +75,7 @@ export default async function ClientQuotePage({
     loadRoof: q.loadRoof,
     loadHanging: q.loadHanging,
     loadFloor: q.loadFloor,
+    lineDetail: q.lineDetail,
     greeting: q.greeting,
     closing: q.closing,
     colorNote: q.colorNote,

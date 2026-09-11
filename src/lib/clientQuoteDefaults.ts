@@ -81,6 +81,17 @@ export const DEFAULT_GREETING =
 
 export const DEFAULT_CLOSING = "Chân thành cảm ơn sự hợp tác của Quý khách hàng.";
 
+/**
+ * Mô tả chung in dưới tên MỌI hạng mục.
+ *
+ * Trong báo giá mẫu, hai dòng này lặp y hệt ở cả bốn hạng mục, nên để một chỗ rồi
+ * dùng chung. Hạng mục nào cần khác (vd tôn thưng 0,40 mm thay vì tôn mái 0,45 mm)
+ * thì điền riêng vào dòng đó để đè lên.
+ */
+export const DEFAULT_LINE_DETAIL =
+  "- Gia công sản xuất theo bản vẽ thiết kế.\n" +
+  "- Tôn mái là tôn Đông Á độ dày 0,45 mm mạ màu, 5 sóng công nghiệp.";
+
 export const DEFAULT_COLOR_NOTE =
   "Màu được sử dụng trong là màu thông dụng tại kho ncc. Màu khác chi phí sẽ điều chỉnh theo mã màu cụ thể.";
 

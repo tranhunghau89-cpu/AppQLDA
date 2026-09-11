@@ -212,8 +212,10 @@ export function ClientQuoteCard({
                         </Badge>
                       )}
                     </div>
-                    {l.detail && (
-                      <div className="whitespace-pre-line text-xs text-slate-400">{l.detail}</div>
+                    {(l.detail ?? q.lineDetail) && (
+                      <div className="whitespace-pre-line text-xs text-slate-400">
+                        {l.detail ?? q.lineDetail}
+                      </div>
                     )}
                     {l.note && <div className="text-xs text-slate-400">{l.note}</div>}
                   </Td>

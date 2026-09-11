@@ -51,6 +51,10 @@ export default async function ClientQuotePrintPage({
     p.lines.push(l);
   }
 
+  // Mô tả chung của hạng mục in dưới tên mọi đầu việc; dòng nào có mô tả riêng
+  // thì mô tả riêng đè lên.
+  const moTaCua = (l: { detail: string | null }) => l.detail ?? quote.lineDetail;
+
   const nhomA = quote.specs.filter((s) => s.groupCode === "A");
   const nhomB = quote.specs.filter((s) => s.groupCode === "B");
 
@@ -98,16 +102,30 @@ export default async function ClientQuotePrintPage({
         {/* Bảng giá đứng trước bảng vật liệu: người nhận báo giá mở ra là thấy ngay
             con số, phần thông số kỹ thuật là tra cứu nên để sau. */}
         <MucTieuDe so="1" ten="Báo giá" />
-        <table className="mt-2 w-full border-collapse text-[10.5px]">
+        {/* Chia cột bằng colgroup + table-fixed thay vì để trình duyệt tự co: cột nội
+            dung chứa cả tên đầu việc lẫn các gạch đầu dòng mô tả nên phải rộng hẳn,
+            còn mấy cột số chỉ cần vừa đủ con số dài nhất ("695.000.000"). */}
+        <table className="mt-2 w-full table-fixed border-collapse text-[10.5px]">
+          <colgroup>
+            <col className="w-[5%]" />
+            <col className="w-[41%]" />
+            {/* Đủ rộng để chữ "Đơn vị" nằm gọn một dòng, không gãy đôi tiêu đề. */}
+            <col className="w-[9%]" />
+            <col className="w-[11%]" />
+            <col className="w-[10%]" />
+            <col className="w-[13%]" />
+            {/* Đủ cho chữ "Quy cách" nằm gọn, không gãy làm ba dòng. */}
+            <col className="w-[11%]" />
+          </colgroup>
           <thead>
             <tr className="bg-green-50">
-              <Th className="w-10 text-center">STT</Th>
+              <Th>STT</Th>
               <Th>Nội dung công việc</Th>
-              <Th className="w-14 text-center">Đơn vị</Th>
-              <Th className="w-20 text-right">Tổng khối lượng</Th>
-              <Th className="w-24 text-right">Đơn giá</Th>
-              <Th className="w-28 text-right">Thành tiền (VND)</Th>
-              <Th className="w-24">Ghi chú/ Quy cách</Th>
+              <Th>Đơn vị</Th>
+              <Th>Tổng khối lượng</Th>
+              <Th>Đơn giá</Th>
+              <Th>Thành tiền (VND)</Th>
+              <Th>Ghi chú/ Quy cách</Th>
             </tr>
           </thead>
           <tbody>
@@ -126,7 +144,9 @@ export default async function ClientQuotePrintPage({
                     <Td className="text-center">{l.code ?? ""}</Td>
                     <Td>
                       {l.name}
-                      {l.detail && <div className="whitespace-pre-line">{l.detail}</div>}
+                      {moTaCua(l) && (
+                        <div className="whitespace-pre-line">{moTaCua(l)}</div>
+                      )}
                     </Td>
                     <Td className="text-center">{l.unit ?? ""}</Td>
                     <Td className="text-right">{formatQty(l.qty)}</Td>
@@ -158,13 +178,19 @@ export default async function ClientQuotePrintPage({
         {/* ===================== TRANG 2 ===================== */}
         <div className="sang-trang-moi">
           <MucTieuDe so="2" ten="Vật liệu áp dụng và thông số kỹ thuật của vật liệu" />
-          <table className="mt-2 w-full border-collapse text-[10.5px]">
+          <table className="mt-2 w-full table-fixed border-collapse text-[10.5px]">
+            <colgroup>
+              <col className="w-[6%]" />
+              <col className="w-[40%]" />
+              <col className="w-[24%]" />
+              <col className="w-[30%]" />
+            </colgroup>
             <thead>
               <tr className="bg-green-50">
-                <Th className="w-10 text-center">STT</Th>
+                <Th>STT</Th>
                 <Th>Nội dung</Th>
-                <Th className="w-36 text-center">Thông số kỹ thuật</Th>
-                <Th className="w-48">Ghi chú và xuất xứ</Th>
+                <Th>Thông số kỹ thuật</Th>
+                <Th>Ghi chú và xuất xứ</Th>
               </tr>
             </thead>
             <tbody>
@@ -280,9 +306,10 @@ function MucTieuDe({ so, ten }: { so: string; ten: string }) {
   );
 }
 
+/** Ô tiêu đề bảng — luôn căn giữa, kể cả cột dữ liệu bên dưới căn phải. */
 function Th({ children, className = "" }: { children?: React.ReactNode; className?: string }) {
   return (
-    <th className={`border border-slate-400 px-2 py-1.5 text-left font-semibold ${className}`}>
+    <th className={`border border-slate-400 px-2 py-1.5 text-center font-semibold ${className}`}>
       {children}
     </th>
   );
