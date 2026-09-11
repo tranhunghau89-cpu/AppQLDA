@@ -5,7 +5,7 @@ import { Input, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { useActionForm } from "@/components/ui/useActionForm";
 import { useToast } from "@/components/ui/toast";
-import { formatNumber } from "@/lib/utils";
+import { formatQty } from "@/lib/utils";
 import { ModalActions } from "./ModalActions";
 import { generateFromQuote } from "../client-quote/actions";
 import type { QuoteView } from "./types";
@@ -73,10 +73,10 @@ export function GenerateClientQuoteModal({
                   </td>
                   <td className="px-3 py-1.5 text-right">
                     {s.area != null ? (
-                      formatNumber(s.area)
+                      formatQty(s.area)
                     ) : projectArea != null ? (
                       <span className="text-slate-400">
-                        {formatNumber(projectArea)} (theo dự án)
+                        {formatQty(projectArea)} (theo dự án)
                       </span>
                     ) : (
                       <span className="text-amber-600">chưa có</span>

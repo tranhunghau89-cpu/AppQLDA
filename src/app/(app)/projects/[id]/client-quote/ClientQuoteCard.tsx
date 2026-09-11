@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
-import { formatVND, formatNumber, formatDate } from "@/lib/utils";
+import { formatVND, formatNumber, formatQty, formatDate } from "@/lib/utils";
 import { computeClientQuoteTotals, lineAmount, partTotals, sumStageDays } from "@/lib/clientQuote";
 import { docTienVietNam } from "@/lib/money-words";
 import { CLIENT_QUOTE_STATUS_MAP, QUOTE_SPEC_GROUP_MAP } from "@/lib/constants";
@@ -218,7 +218,7 @@ export function ClientQuoteCard({
                     {l.note && <div className="text-xs text-slate-400">{l.note}</div>}
                   </Td>
                   <Td className="text-slate-600">{l.unit ?? "—"}</Td>
-                  <Td className="text-right">{formatNumber(l.qty)}</Td>
+                  <Td className="text-right">{formatQty(l.qty)}</Td>
                   <Td className="text-right">{formatNumber(l.unitPrice)}</Td>
                   <Td className="text-right font-medium">{formatVND(lineAmount(l))}</Td>
                   {canEdit && (

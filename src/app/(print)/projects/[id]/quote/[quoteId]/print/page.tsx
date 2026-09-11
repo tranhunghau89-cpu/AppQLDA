@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { requireProjectView } from "@/lib/auth";
 import { computeQuoteTotals, lineSell, sectionSubtotals } from "@/lib/quote";
 import { docTienVietNam } from "@/lib/money-words";
-import { formatDate, formatNumber } from "@/lib/utils";
+import { formatDate, formatNumber, formatQty } from "@/lib/utils";
 import { PrintToolbar } from "@/components/print/PrintToolbar";
 import { PrintHeader, PrintPage, PrintSignatures } from "@/components/print/PrintFrame";
 
@@ -220,7 +220,7 @@ function DongVatTu({
         {it.spec ? <span className="text-slate-500"> — {it.spec}</span> : null}
       </td>
       <td className="border border-slate-400 px-2 py-1 text-center">{it.unit ?? ""}</td>
-      <td className="border border-slate-400 px-2 py-1 text-right">{formatNumber(it.qty)}</td>
+      <td className="border border-slate-400 px-2 py-1 text-right">{formatQty(it.qty)}</td>
       <td className="border border-slate-400 px-2 py-1 text-right">{formatNumber(it.sellPrice)}</td>
       <td className="border border-slate-400 px-2 py-1 text-right">{formatNumber(lineSell(it))}</td>
     </tr>

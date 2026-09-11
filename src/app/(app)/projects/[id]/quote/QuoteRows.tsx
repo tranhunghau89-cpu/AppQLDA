@@ -3,7 +3,7 @@
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tr, Td } from "@/components/ui/table";
-import { formatVND, formatNumber } from "@/lib/utils";
+import { formatVND, formatNumber, formatQty } from "@/lib/utils";
 import { lineSell } from "@/lib/quote";
 import type { ItemView, SectionView } from "./types";
 
@@ -36,7 +36,7 @@ function ItemRows({
             {it.spec ? <span className="text-slate-400"> · {it.spec}</span> : null}
           </Td>
           <Td className="text-slate-600">{it.unit ?? "—"}</Td>
-          <Td className="text-right">{formatNumber(it.qty)}</Td>
+          <Td className="text-right">{formatQty(it.qty)}</Td>
           <Td className="text-right text-slate-500">{formatNumber(it.baseCost)}</Td>
           <Td className="text-right">{formatNumber(it.sellPrice)}</Td>
           <Td className="text-right font-medium">{formatVND(lineSell(it))}</Td>

@@ -9,7 +9,7 @@ import {
   sumStageDays,
 } from "@/lib/clientQuote";
 import { docTienVietNam } from "@/lib/money-words";
-import { formatNumber } from "@/lib/utils";
+import { formatNumber, formatQty } from "@/lib/utils";
 import { PrintToolbar } from "@/components/print/PrintToolbar";
 import { PrintHeader, PrintPage, dongNgayThang } from "@/components/print/PrintFrame";
 
@@ -154,7 +154,7 @@ export default async function ClientQuotePrintPage({
                         )}
                       </Td>
                       <Td className="text-center">{l.unit ?? ""}</Td>
-                      <Td className="text-right">{formatNumber(l.qty)}</Td>
+                      <Td className="text-right">{formatQty(l.qty)}</Td>
                       <Td className="text-right">{formatNumber(l.unitPrice)}</Td>
                       <Td className="text-right">{formatNumber(lineAmount(l))}</Td>
                       <Td>{l.note ?? ""}</Td>

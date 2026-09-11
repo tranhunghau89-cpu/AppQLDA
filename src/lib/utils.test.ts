@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatNumber, formatVND, parseViNumber } from "./utils";
+import { formatNumber, formatVND, parseViNumber, formatQty } from "./utils";
 
 describe("parseViNumber", () => {
   it("dấu chấm là phân cách nghìn", () => {
@@ -58,5 +58,27 @@ describe("formatNumber / formatVND", () => {
 
   it("0 hiển thị là 0, không phải gạch ngang", () => {
     expect(formatNumber(0)).toBe("0");
+  });
+});
+
+describe("formatQty", () => {
+  it("giữ 2 chữ số thập phân của khối lượng", () => {
+    // Chốt lỗi cũ: formatNumber làm tròn 15,6 -> 16 ngay trên báo giá gửi khách.
+    expect(formatQty(15.6)).toBe("15,60");
+    expect(formatQty(714.5)).toBe("714,50");
+  });
+
+  it("số nguyên vẫn hiện 2 số lẻ như bản Excel mẫu", () => {
+    expect(formatQty(1000)).toBe("1.000,00");
+  });
+
+  it("không có khối lượng -> gạch ngang", () => {
+    expect(formatQty(null)).toBe("—");
+    expect(formatQty(undefined)).toBe("—");
+    expect(formatQty(NaN)).toBe("—");
+  });
+
+  it("khối lượng 0 là giá trị thật, không phải thiếu dữ liệu", () => {
+    expect(formatQty(0)).toBe("0,00");
   });
 });
