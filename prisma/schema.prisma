@@ -52,6 +52,7 @@ model Customer {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   projects      Project[]
+  clientQuotes  ClientQuote[]
 }
 
 model Supplier {
@@ -102,6 +103,7 @@ model Project {
   purchaseOrders PurchaseOrder[]
   costSummary    CostSummary?
   quotes         Quote[]
+  clientQuotes   ClientQuote[]
   members        ProjectMember[]
   @@index([status])
   @@index([customerId])
@@ -502,8 +504,9 @@ model Quote {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
-  sections QuoteSection[]
-  items    QuoteItem[]
+  sections     QuoteSection[]
+  items        QuoteItem[]
+  clientQuotes ClientQuote[] @relation("QuoteToClient")
   @@index([projectId])
 }
 
@@ -544,6 +547,146 @@ model QuoteItem {
   sortOrder Int          @default(0)
   @@index([quoteId])
   @@index([sectionId])
+}
+
+// ----- Báo giá gửi khách (theo hạng mục, đơn vị m²) -----
+
+// Khác báo giá chi tiết (Mã CV) ở chỗ: đây là VĂN BẢN gửi ra ngoài — có số, có
+// trạng thái, có hiệu lực, có VAT và điều khoản. Báo giá chi tiết là bảng tính giá
+// thành nội bộ.
+//
+// Cố ý TÁCH hai bảng chứ không thêm cột `kind` vào Quote: hiện có 5 chỗ cộng tiền
+// trên MỌI Quote trong phạm vi mà không lọc gì (trang /quotes, trang dự án lấy
+// quotes[0] mới nhất, danh sách trong trình soạn, nguồn clone, pushSalePrice).
+// Gộp chung thì một bản m² vừa tạo sẽ thành "báo giá mới nhất" và hiện 0 đ trên
+// dashboard dự án. Tách bảng làm lỗi đó không thể xảy ra.
+model ClientQuote {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  quoteNo   String? // Số báo giá: BG-2026-014 (tự nhập)
+  title     String // tiêu đề/phiên bản nội bộ
+  quoteDate DateTime?
+
+  // --- Bên nhận ---
+  customerId    String?
+  customer      Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  recipient     String? // "Kính gửi" — chụp lại tên lúc lập, để bản in không đổi khi CĐT đổi tên
+  customerPhone String?
+  location      String?
+  scope         String? // "Kết cấu thép và bao che"
+
+  // --- Người phụ trách (khối liên hệ trang 1) ---
+  salesName  String?
+  salesPhone String?
+  salesEmail String?
+
+  // --- Vòng đời ---
+  status     String    @default("NHAP") // NHAP|DA_GUI|DAM_PHAN|CHOT|HUY
+  sentDate   DateTime?
+  validDays  Int?      @default(7) // hiệu lực báo giá
+  expiryDate DateTime? // = quoteDate + validDays; chốt cứng khi bấm "Đã gửi"
+
+  // --- Thuế & điều khoản có cấu trúc ---
+  vatPercent        Float? @default(10)
+  warrantyMonths    Int?   @default(12) // bảo hành
+  maintenanceMonths Int?   @default(120) // bảo trì phần kết cấu thép
+  loadRoof          Float? // hoạt tải mái (kg/m2)
+  loadHanging       Float? // tải treo    (kg/m2)
+  loadFloor         Float? // tải sàn     (kg/m2)
+
+  // --- Đoạn chữ in ra (đè giá trị mẫu; để trống = dùng mẫu) ---
+  greeting    String? // hai đoạn mở đầu
+  closing     String? // "Chân thành cảm ơn sự hợp tác của Quý khách hàng."
+  colorNote   String? // ghi chú 2 — màu sắc
+  volumeNote  String? // ghi chú 3 — khối lượng tạm tính
+  excludeNote String? // ghi chú 9 — không bao gồm thí nghiệm
+
+  templateId    String? // mẫu đã dùng (tham chiếu MỀM: xóa mẫu không được xóa báo giá)
+  derivedFromId String? // báo giá chi tiết đã sinh ra bản này
+  derivedFrom   Quote?        @relation("QuoteToClient", fields: [derivedFromId], references: [id], onDelete: SetNull)
+  clonedFromId  String?
+  clonedFrom    ClientQuote?  @relation("ClientQuoteClone", fields: [clonedFromId], references: [id], onDelete: SetNull)
+  clones        ClientQuote[] @relation("ClientQuoteClone")
+
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lines    ClientQuoteLine[]
+  specs    ClientQuoteSpec[]
+  stages   ClientQuoteStage[]
+  payments ClientQuotePayment[]
+
+  @@index([projectId])
+  @@index([customerId])
+  @@index([status, expiryDate]) // nguồn cho nhắc việc hằng ngày
+}
+
+// Dòng hạng mục — mỗi dòng thường là một đơn giá m² trọn gói.
+model ClientQuoteLine {
+  id      String      @id @default(cuid())
+  quoteId String
+  quote   ClientQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  partCode String  @default("I") // I, II… gom nhóm khi in
+  partName String  @default("Phần kết cấu thép")
+  code     String? // "01"
+  name     String // "Gia công sản xuất, lắp dựng khung nhà thép mác Q235..."
+  detail   String? // các gạch đầu dòng, mỗi dòng một ý
+  unit     String? @default("m2")
+  qty      Float? // tổng khối lượng
+  unitPrice Float?
+  // Để TRỐNG = thành tiền tính bằng qty × unitPrice. Điền = chốt cứng (dòng khoán,
+  // vd "Cửa đẩy chớp bằng tôn KT 1.0*3.0m (6 cái)").
+  amount   Float?
+  note     String? // Ghi chú / Quy cách
+
+  // --- vết sinh tự động ---
+  sourceSectionId String? // phần nào của báo giá chi tiết đã sinh ra đơn giá này
+  priceOverridden Boolean @default(false) // true = người dùng sửa tay; "Tính lại" bỏ qua dòng này
+  steelFrameKey   String? // khóa hạng mục bên SteelFrame để rót khối lượng (xem plan/30)
+
+  sortOrder Int @default(0)
+  @@index([quoteId])
+}
+
+// Bảng "Vật liệu áp dụng và thông số kỹ thuật" — nhóm A (kết cấu thép), B (tôn & bao che).
+model ClientQuoteSpec {
+  id        String      @id @default(cuid())
+  quoteId   String
+  quote     ClientQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  groupCode String      @default("A") // A | B
+  name      String // "Thép tấm tổ hợp"
+  spec      String? // "fy = 2.450 kG/cm2"
+  origin    String? // cột "Ghi chú và xuất xứ"
+  sortOrder Int         @default(0)
+  @@index([quoteId])
+}
+
+// Tiến độ thi công (ghi chú 4) — tổng số ngày = Σ days.
+model ClientQuoteStage {
+  id        String      @id @default(cuid())
+  quoteId   String
+  quote     ClientQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  name      String // "Gia công cấu kiện"
+  days      Int?
+  sortOrder Int         @default(0)
+  @@index([quoteId])
+}
+
+// Tiến độ thanh toán (ghi chú 8) — Σ percent phải bằng 100.
+model ClientQuotePayment {
+  id        String      @id @default(cuid())
+  quoteId   String
+  quote     ClientQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  label     String // "Sau khi kí hợp đồng"
+  percent   Float? // 30
+  basis     String? // "GTHĐ" | "Quyết toán"
+  note      String? // "kí hợp đồng" / "thư bảo lãnh 5%"
+  sortOrder Int         @default(0)
+  @@index([quoteId])
 }
 
 // ----- Nhật ký thay đổi (audit log) -----

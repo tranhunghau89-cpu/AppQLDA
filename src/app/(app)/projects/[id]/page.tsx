@@ -23,7 +23,7 @@ import { computeContractTotals } from "@/lib/contract";
 import { computeQuoteTotals } from "@/lib/quote";
 import { Badge } from "@/components/ui/badge";
 import { CONTRACT_STATUS_MAP, PO_CATEGORY_MAP, PO_STATUS_MAP } from "@/lib/constants";
-import { Calculator, FileSignature, ShoppingCart, Wallet, Receipt } from "lucide-react";
+import { Calculator, FileSignature, FileText, ShoppingCart, Wallet, Receipt } from "lucide-react";
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -456,12 +456,20 @@ export default async function ProjectDetailPage({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Báo giá chi tiết (Mã CV)</CardTitle>
-            <Link
-              href={`/projects/${project.id}/quote`}
-              className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100"
-            >
-              <Receipt className="h-4 w-4" /> {project.quotes.length > 0 ? "Xem báo giá" : "Lập báo giá"}
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href={`/projects/${project.id}/client-quote`}
+                className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-200"
+              >
+                <FileText className="h-4 w-4" /> Báo giá gửi khách
+              </Link>
+              <Link
+                href={`/projects/${project.id}/quote`}
+                className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100"
+              >
+                <Receipt className="h-4 w-4" /> {project.quotes.length > 0 ? "Xem báo giá" : "Lập báo giá"}
+              </Link>
+            </div>
           </CardHeader>
           <CardContent>
             {quoteTotals ? (
