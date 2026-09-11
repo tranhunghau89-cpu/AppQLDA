@@ -16,6 +16,9 @@ export default async function ClientQuotePage({
   const { id } = await params;
   const session = await requireProjectView("quote", id);
   const canEdit = can(session.role as Role, "quote", "edit");
+  // Vai Vật tư không có khóa "customer" -> không được thấy nhật ký trao đổi.
+  const canViewCrm = can(session.role as Role, "customer", "view");
+  const canEditCrm = can(session.role as Role, "customer", "edit");
 
   // 3 truy vấn độc lập -> chạy song song (guard phân quyền đã xong ở trên).
   const [project, rawQuotes, customers] = await Promise.all([
@@ -40,6 +43,7 @@ export default async function ClientQuotePage({
         specs: { orderBy: { sortOrder: "asc" } },
         stages: { orderBy: { sortOrder: "asc" } },
         payments: { orderBy: { sortOrder: "asc" } },
+        contacts: { orderBy: { contactDate: "desc" }, take: 50 },
         derivedFrom: { select: { title: true } },
         clonedFrom: { select: { title: true } },
       },
@@ -114,6 +118,18 @@ export default async function ClientQuotePage({
       origin: sp.origin,
     })),
     stages: q.stages.map((st) => ({ id: st.id, name: st.name, days: st.days })),
+    // Không có quyền xem CĐT thì không gửi dữ liệu xuống trình duyệt, chứ không
+    // chỉ ẩn bằng CSS.
+    contacts: canViewCrm
+      ? q.contacts.map((n) => ({
+          id: n.id,
+          kind: n.kind,
+          contactDate: n.contactDate.toISOString(),
+          content: n.content,
+          authorName: n.authorName,
+          nextFollowUpDate: iso(n.nextFollowUpDate),
+        }))
+      : [],
     payments: q.payments.map((p) => ({
       id: p.id,
       label: p.label,
@@ -157,6 +173,8 @@ export default async function ClientQuotePage({
         quotes={quotes}
         customers={customerOptions}
         canEdit={canEdit}
+        canViewCrm={canViewCrm}
+        canEditCrm={canEditCrm}
         templates={mau.options}
         templateGoiY={mau.goiY}
         goiY={{

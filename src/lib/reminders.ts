@@ -23,6 +23,22 @@ export interface DotThanhToanInput {
   dueDate: Date;
 }
 
+/**
+ * Một bản báo giá gửi khách còn đang theo đuổi (DA_GUI / DAM_PHAN) và đã có hạn
+ * hiệu lực. Báo giá đã chốt hoặc đã hủy không đưa vào đây.
+ */
+export interface BaoGiaTheoDoiInput {
+  clientQuoteId: string;
+  quoteNo: string | null;
+  projectCode: string;
+  customer: string | null;
+  /** Tổng giá trị sau thuế — con số người đọc bản tin quan tâm. */
+  total: number;
+  expiryDate: Date;
+  /** Hẹn liên hệ lại gần nhất trong nhật ký trao đổi của báo giá này. */
+  henLienHeLai: Date | null;
+}
+
 export interface MocTre extends MocTreInput {
   soNgayTre: number;
 }
@@ -33,10 +49,18 @@ export interface DotThanhToan extends DotThanhToanInput {
   quaHan: boolean;
 }
 
+export interface BaoGiaTheoDoi extends BaoGiaTheoDoiInput {
+  /** Âm = đã hết hiệu lực bấy nhiêu ngày; dương = còn bấy nhiêu ngày nữa. */
+  soNgayConLai: number;
+  hetHan: boolean;
+}
+
 export interface BanTinNhac {
   mocTre: MocTre[];
   quaHan: DotThanhToan[];
   sapToiHan: DotThanhToan[];
+  baoGiaHetHan: BaoGiaTheoDoi[];
+  baoGiaSapHetHan: BaoGiaTheoDoi[];
   tongPhaiThuQuaHan: number;
   tongPhaiTraQuaHan: number;
   /** true nếu không có gì để nhắc — khi đó không cần gửi. */
@@ -54,12 +78,16 @@ function soNgay(tu: number, den: number): number {
  * Gom dữ liệu thành bản tin nhắc việc.
  *
  * @param sapToiHanTrongNgay Số ngày tới được coi là "sắp tới hạn" (mặc định 7).
+ * @param baoGia Báo giá gửi khách còn đang theo đuổi. Tham số này cố ý đứng CUỐI và
+ *   có giá trị mặc định, để mọi lời gọi 3 tham số sẵn có giữ nguyên ý nghĩa — chèn
+ *   vào giữa sẽ âm thầm diễn giải lại `sapToiHanTrongNgay`.
  */
 export function buildReminderReport(
   mocChuaXong: MocTreInput[],
   dotChuaThanhToan: DotThanhToanInput[],
   now: number,
-  sapToiHanTrongNgay = 7
+  sapToiHanTrongNgay = 7,
+  baoGia: BaoGiaTheoDoiInput[] = []
 ): BanTinNhac {
   const mocTre: MocTre[] = mocChuaXong
     .filter((m) => m.planDate.getTime() < now)
@@ -81,6 +109,21 @@ export function buildReminderReport(
   quaHan.sort((a, b) => a.soNgayConLai - b.soNgayConLai);
   sapToiHan.sort((a, b) => a.soNgayConLai - b.soNgayConLai);
 
+  // Báo giá dùng đúng cùng cửa sổ "sắp tới hạn" và cùng quy ước dấu của số ngày
+  // còn lại, để người đọc bản tin không phải nhớ hai cách tính.
+  const baoGiaHetHan: BaoGiaTheoDoi[] = [];
+  const baoGiaSapHetHan: BaoGiaTheoDoi[] = [];
+  for (const b of baoGia) {
+    const t = b.expiryDate.getTime();
+    if (t < now) {
+      baoGiaHetHan.push({ ...b, soNgayConLai: soNgay(t, now) * -1, hetHan: true });
+    } else if (t <= hanSap) {
+      baoGiaSapHetHan.push({ ...b, soNgayConLai: soNgay(now, t), hetHan: false });
+    }
+  }
+  baoGiaHetHan.sort((a, b) => a.soNgayConLai - b.soNgayConLai);
+  baoGiaSapHetHan.sort((a, b) => a.soNgayConLai - b.soNgayConLai);
+
   const tongPhaiThuQuaHan = quaHan
     .filter((d) => d.direction === "THU")
     .reduce((s, d) => s + (d.amount ?? 0), 0);
@@ -92,14 +135,39 @@ export function buildReminderReport(
     mocTre,
     quaHan,
     sapToiHan,
+    baoGiaHetHan,
+    baoGiaSapHetHan,
     tongPhaiThuQuaHan,
     tongPhaiTraQuaHan,
-    rong: mocTre.length === 0 && quaHan.length === 0 && sapToiHan.length === 0,
+    // Thêm mục mới thì BẮT BUỘC nhớ cả cờ này: route.ts dừng ngay khi rong = true,
+    // quên ở đây là ship một mục được tính đầy đủ nhưng không bao giờ gửi đi.
+    rong:
+      mocTre.length === 0 &&
+      quaHan.length === 0 &&
+      sapToiHan.length === 0 &&
+      baoGiaHetHan.length === 0 &&
+      baoGiaSapHetHan.length === 0,
   };
 }
 
 function tien(v: number): string {
   return v.toLocaleString("vi-VN") + " ₫";
+}
+
+/** "14/09" — đủ để nhận ra một cái hẹn trong vài ngày tới. */
+function ngayThang(d: Date): string {
+  const hai = (n: number) => String(n).padStart(2, "0");
+  return `${hai(d.getDate())}/${hai(d.getMonth() + 1)}`;
+}
+
+function dongBaoGia(b: BaoGiaTheoDoi): string {
+  const ma = b.quoteNo ? `${b.quoteNo} · ` : "";
+  const ai = b.customer ? ` — ${b.customer}` : "";
+  const han = b.hetHan
+    ? `hết hiệu lực ${Math.abs(b.soNgayConLai)} ngày trước`
+    : `hết hiệu lực còn ${b.soNgayConLai} ngày`;
+  const hen = b.henLienHeLai ? ` (hẹn liên hệ lại ${ngayThang(b.henLienHeLai)})` : "";
+  return `  · ${ma}${b.projectCode}${ai}: ${tien(b.total)}, ${han}${hen}`;
 }
 
 /** Bản tin dạng chữ thuần — gửi được qua Zalo, Slack, email, hay chỉ để ghi log. */
@@ -143,6 +211,22 @@ export function formatReminderText(bt: BanTinNhac, gioiHanMoiMuc = 10): string {
     }
     if (bt.sapToiHan.length > gioiHanMoiMuc)
       d.push(`  … và ${bt.sapToiHan.length - gioiHanMoiMuc} đợt nữa`);
+    d.push("");
+  }
+
+  if (bt.baoGiaHetHan.length > 0) {
+    d.push(`BÁO GIÁ HẾT HIỆU LỰC (${bt.baoGiaHetHan.length})`);
+    for (const b of bt.baoGiaHetHan.slice(0, gioiHanMoiMuc)) d.push(dongBaoGia(b));
+    if (bt.baoGiaHetHan.length > gioiHanMoiMuc)
+      d.push(`  … và ${bt.baoGiaHetHan.length - gioiHanMoiMuc} báo giá nữa`);
+    d.push("");
+  }
+
+  if (bt.baoGiaSapHetHan.length > 0) {
+    d.push(`BÁO GIÁ SẮP HẾT HIỆU LỰC (${bt.baoGiaSapHetHan.length})`);
+    for (const b of bt.baoGiaSapHetHan.slice(0, gioiHanMoiMuc)) d.push(dongBaoGia(b));
+    if (bt.baoGiaSapHetHan.length > gioiHanMoiMuc)
+      d.push(`  … và ${bt.baoGiaSapHetHan.length - gioiHanMoiMuc} báo giá nữa`);
   }
 
   return d.join("\n").trim();

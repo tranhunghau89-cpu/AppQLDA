@@ -14,6 +14,8 @@ import { computeClientQuoteTotals, lineAmount, partTotals, sumStageDays } from "
 import { docTienVietNam } from "@/lib/money-words";
 import { CLIENT_QUOTE_STATUS_MAP, QUOTE_SPEC_GROUP_MAP, VAT_TU_TAG_MAP } from "@/lib/constants";
 import { moTaHangMuc, specsHienThi, tagsDangDung } from "@/lib/clientQuoteSpecs";
+import { InteractionLog } from "@/components/crm/InteractionLog";
+import { StatusBar } from "./StatusBar";
 import { clearPriceOverride, deleteClientQuote, deleteLine, deleteSpec, recomputePrices } from "./actions";
 import type { ClientQuoteView, LineView, SpecView } from "./types";
 
@@ -21,6 +23,8 @@ export function ClientQuoteCard({
   q,
   projectId,
   canEdit,
+  canViewCrm,
+  canEditCrm,
   onEdit,
   onAddLine,
   onEditLine,
@@ -31,6 +35,8 @@ export function ClientQuoteCard({
   q: ClientQuoteView;
   projectId: string;
   canEdit: boolean;
+  canViewCrm: boolean;
+  canEditCrm: boolean;
   onEdit: () => void;
   onAddLine: () => void;
   onEditLine: (l: LineView) => void;
@@ -375,6 +381,8 @@ export function ClientQuoteCard({
         </div>
       </details>
 
+      <StatusBar q={q} projectId={projectId} canEdit={canEdit} tongSauThue={tong.withVat} />
+
       {/* ---- Điều khoản tóm tắt ---- */}
       <div className="border-t border-slate-100 p-4 text-sm text-slate-600">
         <span className="font-medium text-slate-700">Điều khoản: </span>
@@ -382,6 +390,24 @@ export function ClientQuoteCard({
         {q.warrantyMonths ?? "—"} tháng · bảo trì {q.maintenanceMonths ?? "—"} tháng · hiệu lực{" "}
         {q.validDays ?? "—"} ngày · thanh toán {q.payments.length} đợt
       </div>
+
+      {canViewCrm && (
+        <div className="border-t border-slate-100 p-4">
+          {q.customerId ? (
+            <InteractionLog
+              customerId={q.customerId}
+              clientQuoteId={q.id}
+              notes={q.contacts}
+              canEdit={canEditCrm}
+              trong
+            />
+          ) : (
+            <p className="text-sm text-slate-400">
+              Gắn chủ đầu tư cho báo giá này để ghi được nhật ký trao đổi.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -53,6 +53,36 @@ model Customer {
   updatedAt     DateTime  @updatedAt
   projects      Project[]
   clientQuotes  ClientQuote[]
+  notes         CustomerNote[]
+}
+
+// Nhật ký trao đổi với chủ đầu tư — cùng hình dạng ProjectNote, nhưng gắn với CĐT
+// và (tùy chọn) một báo giá cụ thể. Đây là phần "CRM" của báo giá: ai đã gọi, nói
+// gì, hẹn liên hệ lại lúc nào.
+model CustomerNote {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  // Xóa báo giá KHÔNG được xóa lịch sử liên hệ — cuộc gọi đã xảy ra thì vẫn đã xảy ra.
+  clientQuoteId String?
+  clientQuote   ClientQuote? @relation(fields: [clientQuoteId], references: [id], onDelete: SetNull)
+
+  kind        String   @default("KHAC") // GOI|GAP|EMAIL|ZALO|KHAC
+  contactDate DateTime @default(now())
+  content     String
+
+  // Tham chiếu MỀM tới tài khoản, cùng lý lẽ với AuditLog: nhật ký phải sống sót
+  // khi tài khoản bị xóa. Tên được chụp lại lúc ghi.
+  authorId   String?
+  authorName String?
+
+  nextFollowUpDate DateTime? // hẹn liên hệ lại -> vào bản tin nhắc việc hằng ngày
+  createdAt        DateTime  @default(now())
+
+  @@index([customerId, contactDate])
+  @@index([clientQuoteId])
+  @@index([nextFollowUpDate])
 }
 
 model Supplier {
@@ -622,6 +652,7 @@ model ClientQuote {
   specs    ClientQuoteSpec[]
   stages   ClientQuoteStage[]
   payments ClientQuotePayment[]
+  contacts CustomerNote[]
 
   @@index([projectId])
   @@index([customerId])

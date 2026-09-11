@@ -11,6 +11,7 @@ import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { formatVND } from "@/lib/utils";
 import { saveCustomer, deleteCustomer } from "./actions";
 import { useConfirm } from "@/components/ui/confirm";
+import { InteractionLog, type NoteView } from "@/components/crm/InteractionLog";
 import { useToast } from "@/components/ui/toast";
 
 export interface CustomerRow {
@@ -23,6 +24,7 @@ export interface CustomerRow {
   projectCount: number;
   receivable: number | null;
   debtProjects: { projectId: string; label: string; receivable: number }[];
+  notes: NoteView[];
 }
 
 export function CustomerManager({
@@ -113,27 +115,30 @@ export function CustomerManager({
           <tbody>
             {customers.map((c) => {
               const isOpen = expanded.has(c.id);
-              const hasDebt = canViewDebt && c.debtProjects.length > 0;
               return (
                 <FragmentRow key={c.id}>
                   <Tr>
                     <Td className="font-medium text-slate-900">
-                      {hasDebt ? (
-                        <button
-                          type="button"
-                          onClick={() => toggle(c.id)}
-                          className="inline-flex items-center gap-1 hover:text-blue-600"
-                        >
-                          {isOpen ? (
-                            <ChevronDown className="h-4 w-4 text-slate-400" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-slate-400" />
-                          )}
-                          {c.name}
-                        </button>
-                      ) : (
-                        c.name
-                      )}
+                      {/* Hàng nào cũng mở rộng được: nhật ký trao đổi luôn có chỗ,
+                          kể cả CĐT chưa phát sinh công nợ. Vào được trang này nghĩa
+                          là đã qua requireView("customer"), nên không cần gác thêm. */}
+                      <button
+                        type="button"
+                        onClick={() => toggle(c.id)}
+                        className="inline-flex items-center gap-1 hover:text-blue-600"
+                      >
+                        {isOpen ? (
+                          <ChevronDown className="h-4 w-4 text-slate-400" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-slate-400" />
+                        )}
+                        {c.name}
+                        {c.notes.length > 0 && (
+                          <span className="ml-1 rounded-full bg-slate-100 px-1.5 text-xs font-normal text-slate-500">
+                            {c.notes.length}
+                          </span>
+                        )}
+                      </button>
                     </Td>
                     <Td>{c.contactPerson || "—"}</Td>
                     <Td>{c.phone || "—"}</Td>
@@ -163,6 +168,7 @@ export function CustomerManager({
                     )}
                   </Tr>
                   {isOpen &&
+                    canViewDebt &&
                     c.debtProjects.map((p) => (
                       <tr
                         key={p.projectId}
@@ -182,6 +188,18 @@ export function CustomerManager({
                         {canEdit && <Td />}
                       </tr>
                     ))}
+                  {isOpen && (
+                    <tr className="border-b border-slate-100 bg-slate-50/60">
+                      <td colSpan={colCount} className="px-4 py-3">
+                        <InteractionLog
+                          customerId={c.id}
+                          notes={c.notes}
+                          canEdit={canEdit}
+                          trong
+                        />
+                      </td>
+                    </tr>
+                  )}
                 </FragmentRow>
               );
             })}

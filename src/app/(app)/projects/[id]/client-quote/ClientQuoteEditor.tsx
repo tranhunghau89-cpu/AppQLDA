@@ -21,6 +21,8 @@ export function ClientQuoteEditor({
   quotes,
   customers,
   canEdit,
+  canViewCrm,
+  canEditCrm,
   goiY,
   templates,
   templateGoiY,
@@ -29,6 +31,8 @@ export function ClientQuoteEditor({
   quotes: ClientQuoteView[];
   customers: CustomerOption[];
   canEdit: boolean;
+  canViewCrm: boolean;
+  canEditCrm: boolean;
   goiY: GoiY;
   templates: TemplateOption[];
   templateGoiY: string | null;
@@ -73,6 +77,8 @@ export function ClientQuoteEditor({
           q={q}
           projectId={projectId}
           canEdit={canEdit}
+          canViewCrm={canViewCrm}
+          canEditCrm={canEditCrm}
           onEdit={() => setHeaderModal({ editing: q })}
           onAddLine={() => setLineModal({ quoteId: q.id, editing: null })}
           onEditLine={(l: LineView) => setLineModal({ quoteId: q.id, editing: l })}

@@ -1,3 +1,5 @@
+import type { NoteView } from "@/components/crm/InteractionLog";
+
 // Hình dạng dữ liệu báo giá gửi khách sau khi server component đã chuẩn hóa
 // (Date -> chuỗi ISO) để đưa xuống client component.
 
@@ -78,7 +80,11 @@ export interface ClientQuoteView {
   specs: SpecView[];
   stages: StageView[];
   payments: PaymentView[];
+  /** Nhật ký trao đổi của riêng báo giá này (rỗng khi không có quyền xem CĐT). */
+  contacts: NoteView[];
 }
+
+export type { NoteView } from "@/components/crm/InteractionLog";
 
 export interface CustomerOption {
   id: string;

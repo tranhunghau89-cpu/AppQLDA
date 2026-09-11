@@ -3,9 +3,14 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { denyProject, requireSession } from "@/lib/auth";
+import { denyProject, requirePermission, requireSession } from "@/lib/auth";
 import { diffFields, recordAudit } from "@/lib/audit";
-import { validatePaymentPercents } from "@/lib/clientQuote";
+import {
+  computeClientQuoteTotals,
+  expiryFrom,
+  validatePaymentPercents,
+} from "@/lib/clientQuote";
+import { CLIENT_QUOTE_STATUS_MAP } from "@/lib/constants";
 import { sectionSubtotals } from "@/lib/quote";
 import { doanNhan } from "@/lib/clientQuoteSpecs";
 import { deriveLines, repriceLines, type DeriveSpec } from "@/lib/clientQuoteDerive";
@@ -863,4 +868,133 @@ export async function recomputePrices(
 
   paths(projectId);
   return { ok: true, warnings: ketQua };
+}
+
+// ---------- Vòng đời báo giá (CRM) ----------
+
+/**
+ * Đổi trạng thái báo giá.
+ *
+ * Hai việc xảy ra một lần duy nhất khi chuyển sang "Đã gửi":
+ *   · `sentDate` ghi lại thời điểm gửi;
+ *   · `expiryDate` được CHỐT CỨNG. Sau đó sửa ngày báo giá hay số ngày hiệu lực
+ *     không còn dịch chuyển hạn nữa — khách đã cầm trên tay một văn bản ghi rõ hạn
+ *     hiệu lực, hạn đó không được phép tự đổi sau lưng họ.
+ *
+ * Chuyển về "Đã gửi" lần thứ hai (từ Đàm phán, từ Hủy) KHÔNG đặt lại hai trường này.
+ */
+export async function setClientQuoteStatus(
+  projectId: string,
+  clientQuoteId: string,
+  status: string
+): Promise<ActionResult> {
+  const g = await guard(projectId, { clientQuoteId });
+  if (g) return g;
+
+  if (!CLIENT_QUOTE_STATUS_MAP[status]) {
+    return { ok: false, error: "Trạng thái không hợp lệ." };
+  }
+
+  const truoc = await db.clientQuote.findUnique({
+    where: { id: clientQuoteId },
+    select: {
+      status: true,
+      sentDate: true,
+      quoteDate: true,
+      validDays: true,
+      expiryDate: true,
+      quoteNo: true,
+      title: true,
+      payments: { select: { percent: true } },
+    },
+  });
+  if (!truoc) return { ok: false, error: "Không tìm thấy báo giá." };
+  if (truoc.status === status) return { ok: true };
+
+  const data: Record<string, unknown> = { status };
+
+  if (status === "DA_GUI") {
+    // Chặn TRƯỚC khi gửi, không phải lúc in: một văn bản có tiến độ thanh toán
+    // cộng không đủ 100% mà đã ra khỏi công ty thì không rút lại được.
+    const kiem = validatePaymentPercents(truoc.payments);
+    if (truoc.payments.length === 0) {
+      return { ok: false, error: "Chưa khai tiến độ thanh toán — không gửi được." };
+    }
+    if (!kiem.ok) {
+      return { ok: false, error: kiem.error ?? "Tiến độ thanh toán không hợp lệ." };
+    }
+    if (!truoc.sentDate) {
+      const gui = new Date();
+      data.sentDate = gui;
+      data.expiryDate = expiryFrom(truoc.quoteDate ?? gui, truoc.validDays);
+    }
+  }
+
+  await db.clientQuote.update({ where: { id: clientQuoteId }, data });
+
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "ClientQuote",
+    entityId: clientQuoteId,
+    entityLabel: truoc.quoteNo ? `${truoc.quoteNo} — ${truoc.title}` : truoc.title,
+    projectId,
+    action: "UPDATE",
+    changes: diffFields(truoc, data, ["status", "sentDate", "expiryDate"]),
+  });
+
+  paths(projectId);
+  return { ok: true };
+}
+
+/**
+ * Đẩy tổng sau thuế của báo giá vào giá bán dự án.
+ *
+ * Cố ý là một NÚT RIÊNG chứ không kèm theo việc chuyển sang "Đã chốt": giá bán dự án
+ * là con số mọi báo cáo lãi lỗ dựa vào, ghi đè nó phải là một quyết định có chủ ý.
+ * Cùng khuôn với pushSalePrice của báo giá chi tiết, kể cả phần ghi vết.
+ */
+export async function pushSalePriceFromClientQuote(
+  projectId: string,
+  clientQuoteId: string
+): Promise<ActionResult> {
+  const g = await guard(projectId, { clientQuoteId });
+  if (g) return g;
+  try {
+    await requirePermission("project", "edit");
+  } catch {
+    return { ok: false, error: "Bạn không có quyền sửa giá bán dự án." };
+  }
+
+  const q = await db.clientQuote.findUnique({
+    where: { id: clientQuoteId },
+    select: {
+      vatPercent: true,
+      lines: { select: { qty: true, unitPrice: true, amount: true } },
+    },
+  });
+  if (!q) return { ok: false, error: "Không tìm thấy báo giá." };
+
+  const total = computeClientQuoteTotals(q.lines, q.vatPercent).withVat;
+  if (total <= 0) {
+    return { ok: false, error: "Báo giá chưa có tiền — không có gì để đẩy." };
+  }
+
+  const truocDA = await db.project.findUnique({
+    where: { id: projectId },
+    select: { code: true, salePrice: true },
+  });
+  await db.project.update({ where: { id: projectId }, data: { salePrice: total } });
+
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "Project",
+    entityId: projectId,
+    entityLabel: truocDA?.code ?? null,
+    projectId,
+    action: "UPDATE",
+    changes: diffFields(truocDA, { salePrice: total }, ["salePrice"]),
+  });
+
+  paths(projectId);
+  return { ok: true };
 }

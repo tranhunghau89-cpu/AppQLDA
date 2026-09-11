@@ -10,10 +10,12 @@ import { db } from "@/lib/db";
 import {
   buildReminderReport,
   formatReminderText,
+  type BaoGiaTheoDoiInput,
   type DotThanhToanInput,
   type MocTreInput,
 } from "@/lib/reminders";
-import { MILESTONE_TYPE_MAP } from "@/lib/constants";
+import { computeClientQuoteTotals } from "@/lib/clientQuote";
+import { CLIENT_QUOTE_OPEN, MILESTONE_TYPE_MAP } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +34,7 @@ export async function GET(req: Request) {
 
   const now = Date.now();
 
-  const [mocRows, dotRows] = await Promise.all([
+  const [mocRows, dotRows, baoGiaRows] = await Promise.all([
     db.milestone.findMany({
       where: { done: false, planDate: { lt: new Date(now) } },
       select: {
@@ -50,6 +52,28 @@ export async function GET(req: Request) {
         amount: true,
         dueDate: true,
         project: { select: { id: true, code: true } },
+      },
+    }),
+    // Báo giá còn đang theo đuổi và đã có hạn hiệu lực. Đã chốt / đã hủy / còn nháp
+    // thì không nhắc. Chỉ số @@index([status, expiryDate]) phục vụ đúng truy vấn này.
+    db.clientQuote.findMany({
+      where: { status: { in: CLIENT_QUOTE_OPEN }, expiryDate: { not: null } },
+      select: {
+        id: true,
+        quoteNo: true,
+        recipient: true,
+        expiryDate: true,
+        vatPercent: true,
+        project: { select: { code: true } },
+        lines: { select: { qty: true, unitPrice: true, amount: true } },
+        customer: { select: { name: true } },
+        // Hẹn liên hệ lại còn ở phía trước, gần nhất đứng đầu.
+        contacts: {
+          where: { nextFollowUpDate: { gte: new Date(now) } },
+          orderBy: { nextFollowUpDate: "asc" },
+          take: 1,
+          select: { nextFollowUpDate: true },
+        },
       },
     }),
   ]);
@@ -75,7 +99,19 @@ export async function GET(req: Request) {
     dueDate: d.dueDate as Date,
   }));
 
-  const banTin = buildReminderReport(moc, dot, now);
+  const baoGia: BaoGiaTheoDoiInput[] = baoGiaRows.map((q) => ({
+    clientQuoteId: q.id,
+    quoteNo: q.quoteNo,
+    projectCode: q.project.code,
+    // Tên chụp lúc lập ("Kính gửi") là thứ in trên văn bản; CĐT đang gắn chỉ để dự phòng.
+    customer: q.recipient ?? q.customer?.name ?? null,
+    total: computeClientQuoteTotals(q.lines, q.vatPercent).withVat,
+    expiryDate: q.expiryDate as Date,
+    henLienHeLai: q.contacts[0]?.nextFollowUpDate ?? null,
+  }));
+
+  // Tham số thứ 5; giữ nguyên mặc định 7 ngày của tham số thứ 4.
+  const banTin = buildReminderReport(moc, dot, now, 7, baoGia);
   const noiDung = formatReminderText(banTin);
 
   let daGui = false;
@@ -110,6 +146,8 @@ export async function GET(req: Request) {
     soMocTre: banTin.mocTre.length,
     soDotQuaHan: banTin.quaHan.length,
     soDotSapToiHan: banTin.sapToiHan.length,
+    soBaoGiaHetHan: banTin.baoGiaHetHan.length,
+    soBaoGiaSapHetHan: banTin.baoGiaSapHetHan.length,
     tongPhaiThuQuaHan: banTin.tongPhaiThuQuaHan,
     tongPhaiTraQuaHan: banTin.tongPhaiTraQuaHan,
     daGui,
