@@ -143,7 +143,11 @@ describe("apDungMau", () => {
 
   it("có mẫu thì bảng con lấy của mẫu, KHÔNG trộn với mặc định", () => {
     const k = apDungMau(
-      mau({ specs: [{ groupCode: "B", tag: null, name: "Tôn X", spec: null, origin: null }] })
+      mau({
+        specs: [
+          { groupCode: "B", tag: null, name: "Tôn X", spec: null, origin: null, inDescription: false },
+        ],
+      })
     );
     expect(k.specs).toHaveLength(1);
     expect(k.specs[0].name).toBe("Tôn X");

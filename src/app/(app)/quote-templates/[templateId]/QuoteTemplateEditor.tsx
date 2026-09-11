@@ -88,8 +88,17 @@ export function QuoteTemplateEditor({
       name: r.name,
       spec: s(r.spec),
       origin: s(r.origin),
+      inDescription: r.inDescription,
     })),
-    (uid) => ({ uid, groupCode: "A", tag: "", name: "", spec: "", origin: "" })
+    (uid) => ({
+      uid,
+      groupCode: "A",
+      tag: "",
+      name: "",
+      spec: "",
+      origin: "",
+      inDescription: false,
+    })
   );
 
   const stages = useRows<StageRow>(

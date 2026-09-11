@@ -48,6 +48,7 @@ export interface EditorSpec {
   name: string;
   spec: string | null;
   origin: string | null;
+  inDescription: boolean;
 }
 export interface EditorStage {
   name: string;
@@ -83,6 +84,8 @@ export interface SpecRow {
   name: string;
   spec: string;
   origin: string;
+  /** Ô duy nhất trong bảng không phải chuỗi — nó là cờ, không phải số gõ dở. */
+  inDescription: boolean;
 }
 export interface StageRow {
   uid: string;

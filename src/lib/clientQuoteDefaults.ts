@@ -18,28 +18,37 @@ export interface SpecSeed {
   name: string;
   spec: string | null;
   origin: string | null;
+  /**
+   * Có nhắc lại dòng này dưới tên hạng mục không.
+   *
+   * Chỉ bật cho hai dòng tôn chính — đó là thứ khách nhìn vào để biết mình mua gì.
+   * Thép tấm, thép hình, máng nước, ke diềm... đã có bảng vật liệu ở mục 2 kể rồi;
+   * nhắc lại hết thì hạng mục mái phải gánh 7 gạch đầu dòng, dài hơn hẳn báo giá
+   * thật của công ty.
+   */
+  inDescription: boolean;
 }
 
 /** Bảng "Vật liệu áp dụng và thông số kỹ thuật" — 10 dòng nhóm A, 6 dòng nhóm B. */
 export const DEFAULT_SPECS: SpecSeed[] = [
   // A — Vật liệu kết cấu thép
-  { groupCode: "A", tag: "KHUNG_THEP", name: "Thép tấm tổ hợp", spec: "fy = 2.450 kG/cm2", origin: "Q235 hoặc tương đương" },
-  { groupCode: "A", tag: "KHUNG_THEP", name: "Thép hình", spec: "fy = 2.100 kG/cm2", origin: "JIS G3193 hoặc tương đương" },
-  { groupCode: "A", tag: null, name: "Xà gồ mái, vách", spec: "G350Z80", origin: "Mạ kẽm" },
-  { groupCode: "A", tag: null, name: "Giằng, chống xà gồ", spec: "fy = 2.100 kG/cm2", origin: null },
-  { groupCode: "A", tag: null, name: "Que hàn", spec: "E42 / tương đương", origin: null },
-  { groupCode: "A", tag: null, name: "Làm sạch bề mặt", spec: "SA1.2", origin: "Làm sạch bằng phun bi" },
-  { groupCode: "A", tag: null, name: "Sơn phủ", spec: "Sơn Alkyd, 80mcr", origin: "1 lớp chống rỉ, 2 lớp sơn màu" },
-  { groupCode: "A", tag: null, name: "Bulong neo", spec: "Class 4*6", origin: "Mạ kẽm" },
-  { groupCode: "A", tag: null, name: "Bu lông liên kết khung chính", spec: "Class 8*8", origin: "Mạ kẽm" },
-  { groupCode: "A", tag: null, name: "Bu lông liên kết giằng, xà gồ", spec: "Class 5*6", origin: "Mạ kẽm" },
+  { groupCode: "A", tag: "KHUNG_THEP", name: "Thép tấm tổ hợp", spec: "fy = 2.450 kG/cm2", origin: "Q235 hoặc tương đương", inDescription: false },
+  { groupCode: "A", tag: "KHUNG_THEP", name: "Thép hình", spec: "fy = 2.100 kG/cm2", origin: "JIS G3193 hoặc tương đương", inDescription: false },
+  { groupCode: "A", tag: null, name: "Xà gồ mái, vách", spec: "G350Z80", origin: "Mạ kẽm", inDescription: false },
+  { groupCode: "A", tag: null, name: "Giằng, chống xà gồ", spec: "fy = 2.100 kG/cm2", origin: null, inDescription: false },
+  { groupCode: "A", tag: null, name: "Que hàn", spec: "E42 / tương đương", origin: null, inDescription: false },
+  { groupCode: "A", tag: null, name: "Làm sạch bề mặt", spec: "SA1.2", origin: "Làm sạch bằng phun bi", inDescription: false },
+  { groupCode: "A", tag: null, name: "Sơn phủ", spec: "Sơn Alkyd, 80mcr", origin: "1 lớp chống rỉ, 2 lớp sơn màu", inDescription: false },
+  { groupCode: "A", tag: null, name: "Bulong neo", spec: "Class 4*6", origin: "Mạ kẽm", inDescription: false },
+  { groupCode: "A", tag: null, name: "Bu lông liên kết khung chính", spec: "Class 8*8", origin: "Mạ kẽm", inDescription: false },
+  { groupCode: "A", tag: null, name: "Bu lông liên kết giằng, xà gồ", spec: "Class 5*6", origin: "Mạ kẽm", inDescription: false },
   // B — Vật liệu tôn lợp và bao che
-  { groupCode: "B", tag: "TON_MAI", name: "Tôn mái sóng CN", spec: "0.45mm, AZ50G550", origin: "Tôn Đông Á or tương đương" },
-  { groupCode: "B", tag: "TON_THUNG", name: "Tôn thưng sóng CN", spec: "0.40mm, AZ50G550", origin: "Tôn Đông Á or tương đương" },
-  { groupCode: "B", tag: "TON_MAI", name: "Máng nước khổ <800mm", spec: "0.45mm, AZ50G550", origin: "Tôn Đông Á or tương đương" },
-  { groupCode: "B", tag: "TON_MAI", name: "Ke diềm phụ kiện", spec: "0.40mm, AZ50G550", origin: "Tôn Đông Á or tương đương" },
-  { groupCode: "B", tag: "TON_MAI", name: "Ống nước", spec: "D90", origin: null },
-  { groupCode: "B", tag: null, name: "Keo, vít các loại", spec: null, origin: "KCC - Hàn Quốc. Vít SEC" },
+  { groupCode: "B", tag: "TON_MAI", name: "Tôn mái sóng CN", spec: "0.45mm, AZ50G550", origin: "Tôn Đông Á or tương đương", inDescription: true },
+  { groupCode: "B", tag: "TON_THUNG", name: "Tôn thưng sóng CN", spec: "0.40mm, AZ50G550", origin: "Tôn Đông Á or tương đương", inDescription: true },
+  { groupCode: "B", tag: "TON_MAI", name: "Máng nước khổ <800mm", spec: "0.45mm, AZ50G550", origin: "Tôn Đông Á or tương đương", inDescription: false },
+  { groupCode: "B", tag: "TON_MAI", name: "Ke diềm phụ kiện", spec: "0.40mm, AZ50G550", origin: "Tôn Đông Á or tương đương", inDescription: false },
+  { groupCode: "B", tag: "TON_MAI", name: "Ống nước", spec: "D90", origin: null, inDescription: false },
+  { groupCode: "B", tag: null, name: "Keo, vít các loại", spec: null, origin: "KCC - Hàn Quốc. Vít SEC", inDescription: false },
 ];
 
 export interface StageSeed {

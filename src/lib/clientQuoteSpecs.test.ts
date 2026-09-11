@@ -3,16 +3,19 @@ import {
   doanNhan,
   moTaHangMuc,
   specsCuaHangMuc,
+  specsNhacLai,
   specsHienThi,
   tagsDangDung,
 } from "./clientQuoteSpecs";
 
 const SPECS = [
-  { tag: "KHUNG_THEP", name: "Thép tấm tổ hợp", spec: "fy = 2.450 kG/cm2" },
-  { tag: null, name: "Que hàn", spec: "E42" },
-  { tag: "TON_MAI", name: "Tôn mái sóng CN", spec: "0.45mm, AZ50G550" },
-  { tag: "TON_THUNG", name: "Tôn thưng sóng CN", spec: "0.40mm, AZ50G550" },
-  { tag: null, name: "Keo, vít các loại", spec: null },
+  // inDescription: chỉ hai dòng tôn được nhắc lại dưới tên hạng mục — đúng như
+  // báo giá thật; thép tấm/thép hình để bảng vật liệu ở mục 2 nói.
+  { tag: "KHUNG_THEP", name: "Thép tấm tổ hợp", spec: "fy = 2.450 kG/cm2", inDescription: false },
+  { tag: null, name: "Que hàn", spec: "E42", inDescription: false },
+  { tag: "TON_MAI", name: "Tôn mái sóng CN", spec: "0.45mm, AZ50G550", inDescription: true },
+  { tag: "TON_THUNG", name: "Tôn thưng sóng CN", spec: "0.40mm, AZ50G550", inDescription: true },
+  { tag: null, name: "Keo, vít các loại", spec: null, inDescription: false },
 ];
 
 describe("tagsDangDung", () => {
@@ -92,6 +95,12 @@ describe("moTaHangMuc", () => {
     );
   });
 
+  it("hạng mục mái ra ĐÚNG 2 dòng như bản mẫu, không liệt kê cả nhóm thép", () => {
+    const ra = moTaHangMuc(null, CHUNG, SPECS, ["KHUNG_THEP", "TON_MAI"]);
+    expect(ra?.split("\n")).toHaveLength(2);
+    expect(ra).not.toContain("Thép tấm tổ hợp");
+  });
+
   it("hạng mục thưng ra đúng tôn 0.40, không lẫn tôn mái 0.45", () => {
     const ra = moTaHangMuc(null, CHUNG, SPECS, ["TON_THUNG"]);
     expect(ra).toContain("0.40mm");
@@ -99,10 +108,19 @@ describe("moTaHangMuc", () => {
   });
 
   it("nhiều nhãn thì liệt kê theo thứ tự bảng vật liệu", () => {
-    const ra = moTaHangMuc(null, null, SPECS, ["TON_THUNG", "KHUNG_THEP"]);
+    // Bật cờ cho cả thép tấm để kiểm thứ tự — mặc định nó tắt.
+    const specs = SPECS.map((s) =>
+      s.name === "Thép tấm tổ hợp" ? { ...s, inDescription: true } : s
+    );
+    const ra = moTaHangMuc(null, null, specs, ["TON_THUNG", "KHUNG_THEP"]);
     expect(ra).toBe(
       "- Thép tấm tổ hợp — fy = 2.450 kG/cm2\n- Tôn thưng sóng CN — 0.40mm, AZ50G550"
     );
+  });
+
+  it("vật tư của hạng mục nhưng KHÔNG bật cờ thì không bị nhắc lại", () => {
+    // Thép tấm thuộc hạng mục khung thép, nhưng để bảng vật liệu mục 2 nói.
+    expect(moTaHangMuc(null, null, SPECS, ["KHUNG_THEP"])).toBeNull();
   });
 
   it("mô tả riêng của dòng ĐÈ hoàn toàn", () => {
@@ -119,9 +137,9 @@ describe("moTaHangMuc", () => {
   });
 
   it("vật tư không có thông số thì chỉ in tên", () => {
-    expect(moTaHangMuc(null, null, [{ tag: "SAN", name: "Tôn sàn" }], ["SAN"])).toBe(
-      "- Tôn sàn"
-    );
+    expect(
+      moTaHangMuc(null, null, [{ tag: "SAN", name: "Tôn sàn", inDescription: true }], ["SAN"])
+    ).toBe("- Tôn sàn");
   });
 });
 
@@ -154,5 +172,26 @@ describe("doanNhan", () => {
   it("không trả nhãn trùng", () => {
     const ra = doanNhan("Khung thép, kết cấu thép, thép hình");
     expect(ra.filter((x) => x === "KHUNG_THEP")).toHaveLength(1);
+  });
+});
+
+describe("specsNhacLai", () => {
+  it("chỉ lấy vật tư của hạng mục CÓ bật cờ nhắc lại", () => {
+    expect(specsNhacLai(SPECS, ["KHUNG_THEP", "TON_MAI"]).map((s) => s.name)).toEqual([
+      "Tôn mái sóng CN",
+    ]);
+  });
+
+  it("không bật cờ dòng nào -> rỗng", () => {
+    expect(specsNhacLai(SPECS, ["KHUNG_THEP"])).toEqual([]);
+  });
+
+  it("cờ không khai coi như tắt — mặc định là im lặng, không phải ồn ào", () => {
+    expect(specsNhacLai([{ tag: "SAN", name: "Tôn sàn" }], ["SAN"])).toEqual([]);
+  });
+
+  it("vật tư dùng chung không bao giờ bị nhắc lại dù có bật cờ", () => {
+    const specs = [{ tag: null, name: "Que hàn", spec: "E42", inDescription: true }];
+    expect(specsNhacLai(specs, ["KHUNG_THEP"])).toEqual([]);
   });
 });

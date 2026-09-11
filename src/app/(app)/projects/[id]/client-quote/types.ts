@@ -28,6 +28,8 @@ export interface SpecView {
   name: string;
   spec: string | null;
   origin: string | null;
+  /** Có nhắc lại dòng này trong mô tả dưới tên hạng mục không. */
+  inDescription: boolean;
 }
 
 export interface StageView {

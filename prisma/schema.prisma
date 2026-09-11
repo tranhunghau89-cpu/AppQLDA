@@ -701,6 +701,10 @@ model ClientQuoteSpec {
   name      String // "Thép tấm tổ hợp"
   spec      String? // "fy = 2.450 kG/cm2"
   origin    String? // cột "Ghi chú và xuất xứ"
+  // Có nhắc lại dòng này trong mô tả dưới tên hạng mục không. Mặc định KHÔNG:
+  // bảng vật liệu ở mục 2 đã kể đủ, nhắc lại tất cả thì hạng mục mái phải gánh 7
+  // gạch đầu dòng trong khi báo giá thật chỉ nêu đúng loại tôn.
+  inDescription Boolean @default(false)
   sortOrder Int         @default(0)
   @@index([quoteId])
 }
@@ -806,6 +810,7 @@ model QuoteTemplateSpec {
   name       String
   spec       String?
   origin     String?
+  inDescription Boolean    @default(false) // nhắc lại dưới tên hạng mục
   sortOrder  Int           @default(0)
   @@index([templateId])
 }

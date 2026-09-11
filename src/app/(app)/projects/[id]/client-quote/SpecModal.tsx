@@ -74,6 +74,22 @@ export function SpecModal({
             placeholder="Q235 hoặc tương đương"
           />
         </Field>
+
+        <label className="flex items-start gap-2 rounded-md border border-slate-200 p-3">
+          <input
+            type="checkbox"
+            name="inDescription"
+            defaultChecked={editing?.inDescription ?? false}
+            className="mt-0.5 h-4 w-4 rounded border-slate-300"
+          />
+          <span className="text-sm text-slate-700">
+            Nhắc lại dòng này dưới tên hạng mục
+            <span className="mt-0.5 block text-xs text-slate-400">
+              Bảng vật liệu bên dưới đã kể đủ. Chỉ bật cho thứ khách cần thấy ngay ở
+              hạng mục — thường là dòng tôn. Bật hết thì mô tả dài gấp ba báo giá thật.
+            </span>
+          </span>
+        </label>
         <ModalActions error={error} pending={pending} onCancel={onClose} />
       </form>
     </Modal>

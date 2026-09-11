@@ -116,6 +116,7 @@ export default async function ClientQuotePage({
       name: sp.name,
       spec: sp.spec,
       origin: sp.origin,
+      inDescription: sp.inDescription,
     })),
     stages: q.stages.map((st) => ({ id: st.id, name: st.name, days: st.days })),
     // Không có quyền xem CĐT thì không gửi dữ liệu xuống trình duyệt, chứ không

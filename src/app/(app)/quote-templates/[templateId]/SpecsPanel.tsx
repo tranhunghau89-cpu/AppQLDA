@@ -12,7 +12,7 @@ export function SpecsPanel({ api }: { api: RowsApi<SpecRow> }) {
   return (
     <Panel
       title="Vật liệu & thông số kỹ thuật"
-      hint="Để “Dùng chung” cho thứ công trình nào cũng có (que hàn, sơn, bulong); gắn nhãn cho thứ chỉ xuất hiện khi báo giá có hạng mục tương ứng."
+      hint="Để “Dùng chung” cho thứ công trình nào cũng có (que hàn, sơn, bulong); gắn nhãn cho thứ chỉ xuất hiện khi báo giá có hạng mục tương ứng. “Nhắc lại” = in thêm dòng này dưới tên hạng mục, chỉ nên bật cho dòng tôn."
       count={rows.length}
       onAdd={add}
     >
@@ -24,6 +24,7 @@ export function SpecsPanel({ api }: { api: RowsApi<SpecRow> }) {
             <Thc>Nội dung</Thc>
             <Thc>Thông số kỹ thuật</Thc>
             <Thc>Ghi chú và xuất xứ</Thc>
+            <Thc className="w-20 text-center">Nhắc lại</Thc>
             <Thc></Thc>
           </tr>
         </thead>
@@ -65,6 +66,15 @@ export function SpecsPanel({ api }: { api: RowsApi<SpecRow> }) {
               </td>
               <td className={TD_CLS}>
                 <Cell value={r.origin} onChange={(v) => upd(r.uid, "origin", v)} width="w-44" />
+              </td>
+              <td className={`${TD_CLS} text-center`}>
+                <input
+                  type="checkbox"
+                  checked={r.inDescription}
+                  onChange={(e) => upd(r.uid, "inDescription", e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300"
+                  aria-label={`Nhắc lại "${r.name}" dưới tên hạng mục`}
+                />
               </td>
               <RowTools
                 onUp={() => move(r.uid, -1)}

@@ -73,6 +73,7 @@ export default async function Page({
       name: r.name,
       spec: r.spec,
       origin: r.origin,
+      inDescription: r.inDescription,
     })),
     stages: t.stages.map((r) => ({ name: r.name, days: r.days })),
     payments: t.payments.map((r) => ({

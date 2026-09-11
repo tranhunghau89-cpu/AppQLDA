@@ -117,6 +117,7 @@ async function napMau(templateId: string | null): Promise<MauNguon | null> {
       name: r.name,
       spec: r.spec,
       origin: r.origin,
+      inDescription: r.inDescription,
     })),
     stages: t.stages.map((r) => ({ name: r.name, days: r.days ?? 0 })),
     payments: t.payments.map((r) => ({
@@ -528,6 +529,11 @@ const specSchema = z.object({
   name: z.string().trim().min(1, "Tên vật liệu không được để trống"),
   spec: z.string().trim().optional(),
   origin: z.string().trim().optional(),
+  /**
+   * Ô tick "nhắc lại dưới tên hạng mục". Trình duyệt gửi "on" khi tick, và KHÔNG
+   * gửi khóa nào khi bỏ tick — nên không tick đồng nghĩa với tắt.
+   */
+  inDescription: z.string().optional(),
 });
 
 export async function saveSpec(
@@ -545,6 +551,7 @@ export async function saveSpec(
     name: s(form, "name"),
     spec: s(form, "spec"),
     origin: s(form, "origin"),
+    inDescription: s(form, "inDescription"),
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
@@ -554,6 +561,7 @@ export async function saveSpec(
     name: d.name,
     spec: d.spec || null,
     origin: d.origin || null,
+    inDescription: d.inDescription === "on",
   };
 
   if (specId) {

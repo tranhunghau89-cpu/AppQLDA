@@ -37,6 +37,15 @@ export interface SpecLike {
   tag?: string | null;
   name: string;
   spec?: string | null;
+  /**
+   * Có nhắc lại dòng này trong phần mô tả dưới tên hạng mục hay không.
+   *
+   * Mặc định KHÔNG. Bảng vật liệu ở mục 2 đã kể đủ; nhắc lại tất cả thì hạng mục
+   * mái phải gánh 7 gạch đầu dòng, trong khi báo giá thật chỉ nêu đúng loại tôn để
+   * khách nhìn phát biết mình mua gì. Bật cho những dòng đáng nêu (tôn mái, tôn
+   * thưng) — xem clientQuoteDefaults.
+   */
+  inDescription?: boolean | null;
 }
 
 export interface LineLike {
@@ -78,6 +87,14 @@ export function specsCuaHangMuc<T extends SpecLike>(specs: T[], tags: string[] |
   });
 }
 
+/**
+ * Vật tư của một hạng mục CÓ bật cờ nhắc lại — đúng những dòng được in dưới tên
+ * hạng mục.
+ */
+export function specsNhacLai<T extends SpecLike>(specs: T[], tags: string[] | null): T[] {
+  return specsCuaHangMuc(specs, tags).filter((sp) => sp.inDescription === true);
+}
+
 /** Một dòng gạch đầu dòng mô tả vật tư: "- Tôn mái sóng CN — 0.45mm, AZ50G550". */
 function dongVatTu(sp: SpecLike): string {
   const ten = sp.name.trim();
@@ -88,9 +105,10 @@ function dongVatTu(sp: SpecLike): string {
 /**
  * Mô tả in dưới tên một hạng mục.
  *
- * Ghép theo thứ tự: câu mô tả chung của báo giá, rồi các vật tư đã gắn cho hạng mục
- * đó. Nhờ vậy mô tả LUÔN khớp với bảng vật liệu ở mục 2 — không phải gõ hai nơi rồi
- * tự nhớ cập nhật cho khớp.
+ * Ghép theo thứ tự: câu mô tả chung của báo giá, rồi những vật tư đã gắn cho hạng
+ * mục đó VÀ có bật cờ "nhắc lại". Nhờ vậy mô tả luôn khớp với bảng vật liệu ở mục 2
+ * — không phải gõ hai nơi rồi tự nhớ cập nhật cho khớp — mà vẫn ngắn như báo giá
+ * thật, thường chỉ thêm đúng dòng tôn.
  *
  * `detail` riêng của dòng, nếu có, ĐÈ hoàn toàn: người lập muốn viết khác thì viết.
  */
@@ -106,7 +124,7 @@ export function moTaHangMuc(
   const phan: string[] = [];
   const chung = moTaChung?.trim();
   if (chung) phan.push(chung);
-  for (const sp of specsCuaHangMuc(specs, tags ?? null)) phan.push(dongVatTu(sp));
+  for (const sp of specsNhacLai(specs, tags ?? null)) phan.push(dongVatTu(sp));
 
   return phan.length > 0 ? phan.join("\n") : null;
 }
