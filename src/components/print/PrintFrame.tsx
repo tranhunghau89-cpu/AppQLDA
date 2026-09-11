@@ -13,30 +13,32 @@ export function PrintHeader() {
   ].filter(Boolean) as string[];
 
   return (
-    <header className="giu-nguyen-khoi mb-6 border-b-2 border-blue-600 pb-3">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex min-w-0 items-start gap-3">
+    <header className="giu-nguyen-khoi mb-4 border-b border-blue-600 pb-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
           {/* Dùng <img> thường chứ không phải next/image: trang này chỉ để in, và
               next/image chèn thêm srcset/lazy-load — lúc in dễ ra ô trắng. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo.png"
             alt={c.ten}
-            className="h-20 w-20 shrink-0 object-contain"
+            className="h-11 w-11 shrink-0 object-contain"
           />
           <div className="min-w-0">
-            <div className="text-base font-bold uppercase text-blue-600">{c.ten}</div>
+            <div className="text-[12px] font-bold uppercase leading-tight text-blue-600">
+              {c.ten}
+            </div>
             {lienHe.map((l) => (
-              <div key={l} className="text-[10.5px] leading-snug text-slate-600">
+              <div key={l} className="text-[9px] leading-snug text-slate-600">
                 {l}
               </div>
             ))}
           </div>
         </div>
-        <div className="shrink-0 text-center text-[10.5px] leading-snug">
+        <div className="shrink-0 text-center text-[9.5px] leading-snug">
           <div className="font-bold uppercase">Cộng hòa xã hội chủ nghĩa Việt Nam</div>
           <div className="font-semibold">Độc lập - Tự do - Hạnh phúc</div>
-          <div className="mx-auto mt-0.5 w-32 border-t border-black" />
+          <div className="mx-auto mt-0.5 w-28 border-t border-black" />
         </div>
       </div>
     </header>
