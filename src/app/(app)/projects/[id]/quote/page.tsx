@@ -17,7 +17,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
   const [project, rawQuotes, catalogRows, sourceRows] = await Promise.all([
     db.project.findUnique({
       where: { id },
-      select: { id: true, code: true, name: true, location: true },
+      select: { id: true, code: true, name: true, location: true, area: true },
     }),
     db.quote.findMany({
       where: { projectId: id },
@@ -120,6 +120,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
         catalog={catalog}
         cloneSources={cloneSources}
         canEdit={canEdit}
+        projectArea={project.area}
       />
     </div>
   );

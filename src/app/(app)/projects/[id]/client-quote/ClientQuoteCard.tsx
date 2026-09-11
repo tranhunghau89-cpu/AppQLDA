@@ -3,7 +3,7 @@
 import { useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, Printer, FileText, ListChecks, RotateCcw } from "lucide-react";
+import { Plus, Pencil, Trash2, Printer, FileText, ListChecks, RotateCcw, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
@@ -13,7 +13,7 @@ import { formatVND, formatNumber, formatDate } from "@/lib/utils";
 import { computeClientQuoteTotals, lineAmount, partTotals, sumStageDays } from "@/lib/clientQuote";
 import { docTienVietNam } from "@/lib/money-words";
 import { CLIENT_QUOTE_STATUS_MAP, QUOTE_SPEC_GROUP_MAP } from "@/lib/constants";
-import { clearPriceOverride, deleteClientQuote, deleteLine, deleteSpec } from "./actions";
+import { clearPriceOverride, deleteClientQuote, deleteLine, deleteSpec, recomputePrices } from "./actions";
 import type { ClientQuoteView, LineView, SpecView } from "./types";
 
 export function ClientQuoteCard({
@@ -65,6 +65,24 @@ export function ClientQuoteCard({
     if (!(await confirm(`Xóa hạng mục "${l.name}"?`))) return;
     run(() => deleteLine(projectId, l.id));
   }
+  async function onRecompute() {
+    if (
+      !(await confirm(
+        "Tính lại đơn giá m² từ báo giá chi tiết? Các dòng đã sửa đơn giá bằng tay sẽ được giữ nguyên."
+      ))
+    )
+      return;
+    start(async () => {
+      const res = await recomputePrices(projectId, q.id);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      for (const w of res.warnings ?? []) toast.info(w);
+      router.refresh();
+    });
+  }
+
   async function onDeleteSpec(s: SpecView) {
     if (!(await confirm(`Xóa vật liệu "${s.name}"?`))) return;
     run(() => deleteSpec(projectId, s.id));
@@ -124,6 +142,11 @@ export function ClientQuoteCard({
           </Link>
           {canEdit && (
             <>
+              {q.derivedFromTitle && (
+                <Button variant="outline" size="sm" onClick={onRecompute}>
+                  <RefreshCw className="h-3.5 w-3.5" /> Tính lại đơn giá
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={onEditTerms}>
                 <ListChecks className="h-3.5 w-3.5" /> Điều khoản
               </Button>

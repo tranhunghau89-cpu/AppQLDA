@@ -86,6 +86,11 @@ body {
     break-inside: avoid;
   }
 
+  /* Ép sang tờ giấy mới — báo giá gửi khách chia 3 phần cố định. */
+  .sang-trang-moi {
+    break-before: page;
+  }
+
   a {
     text-decoration: none;
     color: inherit;

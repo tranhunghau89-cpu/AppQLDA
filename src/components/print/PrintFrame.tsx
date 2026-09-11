@@ -39,6 +39,17 @@ export function PrintHeader() {
  * `giu-nguyen-khoi` để trình duyệt không cắt đôi khối này giữa hai trang giấy — chữ
  * ký bên A nằm cuối trang 3 còn bên B sang trang 4 thì tờ in coi như hỏng.
  */
+/**
+ * Dòng "Hà Nội, ngày 11 tháng 09 năm 2026".
+ * Khối chữ ký và đầu trang báo giá gửi khách đều cần đúng chuỗi này.
+ */
+export function dongNgayThang(diaDiem?: string | null, ngay?: Date | null): string {
+  const dau = diaDiem ? `${diaDiem}, ` : "";
+  if (!ngay) return `${dau}ngày ..... tháng ..... năm .........`;
+  const hai = (n: number) => String(n).padStart(2, "0");
+  return `${dau}ngày ${hai(ngay.getDate())} tháng ${hai(ngay.getMonth() + 1)} năm ${ngay.getFullYear()}`;
+}
+
 export function PrintSignatures({
   traiTieuDe = "ĐẠI DIỆN BÊN A",
   phaiTieuDe = "ĐẠI DIỆN BÊN B",
@@ -54,12 +65,7 @@ export function PrintSignatures({
   diaDiem?: string | null;
   ngay?: Date | null;
 }) {
-  const d = ngay ?? null;
-  const dongNgay = d
-    ? `${diaDiem ? `${diaDiem}, ` : ""}ngày ${String(d.getDate()).padStart(2, "0")} tháng ${String(
-        d.getMonth() + 1
-      ).padStart(2, "0")} năm ${d.getFullYear()}`
-    : `${diaDiem ? `${diaDiem}, ` : ""}ngày ..... tháng ..... năm .........`;
+  const dongNgay = dongNgayThang(diaDiem, ngay ?? null);
 
   return (
     <div className="giu-nguyen-khoi mt-10">

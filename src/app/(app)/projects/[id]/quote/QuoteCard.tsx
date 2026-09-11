@@ -11,6 +11,7 @@ import {
   RefreshCw,
   ArrowUpFromLine,
   Receipt,
+  FileOutput,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, THead, Th } from "@/components/ui/table";
@@ -34,6 +35,7 @@ export function QuoteCard({
   projectId,
   canEdit,
   onEditQuote,
+  onGenerateClient,
   onAddPhan,
   onAddSub,
   onEditSection,
@@ -44,6 +46,7 @@ export function QuoteCard({
   projectId: string;
   canEdit: boolean;
   onEditQuote: () => void;
+  onGenerateClient: () => void;
   onAddPhan: () => void;
   onAddSub: (phanId: string) => void;
   onEditSection: (s: SectionView) => void;
@@ -121,6 +124,9 @@ export function QuoteCard({
           </Link>
           {canEdit && (
             <>
+              <Button variant="outline" size="sm" onClick={onGenerateClient}>
+                <FileOutput className="h-3.5 w-3.5" /> Tạo báo giá gửi khách
+              </Button>
               <Button variant="outline" size="sm" onClick={onReprice}>
                 <RefreshCw className="h-3.5 w-3.5" /> Cập nhật đơn giá
               </Button>

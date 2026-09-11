@@ -9,6 +9,7 @@ import { QuoteHeaderModal } from "./QuoteHeaderModal";
 import { SectionModal, type SectionModalState } from "./SectionModal";
 import { ItemModal, type ItemModalState } from "./ItemModal";
 import { CloneModal } from "./CloneModal";
+import { GenerateClientQuoteModal } from "./GenerateClientQuoteModal";
 import type { CatalogOption, CloneSource, ItemView, QuoteView, SectionView } from "./types";
 
 /**
@@ -22,24 +23,29 @@ export function QuoteEditor({
   catalog,
   cloneSources,
   canEdit,
+  projectArea,
 }: {
   projectId: string;
   quotes: QuoteView[];
   catalog: CatalogOption[];
   cloneSources: CloneSource[];
   canEdit: boolean;
+  /** Diện tích dự án — dùng làm mẫu số dự phòng khi phần không khai diện tích. */
+  projectArea: number | null;
 }) {
   const router = useRouter();
   const [quoteModal, setQuoteModal] = useState<{ editing: QuoteView | null } | null>(null);
   const [sectionModal, setSectionModal] = useState<SectionModalState | null>(null);
   const [itemModal, setItemModal] = useState<ItemModalState | null>(null);
   const [cloneOpen, setCloneOpen] = useState(false);
+  const [genFor, setGenFor] = useState<QuoteView | null>(null);
 
   function closeAll() {
     setQuoteModal(null);
     setSectionModal(null);
     setItemModal(null);
     setCloneOpen(false);
+    setGenFor(null);
     router.refresh();
   }
 
@@ -90,6 +96,7 @@ export function QuoteEditor({
           projectId={projectId}
           canEdit={canEdit}
           onEditQuote={() => setQuoteModal({ editing: q })}
+          onGenerateClient={() => setGenFor(q)}
           onAddPhan={() => openSection(q, null, "PHAN", "")}
           onAddSub={(phanId) => openSection(q, null, "SUB", phanId)}
           onEditSection={(s) =>
@@ -125,6 +132,15 @@ export function QuoteEditor({
           state={itemModal}
           onClose={() => setItemModal(null)}
           onDone={closeAll}
+        />
+      )}
+
+      {genFor && (
+        <GenerateClientQuoteModal
+          projectId={projectId}
+          quote={genFor}
+          projectArea={projectArea}
+          onClose={() => setGenFor(null)}
         />
       )}
 

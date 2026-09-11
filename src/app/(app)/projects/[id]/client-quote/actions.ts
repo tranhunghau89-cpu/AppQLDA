@@ -6,6 +6,8 @@ import { db } from "@/lib/db";
 import { denyProject, requireSession } from "@/lib/auth";
 import { diffFields, recordAudit } from "@/lib/audit";
 import { validatePaymentPercents } from "@/lib/clientQuote";
+import { sectionSubtotals } from "@/lib/quote";
+import { deriveLines, repriceLines, type DeriveSpec } from "@/lib/clientQuoteDerive";
 import {
   DEFAULT_CLOSING,
   DEFAULT_COLOR_NOTE,
@@ -539,4 +541,206 @@ function soHoacNull(v: unknown): number | null {
   if (v === "" || v == null) return null;
   const n = Number(v);
   return Number.isNaN(n) ? null : n;
+}
+
+// ---------- Sinh báo giá m² TỪ báo giá chi tiết ----------
+
+/**
+ * Action sinh/tính lại có thể thành công một phần: đơn giá suy ra được cho phần này
+ * nhưng không cho phần kia. Trả kèm cảnh báo thay vì im lặng — người lập báo giá
+ * phải biết dòng nào còn trống trước khi gửi đi.
+ */
+export type DeriveActionResult =
+  | { ok: true; warnings?: string[] }
+  | { ok: false; error: string };
+
+/** Nạp phần + dòng của báo giá chi tiết và cộng tiền theo từng phần gốc. */
+async function nguonBaoGiaChiTiet(sourceQuoteId: string) {
+  const src = await db.quote.findUnique({
+    where: { id: sourceQuoteId },
+    include: {
+      sections: { orderBy: { sortOrder: "asc" } },
+      items: { orderBy: { sortOrder: "asc" } },
+    },
+  });
+  if (!src) return null;
+  return {
+    src,
+    goc: src.sections.filter((x) => !x.parentId),
+    subtotals: sectionSubtotals(src.sections, src.items),
+  };
+}
+
+export async function generateFromQuote(
+  projectId: string,
+  sourceQuoteId: string,
+  form: FormData
+): Promise<DeriveActionResult> {
+  const g = await guard(projectId);
+  if (g) return g;
+
+  const nguon = await nguonBaoGiaChiTiet(sourceQuoteId);
+  if (!nguon) return { ok: false, error: "Không tìm thấy báo giá chi tiết nguồn." };
+  // Kiểm lại quyền sở hữu: sourceQuoteId đến từ trình duyệt.
+  if (nguon.src.projectId !== projectId) {
+    return { ok: false, error: "Báo giá chi tiết không thuộc dự án này." };
+  }
+  if (nguon.goc.length === 0) {
+    return { ok: false, error: "Báo giá chi tiết chưa có phần nào để suy đơn giá." };
+  }
+
+  // Mọi phần đều bằng 0 nghĩa là báo giá chi tiết chưa điền đơn giá bán — sinh ra
+  // một bản toàn số 0 rồi gửi cho khách thì tệ hơn là không sinh.
+  const coTien = nguon.goc.some((sec) => (nguon.subtotals.get(sec.id) ?? 0) > 0);
+  if (!coTien) {
+    return {
+      ok: false,
+      error: "Báo giá chi tiết chưa có đơn giá bán nào — hãy điền đơn giá trước khi sinh.",
+    };
+  }
+
+  const project = await db.project.findUnique({
+    where: { id: projectId },
+    select: { code: true, area: true, location: true, customerId: true, customer: { select: { name: true, phone: true } } },
+  });
+
+  // Chưa có thư viện mẫu thì khuôn dòng lấy thẳng từ các phần của báo giá chi tiết —
+  // luôn khớp với dữ liệu thật, không phải đoán tên hạng mục.
+  const specs: DeriveSpec[] = nguon.goc.map((sec, i) => ({
+    partCode: "I",
+    partName: "Phần kết cấu thép",
+    code: String(i + 1).padStart(2, "0"),
+    name: sec.name,
+    detail: null,
+    unit: "m2",
+    note: null,
+    sourceSectionCode: sec.code,
+    defaultUnitPrice: null,
+  }));
+
+  const { lines, warnings } = deriveLines(
+    specs,
+    nguon.goc.map((sec) => ({ id: sec.id, code: sec.code, area: sec.area })),
+    nguon.subtotals,
+    project?.area ?? null
+  );
+
+  const title = s(form, "title").trim() || `Báo giá gửi khách — ${nguon.src.title}`;
+
+  // Cả báo giá + dòng + vật liệu + điều khoản trong MỘT giao dịch: một bản báo giá
+  // có dòng tiền nhưng thiếu bảng vật liệu hay thiếu điều khoản là văn bản hỏng.
+  const id = await db.$transaction(async (tx) => {
+    const q = await tx.clientQuote.create({
+      data: {
+        projectId,
+        title,
+        derivedFromId: nguon.src.id,
+        quoteDate: new Date(),
+        customerId: project?.customerId ?? null,
+        recipient: project?.customer?.name ?? nguon.src.recipient,
+        customerPhone: project?.customer?.phone ?? null,
+        location: nguon.src.location ?? project?.location ?? null,
+        scope: nguon.src.scope ?? "Kết cấu thép và bao che",
+        vatPercent: DEFAULT_VAT_PERCENT,
+        validDays: DEFAULT_VALID_DAYS,
+        warrantyMonths: DEFAULT_WARRANTY_MONTHS,
+        maintenanceMonths: DEFAULT_MAINTENANCE_MONTHS,
+        loadRoof: DEFAULT_LOADS.roof,
+        loadHanging: DEFAULT_LOADS.hanging,
+        loadFloor: DEFAULT_LOADS.floor,
+        greeting: DEFAULT_GREETING,
+        closing: DEFAULT_CLOSING,
+        colorNote: DEFAULT_COLOR_NOTE,
+        volumeNote: DEFAULT_VOLUME_NOTE,
+        excludeNote: DEFAULT_EXCLUDE_NOTE,
+        note: `Sinh từ báo giá chi tiết "${nguon.src.title}"; đơn giá m² = tổng tiền mỗi phần chia diện tích.`,
+      },
+    });
+    await tx.clientQuoteLine.createMany({
+      data: lines.map((l, i) => ({ quoteId: q.id, ...l, sortOrder: i })),
+    });
+    await tx.clientQuoteSpec.createMany({
+      data: DEFAULT_SPECS.map((sp, i) => ({ quoteId: q.id, ...sp, sortOrder: i })),
+    });
+    await tx.clientQuoteStage.createMany({
+      data: DEFAULT_STAGES.map((st, i) => ({ quoteId: q.id, ...st, sortOrder: i })),
+    });
+    await tx.clientQuotePayment.createMany({
+      data: DEFAULT_PAYMENTS.map((p, i) => ({ quoteId: q.id, ...p, sortOrder: i })),
+    });
+    return q.id;
+  });
+
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "ClientQuote",
+    entityId: id,
+    entityLabel: title,
+    projectId,
+    action: "CREATE",
+    changes: null,
+  });
+
+  paths(projectId);
+  return { ok: true, warnings };
+}
+
+/**
+ * Tính lại đơn giá m² từ báo giá chi tiết gốc.
+ * Dòng đã sửa tay (priceOverridden) được giữ nguyên — xem repriceLines.
+ */
+export async function recomputePrices(
+  projectId: string,
+  clientQuoteId: string
+): Promise<DeriveActionResult> {
+  const g = await guard(projectId, { clientQuoteId });
+  if (g) return g;
+
+  const q = await db.clientQuote.findUnique({
+    where: { id: clientQuoteId },
+    select: { derivedFromId: true, lines: { select: { id: true, sourceSectionId: true, priceOverridden: true } } },
+  });
+  if (!q?.derivedFromId) {
+    return { ok: false, error: "Báo giá này không được sinh từ báo giá chi tiết nào." };
+  }
+
+  const nguon = await nguonBaoGiaChiTiet(q.derivedFromId);
+  if (!nguon) return { ok: false, error: "Báo giá chi tiết gốc đã bị xóa." };
+  if (nguon.src.projectId !== projectId) {
+    return { ok: false, error: "Báo giá chi tiết không thuộc dự án này." };
+  }
+
+  const project = await db.project.findUnique({
+    where: { id: projectId },
+    select: { area: true },
+  });
+
+  const { updates, skipped, warnings } = repriceLines(
+    q.lines,
+    nguon.goc.map((sec) => ({ id: sec.id, code: sec.code, area: sec.area })),
+    nguon.subtotals,
+    project?.area ?? null
+  );
+
+  if (updates.length > 0) {
+    await db.$transaction(
+      updates.map((u) =>
+        db.clientQuoteLine.update({
+          where: { id: u.id },
+          data: { qty: u.qty, unitPrice: u.unitPrice },
+        })
+      )
+    );
+  }
+
+  const ketQua = [...warnings];
+  if (skipped > 0) {
+    ketQua.push(`Giữ nguyên ${skipped} dòng đã sửa đơn giá bằng tay.`);
+  }
+  if (updates.length === 0 && ketQua.length === 0) {
+    ketQua.push("Không có dòng nào cần tính lại.");
+  }
+
+  paths(projectId);
+  return { ok: true, warnings: ketQua };
 }
