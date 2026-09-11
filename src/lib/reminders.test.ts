@@ -3,6 +3,7 @@ import {
   buildReminderReport,
   formatReminderText,
   type BaoGiaTheoDoiInput,
+  type HenLienHeInput,
   type DotThanhToanInput,
   type MocTreInput,
 } from "./reminders";
@@ -263,5 +264,146 @@ describe("formatReminderText — báo giá gửi khách", () => {
     );
     const t = formatReminderText(buildReminderReport([], [], NOW, 7, nhieu), 10);
     expect(t).toContain("và 3 báo giá nữa");
+  });
+});
+
+// ---------- Hẹn liên hệ lại từ CRM (Phase 8.6) ----------
+
+function hen(p: Partial<HenLienHeInput> = {}): HenLienHeInput {
+  return {
+    khachHangId: "kh1",
+    tenCty: "Công ty CP Thép Đại Việt",
+    phuTrach: "Hùng",
+    noiDung: "Gọi lại xác nhận diện tích mái",
+    ngayHen: new Date(NOW + 2 * NGAY),
+    ...p,
+  };
+}
+
+describe("hẹn liên hệ lại", () => {
+  it("hẹn trong cửa sổ thì vào bản tin", () => {
+    const bt = buildReminderReport([], [], NOW, 7, [], [hen()]);
+    expect(bt.henLienHe.length).toBe(1);
+    expect(bt.henLienHe[0].soNgayConLai).toBe(2);
+    expect(bt.henLienHe[0].quaHen).toBe(false);
+  });
+
+  it("hẹn quá hạn cũng vào, mang dấu âm", () => {
+    const bt = buildReminderReport([], [], NOW, 7, [], [hen({ ngayHen: new Date(NOW - 3 * NGAY) })]);
+    expect(bt.henLienHe[0].quaHen).toBe(true);
+    expect(bt.henLienHe[0].soNgayConLai).toBe(-3);
+  });
+
+  it("hẹn còn xa thì chưa nhắc", () => {
+    const bt = buildReminderReport([], [], NOW, 7, [], [hen({ ngayHen: new Date(NOW + 30 * NGAY) })]);
+    expect(bt.henLienHe).toEqual([]);
+  });
+
+  it("quá hẹn xếp trước hẹn sắp tới", () => {
+    const bt = buildReminderReport([], [], NOW, 7, [], [
+      hen({ khachHangId: "a", ngayHen: new Date(NOW + 3 * NGAY) }),
+      hen({ khachHangId: "b", ngayHen: new Date(NOW - 5 * NGAY) }),
+      hen({ khachHangId: "c", ngayHen: new Date(NOW + 1 * NGAY) }),
+    ]);
+    expect(bt.henLienHe.map((h) => h.khachHangId)).toEqual(["b", "c", "a"]);
+  });
+
+  it("mỗi khách chỉ nhắc MỘT lần, lấy cái hẹn sớm nhất", () => {
+    // Một khách có năm ghi chép cùng hẹn gọi lại thì năm dòng giống nhau sẽ đẩy mọi
+    // khách khác ra khỏi giới hạn hiển thị.
+    const bt = buildReminderReport([], [], NOW, 7, [], [
+      hen({ ngayHen: new Date(NOW + 5 * NGAY), noiDung: "muộn" }),
+      hen({ ngayHen: new Date(NOW + 1 * NGAY), noiDung: "sớm" }),
+      hen({ ngayHen: new Date(NOW + 3 * NGAY), noiDung: "giữa" }),
+    ]);
+    expect(bt.henLienHe.length).toBe(1);
+    expect(bt.henLienHe[0].noiDung).toBe("sớm");
+  });
+
+  it("hai khách khác nhau thì vẫn là hai dòng", () => {
+    const bt = buildReminderReport([], [], NOW, 7, [], [
+      hen({ khachHangId: "a" }),
+      hen({ khachHangId: "b" }),
+    ]);
+    expect(bt.henLienHe.length).toBe(2);
+  });
+
+  it("CHỈ có hẹn liên hệ thì bản tin vẫn được gửi", () => {
+    // Cờ `rong` short-circuit ở route.ts — quên mở rộng nó là ship một mục tính đầy
+    // đủ nhưng không bao giờ gửi đi.
+    const bt = buildReminderReport([], [], NOW, 7, [], [hen()]);
+    expect(bt.rong).toBe(false);
+  });
+
+  it("không có gì cả thì vẫn rỗng", () => {
+    expect(buildReminderReport([], [], NOW, 7, [], []).rong).toBe(true);
+  });
+
+  it("lời gọi 5 tham số cũ giữ nguyên nghĩa", () => {
+    // Tham số thứ 6 phải đứng CUỐI và có mặc định; chèn vào giữa là âm thầm diễn giải
+    // lại tham số khác.
+    const bt = buildReminderReport([], [], NOW, 7, [bg()]);
+    expect(bt.henLienHe).toEqual([]);
+    expect(bt.baoGiaSapHetHan.length).toBe(1);
+  });
+});
+
+describe("formatReminderText — hẹn liên hệ lại", () => {
+  it("in tên khách, người phụ trách và ngày hẹn", () => {
+    const t = formatReminderText(buildReminderReport([], [], NOW, 7, [], [hen()]));
+    expect(t).toContain("HẸN LIÊN HỆ LẠI (1)");
+    expect(t).toContain("Công ty CP Thép Đại Việt");
+    expect(t).toContain("[Hùng]");
+    expect(t).toContain("12/09");
+    expect(t).toContain("Gọi lại xác nhận diện tích mái");
+  });
+
+  it("hẹn hôm nay nói là hôm nay, không nói 'còn 0 ngày'", () => {
+    const t = formatReminderText(
+      buildReminderReport([], [], NOW, 7, [], [hen({ ngayHen: new Date(NOW + 3600_000) })])
+    );
+    expect(t).toContain("hẹn hôm nay");
+    expect(t).not.toContain("còn 0 ngày");
+  });
+
+  it("quá hẹn dùng cách nói khác", () => {
+    const t = formatReminderText(
+      buildReminderReport([], [], NOW, 7, [], [hen({ ngayHen: new Date(NOW - 4 * NGAY) })])
+    );
+    expect(t).toContain("quá hẹn 4 ngày");
+  });
+
+  it("nội dung dài bị cắt — bản tin để liếc qua", () => {
+    const dai = "a".repeat(200);
+    const t = formatReminderText(buildReminderReport([], [], NOW, 7, [], [hen({ noiDung: dai })]));
+    expect(t).toContain("…");
+    expect(t).not.toContain(dai);
+    // Dòng nào cũng phải ngắn hơn hẳn nội dung gốc.
+    const dong = t.split("\n").find((l) => l.includes("Thép Đại Việt"))!;
+    expect(dong.length).toBeLessThan(160);
+  });
+
+  it("không có người phụ trách thì bỏ ô đó, không in ngoặc rỗng", () => {
+    const t = formatReminderText(
+      buildReminderReport([], [], NOW, 7, [], [hen({ phuTrach: null })])
+    );
+    expect(t).not.toContain("[]");
+  });
+
+  it("cắt bớt khi quá nhiều khách", () => {
+    const nhieu = Array.from({ length: 13 }, (_, i) =>
+      hen({ khachHangId: `kh${i}`, ngayHen: new Date(NOW + (i % 7) * NGAY) })
+    );
+    const t = formatReminderText(buildReminderReport([], [], NOW, 7, [], nhieu), 10);
+    expect(t).toContain("và 3 khách nữa");
+  });
+
+  it("mục hẹn không nuốt mục báo giá đứng trước nó", () => {
+    // Hai mục liền nhau ở cuối bản tin — thiếu dòng trống ngăn cách là chúng dính vào
+    // nhau thành một khối chữ.
+    const t = formatReminderText(buildReminderReport([], [], NOW, 7, [bg()], [hen()]));
+    expect(t).toContain("BÁO GIÁ SẮP HẾT HIỆU LỰC (1)");
+    expect(t).toContain("HẸN LIÊN HỆ LẠI (1)");
+    expect(t).toMatch(/\n\nHẸN LIÊN HỆ LẠI/);
   });
 });

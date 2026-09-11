@@ -3,27 +3,41 @@ import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
 import { myProjectIds } from "@/lib/scope";
 import { whereBaoGiaTrongPhamVi } from "@/lib/crmScope";
+import { docGiaiDoan, ghepLoc } from "@/lib/giaiDoan";
+import { GiaiDoanChips } from "@/components/GiaiDoanChips";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { formatVND, formatDate } from "@/lib/utils";
 import { computeClientQuoteTotals } from "@/lib/clientQuote";
 import { CLIENT_QUOTE_OPEN, CLIENT_QUOTE_STATUS_MAP } from "@/lib/constants";
 
-export default async function ClientQuotesPage() {
+export default async function ClientQuotesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const session = await requireView("quote");
+  const giaiDoan = docGiaiDoan((await searchParams)["giai-doan"]);
 
   // Báo giá sống ở hai nơi từ Phase 8.4 — phạm vi gộp dự án được phân công và cơ hội
   // của khách mình phụ trách.
-  const quotes = await db.clientQuote.findMany({
-    where: whereBaoGiaTrongPhamVi(session, await myProjectIds(session)),
-    orderBy: { createdAt: "desc" },
-    include: {
-      project: { select: { id: true, code: true, name: true } },
-      coHoi: { select: { id: true, tenCongTrinh: true } },
-      customer: { select: { name: true } },
-      lines: { select: { qty: true, unitPrice: true, amount: true } },
-    },
-  });
+  const pham = whereBaoGiaTrongPhamVi(session, await myProjectIds(session));
+
+  // Đếm trong CÙNG phạm vi, không phải toàn bảng.
+  const [quotes, soChaoGia, soDuAn] = await Promise.all([
+    db.clientQuote.findMany({
+      where: ghepLoc(pham, giaiDoan),
+      orderBy: { createdAt: "desc" },
+      include: {
+        project: { select: { id: true, code: true, name: true } },
+        coHoi: { select: { id: true, tenCongTrinh: true } },
+        customer: { select: { name: true } },
+        lines: { select: { qty: true, unitPrice: true, amount: true } },
+      },
+    }),
+    db.clientQuote.count({ where: ghepLoc(pham, "CHAO_GIA") }),
+    db.clientQuote.count({ where: ghepLoc(pham, "DU_AN") }),
+  ]);
 
   const rows = quotes.map((q) => ({
     ...q,
@@ -61,6 +75,12 @@ export default async function ClientQuotesPage() {
           <div className="mt-1 text-2xl font-bold text-blue-600">{formatVND(tongDaChot)}</div>
         </div>
       </div>
+
+      <GiaiDoanChips
+        duongDan="/client-quotes"
+        hienTai={giaiDoan}
+        dem={{ TAT_CA: soChaoGia + soDuAn, CHAO_GIA: soChaoGia, DU_AN: soDuAn }}
+      />
 
       <div className="rounded-xl border border-slate-200 bg-white">
         <Table>

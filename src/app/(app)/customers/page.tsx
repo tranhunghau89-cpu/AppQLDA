@@ -14,7 +14,11 @@ export default async function CustomersPage() {
   const [customers, receivables, notes] = await Promise.all([
     db.customer.findMany({
       orderBy: { name: "asc" },
-      include: { _count: { select: { projects: true } } },
+      include: {
+        _count: { select: { projects: true } },
+        // Khách nào trong CRM đã nối vào CĐT này — để nhảy ngược về lịch sử chào giá.
+        khachHang: { select: { id: true, tenCty: true } },
+      },
     }),
     canViewDebt ? getReceivables(await myProjectIds(session)) : Promise.resolve([]),
     // Nhật ký trao đổi của mọi CĐT trong một truy vấn rồi gom theo CĐT — rẻ hơn N+1.
@@ -58,6 +62,7 @@ export default async function CustomersPage() {
       address: c.address,
       note: c.note,
       projectCount: c._count.projects,
+      tuKhach: c.khachHang.map((k) => ({ id: k.id, tenCty: k.tenCty })),
       notes: noteMap.get(c.id) ?? [],
       receivable: d?.totalReceivable ?? null,
       debtProjects:
@@ -73,7 +78,10 @@ export default async function CustomersPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Chủ đầu tư</h1>
-        <p className="text-sm text-slate-500">Quản lý thông tin chủ đầu tư / khách hàng</p>
+        <p className="text-sm text-slate-500">
+          Bên đã ký hợp đồng — pháp nhân đứng tên trên hợp đồng và hóa đơn. Khách còn
+          đang chào giá nằm ở khu Khách hàng (CRM).
+        </p>
       </div>
       <CustomerManager customers={rows} canEdit={canEdit} canViewDebt={canViewDebt} />
     </div>

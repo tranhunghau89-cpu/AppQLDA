@@ -12,6 +12,7 @@ import {
   formatReminderText,
   type BaoGiaTheoDoiInput,
   type DotThanhToanInput,
+  type HenLienHeInput,
   type MocTreInput,
 } from "@/lib/reminders";
 import { computeClientQuoteTotals } from "@/lib/clientQuote";
@@ -34,7 +35,11 @@ export async function GET(req: Request) {
 
   const now = Date.now();
 
-  const [mocRows, dotRows, baoGiaRows] = await Promise.all([
+  // Cùng cửa sổ "sắp tới" với phần còn lại của bản tin.
+  const SAP_TOI_NGAY = 7;
+  const hanSap = new Date(now + SAP_TOI_NGAY * 86_400_000);
+
+  const [mocRows, dotRows, baoGiaRows, henRows] = await Promise.all([
     db.milestone.findMany({
       where: { done: false, planDate: { lt: new Date(now) } },
       select: {
@@ -77,6 +82,20 @@ export async function GET(req: Request) {
         },
       },
     }),
+    // Ghi chép CRM có hẹn liên hệ lại, còn trong cửa sổ hoặc đã quá hẹn. Chỉ lấy
+    // ghi chép treo ở KHÁCH — ghi chép của chủ đầu tư đã ký thuộc việc khác.
+    db.customerNote.findMany({
+      where: {
+        khachHangId: { not: null },
+        nextFollowUpDate: { not: null, lte: hanSap },
+      },
+      orderBy: { nextFollowUpDate: "asc" },
+      select: {
+        content: true,
+        nextFollowUpDate: true,
+        khachHang: { select: { id: true, tenCty: true, ownerName: true } },
+      },
+    }),
   ]);
 
   const moc: MocTreInput[] = mocRows
@@ -100,6 +119,18 @@ export async function GET(req: Request) {
     dueDate: d.dueDate as Date,
   }));
 
+  // Hẹn gọi lại ghi ở khách trong CRM. Đây là thứ dễ rơi nhất: khách mới gọi một
+  // cuộc, chưa có báo giá nào, nên không có bản ghi nào khác nhắc tới cái hẹn đó.
+  const hen: HenLienHeInput[] = henRows
+    .filter((n) => n.khachHang != null)
+    .map((n) => ({
+      khachHangId: n.khachHang!.id,
+      tenCty: n.khachHang!.tenCty,
+      phuTrach: n.khachHang!.ownerName,
+      noiDung: n.content,
+      ngayHen: n.nextFollowUpDate as Date,
+    }));
+
   const baoGia: BaoGiaTheoDoiInput[] = baoGiaRows.map((q) => ({
     clientQuoteId: q.id,
     quoteNo: q.quoteNo,
@@ -113,8 +144,8 @@ export async function GET(req: Request) {
     henLienHeLai: q.contacts[0]?.nextFollowUpDate ?? null,
   }));
 
-  // Tham số thứ 5; giữ nguyên mặc định 7 ngày của tham số thứ 4.
-  const banTin = buildReminderReport(moc, dot, now, 7, baoGia);
+  // Tham số 5 và 6; giữ nguyên mặc định của tham số thứ 4.
+  const banTin = buildReminderReport(moc, dot, now, SAP_TOI_NGAY, baoGia, hen);
   const noiDung = formatReminderText(banTin);
 
   let daGui = false;
@@ -151,6 +182,10 @@ export async function GET(req: Request) {
     soDotSapToiHan: banTin.sapToiHan.length,
     soBaoGiaHetHan: banTin.baoGiaHetHan.length,
     soBaoGiaSapHetHan: banTin.baoGiaSapHetHan.length,
+    soHenLienHe: banTin.henLienHe.length,
+    // Cho biết bản tin có bị bỏ qua vì không có gì để nhắc — thứ duy nhất phân biệt
+    // "sáng nay yên ả" với "mục mới tính xong nhưng không bao giờ gửi".
+    rong: banTin.rong,
     tongPhaiThuQuaHan: banTin.tongPhaiThuQuaHan,
     tongPhaiTraQuaHan: banTin.tongPhaiTraQuaHan,
     daGui,

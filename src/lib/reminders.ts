@@ -39,6 +39,27 @@ export interface BaoGiaTheoDoiInput {
   henLienHeLai: Date | null;
 }
 
+/**
+ * Một cái hẹn liên hệ lại đã ghi trong nhật ký CRM.
+ *
+ * Khác báo giá ở chỗ: khách có thể chưa có báo giá nào cả — mới gọi một cuộc, hẹn tuần
+ * sau gọi lại. Đó chính là cái dễ rơi nhất, vì không có bản ghi nào khác nhắc tới nó.
+ */
+export interface HenLienHeInput {
+  khachHangId: string;
+  tenCty: string;
+  /** Người phụ trách khách — để bản tin biết nhắc ai. */
+  phuTrach: string | null;
+  noiDung: string;
+  ngayHen: Date;
+}
+
+export interface HenLienHe extends HenLienHeInput {
+  /** Âm = đã quá hẹn bấy nhiêu ngày; dương = còn bấy nhiêu ngày nữa. */
+  soNgayConLai: number;
+  quaHen: boolean;
+}
+
 export interface MocTre extends MocTreInput {
   soNgayTre: number;
 }
@@ -61,6 +82,7 @@ export interface BanTinNhac {
   sapToiHan: DotThanhToan[];
   baoGiaHetHan: BaoGiaTheoDoi[];
   baoGiaSapHetHan: BaoGiaTheoDoi[];
+  henLienHe: HenLienHe[];
   tongPhaiThuQuaHan: number;
   tongPhaiTraQuaHan: number;
   /** true nếu không có gì để nhắc — khi đó không cần gửi. */
@@ -81,13 +103,15 @@ function soNgay(tu: number, den: number): number {
  * @param baoGia Báo giá gửi khách còn đang theo đuổi. Tham số này cố ý đứng CUỐI và
  *   có giá trị mặc định, để mọi lời gọi 3 tham số sẵn có giữ nguyên ý nghĩa — chèn
  *   vào giữa sẽ âm thầm diễn giải lại `sapToiHanTrongNgay`.
+ * @param hen Hẹn liên hệ lại trong nhật ký CRM. Cũng đứng cuối, cùng lý do.
  */
 export function buildReminderReport(
   mocChuaXong: MocTreInput[],
   dotChuaThanhToan: DotThanhToanInput[],
   now: number,
   sapToiHanTrongNgay = 7,
-  baoGia: BaoGiaTheoDoiInput[] = []
+  baoGia: BaoGiaTheoDoiInput[] = [],
+  hen: HenLienHeInput[] = []
 ): BanTinNhac {
   const mocTre: MocTre[] = mocChuaXong
     .filter((m) => m.planDate.getTime() < now)
@@ -124,6 +148,28 @@ export function buildReminderReport(
   baoGiaHetHan.sort((a, b) => a.soNgayConLai - b.soNgayConLai);
   baoGiaSapHetHan.sort((a, b) => a.soNgayConLai - b.soNgayConLai);
 
+  // Hẹn liên hệ: quá hẹn và sắp tới gộp CHUNG một mục. Với người bán hàng thì "quá
+  // hẹn 3 ngày" và "hẹn sau 2 ngày nữa" đều có nghĩa là gọi đi — tách hai mục chỉ làm
+  // bản tin dài thêm mà không đổi việc phải làm.
+  //
+  // Mỗi khách chỉ nhắc MỘT lần, lấy cái hẹn sớm nhất. Một khách có năm ghi chép cùng
+  // hẹn gọi lại thì năm dòng giống nhau đẩy mọi khách khác ra khỏi giới hạn hiển thị.
+  const somNhat = new Map<string, HenLienHeInput>();
+  for (const h of hen) {
+    const t = h.ngayHen.getTime();
+    if (t > hanSap) continue;
+    const cu = somNhat.get(h.khachHangId);
+    if (!cu || h.ngayHen.getTime() < cu.ngayHen.getTime()) somNhat.set(h.khachHangId, h);
+  }
+  const henLienHe: HenLienHe[] = [...somNhat.values()]
+    .map((h) => {
+      const t = h.ngayHen.getTime();
+      return t < now
+        ? { ...h, soNgayConLai: soNgay(t, now) * -1, quaHen: true }
+        : { ...h, soNgayConLai: soNgay(now, t), quaHen: false };
+    })
+    .sort((a, b) => a.soNgayConLai - b.soNgayConLai);
+
   const tongPhaiThuQuaHan = quaHan
     .filter((d) => d.direction === "THU")
     .reduce((s, d) => s + (d.amount ?? 0), 0);
@@ -137,6 +183,7 @@ export function buildReminderReport(
     sapToiHan,
     baoGiaHetHan,
     baoGiaSapHetHan,
+    henLienHe,
     tongPhaiThuQuaHan,
     tongPhaiTraQuaHan,
     // Thêm mục mới thì BẮT BUỘC nhớ cả cờ này: route.ts dừng ngay khi rong = true,
@@ -146,7 +193,8 @@ export function buildReminderReport(
       quaHan.length === 0 &&
       sapToiHan.length === 0 &&
       baoGiaHetHan.length === 0 &&
-      baoGiaSapHetHan.length === 0,
+      baoGiaSapHetHan.length === 0 &&
+      henLienHe.length === 0,
   };
 }
 
@@ -170,9 +218,22 @@ function dongBaoGia(b: BaoGiaTheoDoi): string {
   return `  · ${ma}${b.projectCode}${ai}: ${tien(b.total)}, ${han}${hen}`;
 }
 
+function dongHen(h: HenLienHe): string {
+  const khi = h.quaHen
+    ? `quá hẹn ${Math.abs(h.soNgayConLai)} ngày`
+    : h.soNgayConLai === 0
+      ? "hẹn hôm nay"
+      : `còn ${h.soNgayConLai} ngày`;
+  const ai = h.phuTrach ? ` [${h.phuTrach}]` : "";
+  // Cắt nội dung: bản tin để liếc qua, không phải để đọc lại cả cuộc trao đổi.
+  const y = h.noiDung.replace(/\s+/g, " ").trim();
+  const tomTat = y.length > 60 ? `${y.slice(0, 60)}…` : y;
+  return `  · ${h.tenCty}${ai}: ${khi} (${ngayThang(h.ngayHen)})${tomTat ? ` — ${tomTat}` : ""}`;
+}
+
 /** Bản tin dạng chữ thuần — gửi được qua Zalo, Slack, email, hay chỉ để ghi log. */
 export function formatReminderText(bt: BanTinNhac, gioiHanMoiMuc = 10): string {
-  if (bt.rong) return "Không có mốc trễ hạn hay đợt thanh toán nào cần nhắc.";
+  if (bt.rong) return "Không có mốc trễ hạn, đợt thanh toán hay cái hẹn nào cần nhắc.";
 
   const d: string[] = ["[QLDA] Nhắc việc hôm nay", ""];
 
@@ -227,6 +288,14 @@ export function formatReminderText(bt: BanTinNhac, gioiHanMoiMuc = 10): string {
     for (const b of bt.baoGiaSapHetHan.slice(0, gioiHanMoiMuc)) d.push(dongBaoGia(b));
     if (bt.baoGiaSapHetHan.length > gioiHanMoiMuc)
       d.push(`  … và ${bt.baoGiaSapHetHan.length - gioiHanMoiMuc} báo giá nữa`);
+    d.push("");
+  }
+
+  if (bt.henLienHe.length > 0) {
+    d.push(`HẸN LIÊN HỆ LẠI (${bt.henLienHe.length})`);
+    for (const h of bt.henLienHe.slice(0, gioiHanMoiMuc)) d.push(dongHen(h));
+    if (bt.henLienHe.length > gioiHanMoiMuc)
+      d.push(`  … và ${bt.henLienHe.length - gioiHanMoiMuc} khách nữa`);
   }
 
   return d.join("\n").trim();

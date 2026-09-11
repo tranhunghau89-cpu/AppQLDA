@@ -9,6 +9,7 @@ import { Input, Textarea, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { formatVND } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { saveCustomer, deleteCustomer } from "./actions";
 import { useConfirm } from "@/components/ui/confirm";
 import { InteractionLog, type NoteView } from "@/components/crm/InteractionLog";
@@ -22,6 +23,8 @@ export interface CustomerRow {
   address: string | null;
   note: string | null;
   projectCount: number;
+  /** Khách trong CRM đã nối vào CĐT này. */
+  tuKhach: { id: string; tenCty: string }[];
   receivable: number | null;
   debtProjects: { projectId: string; label: string; receivable: number }[];
   notes: NoteView[];
@@ -139,6 +142,26 @@ export function CustomerManager({
                           </span>
                         )}
                       </button>
+                      {/* Nhãn suy ra từ dữ liệu, không phải cột lưu riêng: có dự án
+                          nghĩa là đã ký thật. Một CĐT chưa dự án nào thường là bản
+                          nhập tay hoặc vừa chuyển từ CRM sang mà chưa tạo dự án. */}
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        {c.projectCount > 0 ? (
+                          <Badge tone="green">Đã ký</Badge>
+                        ) : (
+                          <Badge tone="slate">Chưa có dự án</Badge>
+                        )}
+                        {c.tuKhach.map((k) => (
+                          <Link
+                            key={k.id}
+                            href="/khach-hang"
+                            className="text-xs font-normal text-blue-600 hover:underline"
+                            title={`Chuyển lên từ khách "${k.tenCty}" trong CRM`}
+                          >
+                            ← {k.tenCty}
+                          </Link>
+                        ))}
+                      </div>
                     </Td>
                     <Td>{c.contactPerson || "—"}</Td>
                     <Td>{c.phone || "—"}</Td>

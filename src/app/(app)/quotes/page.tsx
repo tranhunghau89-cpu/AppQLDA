@@ -4,24 +4,39 @@ import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
 import { myProjectIds } from "@/lib/scope";
 import { whereBaoGiaTrongPhamVi } from "@/lib/crmScope";
+import { docGiaiDoan, ghepLoc } from "@/lib/giaiDoan";
+import { GiaiDoanChips } from "@/components/GiaiDoanChips";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { formatVND, formatDate } from "@/lib/utils";
 import { computeQuoteTotals } from "@/lib/quote";
 
-export default async function QuotesPage() {
+export default async function QuotesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const session = await requireView("quote");
+  const giaiDoan = docGiaiDoan((await searchParams)["giai-doan"]);
 
   // Dự toán sống ở hai nơi từ Phase 8.3, nên phạm vi cũng gộp hai nguồn: dự án được
   // phân công và cơ hội của khách mình phụ trách.
-  const quotes = await db.quote.findMany({
-    where: whereBaoGiaTrongPhamVi(session, await myProjectIds(session)),
-    orderBy: { createdAt: "desc" },
-    include: {
-      project: { select: { id: true, code: true, name: true } },
-      coHoi: { select: { id: true, tenCongTrinh: true } },
-      items: { select: { qty: true, sellPrice: true, baseCost: true } },
-    },
-  });
+  const pham = whereBaoGiaTrongPhamVi(session, await myProjectIds(session));
+
+  // Đếm trong CÙNG phạm vi, không phải toàn bảng — con số trên chip phải là số bản
+  // người này thật sự mở được, nếu không bấm sang lại thấy ít hơn.
+  const [quotes, soChaoGia, soDuAn] = await Promise.all([
+    db.quote.findMany({
+      where: ghepLoc(pham, giaiDoan),
+      orderBy: { createdAt: "desc" },
+      include: {
+        project: { select: { id: true, code: true, name: true } },
+        coHoi: { select: { id: true, tenCongTrinh: true } },
+        items: { select: { qty: true, sellPrice: true, baseCost: true } },
+      },
+    }),
+    db.quote.count({ where: ghepLoc(pham, "CHAO_GIA") }),
+    db.quote.count({ where: ghepLoc(pham, "DU_AN") }),
+  ]);
 
   const rows = quotes.map((q) => ({
     ...q,
@@ -36,7 +51,7 @@ export default async function QuotesPage() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Báo giá chi tiết</h1>
           <p className="text-sm text-slate-500">
-            Tất cả báo giá theo Mã CV — {rows.length} bản
+            Bảng tính giá thành theo Mã CV — {rows.length} bản
           </p>
         </div>
         <Link
@@ -46,6 +61,12 @@ export default async function QuotesPage() {
           <Tags className="h-4 w-4" /> Bảng đơn giá
         </Link>
       </div>
+
+      <GiaiDoanChips
+        duongDan="/quotes"
+        hienTai={giaiDoan}
+        dem={{ TAT_CA: soChaoGia + soDuAn, CHAO_GIA: soChaoGia, DU_AN: soDuAn }}
+      />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-4">
