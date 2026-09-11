@@ -179,7 +179,7 @@ export function ClientQuoteCard({
         </div>
       </div>
 
-      <ThongTinIn q={q} canEdit={canEdit} onEdit={onEdit} />
+      <ThongTinIn q={q} chu={chu} canEdit={canEdit} onEdit={onEdit} />
 
       {/* ---- Bảng báo giá theo hạng mục ---- */}
       <Table>

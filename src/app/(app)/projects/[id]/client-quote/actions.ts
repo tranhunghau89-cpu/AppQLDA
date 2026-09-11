@@ -310,6 +310,83 @@ export async function saveClientQuote(
   return { ok: true };
 }
 
+const thongTinInSchema = z.object({
+  recipient: z.string(),
+  customerPhone: z.string(),
+  location: z.string(),
+  scope: z.string(),
+  quoteDate: z.string(),
+  salesName: z.string(),
+  salesPhone: z.string(),
+  salesEmail: z.string(),
+  validDays: int,
+});
+
+const O_THONG_TIN_IN = [
+  "recipient",
+  "customerPhone",
+  "location",
+  "scope",
+  "quoteDate",
+  "salesName",
+  "salesPhone",
+  "salesEmail",
+  "validDays",
+] as const;
+
+/**
+ * Lưu chín ô thông tin in ra, sửa thẳng trên dải ở đầu bản báo giá.
+ *
+ * Cố ý KHÔNG gọi lại `saveClientQuote`: hàm đó ghi đè MỌI cột của bản ghi, nên gửi lên
+ * vỏn vẹn chín ô là xóa sạch VAT, bảo hành, tải trọng và các đoạn chữ. Hàm này chỉ
+ * chạm đúng chín cột nó nhận.
+ */
+export async function luuThongTinIn(
+  chu: ChuBaoGia,
+  clientQuoteId: string,
+  form: FormData
+): Promise<ActionResult> {
+  const g = await guard(chu, { clientQuoteId });
+  if (g) return g;
+
+  const parsed = thongTinInSchema.safeParse(
+    Object.fromEntries(O_THONG_TIN_IN.map((k) => [k, s(form, k)]))
+  );
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const d = parsed.data;
+
+  const data = {
+    recipient: d.recipient.trim() || null,
+    customerPhone: d.customerPhone.trim() || null,
+    location: d.location.trim() || null,
+    scope: d.scope.trim() || null,
+    quoteDate: d.quoteDate ? new Date(d.quoteDate) : null,
+    salesName: d.salesName.trim() || null,
+    salesPhone: d.salesPhone.trim() || null,
+    salesEmail: d.salesEmail.trim() || null,
+    validDays: d.validDays,
+  };
+
+  const truoc = await db.clientQuote.findUnique({
+    where: { id: clientQuoteId },
+    select: CQ_AUDIT_SELECT,
+  });
+  await db.clientQuote.update({ where: { id: clientQuoteId }, data });
+
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "ClientQuote",
+    entityId: clientQuoteId,
+    entityLabel: truoc?.quoteNo ? `${truoc.quoteNo} — ${truoc.title}` : (truoc?.title ?? ""),
+    projectId: duAnCuaChu(chu),
+    action: "UPDATE",
+    changes: diffFields(truoc, data, CQ_AUDIT_FIELDS),
+  });
+
+  paths(chu);
+  return { ok: true };
+}
+
 export async function deleteClientQuote(
   chu: ChuBaoGia,
   clientQuoteId: string
