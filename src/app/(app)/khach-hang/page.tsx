@@ -19,6 +19,10 @@ export default async function KhachHangPage() {
       orderBy: { updatedAt: "desc" },
       include: {
         customer: { select: { id: true, name: true } },
+        coHoi: {
+          orderBy: { createdAt: "desc" },
+          include: { project: { select: { code: true } } },
+        },
         traoDoi: { orderBy: { contactDate: "desc" }, take: 30 },
       },
     }),
@@ -45,6 +49,21 @@ export default async function KhachHangPage() {
     note: k.note,
     customerId: k.customerId,
     customerName: k.customer?.name ?? null,
+    coHoi: k.coHoi.map((c) => ({
+      id: c.id,
+      tenCongTrinh: c.tenCongTrinh,
+      diaDiem: c.diaDiem,
+      buildingType: c.buildingType,
+      area: c.area,
+      kK: c.kK,
+      kL: c.kL,
+      kH: c.kH,
+      trangThai: c.trangThai,
+      lyDoMat: c.lyDoMat,
+      note: c.note,
+      projectId: c.projectId,
+      projectCode: c.project?.code ?? null,
+    })),
     henGanNhat:
       k.traoDoi
         .filter((n) => n.nextFollowUpDate)

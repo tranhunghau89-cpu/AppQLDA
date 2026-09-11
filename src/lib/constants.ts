@@ -243,3 +243,21 @@ export const KHACH_NGUON: Option[] = [
   { value: "KHAC", label: "Khác", tone: "slate" },
 ];
 export const KHACH_NGUON_MAP = map(KHACH_NGUON);
+
+/**
+ * Vòng đời một cơ hội chào giá.
+ *
+ * KY_HD là trạng thái CUỐI và chỉ đặt được qua đường "chuyển sang dự án" — không cho
+ * chọn tay, vì đặt tay thì cơ hội mang tiếng đã ký mà chẳng có dự án nào.
+ */
+export const CO_HOI_TRANG_THAI: Option[] = [
+  { value: "MOI", label: "Mới", tone: "slate" },
+  { value: "DANG_CHAO", label: "Đang chào giá", tone: "blue" },
+  { value: "DAM_PHAN", label: "Đang đàm phán", tone: "amber" },
+  { value: "KY_HD", label: "Đã ký hợp đồng", tone: "green" },
+  { value: "MAT", label: "Mất khách", tone: "red" },
+];
+export const CO_HOI_TRANG_THAI_MAP = map(CO_HOI_TRANG_THAI);
+
+/** Còn phải theo đuổi — dùng cho bộ lọc và bản tin nhắc việc. */
+export const CO_HOI_DANG_MO = ["MOI", "DANG_CHAO", "DAM_PHAN"];

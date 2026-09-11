@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   duocDungKhachHang,
   whereBaoGiaTrongPhamVi,
+  whereCoHoiTrongPhamVi,
   whereKhachHangTrongPhamVi,
   type AiDo,
 } from "./crmScope";
@@ -89,5 +90,29 @@ describe("whereBaoGiaTrongPhamVi", () => {
     // myProjectIds chỉ trả "ALL" cho ADMIN, nhưng nếu sau này có vai khác được như
     // vậy thì hàm này phải xử lý nhất quán chứ không ghép "ALL" vào mảng.
     expect(whereBaoGiaTrongPhamVi(sales, "ALL")).toEqual({});
+  });
+});
+
+describe("whereCoHoiTrongPhamVi", () => {
+  it("quản trị viên thấy tất cả", () => {
+    expect(whereCoHoiTrongPhamVi(admin)).toEqual({});
+  });
+
+  it("người thường: lọc qua khách chủ của cơ hội", () => {
+    expect(whereCoHoiTrongPhamVi(sales)).toEqual({
+      khachHang: { OR: [{ ownerId: "u-sales" }, { ownerId: null }] },
+    });
+  });
+
+  it("người thường KHÔNG bao giờ nhận mệnh đề rỗng", () => {
+    expect(whereCoHoiTrongPhamVi(sales)).not.toEqual({});
+    expect(whereCoHoiTrongPhamVi({ userId: "u", role: "ENGINEERING" })).not.toEqual({});
+  });
+
+  it("quyền cơ hội bám theo khách, không giữ bản sao riêng", () => {
+    // Đổi người phụ trách của khách thì quyền với mọi cơ hội của khách đổi theo.
+    // Nếu hàm này tự đọc một cột ownerId khác thì hai bên sẽ lệch nhau lúc nào không hay.
+    const w = whereCoHoiTrongPhamVi(sales) as { khachHang: unknown };
+    expect(w.khachHang).toEqual(whereKhachHangTrongPhamVi(sales));
   });
 });

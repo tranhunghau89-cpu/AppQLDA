@@ -90,9 +90,46 @@ model KhachHang {
   updatedAt DateTime @updatedAt
 
   traoDoi CustomerNote[]
+  coHoi   CoHoi[]
 
   @@index([ownerId])
   @@index([customerId])
+}
+
+// Một công trình đang chào giá cho một khách. Đứng TRƯỚC dự án.
+//
+// Cố ý KHÔNG có mã duy nhất kiểu Project.code: chào giá mười nơi trúng một thì chín mã
+// kia là rác, mà Project.code lại @unique nên xóa đi mới dùng lại được.
+//
+// Vì sao cần thực thể này chứ không treo báo giá thẳng vào khách: suy đơn giá m² đọc
+// `area` làm mẫu số và `buildingType` để chọn sẵn mẫu báo giá. Không có chỗ giữ hai thứ
+// đó thì phép suy gãy.
+model CoHoi {
+  id          String    @id @default(cuid())
+  khachHangId String
+  khachHang   KhachHang @relation(fields: [khachHangId], references: [id], onDelete: Cascade)
+
+  tenCongTrinh String // "Nhà xưởng Hồng Ngự" — chưa phải tên dự án chính thức
+  diaDiem      String?
+  buildingType String? // khớp Project.buildingType -> chọn sẵn mẫu báo giá
+  area         Float? // m2 — mẫu số khi suy đơn giá m²
+  kK           Float?
+  kL           Float?
+  kH           Float?
+
+  trangThai String  @default("MOI") // MOI|DANG_CHAO|DAM_PHAN|KY_HD|MAT
+  lyDoMat   String?
+
+  // Điền khi đã ký hợp đồng và chuyển sang dự án. Cũng là dấu "cơ hội này đã xong".
+  projectId String?  @unique
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([khachHangId])
+  @@index([trangThai])
 }
 
 // Nhật ký trao đổi với chủ đầu tư — cùng hình dạng ProjectNote, nhưng gắn với CĐT
@@ -181,6 +218,7 @@ model Project {
   quotes         Quote[]
   clientQuotes   ClientQuote[]
   members        ProjectMember[]
+  coHoi          CoHoi? // cơ hội chào giá đã sinh ra dự án này (nếu có)
   @@index([status])
   @@index([customerId])
 }

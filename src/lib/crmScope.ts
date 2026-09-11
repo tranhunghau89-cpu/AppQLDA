@@ -37,6 +37,18 @@ export function duocDungKhachHang(ai: AiDo, ownerId: string | null): boolean {
 }
 
 /**
+ * Mệnh đề lọc cơ hội: đi qua khách chủ của nó.
+ *
+ * Cơ hội không có người phụ trách riêng — nó thuộc về khách, và khách thuộc về một
+ * người. Một cơ hội mà chủ nó đổi người phụ trách thì quyền đổi theo, đúng như mong
+ * đợi. Giữ hai cột `ownerId` ở hai bảng là mở đường cho chúng lệch nhau.
+ */
+export function whereCoHoiTrongPhamVi(ai: AiDo): Record<string, unknown> {
+  if (ai.role === "ADMIN") return {};
+  return { khachHang: whereKhachHangTrongPhamVi(ai) };
+}
+
+/**
  * Mệnh đề lọc báo giá đến từ HAI nguồn: dự án được phân công, và khách mình phụ trách.
  *
  * Dùng cho `/quotes` và `/client-quotes` khi báo giá đã sống được ở cả hai nơi (Phase

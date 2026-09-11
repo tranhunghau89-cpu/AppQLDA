@@ -13,6 +13,7 @@ import { KHACH_NGUON_MAP } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
 import { deleteKhachHang } from "./actions";
 import { KhachHangModal } from "./KhachHangModal";
+import { CoHoiPanel, type CoHoiRow } from "./CoHoiPanel";
 
 export interface NhanVien {
   id: string;
@@ -36,6 +37,7 @@ export interface KhachHangRow {
   /** Ngày hẹn liên hệ lại gần nhất trong nhật ký — để biết ai đang chờ mình gọi. */
   henGanNhat: string | null;
   notes: NoteView[];
+  coHoi: CoHoiRow[];
 }
 
 export function KhachHangManager({
@@ -195,6 +197,13 @@ export function KhachHangManager({
                             {k.note}
                           </p>
                         )}
+                        <div className="mb-4">
+                          <CoHoiPanel
+                            khachHangId={k.id}
+                            coHoi={k.coHoi}
+                            canEdit={canEdit}
+                          />
+                        </div>
                         <InteractionLog
                           chu={{ loai: "KHACH", id: k.id }}
                           notes={k.notes}
