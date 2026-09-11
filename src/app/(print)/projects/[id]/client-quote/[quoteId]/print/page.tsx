@@ -187,11 +187,11 @@ export default async function ClientQuotePrintPage({
           <table className="mt-2 w-full border-collapse text-[10.5px]">
             <tbody>
               <GhiChu so={1} noiDung="Tải trọng tính toán">
-                <BangCon
+                <DongPhu
                   rows={[
-                    ["+ Hoạt tải mái:", quote.loadRoof, "kg/m2"],
-                    ["+ Tải treo:", quote.loadHanging, "kg/m2"],
-                    ["+ Tải sàn:", quote.loadFloor, "kg/m2"],
+                    ["+ Hoạt tải mái", quote.loadRoof, "kg/m2"],
+                    ["+ Tải treo", quote.loadHanging, "kg/m2"],
+                    ["+ Tải sàn", quote.loadFloor, "kg/m2"],
                   ]}
                 />
               </GhiChu>
@@ -201,7 +201,7 @@ export default async function ClientQuotePrintPage({
                 so={4}
                 noiDung={`- Thời gian thi công: ${soNgayThiCong} ngày kể từ khi hợp đồng có hiệu lực`}
               >
-                <BangCon
+                <DongPhu
                   rows={quote.stages.map((st) => [`+ ${st.name}`, st.days, "ngày"])}
                 />
               </GhiChu>
@@ -215,21 +215,20 @@ export default async function ClientQuotePrintPage({
               />
               <GhiChu so={7} noiDung={`- Hiệu lực báo giá: ${quote.validDays ?? "—"} ngày`} />
               <GhiChu so={8} noiDung="- Tiến độ thanh toán: 100% GTHĐ">
-                <table className="w-full border-collapse">
-                  <tbody>
-                    {quote.payments.map((p) => (
-                      <tr key={p.id}>
-                        <TdTron className="italic">+ {p.label}</TdTron>
-                        <TdTron className="w-14 text-center font-semibold">
-                          {p.percent != null ? `${formatNumber(p.percent)}%` : ""}
-                        </TdTron>
-                        <TdTron className="w-48">
-                          {[p.basis, p.note].filter(Boolean).join(", ")}
-                        </TdTron>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="mt-0.5 space-y-0.5 pl-4">
+                  {quote.payments.map((p) => {
+                    const canCu = [p.basis, p.note].filter(Boolean).join(", ");
+                    return (
+                      <div key={p.id} className="italic">
+                        + {p.label}:{" "}
+                        <span className="font-semibold not-italic">
+                          {p.percent != null ? `${phanTram(p.percent)}%` : ""}
+                        </span>
+                        {canCu && ` — ${canCu}`}
+                      </div>
+                    );
+                  })}
+                </div>
               </GhiChu>
               <GhiChu so={9} noiDung={quote.excludeNote} />
             </tbody>
@@ -383,20 +382,28 @@ function GhiChu({
   );
 }
 
-/** Bảng con hai cột số + đơn vị, dùng cho tải trọng và tiến độ thi công. */
-function BangCon({ rows }: { rows: [string, number | null, string][] }) {
+/**
+ * Các dòng phụ trong ghi chú: "+ Hoạt tải mái: 10 kg/m2".
+ *
+ * Cố ý KHÔNG dùng bảng. Bản Excel phải tách cột nên con số bị đẩy ra tận mép phải,
+ * cách chữ mô tả cả gang tay; ở đây là văn bản tự do nên cho số nằm ngay sau chữ
+ * cho dễ đọc.
+ */
+function DongPhu({ rows }: { rows: [string, number | null, string][] }) {
   if (rows.length === 0) return null;
   return (
-    <table className="w-full border-collapse">
-      <tbody>
-        {rows.map(([ten, so, dv]) => (
-          <tr key={ten}>
-            <TdTron className="italic">{ten}</TdTron>
-            <TdTron className="w-16 text-center font-semibold">{formatNumber(so)}</TdTron>
-            <TdTron className="w-24 italic">{dv}</TdTron>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className="mt-0.5 space-y-0.5 pl-4">
+      {rows.map(([ten, so, dv]) => (
+        <div key={ten} className="italic">
+          {ten}: <span className="font-semibold not-italic">{formatNumber(so)}</span> {dv}
+        </div>
+      ))}
+    </div>
   );
+}
+
+/** Tỷ lệ phần trăm: bỏ số 0 thừa (50 -> "50") nhưng giữ số lẻ thật (33,33). */
+const dinhDangPhanTram = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 });
+function phanTram(v: number): string {
+  return dinhDangPhanTram.format(v);
 }
