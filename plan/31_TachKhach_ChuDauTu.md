@@ -1,79 +1,118 @@
-# Tách "Khách đang chào giá" khỏi "Chủ đầu tư" — kế hoạch
+# Tách CRM (khách đang chào giá) khỏi quản lý dự án (CĐT) — kế hoạch
+
+> Bản v2, sau khi chốt hướng. Thay đổi lớn so với v1: **dự toán chi tiết phải có ngay ở giai
+> đoạn chào giá**, và **CRM tách hẳn thành khu riêng với bảng khách hàng riêng**.
 
 ## Vấn đề
 
-Muốn lập một bản báo giá, hiện nay bắt buộc phải đi qua ba bước:
+Muốn lập một bản báo giá, hiện nay bắt buộc đi qua ba bước:
 
-1. Tạo `Customer` — nhưng cả giao diện lẫn menu đều gọi nó là **"Chủ đầu tư"**
-2. Tạo `Project` — bắt buộc có **`code` duy nhất** (`schema.prisma`: `code String @unique`;
-   `projects/actions.ts:69` bắt `min(1)`)
-3. Rồi mới lập được báo giá — `ClientQuote.projectId` là cột **bắt buộc**
+1. Tạo `Customer` — mà giao diện gọi thẳng là **"Chủ đầu tư"**
+2. Tạo `Project` — bắt buộc có **`code` duy nhất** (`schema.prisma`; `projects/actions.ts:69`)
+3. Rồi mới báo giá được — `ClientQuote.projectId` và `Quote.projectId` đều **bắt buộc**
 
-Hậu quả đúng như mô tả: một người mới hỏi giá đã lập tức chiếm một **mã dự án** và nằm trong
-danh sách **Chủ đầu tư**, dù chưa ký gì. Chào giá mười nơi, trúng một, thì chín mã dự án chết
-và chín cái tên nằm nhầm chỗ. Mã dự án `@unique` nên xóa đi mới dùng lại được.
+Chào giá mười nơi trúng một thì chín mã dự án chết (mã `@unique`, xóa đi mới dùng lại) và chín
+cái tên nằm nhầm trong danh sách CĐT.
 
-## Nhận định then chốt
+## Hướng đã chốt
 
-> "Khách" và "CĐT" **không phải hai loại công ty**. Đó là **hai giai đoạn của một thương vụ**.
+- **CRM là một khu riêng.** Nhân viên kinh doanh vào đó tạo khách mới, ghi trao đổi, lập báo
+  giá — không cần dự án, không cần mã dự án.
+- **Khách ≠ CĐT, và là hai bảng khác nhau.** Khách là người đang trao đổi; CĐT là pháp nhân đã
+  ký hợp đồng.
+- **Báo giá m² căn cứ từ dự toán chi tiết**, nên dự toán chi tiết phải làm được ngay ở giai
+  đoạn chào giá. Dự toán đó lấy từ thư viện: mẫu dự toán sẵn có, hoặc clone từ báo giá của một
+  công trình tương tự đã làm.
+- **Chỉ khi ký hợp đồng** mới chuyển khách sang bên quản lý dự án — và lúc đó được chọn: tạo
+  CĐT mới, **hoặc áp vào một CĐT đã có**.
 
-Cùng một pháp nhân có thể đang là CĐT của dự án N037 (đã ký) **và đồng thời** là khách của một
-lần chào giá mới. Nên:
+### Vì sao lần này tách bảng, dù v1 khuyên ngược lại
 
-- **Không** tách `Customer` thành hai bảng — cùng một công ty sẽ bị nhập hai lần, công nợ và
-  lịch sử liên hệ vỡ làm đôi.
-- **Không** thêm cột `stage` vào `Customer` — một công ty không thể vừa `KHACH` vừa `CDT`.
-- Thứ đang thiếu là **bản thân thương vụ**: một thực thể đứng TRƯỚC dự án, giữ toàn bộ phần
-  CRM, và không cần mã dự án.
+v1 phản đối tách `Customer` làm hai, sợ cùng một công ty bị nhập hai lần rồi công nợ và lịch
+sử vỡ đôi. Yêu cầu **"áp vào CĐT hiện đã có"** chính là thứ vô hiệu hóa nỗi lo đó: lúc chuyển
+sang, hai bản ghi được nối bằng một khóa (`KhachHang.customerId`), nên không có hai bản song
+song mà không biết nhau.
 
-## Mô hình đề xuất
+Và tách bảng hợp với thực tế bán hàng: lúc mới gọi điện chỉ biết *một người ở một công ty*, còn
+MST, địa chỉ pháp lý, người đại diện — những thứ `Customer` cần để lên hợp đồng — thì mãi sau
+mới có. Ép người tư vấn khai đủ ngay từ cuộc gọi đầu là ép sai chỗ.
+
+## Mô hình
 
 ```
-Customer  (pháp nhân — giữ nguyên bảng, giữ nguyên dữ liệu)
-   │
-   ├── CoHoi[]      cơ hội chào giá   ← phần "Khách": CRM, KHÔNG cần mã dự án
-   │      └── ClientQuote[]
-   │
-   └── Project[]    dự án             ← phần "CĐT": mã dự án, dự toán, hợp đồng
-          └── ClientQuote[]              (báo giá chuyển sang khi chốt)
+CRM (khu riêng)                              Quản lý dự án
+──────────────────────────────────           ──────────────────────────────
+KhachHang ─┬─ TraoDoi[]         nhật ký
+           │
+           └─ CoHoi[]           một công trình đang chào giá
+                 ├─ Quote        dự toán / báo giá chi tiết  ┐
+                 └─ ClientQuote  báo giá m² gửi khách        ┘
+                        │
+                   ký hợp đồng
+                        ↓
+                   Customer (CĐT)  ── Project ── Contract
+                   tạo mới HOẶC áp vào cái đã có
 ```
 
-Nhãn **CĐT / Khách** ở trang Chủ đầu tư **suy ra, không lưu**:
-
-| Công ty có | Hiện nhãn |
-|---|---|
-| ≥ 1 dự án | **CĐT** |
-| chỉ có cơ hội đang mở | **Khách** |
-| cả hai | **cả hai** — đúng thực tế, không phải lỗi |
-
-### Model mới `CoHoi`
+### `KhachHang` — bảng CRM
 
 ```prisma
-// Một lần chào giá, tồn tại TRƯỚC khi có dự án. Đây là nơi phần CRM sống: khách là
-// ai, công trình gì, ai đang theo, đã trao đổi những gì.
-//
-// Cố ý KHÔNG có mã duy nhất kiểu Project.code: chào giá mười nơi trúng một thì chín
-// mã kia là rác. Mã dự án chỉ sinh lúc chốt.
-model CoHoi {
-  id         String    @id @default(cuid())
-  customerId String?   // để trống được: khách gọi tới hỏi giá, chưa kịp khai pháp nhân
+// Khách đang trao đổi. KHÁC Customer (chủ đầu tư): Customer là pháp nhân đã ký hợp
+// đồng, cần MST/địa chỉ/người đại diện. Ở đây chỉ cần đủ để gọi lại được.
+model KhachHang {
+  id       String  @id @default(cuid())
+  tenCty   String  // "Công ty CP ABC" hoặc chỉ tên người, tùy lúc gọi biết tới đâu
+  nguoiLienHe String?
+  phone    String?
+  email    String?
+  diaChi   String?
+  nguon    String? // giới thiệu / website / gọi đến / triển lãm / khác
+
+  // Phân quyền của CRM đi theo NGƯỜI PHỤ TRÁCH, không qua ProjectMember (chưa có dự án).
+  ownerId   String?
+  ownerName String? // chụp lại lúc tạo, sống sót khi xóa tài khoản
+
+  // Điền khi đã ký hợp đồng và chuyển sang bên quản lý dự án. Trỏ tới CĐT mới tạo
+  // HOẶC một CĐT đã có sẵn — đây là chỗ chống nhập trùng công ty.
+  customerId String?
   customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
-  tenCongTrinh   String   // "Nhà xưởng Hồng Ngự" — chưa phải tên dự án chính thức
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  coHoi    CoHoi[]
+  traoDoi  CustomerNote[]
+
+  @@index([ownerId])
+  @@index([customerId])
+}
+```
+
+### `CoHoi` — một công trình đang chào giá
+
+Cần thực thể này chứ không treo báo giá thẳng vào khách, vì `generateFromQuote` đang đọc
+`project.area` làm mẫu số dự phòng và `project.buildingType` để chọn sẵn mẫu báo giá. Không có
+chỗ giữ hai thứ đó thì suy đơn giá m² gãy.
+
+```prisma
+// Một công trình đang chào giá. Đứng TRƯỚC dự án, nên KHÔNG có mã duy nhất kiểu
+// Project.code: chào mười nơi trúng một thì chín mã kia là rác.
+model CoHoi {
+  id          String    @id @default(cuid())
+  khachHangId String
+  khachHang   KhachHang @relation(fields: [khachHangId], references: [id], onDelete: Cascade)
+
+  tenCongTrinh   String  // "Nhà xưởng Hồng Ngự" — chưa phải tên dự án chính thức
   diaDiem        String?
-  buildingType   String?  // khớp Project.buildingType -> chọn sẵn mẫu báo giá
-  dienTichDuKien Float?
-  nguon          String?  // giới thiệu / website / gọi đến / khác
+  buildingType   String? // khớp Project.buildingType -> chọn sẵn mẫu báo giá
+  dienTich       Float?  // m2 — mẫu số khi suy đơn giá m²
+  kK Float?  kL Float?  kH Float?
 
-  // Phân quyền của cơ hội KHÔNG đi qua ProjectMember (chưa có dự án) mà theo người
-  // phụ trách. Xem phần "Phân quyền" trong plan.
-  ownerId   String?
-  ownerName String?  // chụp lại lúc tạo, sống sót khi xóa tài khoản
-
-  trangThai String  @default("MOI") // MOI|DANG_CHAO|DAM_PHAN|CHOT|MAT
+  trangThai String  @default("MOI") // MOI|DANG_CHAO|DAM_PHAN|KY_HD|MAT
   lyDoMat   String?
 
-  // Điền khi đã chuyển thành dự án — cũng là dấu "cơ hội này đã chốt".
+  // Điền khi đã ký hợp đồng. Cũng là dấu "cơ hội này đã xong".
   projectId String?  @unique
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
@@ -81,81 +120,129 @@ model CoHoi {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  quotes       Quote[]
   clientQuotes ClientQuote[]
-  contacts     CustomerNote[]
 
-  @@index([customerId])
+  @@index([khachHangId])
   @@index([trangThai])
-  @@index([ownerId])
 }
 ```
 
-### `ClientQuote` sống được ở cả hai nơi
+### Hai bảng báo giá sống được ở cả hai nơi
 
 ```prisma
-projectId String?   // was: String  (bắt buộc)
+// Quote  (dự toán / báo giá chi tiết)
+projectId String?   // was: String
+coHoiId   String?
+
+// ClientQuote  (báo giá m² gửi khách)
+projectId String?   // was: String
 coHoiId   String?
 ```
 
-Bất biến: **đúng một trong hai có giá trị**. Không ép bằng CHECK constraint (Prisma không
-sinh ra được, và migration thêm CHECK trên bảng đang có dữ liệu là rủi ro) mà ép ở tầng
-action + một test chuyên cho việc đó.
+Bất biến: **đúng một trong hai có giá trị**. Không ép bằng CHECK constraint (Prisma không sinh
+được, và thêm CHECK lên bảng đang có dữ liệu là rủi ro) mà ép ở tầng action, kèm test riêng.
+
+### Nhật ký trao đổi chuyển về khách
+
+`CustomerNote` hiện gắn `Customer`. Chuyển sang gắn `KhachHang`:
+
+```prisma
+customerId  String?   // was: String  — giữ lại cho ghi chép sau khi đã thành CĐT
+khachHangId String?
+```
+
+Phần CRM vừa ship ở Phase 6 nên dữ liệu thật gần như chưa có; backfill rẻ.
+
+---
+
+## Dự toán ở giai đoạn chào giá
+
+Đây là phần v1 đánh giá sai, và là phần nặng nhất của kế hoạch.
+
+Nguồn dự toán mà bên mình đã có sẵn, **không phải xây mới**:
+
+| Nguồn | Đã có | Dùng thế nào |
+|---|---|---|
+| Mẫu dự toán theo hạng mục | `EstimateTemplate` + `/estimate-templates` | "Thêm hạng mục từ mẫu" |
+| Báo giá công trình tương tự đã làm | `cloneQuoteFrom` (`quote/actions.ts:300`) | Clone nguyên bảng giá của một dự án cũ |
+| Mẫu báo giá theo loại công trình | `QuoteTemplate` (Phase 5) | Chọn mẫu khi sinh bản m² |
+
+Việc phải làm chỉ là cho ba đường này chạy được khi đích đến là **cơ hội** thay vì dự án.
+Riêng `cloneQuoteFrom` thì **nguồn vẫn là dự án cũ** — không đổi; chỉ đích đến đổi.
+
+**Chi phí thật:** `Quote` bị đóng đinh vào `Project` y hệt `ClientQuote`. Phải làm lại cùng
+một việc cho cả hai bảng. Đó là lý do kế hoạch này dài gấp đôi v1.
 
 ---
 
 ## Phần rủi ro nhất: phân quyền
 
-Đây là chỗ dễ hỏng nhất của cả kế hoạch, phải làm trước và làm kỹ.
-
-Hiện **toàn bộ** quyền của báo giá gửi khách đi qua dự án:
+Toàn bộ quyền của cả hai loại báo giá hiện đi qua dự án:
 
 | Chỗ | Cách scope hiện tại |
 |---|---|
 | `client-quote/actions.ts` | `denyProject("quote","edit",projectId,…)` — 59 chỗ dùng `projectId` |
-| `client-quote/page.tsx` | `requireProjectView("quote", id)` |
-| `/client-quotes` | `scopedByProjectWhere(session)` |
-| Trang in | đường dẫn `/projects/[id]/client-quote/[quoteId]/print` |
-| `revalidatePath` | `/projects/${projectId}/client-quote` |
+| `quote/actions.ts` | cùng kiểu, 455 dòng |
+| `client-quote/page.tsx`, `quote/page.tsx` | `requireProjectView("quote", id)` |
+| `/client-quotes`, `/quotes` | `scopedByProjectWhere(session)` |
+| Trang in | đường dẫn `/projects/[id]/...` |
+| `revalidatePath` | `/projects/${projectId}/...` |
 
-Cơ hội không có dự án, nên `canAccessProject` không dùng được. Quy tắc thay thế:
+Cơ hội không có dự án nên `canAccessProject` vô dụng. Quy tắc thay thế:
 
-> **ADMIN thấy tất cả cơ hội. Vai trò khác chỉ thấy cơ hội mình phụ trách (`ownerId`).**
+> **ADMIN thấy tất cả. Vai trò khác chỉ thấy khách mình phụ trách (`KhachHang.ownerId`),
+> và mọi cơ hội / báo giá thuộc khách đó.**
 
-Cần thêm, đối xứng với `denyProject`:
+Thêm, đối xứng với `denyProject`:
 
 ```ts
 // src/lib/scope.ts
-canAccessCoHoi(session, coHoiId): Promise<boolean>
+canAccessCoHoi(session, coHoiId): Promise<boolean>   // truy qua KhachHang.ownerId
 // src/lib/auth.ts
 denyCoHoi(resource, action, coHoiId, fallback)
 requireCoHoiView(resource, coHoiId)
 ```
 
-Và `/client-quotes` chuyển từ một điều kiện thành **OR hai nguồn**:
+Và danh sách gộp hai nguồn:
 
 ```ts
 where: { OR: [ { projectId: { in: duAnTrongPhamVi } },
-               { coHoi: { ownerId: session.userId } } ] }
+               { coHoi: { khachHang: { ownerId: session.userId } } } ] }
 ```
 
-**Bẫy:** `scopedByProjectWhere` trả `{}` cho ADMIN. Nếu vô ý giữ nguyên rồi `OR` thêm điều
-kiện cơ hội, mệnh đề `{}` sẽ khớp **mọi** dòng và bất kỳ ai cũng thấy tất cả. Phải viết lại
-hàm này cho ClientQuote thay vì tái dùng, và có test cho đúng trường hợp "user thường, không
-được gán dự án nào, không phụ trách cơ hội nào → thấy 0 dòng".
+**Bẫy phải nhớ:** `scopedByProjectWhere` trả `{}` cho ADMIN. Giữ nguyên rồi `OR` thêm điều
+kiện cơ hội thì mệnh đề `{}` khớp **mọi** dòng, và ai cũng thấy báo giá của tất cả. Phải viết
+hàm riêng cho hai bảng báo giá, kèm test đúng ca *"user thường, không được gán dự án nào,
+không phụ trách khách nào → thấy 0 dòng"*.
 
 ---
 
-## Chuyển cơ hội thành dự án
+## Chuyển sang bên quản lý dự án
 
-Một nút trên cơ hội: **"Chốt — tạo dự án"**. Trong MỘT `$transaction`:
+Điều kiện: cơ hội có một `ClientQuote` ở trạng thái **Đã chốt**, và **đã ký hợp đồng**.
 
-1. Tạo `Project` — **lúc này** mới nhập mã dự án, và mới kiểm trùng
-2. `Project.customerId = coHoi.customerId` (thiếu CĐT thì bắt khai trước, không cho chốt)
-3. Chuyển mọi `ClientQuote` của cơ hội: `projectId = <mới>`, `coHoiId = null`
-4. `coHoi.projectId = <mới>`, `trangThai = "CHOT"`
-5. Gán người phụ trách vào `ProjectMember` — nếu không, chính người vừa chốt lại mất
-   quyền xem báo giá của mình
-6. `recordAudit` trên cả hai thực thể
+Nút **"Đã ký hợp đồng — chuyển sang dự án"**. Hộp thoại hỏi hai việc:
+
+**1. Chủ đầu tư** — hai lựa chọn, mặc định là (a):
+
+- (a) **Tạo CĐT mới** từ thông tin khách, cho sửa lại trước khi tạo (thêm MST, địa chỉ pháp
+  lý, người đại diện — những thứ hợp đồng cần mà CRM chưa có)
+- (b) **Áp vào CĐT đã có** — chọn từ danh sách. Dùng khi khách này thực ra là một công ty
+  mình đã làm rồi. Gợi ý sẵn CĐT có tên gần giống (dùng `norm()` ở `lib/text.ts`).
+
+**2. Mã dự án** — nhập lúc này, và chỉ kiểm trùng lúc này.
+
+Rồi trong MỘT `$transaction`:
+
+1. Tạo hoặc lấy `Customer`; `KhachHang.customerId = <id>`
+2. Tạo `Project` với mã vừa nhập, `customerId`, và chép `tenCongTrinh / diaDiem /
+   buildingType / dienTich / kK / kL / kH` từ cơ hội
+3. Chuyển mọi `Quote` và `ClientQuote` của cơ hội: `projectId = <mới>`, `coHoiId = null`
+4. `CoHoi.projectId = <mới>`, `trangThai = "KY_HD"`
+5. **Gán người phụ trách vào `ProjectMember`** — quên bước này thì chính người vừa chốt mất
+   quyền xem báo giá của mình ngay sau khi chuyển
+6. `recordAudit` trên `KhachHang`, `CoHoi`, `Project`
 
 Chiều ngược lại — mất khách: `trangThai = "MAT"` + `lyDoMat`. Không tạo dự án, không tốn mã,
 lịch sử trao đổi giữ nguyên để lần sau còn tra.
@@ -164,60 +251,45 @@ lịch sử trao đổi giữ nguyên để lần sau còn tra.
 
 ## Dữ liệu đang có
 
-**Không tự động chuyển gì cả.** Không thể biết bằng máy dự án nào thực ra là cơ hội: trạng
-thái `CHO` có thể là đã ký nhưng chưa khởi công. Đoán sai là xóa mã dự án của một hợp đồng
-thật.
+**Không tự động chuyển gì cả.** Máy không phân biệt được dự án trạng thái `CHO` là cơ hội hay
+hợp đồng đã ký chưa khởi công. Đoán sai là xóa mã của một hợp đồng thật.
 
-Mọi thứ đang có giữ nguyên là dự án. Cơ hội chỉ dùng cho việc mới. Nếu muốn dọn, làm tay —
-và chỉ khi người dùng chỉ đích danh từng dự án.
+Mọi thứ đang có giữ nguyên là dự án; CRM chỉ dùng cho việc mới. Muốn dọn thì làm tay, và chỉ
+với những dự án được chỉ đích danh.
 
-Migration `32_co_hoi`: thêm bảng `CoHoi`, thêm `ClientQuote.coHoiId`, và nới
-`ClientQuote.projectId` thành nullable. Nới NOT NULL là thao tác **thêm quyền**, không mất dữ
-liệu, chạy được trên DB đang phục vụ.
+Nới `NOT NULL` trên `Quote.projectId` / `ClientQuote.projectId` là thao tác **thêm quyền**,
+không mất dữ liệu, chạy được trên cơ sở dữ liệu đang phục vụ.
 
 ---
 
 ## Chia giai đoạn
 
-| # | Việc | Ghi chú |
-|---|---|---|
-| **8.1** | Model `CoHoi` + migration + `canAccessCoHoi`/`denyCoHoi` + test phân quyền | Làm trước tất cả |
-| **8.2** | `ClientQuote.projectId` nullable + `coHoiId`; sửa 59 chỗ trong actions | Rủi ro cao nhất |
-| **8.3** | Route `/co-hoi` — danh sách + trang chi tiết, kèm báo giá và nhật ký trao đổi | |
-| **8.4** | Nút "Chốt — tạo dự án" + "Mất khách" | |
-| **8.5** | Nhãn CĐT/Khách suy ra ở `/customers`; đổi chữ trong giao diện | |
-| **8.6** | Gộp hai nguồn vào `/client-quotes` và bản tin nhắc việc | |
+Kế hoạch này lớn. Thứ tự dưới đây cho phép **dừng lại sau bất kỳ giai đoạn nào** mà hệ thống
+vẫn chạy được.
 
-Thứ tự cứng: 8.1 → 8.2 → còn lại. Làm 8.3 trước 8.1 là dựng giao diện trên một mô hình quyền
-chưa có.
+| # | Việc | Dừng ở đây được không |
+|---|---|---|
+| **8.1** | `KhachHang` + `TraoDoi` + khu `/khach-hang` (CRM đứng một mình, chưa đụng báo giá) | ✅ CRM dùng được ngay, báo giá vẫn như cũ |
+| **8.2** | `CoHoi` + `canAccessCoHoi` / `denyCoHoi` + test phân quyền | ✅ chưa lộ ra giao diện |
+| **8.3** | `Quote` (dự toán chi tiết) sống được ở cơ hội — nullable `projectId`, mẫu + clone | ✅ |
+| **8.4** | `ClientQuote` sống được ở cơ hội; trang in không còn nằm dưới `/projects` | ✅ báo giá đủ vòng đời trong CRM |
+| **8.5** | "Đã ký hợp đồng — chuyển sang dự án", kèm áp vào CĐT có sẵn | ✅ khép vòng |
+| **8.6** | Gộp `/quotes`, `/client-quotes`, nhắc việc; nhãn Khách/CĐT ở `/customers` | dọn nốt |
+
+Thứ tự cứng: 8.1 → 8.2 → 8.3 → 8.4 → 8.5. Dựng giao diện trước khi có mô hình quyền là dựng
+trên cát.
 
 ---
 
 ## Những gì CỐ Ý không làm
 
-- **Không tách `Customer` thành hai bảng.** Cùng một công ty sẽ bị nhập hai lần; công nợ,
-  lịch sử liên hệ và báo giá vỡ làm đôi.
-- **Không thêm `stage` vào `Customer`.** Một công ty vừa là CĐT dự án cũ vừa là khách của
-  lần chào giá mới — một cột không diễn tả được.
-- **Không cho dự toán / báo giá chi tiết ở giai đoạn cơ hội** (xem câu hỏi 1). Cơ hội báo giá
-  bằng đơn giá của mẫu hoặc nhập tay; bóc tách đầy đủ để sau khi chốt.
-- **Không sinh mã cơ hội tự động.** Cần bộ đếm theo năm và chiến lược khóa, mà cơ hội thì
-  nhận diện bằng tên công trình + tên khách là đủ.
-- **Không đổi `Contract`.** Hợp đồng vẫn gắn dự án; cơ hội chốt rồi mới có hợp đồng.
-
----
-
-## Câu hỏi cần chốt trước khi làm
-
-1. **Ở giai đoạn cơ hội có cần dự toán không?**
-   Hiện dự toán và báo giá chi tiết đều gắn `Project`. Nếu cơ hội chỉ cần báo giá theo đơn
-   giá mẫu / nhập tay thì kế hoạch trên đủ. Nếu cần bóc tách sơ bộ ngay từ lúc chào giá thì
-   phải nới cả `Quote` và `EstimateItem` — gấp đôi khối lượng việc.
-   *Khuyến nghị: chưa cần. Chào giá nhanh dựa trên đơn giá m² là đúng thực tế.*
-
-2. **Một cơ hội có thể có nhiều công trình không?**
-   Ví dụ khách hỏi giá 2 nhà xưởng cùng lúc — một cơ hội hai công trình, hay hai cơ hội?
-   *Khuyến nghị: hai cơ hội. Đơn giản hơn và mỗi cái chốt/mất độc lập.*
-
-3. **Dữ liệu đang có: giữ nguyên hay dọn?**
-   *Khuyến nghị: giữ nguyên. Nếu muốn dọn, chỉ chuyển những dự án anh chỉ đích danh.*
+- **Không sinh mã cơ hội tự động.** Cần bộ đếm theo năm và chiến lược khóa; nhận diện bằng tên
+  công trình + tên khách là đủ.
+- **Không đổi `Contract`.** Hợp đồng vẫn gắn dự án — ký xong mới có dự án, nên không có vòng lặp.
+- **Không cho một cơ hội chứa nhiều công trình.** Khách hỏi giá hai nhà xưởng thì tạo hai cơ
+  hội: mỗi cái chốt hoặc mất độc lập, và mỗi cái ra một dự án riêng.
+- **Không gộp `EstimateItem` (dự toán chi phí) vào giai đoạn chào giá.** Thứ sinh ra đơn giá
+  m² là `Quote` (báo giá chi tiết), không phải `EstimateItem`. Dự toán chi phí nội bộ để sau
+  khi có dự án.
+- **Không tự động nối khách với CĐT trùng tên.** Chỉ *gợi ý* lúc chuyển; nối hay không là
+  người quyết định.
