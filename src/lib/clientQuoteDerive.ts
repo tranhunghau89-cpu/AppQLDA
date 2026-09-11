@@ -31,6 +31,10 @@ export interface DeriveSpec {
    */
   sourceSectionCode: string | null;
   defaultUnitPrice: number | null;
+  /** Nhãn loại vật tư (VAT_TU_TAG) — đi thẳng từ mẫu ra dòng, không tính toán gì. */
+  tags?: string[];
+  /** Khóa hạng mục bên SteelFrame (xem plan/30) — cũng chỉ đi kèm. */
+  steelFrameKey?: string | null;
 }
 
 export interface DerivedLine {
@@ -46,6 +50,8 @@ export interface DerivedLine {
   /** Luôn null: để thành tiền tự tính lại theo khối lượng × đơn giá. */
   amount: null;
   sourceSectionId: string | null;
+  tags: string[];
+  steelFrameKey: string | null;
 }
 
 /**
@@ -107,6 +113,8 @@ export function deriveLines(
       unit: sp.unit,
       note: sp.note,
       amount: null as null,
+      tags: sp.tags ?? [],
+      steelFrameKey: sp.steelFrameKey ?? null,
     };
 
     // Dòng không gắn phần nào -> luôn nhập tay, dùng đơn giá mặc định của mẫu.

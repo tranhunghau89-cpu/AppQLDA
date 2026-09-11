@@ -6,6 +6,8 @@ import { Modal } from "@/components/ui/modal";
 import { useActionForm } from "@/components/ui/useActionForm";
 import { ModalActions } from "../quote/ModalActions";
 import { saveClientQuote } from "./actions";
+import { TemplatePicker } from "./TemplatePicker";
+import type { TemplateOption } from "@/lib/quoteTemplatePick";
 import type { ClientQuoteView, CustomerOption } from "./types";
 
 /** Giá trị gợi ý khi lập báo giá mới — lấy từ dự án và người đang đăng nhập. */
@@ -23,6 +25,8 @@ export function HeaderModal({
   editing,
   customers,
   goiY,
+  templates,
+  templateGoiY,
   onClose,
   onDone,
 }: {
@@ -30,6 +34,8 @@ export function HeaderModal({
   editing: ClientQuoteView | null;
   customers: CustomerOption[];
   goiY: GoiY;
+  templates: TemplateOption[];
+  templateGoiY: string | null;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -77,6 +83,10 @@ export function HeaderModal({
             />
           </Field>
         </div>
+
+        {/* Mẫu chỉ hiện khi LẬP mới: đổi mẫu cho báo giá đã có nghĩa là ghi đè bảng
+            vật liệu và điều khoản người dùng đã chỉnh tay. */}
+        {!editing && <TemplatePicker templates={templates} goiY={templateGoiY} />}
 
         <fieldset className="space-y-3 rounded-lg border border-slate-200 p-3">
           <legend className="px-1 text-xs font-semibold text-slate-500">Bên nhận</legend>

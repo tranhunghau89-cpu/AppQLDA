@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireProjectView } from "@/lib/auth";
 import { scopedByProjectWhere } from "@/lib/scope";
 import { can, type Role } from "@/lib/rbac";
+import { templateChoices } from "@/lib/quoteTemplatePick";
 import { QuoteEditor } from "./QuoteEditor";
 import type { QuoteView, CatalogOption, CloneSource } from "./types";
 
@@ -17,7 +18,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
   const [project, rawQuotes, catalogRows, sourceRows] = await Promise.all([
     db.project.findUnique({
       where: { id },
-      select: { id: true, code: true, name: true, location: true, area: true },
+      select: { id: true, code: true, name: true, location: true, area: true, buildingType: true },
     }),
     db.quote.findMany({
       where: { projectId: id },
@@ -44,6 +45,9 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
     }),
   ]);
   if (!project) notFound();
+
+  // Cần buildingType nên phải chờ truy vấn dự án xong mới hỏi được mẫu báo giá.
+  const mau = await templateChoices(project.buildingType);
 
   const quotes: QuoteView[] = rawQuotes.map((q) => ({
     id: q.id,
@@ -121,6 +125,8 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
         cloneSources={cloneSources}
         canEdit={canEdit}
         projectArea={project.area}
+        templates={mau.options}
+        templateGoiY={mau.goiY}
       />
     </div>
   );

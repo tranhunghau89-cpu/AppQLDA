@@ -10,6 +10,7 @@ import { SectionModal, type SectionModalState } from "./SectionModal";
 import { ItemModal, type ItemModalState } from "./ItemModal";
 import { CloneModal } from "./CloneModal";
 import { GenerateClientQuoteModal } from "./GenerateClientQuoteModal";
+import type { TemplateOption } from "@/lib/quoteTemplatePick";
 import type { CatalogOption, CloneSource, ItemView, QuoteView, SectionView } from "./types";
 
 /**
@@ -24,6 +25,8 @@ export function QuoteEditor({
   cloneSources,
   canEdit,
   projectArea,
+  templates,
+  templateGoiY,
 }: {
   projectId: string;
   quotes: QuoteView[];
@@ -32,6 +35,9 @@ export function QuoteEditor({
   canEdit: boolean;
   /** Diện tích dự án — dùng làm mẫu số dự phòng khi phần không khai diện tích. */
   projectArea: number | null;
+  /** Mẫu báo giá gửi khách — chỉ dùng cho hộp thoại "Tạo báo giá gửi khách". */
+  templates: TemplateOption[];
+  templateGoiY: string | null;
 }) {
   const router = useRouter();
   const [quoteModal, setQuoteModal] = useState<{ editing: QuoteView | null } | null>(null);
@@ -140,6 +146,8 @@ export function QuoteEditor({
           projectId={projectId}
           quote={genFor}
           projectArea={projectArea}
+          templates={templates}
+          templateGoiY={templateGoiY}
           onClose={() => setGenFor(null)}
         />
       )}

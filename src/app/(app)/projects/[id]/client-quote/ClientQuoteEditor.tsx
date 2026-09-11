@@ -9,6 +9,7 @@ import { HeaderModal, type GoiY } from "./HeaderModal";
 import { LineModal, type LineModalState } from "./LineModal";
 import { SpecModal, type SpecModalState } from "./SpecModal";
 import { TermsModal, type TermsModalState } from "./TermsModal";
+import type { TemplateOption } from "@/lib/quoteTemplatePick";
 import type { ClientQuoteView, CustomerOption, LineView, SpecView } from "./types";
 
 /**
@@ -21,12 +22,16 @@ export function ClientQuoteEditor({
   customers,
   canEdit,
   goiY,
+  templates,
+  templateGoiY,
 }: {
   projectId: string;
   quotes: ClientQuoteView[];
   customers: CustomerOption[];
   canEdit: boolean;
   goiY: GoiY;
+  templates: TemplateOption[];
+  templateGoiY: string | null;
 }) {
   const router = useRouter();
   const [headerModal, setHeaderModal] = useState<{ editing: ClientQuoteView | null } | null>(null);
@@ -89,6 +94,8 @@ export function ClientQuoteEditor({
           editing={headerModal.editing}
           customers={customers}
           goiY={goiY}
+          templates={templates}
+          templateGoiY={templateGoiY}
           onClose={() => setHeaderModal(null)}
           onDone={closeAll}
         />

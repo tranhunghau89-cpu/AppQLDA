@@ -698,6 +698,109 @@ model ClientQuotePayment {
   @@index([quoteId])
 }
 
+// ----- Thư viện mẫu báo giá gửi khách -----
+
+// Quản trị viên soạn một lần theo LOẠI CÔNG TRÌNH (khớp Project.buildingType), bộ
+// phận kinh doanh chọn khi lập báo giá. Cùng ý tưởng với EstimateTemplate nhưng KHÔNG
+// dùng chung: mẫu dự toán mô tả khối lượng vật tư để tính giá thành nội bộ, mẫu này
+// mô tả một VĂN BẢN gửi ra ngoài (lời chào, điều khoản, bảng vật liệu).
+//
+// ClientQuote.templateId là tham chiếu MỀM tới bảng này — xóa mẫu không được kéo theo
+// báo giá đã phát hành.
+model QuoteTemplate {
+  id           String  @id @default(cuid())
+  name         String // "Nhà xưởng kết cấu thép + bao che"
+  buildingType String? // khớp Project.buildingType; so khớp bỏ dấu/hoa thường
+  description  String?
+  active       Boolean @default(true)
+  sortOrder    Int     @default(0)
+
+  // --- giá trị mặc định rót vào báo giá mới ---
+  vatPercent        Float? @default(10)
+  validDays         Int?   @default(7)
+  warrantyMonths    Int?   @default(12)
+  maintenanceMonths Int?   @default(120)
+  loadRoof          Float?
+  loadHanging       Float?
+  loadFloor         Float?
+
+  lineDetail  String?
+  greeting    String?
+  closing     String?
+  colorNote   String?
+  volumeNote  String?
+  excludeNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lines    QuoteTemplateLine[]
+  specs    QuoteTemplateSpec[]
+  stages   QuoteTemplateStage[]
+  payments QuoteTemplatePayment[]
+
+  @@index([buildingType])
+}
+
+model QuoteTemplateLine {
+  id         String        @id @default(cuid())
+  templateId String
+  template   QuoteTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  partCode String  @default("I")
+  partName String  @default("Phần kết cấu thép")
+  code     String? // "01"
+  name     String
+  detail   String? // mô tả riêng; để trống = dùng mô tả chung + vật tư đã gắn
+  unit     String? @default("m2")
+  note     String?
+
+  // Khác ClientQuoteLine: mẫu KHÔNG giữ qty/amount (đó là số liệu của từng dự án).
+  defaultUnitPrice Float?
+  tags             String[] // nhãn loại vật tư (VAT_TU_TAG)
+  // Mã "phần" bên báo giá chi tiết dùng để suy đơn giá m². Để trống = luôn nhập tay.
+  sourceSectionCode String?
+  steelFrameKey     String? // khóa hạng mục bên SteelFrame (xem plan/30)
+
+  sortOrder Int @default(0)
+  @@index([templateId])
+}
+
+model QuoteTemplateSpec {
+  id         String        @id @default(cuid())
+  templateId String
+  template   QuoteTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  groupCode  String        @default("A") // A | B
+  tag        String? // để trống = vật tư dùng chung, luôn in
+  name       String
+  spec       String?
+  origin     String?
+  sortOrder  Int           @default(0)
+  @@index([templateId])
+}
+
+model QuoteTemplateStage {
+  id         String        @id @default(cuid())
+  templateId String
+  template   QuoteTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  name       String
+  days       Int?
+  sortOrder  Int           @default(0)
+  @@index([templateId])
+}
+
+model QuoteTemplatePayment {
+  id         String        @id @default(cuid())
+  templateId String
+  template   QuoteTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  label      String
+  percent    Float?
+  basis      String?
+  note       String?
+  sortOrder  Int           @default(0)
+  @@index([templateId])
+}
+
 // ----- Nhật ký thay đổi (audit log) -----
 
 // Ghi lại AI đổi GÌ, LÚC NÀO trên các thực thể liên quan tới tiền.

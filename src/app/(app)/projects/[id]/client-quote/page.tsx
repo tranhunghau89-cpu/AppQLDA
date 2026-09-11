@@ -4,6 +4,7 @@ import { ArrowLeft, Receipt } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireProjectView } from "@/lib/auth";
 import { can, type Role } from "@/lib/rbac";
+import { templateChoices } from "@/lib/quoteTemplatePick";
 import { ClientQuoteEditor } from "./ClientQuoteEditor";
 import type { ClientQuoteView, CustomerOption } from "./types";
 
@@ -49,6 +50,9 @@ export default async function ClientQuotePage({
     }),
   ]);
   if (!project) notFound();
+
+  // Cần buildingType của dự án nên phải chờ truy vấn trên xong mới hỏi được mẫu.
+  const mau = await templateChoices(project.buildingType);
 
   const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
@@ -153,6 +157,8 @@ export default async function ClientQuotePage({
         quotes={quotes}
         customers={customerOptions}
         canEdit={canEdit}
+        templates={mau.options}
+        templateGoiY={mau.goiY}
         goiY={{
           customerId: project.customerId,
           recipient: project.customer?.name ?? null,

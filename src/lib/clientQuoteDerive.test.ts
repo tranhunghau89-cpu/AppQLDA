@@ -162,6 +162,34 @@ describe("deriveLines", () => {
     expect(lines.map((l) => l.code)).toEqual(["01", "02"]);
     expect(lines[0].partName).toBe("Phần kết cấu thép");
   });
+
+  it("mang theo nhãn vật tư và khóa SteelFrame của khuôn", () => {
+    const { lines } = deriveLines(
+      [spec({ tags: ["KHUNG_THEP", "TON_MAI"], steelFrameKey: "MAI" })],
+      [phanA],
+      new Map([["sec-a", 695_000_000]]),
+      null
+    );
+    expect(lines[0].tags).toEqual(["KHUNG_THEP", "TON_MAI"]);
+    expect(lines[0].steelFrameKey).toBe("MAI");
+  });
+
+  it("khuôn không khai nhãn thì ra mảng rỗng, không phải undefined", () => {
+    const { lines } = deriveLines([spec()], [phanA], new Map([["sec-a", 1]]), null);
+    expect(lines[0].tags).toEqual([]);
+    expect(lines[0].steelFrameKey).toBeNull();
+  });
+
+  it("dòng không suy ra được đơn giá vẫn giữ nhãn vật tư", () => {
+    const { lines } = deriveLines(
+      [spec({ sourceSectionCode: "KHONG_CO", tags: ["TON_THUNG"] })],
+      [phanA],
+      new Map(),
+      null
+    );
+    expect(lines[0].unitPrice).toBeNull();
+    expect(lines[0].tags).toEqual(["TON_THUNG"]);
+  });
 });
 
 describe("repriceLines", () => {

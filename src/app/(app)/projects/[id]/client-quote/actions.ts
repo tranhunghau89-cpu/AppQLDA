@@ -9,22 +9,7 @@ import { validatePaymentPercents } from "@/lib/clientQuote";
 import { sectionSubtotals } from "@/lib/quote";
 import { doanNhan } from "@/lib/clientQuoteSpecs";
 import { deriveLines, repriceLines, type DeriveSpec } from "@/lib/clientQuoteDerive";
-import {
-  DEFAULT_CLOSING,
-  DEFAULT_COLOR_NOTE,
-  DEFAULT_EXCLUDE_NOTE,
-  DEFAULT_GREETING,
-  DEFAULT_LINE_DETAIL,
-  DEFAULT_LOADS,
-  DEFAULT_MAINTENANCE_MONTHS,
-  DEFAULT_PAYMENTS,
-  DEFAULT_SPECS,
-  DEFAULT_STAGES,
-  DEFAULT_VOLUME_NOTE,
-  DEFAULT_VALID_DAYS,
-  DEFAULT_VAT_PERCENT,
-  DEFAULT_WARRANTY_MONTHS,
-} from "@/lib/clientQuoteDefaults";
+import { apDungMau, type KhuonBaoGia, type MauNguon } from "@/lib/quoteTemplate";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -74,6 +59,78 @@ function paths(projectId: string) {
 }
 
 const s = (form: FormData, key: string) => String(form.get(key) ?? "");
+
+/**
+ * Nạp một mẫu trong thư viện về dạng thuần để `apDungMau` nấu.
+ *
+ * Mẫu đã bị xóa (hoặc id bịa) trả null — báo giá vẫn lập được bằng giá trị mặc
+ * định, chứ không báo lỗi chặn người dùng lại.
+ */
+async function napMau(templateId: string | null): Promise<MauNguon | null> {
+  if (!templateId) return null;
+  const t = await db.quoteTemplate.findUnique({
+    where: { id: templateId },
+    include: {
+      lines: { orderBy: { sortOrder: "asc" } },
+      specs: { orderBy: { sortOrder: "asc" } },
+      stages: { orderBy: { sortOrder: "asc" } },
+      payments: { orderBy: { sortOrder: "asc" } },
+    },
+  });
+  if (!t) return null;
+
+  return {
+    vatPercent: t.vatPercent,
+    validDays: t.validDays,
+    warrantyMonths: t.warrantyMonths,
+    maintenanceMonths: t.maintenanceMonths,
+    loadRoof: t.loadRoof,
+    loadHanging: t.loadHanging,
+    loadFloor: t.loadFloor,
+    lineDetail: t.lineDetail,
+    greeting: t.greeting,
+    closing: t.closing,
+    colorNote: t.colorNote,
+    volumeNote: t.volumeNote,
+    excludeNote: t.excludeNote,
+    lines: t.lines.map((l) => ({
+      partCode: l.partCode,
+      partName: l.partName,
+      code: l.code,
+      name: l.name,
+      detail: l.detail,
+      unit: l.unit,
+      note: l.note,
+      defaultUnitPrice: l.defaultUnitPrice,
+      tags: l.tags,
+      sourceSectionCode: l.sourceSectionCode,
+      steelFrameKey: l.steelFrameKey,
+    })),
+    specs: t.specs.map((r) => ({
+      groupCode: r.groupCode === "B" ? "B" : "A",
+      tag: r.tag,
+      name: r.name,
+      spec: r.spec,
+      origin: r.origin,
+    })),
+    stages: t.stages.map((r) => ({ name: r.name, days: r.days ?? 0 })),
+    payments: t.payments.map((r) => ({
+      label: r.label,
+      percent: r.percent ?? 0,
+      basis: r.basis,
+      note: r.note,
+    })),
+  };
+}
+
+/** Ba bảng con giống hệt nhau ở mọi đường tạo báo giá — viết một lần. */
+function bangConCuaMau(quoteId: string, k: KhuonBaoGia) {
+  return {
+    specs: k.specs.map((sp, i) => ({ quoteId, ...sp, sortOrder: i })),
+    stages: k.stages.map((st, i) => ({ quoteId, ...st, sortOrder: i })),
+    payments: k.payments.map((p, i) => ({ quoteId, ...p, sortOrder: i })),
+  };
+}
 
 /**
  * Chặn khi thiếu quyền / ngoài phạm vi dự án, rồi truy MỌI id con ngược về báo giá
@@ -240,7 +297,9 @@ export async function saveClientQuote(
   if (id) {
     await db.clientQuote.update({ where: { id }, data });
   } else {
-    id = await taoMoiKemMacDinh(projectId, data);
+    // Mẫu chỉ có nghĩa lúc TẠO. Sửa báo giá cũ mà đổi mẫu thì phải ghi đè cả bảng
+    // vật liệu và điều khoản người dùng đã chỉnh tay — không làm.
+    id = await taoMoiKemMacDinh(projectId, data, s(form, "templateId") || null);
   }
 
   await recordAudit({
@@ -258,44 +317,67 @@ export async function saveClientQuote(
 }
 
 /**
- * Tạo báo giá mới kèm toàn bộ phần mặc định (16 dòng vật liệu, 5 chặng thi công,
- * 4 đợt thanh toán) trong MỘT giao dịch — báo giá thiếu bảng vật liệu hay thiếu
- * điều khoản là một văn bản hỏng, không được phép tồn tại nửa vời.
+ * Tạo báo giá mới kèm toàn bộ phần đã soạn sẵn (bảng vật liệu, tiến độ thi công,
+ * tiến độ thanh toán, và hạng mục nếu mẫu có khai) trong MỘT giao dịch — báo giá
+ * thiếu bảng vật liệu hay thiếu điều khoản là một văn bản hỏng, không được phép
+ * tồn tại nửa vời.
+ *
+ * Chọn mẫu thì lấy của mẫu, không chọn thì lấy mặc định trong clientQuoteDefaults.
+ * Người lập vẫn đè được từng ô trong hộp thoại — ô nào để trống mới rơi về mẫu.
  */
 async function taoMoiKemMacDinh(
   projectId: string,
-  data: Record<string, unknown>
+  data: Record<string, unknown>,
+  templateId: string | null
 ): Promise<string> {
+  const k = apDungMau(await napMau(templateId));
+
   return db.$transaction(async (tx) => {
     const q = await tx.clientQuote.create({
       data: {
         projectId,
         ...(data as { title: string }),
-        vatPercent: (data.vatPercent as number | null) ?? DEFAULT_VAT_PERCENT,
-        validDays: (data.validDays as number | null) ?? DEFAULT_VALID_DAYS,
-        warrantyMonths: (data.warrantyMonths as number | null) ?? DEFAULT_WARRANTY_MONTHS,
-        maintenanceMonths:
-          (data.maintenanceMonths as number | null) ?? DEFAULT_MAINTENANCE_MONTHS,
-        loadRoof: (data.loadRoof as number | null) ?? DEFAULT_LOADS.roof,
-        loadHanging: (data.loadHanging as number | null) ?? DEFAULT_LOADS.hanging,
-        loadFloor: (data.loadFloor as number | null) ?? DEFAULT_LOADS.floor,
-        lineDetail: (data.lineDetail as string | null) ?? DEFAULT_LINE_DETAIL,
-        greeting: (data.greeting as string | null) ?? DEFAULT_GREETING,
-        closing: (data.closing as string | null) ?? DEFAULT_CLOSING,
-        colorNote: (data.colorNote as string | null) ?? DEFAULT_COLOR_NOTE,
-        volumeNote: (data.volumeNote as string | null) ?? DEFAULT_VOLUME_NOTE,
-        excludeNote: (data.excludeNote as string | null) ?? DEFAULT_EXCLUDE_NOTE,
+        templateId,
+        vatPercent: (data.vatPercent as number | null) ?? k.vatPercent,
+        validDays: (data.validDays as number | null) ?? k.validDays,
+        warrantyMonths: (data.warrantyMonths as number | null) ?? k.warrantyMonths,
+        maintenanceMonths: (data.maintenanceMonths as number | null) ?? k.maintenanceMonths,
+        loadRoof: (data.loadRoof as number | null) ?? k.loadRoof,
+        loadHanging: (data.loadHanging as number | null) ?? k.loadHanging,
+        loadFloor: (data.loadFloor as number | null) ?? k.loadFloor,
+        lineDetail: (data.lineDetail as string | null) ?? k.lineDetail,
+        greeting: (data.greeting as string | null) ?? k.greeting,
+        closing: (data.closing as string | null) ?? k.closing,
+        colorNote: (data.colorNote as string | null) ?? k.colorNote,
+        volumeNote: (data.volumeNote as string | null) ?? k.volumeNote,
+        excludeNote: (data.excludeNote as string | null) ?? k.excludeNote,
       },
     });
-    await tx.clientQuoteSpec.createMany({
-      data: DEFAULT_SPECS.map((sp, i) => ({ quoteId: q.id, ...sp, sortOrder: i })),
-    });
-    await tx.clientQuoteStage.createMany({
-      data: DEFAULT_STAGES.map((st, i) => ({ quoteId: q.id, ...st, sortOrder: i })),
-    });
-    await tx.clientQuotePayment.createMany({
-      data: DEFAULT_PAYMENTS.map((p, i) => ({ quoteId: q.id, ...p, sortOrder: i })),
-    });
+
+    const con = bangConCuaMau(q.id, k);
+    if (k.lines.length > 0) {
+      await tx.clientQuoteLine.createMany({
+        data: k.lines.map((l, i) => ({
+          quoteId: q.id,
+          partCode: l.partCode,
+          partName: l.partName,
+          code: l.code,
+          name: l.name,
+          detail: l.detail,
+          unit: l.unit,
+          note: l.note,
+          // Chưa có báo giá chi tiết để suy ra: dùng đơn giá mặc định của mẫu,
+          // khối lượng để trống cho người lập điền.
+          unitPrice: l.defaultUnitPrice,
+          tags: l.tags,
+          steelFrameKey: l.steelFrameKey,
+          sortOrder: i,
+        })),
+      });
+    }
+    await tx.clientQuoteSpec.createMany({ data: con.specs });
+    await tx.clientQuoteStage.createMany({ data: con.stages });
+    await tx.clientQuotePayment.createMany({ data: con.payments });
     return q.id;
   });
 }
@@ -622,19 +704,42 @@ export async function generateFromQuote(
     select: { code: true, area: true, location: true, customerId: true, customer: { select: { name: true, phone: true } } },
   });
 
-  // Chưa có thư viện mẫu thì khuôn dòng lấy thẳng từ các phần của báo giá chi tiết —
-  // luôn khớp với dữ liệu thật, không phải đoán tên hạng mục.
-  const specs: DeriveSpec[] = nguon.goc.map((sec, i) => ({
-    partCode: "I",
-    partName: "Phần kết cấu thép",
-    code: String(i + 1).padStart(2, "0"),
-    name: sec.name,
-    detail: null,
-    unit: "m2",
-    note: null,
-    sourceSectionCode: sec.code,
-    defaultUnitPrice: null,
-  }));
+  const templateId = s(form, "templateId") || null;
+  const k = apDungMau(await napMau(templateId));
+
+  // Mẫu có khai hạng mục thì dùng khuôn của mẫu (giữ được thứ tự, nhãn vật tư, mô
+  // tả riêng đã soạn). Không có mẫu — hoặc mẫu để trống phần hạng mục — thì khuôn
+  // lấy thẳng từ các phần của báo giá chi tiết: luôn khớp dữ liệu thật, không phải
+  // đoán tên hạng mục.
+  const specs: DeriveSpec[] =
+    k.lines.length > 0
+      ? k.lines.map((l) => ({
+          partCode: l.partCode,
+          partName: l.partName,
+          code: l.code,
+          name: l.name,
+          detail: l.detail,
+          unit: l.unit,
+          note: l.note,
+          sourceSectionCode: l.sourceSectionCode,
+          defaultUnitPrice: l.defaultUnitPrice,
+          tags: l.tags,
+          steelFrameKey: l.steelFrameKey,
+        }))
+      : nguon.goc.map((sec, i) => ({
+          partCode: "I",
+          partName: "Phần kết cấu thép",
+          code: String(i + 1).padStart(2, "0"),
+          name: sec.name,
+          detail: null,
+          unit: "m2",
+          note: null,
+          sourceSectionCode: sec.code,
+          defaultUnitPrice: null,
+          // Không có mẫu thì đoán nhãn vật tư từ tên phần ("...tôn phần mái" ->
+          // KHUNG_THEP + TON_MAI) để bảng vật liệu tự lọc đúng ngay. Người lập sửa được.
+          tags: doanNhan(sec.name),
+        }));
 
   const { lines, warnings } = deriveLines(
     specs,
@@ -652,6 +757,7 @@ export async function generateFromQuote(
       data: {
         projectId,
         title,
+        templateId,
         derivedFromId: nguon.src.id,
         quoteDate: new Date(),
         customerId: project?.customerId ?? null,
@@ -659,41 +765,29 @@ export async function generateFromQuote(
         customerPhone: project?.customer?.phone ?? null,
         location: nguon.src.location ?? project?.location ?? null,
         scope: nguon.src.scope ?? "Kết cấu thép và bao che",
-        vatPercent: DEFAULT_VAT_PERCENT,
-        validDays: DEFAULT_VALID_DAYS,
-        warrantyMonths: DEFAULT_WARRANTY_MONTHS,
-        maintenanceMonths: DEFAULT_MAINTENANCE_MONTHS,
-        loadRoof: DEFAULT_LOADS.roof,
-        loadHanging: DEFAULT_LOADS.hanging,
-        loadFloor: DEFAULT_LOADS.floor,
-        lineDetail: DEFAULT_LINE_DETAIL,
-        greeting: DEFAULT_GREETING,
-        closing: DEFAULT_CLOSING,
-        colorNote: DEFAULT_COLOR_NOTE,
-        volumeNote: DEFAULT_VOLUME_NOTE,
-        excludeNote: DEFAULT_EXCLUDE_NOTE,
+        vatPercent: k.vatPercent,
+        validDays: k.validDays,
+        warrantyMonths: k.warrantyMonths,
+        maintenanceMonths: k.maintenanceMonths,
+        loadRoof: k.loadRoof,
+        loadHanging: k.loadHanging,
+        loadFloor: k.loadFloor,
+        lineDetail: k.lineDetail,
+        greeting: k.greeting,
+        closing: k.closing,
+        colorNote: k.colorNote,
+        volumeNote: k.volumeNote,
+        excludeNote: k.excludeNote,
         note: `Sinh từ báo giá chi tiết "${nguon.src.title}"; đơn giá m² = tổng tiền mỗi phần chia diện tích.`,
       },
     });
+    const con = bangConCuaMau(q.id, k);
     await tx.clientQuoteLine.createMany({
-      // Đoán sẵn nhãn vật tư từ tên phần ("...tôn phần mái" -> KHUNG_THEP + TON_MAI)
-      // để bảng vật liệu tự lọc đúng ngay, khỏi phải tick tay. Người lập sửa được.
-      data: lines.map((l, i) => ({
-        quoteId: q.id,
-        ...l,
-        tags: doanNhan(l.name),
-        sortOrder: i,
-      })),
+      data: lines.map((l, i) => ({ quoteId: q.id, ...l, sortOrder: i })),
     });
-    await tx.clientQuoteSpec.createMany({
-      data: DEFAULT_SPECS.map((sp, i) => ({ quoteId: q.id, ...sp, sortOrder: i })),
-    });
-    await tx.clientQuoteStage.createMany({
-      data: DEFAULT_STAGES.map((st, i) => ({ quoteId: q.id, ...st, sortOrder: i })),
-    });
-    await tx.clientQuotePayment.createMany({
-      data: DEFAULT_PAYMENTS.map((p, i) => ({ quoteId: q.id, ...p, sortOrder: i })),
-    });
+    await tx.clientQuoteSpec.createMany({ data: con.specs });
+    await tx.clientQuoteStage.createMany({ data: con.stages });
+    await tx.clientQuotePayment.createMany({ data: con.payments });
     return q.id;
   });
 

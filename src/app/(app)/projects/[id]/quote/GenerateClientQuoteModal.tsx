@@ -8,17 +8,23 @@ import { useToast } from "@/components/ui/toast";
 import { formatQty } from "@/lib/utils";
 import { ModalActions } from "./ModalActions";
 import { generateFromQuote } from "../client-quote/actions";
+import { TemplatePicker } from "../client-quote/TemplatePicker";
+import type { TemplateOption } from "@/lib/quoteTemplatePick";
 import type { QuoteView } from "./types";
 
 export function GenerateClientQuoteModal({
   projectId,
   quote,
   projectArea,
+  templates,
+  templateGoiY,
   onClose,
 }: {
   projectId: string;
   quote: QuoteView;
   projectArea: number | null;
+  templates: TemplateOption[];
+  templateGoiY: string | null;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -50,12 +56,15 @@ export function GenerateClientQuoteModal({
       <form onSubmit={onSubmit} className="space-y-3">
         <p className="text-sm text-slate-500">
           Mỗi phần của báo giá chi tiết thành một hạng mục, đơn giá m² = tổng tiền phần đó
-          chia cho diện tích. Bảng vật liệu và điều khoản được điền sẵn theo mẫu.
+          chia cho diện tích. Bảng vật liệu và điều khoản được điền sẵn theo mẫu. Mẫu có
+          khai sẵn hạng mục thì lấy hạng mục của mẫu, khớp với phần nguồn tương ứng.
         </p>
 
         <Field label="Tiêu đề">
           <Input name="title" defaultValue={`Báo giá gửi khách — ${quote.title}`} />
         </Field>
+
+        <TemplatePicker templates={templates} goiY={templateGoiY} />
 
         <div className="rounded-lg border border-slate-200">
           <table className="w-full text-sm">

@@ -16,6 +16,7 @@
     "migrate:files": "tsx scripts/migrate-files-to-storage.ts",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:templates": "tsx prisma/seed-templates.ts",
+    "db:seed:quote-templates": "tsx prisma/seed-quote-templates.ts",
     "db:studio": "prisma studio",
     "db:migrate": "prisma migrate dev",
     "import": "tsx scripts/import-excel.ts",
