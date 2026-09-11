@@ -3,7 +3,15 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, Building, Calculator, FileText } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Building,
+  Calculator,
+  FileText,
+  Handshake,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useConfirm } from "@/components/ui/confirm";
@@ -12,6 +20,8 @@ import { CO_HOI_TRANG_THAI_MAP } from "@/lib/constants";
 import { formatQty } from "@/lib/utils";
 import { deleteCoHoi } from "./coHoiActions";
 import { CoHoiModal } from "./CoHoiModal";
+import { ChuyenDuAnModal } from "./ChuyenDuAnModal";
+import type { ChuDauTuCoSan } from "@/lib/coHoiChuyenDuAn";
 
 export interface CoHoiRow {
   id: string;
@@ -29,23 +39,33 @@ export interface CoHoiRow {
   projectCode: string | null;
   soDuToan: number;
   soBaoGia: number;
+  /** Bao nhiêu bản báo giá đã chốt — dưới 1 thì chưa tạo dự án được. */
+  soBaoGiaChot: number;
 }
 
 /** Danh sách công trình đang chào giá của một khách. */
 export function CoHoiPanel({
   khachHangId,
+  tenKhach,
   coHoi,
   canEdit,
+  chuDauTu,
+  canTaoDuAn,
 }: {
   khachHangId: string;
+  tenKhach: string;
   coHoi: CoHoiRow[];
   canEdit: boolean;
+  /** Chủ đầu tư đã có, để áp vào khi ký; rỗng nếu người này không tạo được dự án. */
+  chuDauTu: ChuDauTuCoSan[];
+  canTaoDuAn: boolean;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
   const toast = useToast();
   const [pending, start] = useTransition();
   const [mo, setMo] = useState<{ editing: CoHoiRow | null } | null>(null);
+  const [chuyen, setChuyen] = useState<CoHoiRow | null>(null);
 
   async function onDelete(c: CoHoiRow) {
     if (!(await confirm(`Xóa công trình chào giá "${c.tenCongTrinh}"?`))) return;
@@ -114,7 +134,9 @@ export function CoHoiPanel({
                   {c.note && (
                     <p className="mt-1 whitespace-pre-line text-sm text-slate-600">{c.note}</p>
                   )}
-                  {/* Cả hai bản đều sống ngay ở cơ hội — chưa cần mã dự án nào. */}
+                  {/* Cả hai bản sống ngay ở cơ hội — chưa cần mã dự án nào. Ký hợp
+                      đồng rồi thì chúng đã theo sang dự án, không còn ở đây. */}
+                  {!c.projectId && (
                   <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
                     <Link
                       href={`/co-hoi/${c.id}/quote`}
@@ -135,6 +157,22 @@ export function CoHoiPanel({
                         : "Lập báo giá gửi khách"}
                     </Link>
                   </div>
+                  )}
+
+                  {/* Mã dự án chỉ sinh ở đây, và chỉ khi đã có bản báo giá được chốt. */}
+                  {canTaoDuAn && !c.projectId && c.trangThai !== "MAT" && (
+                    <div className="mt-2">
+                      {c.soBaoGiaChot > 0 ? (
+                        <Button size="sm" onClick={() => setChuyen(c)}>
+                          <Handshake className="h-4 w-4" /> Đã ký hợp đồng — tạo dự án
+                        </Button>
+                      ) : (
+                        <p className="text-xs text-slate-400">
+                          Chốt một bản báo giá gửi khách rồi mới tạo được dự án.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {canEdit && (
@@ -174,6 +212,15 @@ export function CoHoiPanel({
             setMo(null);
             router.refresh();
           }}
+        />
+      )}
+
+      {chuyen && (
+        <ChuyenDuAnModal
+          coHoi={chuyen}
+          tenKhach={tenKhach}
+          chuDauTu={chuDauTu}
+          onClose={() => setChuyen(null)}
         />
       )}
     </div>

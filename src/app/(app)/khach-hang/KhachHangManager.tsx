@@ -14,6 +14,7 @@ import { formatDate } from "@/lib/utils";
 import { deleteKhachHang } from "./actions";
 import { KhachHangModal } from "./KhachHangModal";
 import { CoHoiPanel, type CoHoiRow } from "./CoHoiPanel";
+import type { ChuDauTuCoSan } from "@/lib/coHoiChuyenDuAn";
 
 export interface NhanVien {
   id: string;
@@ -45,11 +46,16 @@ export function KhachHangManager({
   nhanVien,
   canEdit,
   laAdmin,
+  chuDauTu,
+  canTaoDuAn,
 }: {
   khach: KhachHangRow[];
   nhanVien: NhanVien[];
   canEdit: boolean;
   laAdmin: boolean;
+  /** Chủ đầu tư đã có, để áp vào khi ký hợp đồng. */
+  chuDauTu: ChuDauTuCoSan[];
+  canTaoDuAn: boolean;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -200,8 +206,11 @@ export function KhachHangManager({
                         <div className="mb-4">
                           <CoHoiPanel
                             khachHangId={k.id}
+                            tenKhach={k.tenCty}
                             coHoi={k.coHoi}
                             canEdit={canEdit}
+                            chuDauTu={chuDauTu}
+                            canTaoDuAn={canTaoDuAn}
                           />
                         </div>
                         <InteractionLog

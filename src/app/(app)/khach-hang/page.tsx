@@ -9,11 +9,13 @@ export default async function KhachHangPage() {
   const session = await requireView("customer");
   const canEdit = can(session.role as Role, "customer", "edit");
   const laAdmin = session.role === "ADMIN";
+  // Chuyển cơ hội thành dự án là thao tác của bên quản lý dự án, hỏi quyền riêng.
+  const canTaoDuAn = canEdit && can(session.role as Role, "project", "edit");
 
   // Phạm vi đi theo NGƯỜI PHỤ TRÁCH, không qua dự án — khách chào giá chưa có dự án nào.
   const pham = whereKhachHangTrongPhamVi(session);
 
-  const [rows, nhanVien] = await Promise.all([
+  const [rows, nhanVien, chuDauTu] = await Promise.all([
     db.khachHang.findMany({
       where: pham,
       orderBy: { updatedAt: "desc" },
@@ -24,6 +26,7 @@ export default async function KhachHangPage() {
           include: {
             project: { select: { code: true } },
             _count: { select: { quotes: true, clientQuotes: true } },
+            clientQuotes: { where: { status: "CHOT" }, select: { id: true } },
           },
         },
         traoDoi: { orderBy: { contactDate: "desc" }, take: 30 },
@@ -36,6 +39,11 @@ export default async function KhachHangPage() {
           orderBy: { name: "asc" },
           select: { id: true, name: true, role: true },
         })
+      : Promise.resolve([]),
+    // Chỉ nạp khi người này thật sự tạo được dự án — không thì đây là danh sách chủ
+    // đầu tư gửi xuống trình duyệt mà chẳng để làm gì.
+    canTaoDuAn
+      ? db.customer.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } })
       : Promise.resolve([]),
   ]);
 
@@ -68,6 +76,7 @@ export default async function KhachHangPage() {
       projectCode: c.project?.code ?? null,
       soDuToan: c._count.quotes,
       soBaoGia: c._count.clientQuotes,
+      soBaoGiaChot: c.clientQuotes.length,
     })),
     henGanNhat:
       k.traoDoi
@@ -100,6 +109,8 @@ export default async function KhachHangPage() {
         nhanVien={nhanVien}
         canEdit={canEdit}
         laAdmin={laAdmin}
+        chuDauTu={chuDauTu}
+        canTaoDuAn={canTaoDuAn}
       />
     </div>
   );
