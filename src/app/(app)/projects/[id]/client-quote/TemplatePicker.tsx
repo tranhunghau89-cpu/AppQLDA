@@ -29,9 +29,9 @@ export function TemplatePicker({
           </option>
         ))}
       </Select>
-      <p className="mt-1 text-xs text-slate-400">
-        Quyết định bảng vật liệu, tiến độ thi công, tiến độ thanh toán và các đoạn chữ
-        được điền sẵn. Mẫu khớp loại công trình của dự án đã được chọn sẵn.
+      <p className="mt-1 text-xs text-slate-600">
+        Điền sẵn bảng vật liệu, tiến độ thi công, tiến độ thanh toán và các đoạn chữ —
+        chọn xong thì phần dưới thường không phải sửa gì.
       </p>
     </Field>
   );
