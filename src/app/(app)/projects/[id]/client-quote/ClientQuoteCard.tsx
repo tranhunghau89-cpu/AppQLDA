@@ -395,7 +395,7 @@ export function ClientQuoteCard({
         <div className="border-t border-slate-100 p-4">
           {q.customerId ? (
             <InteractionLog
-              customerId={q.customerId}
+              chu={{ loai: "CDT", id: q.customerId }}
               clientQuoteId={q.id}
               notes={q.contacts}
               canEdit={canEditCrm}

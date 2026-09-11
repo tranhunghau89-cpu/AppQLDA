@@ -21,6 +21,7 @@ export const AUDIT_ENTITY = {
   ClientQuote: "Báo giá gửi khách",
   QuoteTemplate: "Mẫu báo giá",
   CustomerNote: "Nhật ký trao đổi",
+  KhachHang: "Khách hàng (CRM)",
 } as const;
 
 export type AuditEntity = keyof typeof AUDIT_ENTITY;
@@ -168,6 +169,11 @@ export const FIELD_LABEL: Record<string, string> = {
   value: "Giá trị",
   // Báo giá gửi khách
   quoteNo: "Số báo giá",
+  tenCty: "Tên khách",
+  nguoiLienHe: "Người liên hệ",
+  diaChi: "Địa chỉ",
+  nguon: "Nguồn khách",
+  ownerId: "Người phụ trách",
   scope: "Hạng mục",
   customerPhone: "SĐT chủ đầu tư",
   salesName: "Người phụ trách",

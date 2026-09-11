@@ -230,3 +230,16 @@ export const CUSTOMER_CONTACT_KIND: Option[] = [
   { value: "KHAC", label: "Khác", tone: "slate" },
 ];
 export const CUSTOMER_CONTACT_KIND_MAP = map(CUSTOMER_CONTACT_KIND);
+
+/**
+ * Khách biết tới mình từ đâu — để sau này biết kênh nào ra việc.
+ * Chuỗi tự do sẽ không thống kê được, nên chốt thành danh sách.
+ */
+export const KHACH_NGUON: Option[] = [
+  { value: "GIOI_THIEU", label: "Được giới thiệu", tone: "green" },
+  { value: "WEBSITE", label: "Website / mạng xã hội", tone: "blue" },
+  { value: "GOI_DEN", label: "Khách gọi đến", tone: "purple" },
+  { value: "TRIEN_LAM", label: "Triển lãm / hội chợ", tone: "amber" },
+  { value: "KHAC", label: "Khác", tone: "slate" },
+];
+export const KHACH_NGUON_MAP = map(KHACH_NGUON);

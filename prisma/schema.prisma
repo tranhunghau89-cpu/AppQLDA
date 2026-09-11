@@ -54,15 +54,60 @@ model Customer {
   projects      Project[]
   clientQuotes  ClientQuote[]
   notes         CustomerNote[]
+  khachHang     KhachHang[]
+}
+
+// ----- CRM: khách đang chào giá -----
+
+// Khách đang trao đổi, CHƯA ký hợp đồng.
+//
+// Khác Customer (chủ đầu tư) một cách có chủ ý: Customer là pháp nhân đã ký, cần MST,
+// địa chỉ pháp lý, người đại diện — những thứ mãi tới lúc lên hợp đồng mới có. Lúc mới
+// gọi điện chỉ biết một người ở một công ty, ép khai đủ ngay là ép sai chỗ.
+//
+// Khi ký hợp đồng, `customerId` được nối tới CĐT mới tạo HOẶC một CĐT đã có sẵn — đó
+// là chỗ chống nhập trùng một công ty thành hai bản ghi không biết nhau.
+model KhachHang {
+  id          String  @id @default(cuid())
+  tenCty      String // "Công ty CP ABC", hoặc chỉ tên người nếu mới chỉ biết tới đó
+  nguoiLienHe String?
+  phone       String?
+  email       String?
+  diaChi      String?
+  nguon       String? // giới thiệu | website | goi_den | trien_lam | khac
+
+  // Phân quyền của CRM đi theo NGƯỜI PHỤ TRÁCH, không qua ProjectMember (chưa có dự
+  // án nào để gán). Để trống = chưa phân công, ai có quyền xem CĐT đều thấy.
+  ownerId   String?
+  ownerName String? // chụp lại lúc tạo, sống sót khi tài khoản bị xóa
+
+  // Điền khi đã ký hợp đồng và chuyển sang bên quản lý dự án.
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  traoDoi CustomerNote[]
+
+  @@index([ownerId])
+  @@index([customerId])
 }
 
 // Nhật ký trao đổi với chủ đầu tư — cùng hình dạng ProjectNote, nhưng gắn với CĐT
 // và (tùy chọn) một báo giá cụ thể. Đây là phần "CRM" của báo giá: ai đã gọi, nói
 // gì, hẹn liên hệ lại lúc nào.
 model CustomerNote {
-  id         String   @id @default(cuid())
-  customerId String
-  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  id String @id @default(cuid())
+
+  // Ghi chép thuộc về MỘT trong hai: khách đang chào giá (CRM), hoặc chủ đầu tư đã ký.
+  // Cả hai đều nullable vì một ghi chép chỉ treo ở một phía; ràng buộc "đúng một" được
+  // ép ở tầng action, không bằng CHECK constraint (Prisma không sinh ra được).
+  khachHangId String?
+  khachHang   KhachHang? @relation(fields: [khachHangId], references: [id], onDelete: Cascade)
+  customerId  String?
+  customer    Customer?  @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   // Xóa báo giá KHÔNG được xóa lịch sử liên hệ — cuộc gọi đã xảy ra thì vẫn đã xảy ra.
   clientQuoteId String?
@@ -81,6 +126,7 @@ model CustomerNote {
   createdAt        DateTime  @default(now())
 
   @@index([customerId, contactDate])
+  @@index([khachHangId, contactDate])
   @@index([clientQuoteId])
   @@index([nextFollowUpDate])
 }

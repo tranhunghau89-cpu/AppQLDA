@@ -10,7 +10,7 @@ import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
 import { CUSTOMER_CONTACT_KIND, CUSTOMER_CONTACT_KIND_MAP } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
-import { saveContact, deleteContact } from "@/app/(app)/customers/actions";
+import { saveContact, deleteContact, type ChuGhiChep } from "@/app/(app)/customers/actions";
 
 export interface NoteView {
   id: string;
@@ -26,23 +26,24 @@ export interface NoteView {
 const ngayInput = (iso: string | null) => (iso ? iso.slice(0, 10) : "");
 
 /**
- * Nhật ký trao đổi với chủ đầu tư.
+ * Nhật ký trao đổi.
  *
- * Dùng ở HAI nơi với cùng một hình dạng: trang Chủ đầu tư (toàn bộ lịch sử của một
- * CĐT) và dưới mỗi báo giá gửi khách (chỉ những lần trao đổi về báo giá đó). Gắn
- * `clientQuoteId` thì ghi chép mới tự thuộc về báo giá đó.
+ * Dùng ở BA nơi với cùng một hình dạng: trang Khách hàng (CRM), trang Chủ đầu tư, và
+ * dưới mỗi báo giá gửi khách. `chu` nói ghi chép treo ở đâu; gắn thêm `clientQuoteId`
+ * thì ghi chép mới thuộc luôn về báo giá đó.
  *
  * Người gọi phải tự kiểm quyền xem (`can(role, "customer", "view")`) trước khi dựng —
  * vai Vật tư không có khóa `customer` nên không được thấy khối này.
  */
 export function InteractionLog({
-  customerId,
+  chu,
   clientQuoteId = null,
   notes,
   canEdit,
   trong = false,
 }: {
-  customerId: string;
+  /** Ghi chép này treo ở khách đang chào giá hay ở chủ đầu tư đã ký. */
+  chu: ChuGhiChep;
   clientQuoteId?: string | null;
   notes: NoteView[];
   canEdit: boolean;
@@ -68,7 +69,7 @@ export function InteractionLog({
     const form = new FormData(e.currentTarget);
     setError(null);
     start(async () => {
-      const res = await saveContact(customerId, dangSua?.id ?? null, form);
+      const res = await saveContact(chu, dangSua?.id ?? null, form);
       if (!res.ok) setError(res.error);
       else {
         dong();

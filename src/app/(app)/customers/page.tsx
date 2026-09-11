@@ -20,6 +20,8 @@ export default async function CustomersPage() {
     // Nhật ký trao đổi của mọi CĐT trong một truy vấn rồi gom theo CĐT — rẻ hơn N+1.
     // Chặn 500 dòng: trang này chỉ để xem lại gần đây, không phải kho lưu trữ.
     db.customerNote.findMany({
+      // Chỉ ghi chép treo ở CĐT. Ghi chép của khách đang chào giá nằm bên /khach-hang.
+      where: { customerId: { not: null } },
       orderBy: { contactDate: "desc" },
       take: 500,
       include: { clientQuote: { select: { quoteNo: true, title: true } } },
@@ -30,6 +32,7 @@ export default async function CustomersPage() {
 
   const noteMap = new Map<string, NoteView[]>();
   for (const n of notes) {
+    if (!n.customerId) continue;
     const ds = noteMap.get(n.customerId) ?? [];
     ds.push({
       id: n.id,
