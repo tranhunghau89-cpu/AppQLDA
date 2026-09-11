@@ -11,6 +11,7 @@ import { CLIENT_QUOTE_STATUS } from "@/lib/constants";
 import { formatDate, formatVND } from "@/lib/utils";
 import { setClientQuoteStatus, pushSalePriceFromClientQuote } from "./actions";
 import type { ClientQuoteView } from "./types";
+import type { ChuBaoGia } from "@/lib/quoteOwner";
 
 /**
  * Vòng đời một bản báo giá: trạng thái, ngày gửi, hạn hiệu lực, và nút đẩy giá bán.
@@ -20,12 +21,12 @@ import type { ClientQuoteView } from "./types";
  */
 export function StatusBar({
   q,
-  projectId,
+  chu,
   canEdit,
   tongSauThue,
 }: {
   q: ClientQuoteView;
-  projectId: string;
+  chu: ChuBaoGia;
   canEdit: boolean;
   tongSauThue: number;
 }) {
@@ -36,7 +37,7 @@ export function StatusBar({
 
   function doiTrangThai(status: string) {
     start(async () => {
-      const res = await setClientQuoteStatus(projectId, q.id, status);
+      const res = await setClientQuoteStatus(chu, q.id, status);
       if (!res.ok) toast.error(res.error);
       else router.refresh();
     });
@@ -50,7 +51,7 @@ export function StatusBar({
     )
       return;
     start(async () => {
-      const res = await pushSalePriceFromClientQuote(projectId, q.id);
+      const res = await pushSalePriceFromClientQuote(chu, q.id);
       if (!res.ok) toast.error(res.error);
       else {
         toast.success("Đã cập nhật giá bán dự án.");
@@ -95,10 +96,17 @@ export function StatusBar({
         </span>
       )}
 
-      {canEdit && q.status === "CHOT" && (
+      {/* Chỉ dự án mới có ô giá bán để nhận; ở cơ hội thì chưa có gì để ghi vào. */}
+      {canEdit && q.status === "CHOT" && chu.loai === "DU_AN" && (
         <Button variant="outline" size="sm" className="ml-auto" onClick={dayGiaBan} disabled={pending}>
           <Wallet className="h-3.5 w-3.5" /> Đẩy giá bán vào dự án
         </Button>
+      )}
+
+      {canEdit && q.status === "CHOT" && chu.loai === "CO_HOI" && (
+        <span className="ml-auto text-xs text-slate-400">
+          Khách đã chốt — tạo dự án ở khu Khách hàng để chuyển sang quản lý hợp đồng.
+        </span>
       )}
     </div>
   );

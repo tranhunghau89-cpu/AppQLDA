@@ -7,6 +7,7 @@ import { QUOTE_SPEC_GROUP, VAT_TU_TAG } from "@/lib/constants";
 import { ModalActions } from "../quote/ModalActions";
 import { saveSpec } from "./actions";
 import type { SpecView } from "./types";
+import type { ChuBaoGia } from "@/lib/quoteOwner";
 
 export interface SpecModalState {
   quoteId: string;
@@ -15,12 +16,12 @@ export interface SpecModalState {
 }
 
 export function SpecModal({
-  projectId,
+  chu,
   state,
   onClose,
   onDone,
 }: {
-  projectId: string;
+  chu: ChuBaoGia;
   state: SpecModalState;
   onClose: () => void;
   onDone: () => void;
@@ -31,7 +32,7 @@ export function SpecModal({
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    run(() => saveSpec(projectId, quoteId, editing?.id ?? null, form));
+    run(() => saveSpec(chu, quoteId, editing?.id ?? null, form));
   }
 
   return (

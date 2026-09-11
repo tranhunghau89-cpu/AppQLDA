@@ -3,7 +3,8 @@
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
-import { scopedProjectWhere, scopedByProjectWhere } from "@/lib/scope";
+import { scopedProjectWhere, scopedByProjectWhere, myProjectIds } from "@/lib/scope";
+import { whereBaoGiaTrongPhamVi } from "@/lib/crmScope";
 import type { SearchDoc } from "@/lib/search";
 
 /**
@@ -63,12 +64,13 @@ export async function layDanhMucTimKiem(): Promise<SearchDoc[]> {
       : [],
     can(role, "quote", "view")
       ? db.quote.findMany({
-          where: await scopedByProjectWhere(session),
+          where: whereBaoGiaTrongPhamVi(session, await myProjectIds(session)),
           select: {
             id: true,
             title: true,
             recipient: true,
             project: { select: { id: true, code: true, name: true } },
+            coHoi: { select: { id: true, tenCongTrinh: true } },
           },
           orderBy: { createdAt: "desc" },
         })
@@ -136,13 +138,20 @@ export async function layDanhMucTimKiem(): Promise<SearchDoc[]> {
   }
 
   for (const b of baoGia) {
+    // Dự toán ở cơ hội chưa có mã dự án nào để hiện — lấy tên công trình đang chào giá.
+    const noi = b.project
+      ? { nhan: `${b.project.code} · ${b.project.name}`, href: `/projects/${b.project.id}/quote`, tu: [b.project.code, b.project.name] }
+      : b.coHoi
+        ? { nhan: `${b.coHoi.tenCongTrinh} · đang chào giá`, href: `/co-hoi/${b.coHoi.id}/quote`, tu: [b.coHoi.tenCongTrinh] }
+        : null;
+    if (!noi) continue;
     docs.push({
       kind: "quote",
       id: b.id,
       title: b.title,
-      subtitle: `${b.project.code} · ${b.project.name}`,
-      href: `/projects/${b.project.id}/quote`,
-      terms: [b.title, b.recipient ?? "", b.project.code, b.project.name].filter(Boolean),
+      subtitle: noi.nhan,
+      href: noi.href,
+      terms: [b.title, b.recipient ?? "", ...noi.tu].filter(Boolean),
     });
   }
 

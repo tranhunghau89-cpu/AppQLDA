@@ -230,3 +230,34 @@ export const CUSTOMER_CONTACT_KIND: Option[] = [
   { value: "KHAC", label: "Khác", tone: "slate" },
 ];
 export const CUSTOMER_CONTACT_KIND_MAP = map(CUSTOMER_CONTACT_KIND);
+
+/**
+ * Khách biết tới mình từ đâu — để sau này biết kênh nào ra việc.
+ * Chuỗi tự do sẽ không thống kê được, nên chốt thành danh sách.
+ */
+export const KHACH_NGUON: Option[] = [
+  { value: "GIOI_THIEU", label: "Được giới thiệu", tone: "green" },
+  { value: "WEBSITE", label: "Website / mạng xã hội", tone: "blue" },
+  { value: "GOI_DEN", label: "Khách gọi đến", tone: "purple" },
+  { value: "TRIEN_LAM", label: "Triển lãm / hội chợ", tone: "amber" },
+  { value: "KHAC", label: "Khác", tone: "slate" },
+];
+export const KHACH_NGUON_MAP = map(KHACH_NGUON);
+
+/**
+ * Vòng đời một cơ hội chào giá.
+ *
+ * KY_HD là trạng thái CUỐI và chỉ đặt được qua đường "chuyển sang dự án" — không cho
+ * chọn tay, vì đặt tay thì cơ hội mang tiếng đã ký mà chẳng có dự án nào.
+ */
+export const CO_HOI_TRANG_THAI: Option[] = [
+  { value: "MOI", label: "Mới", tone: "slate" },
+  { value: "DANG_CHAO", label: "Đang chào giá", tone: "blue" },
+  { value: "DAM_PHAN", label: "Đang đàm phán", tone: "amber" },
+  { value: "KY_HD", label: "Đã ký hợp đồng", tone: "green" },
+  { value: "MAT", label: "Mất khách", tone: "red" },
+];
+export const CO_HOI_TRANG_THAI_MAP = map(CO_HOI_TRANG_THAI);
+
+/** Còn phải theo đuổi — dùng cho bộ lọc và bản tin nhắc việc. */
+export const CO_HOI_DANG_MO = ["MOI", "DANG_CHAO", "DAM_PHAN"];

@@ -54,15 +54,100 @@ model Customer {
   projects      Project[]
   clientQuotes  ClientQuote[]
   notes         CustomerNote[]
+  khachHang     KhachHang[]
+}
+
+// ----- CRM: khách đang chào giá -----
+
+// Khách đang trao đổi, CHƯA ký hợp đồng.
+//
+// Khác Customer (chủ đầu tư) một cách có chủ ý: Customer là pháp nhân đã ký, cần MST,
+// địa chỉ pháp lý, người đại diện — những thứ mãi tới lúc lên hợp đồng mới có. Lúc mới
+// gọi điện chỉ biết một người ở một công ty, ép khai đủ ngay là ép sai chỗ.
+//
+// Khi ký hợp đồng, `customerId` được nối tới CĐT mới tạo HOẶC một CĐT đã có sẵn — đó
+// là chỗ chống nhập trùng một công ty thành hai bản ghi không biết nhau.
+model KhachHang {
+  id          String  @id @default(cuid())
+  tenCty      String // "Công ty CP ABC", hoặc chỉ tên người nếu mới chỉ biết tới đó
+  nguoiLienHe String?
+  phone       String?
+  email       String?
+  diaChi      String?
+  nguon       String? // giới thiệu | website | goi_den | trien_lam | khac
+
+  // Phân quyền của CRM đi theo NGƯỜI PHỤ TRÁCH, không qua ProjectMember (chưa có dự
+  // án nào để gán). Để trống = chưa phân công, ai có quyền xem CĐT đều thấy.
+  ownerId   String?
+  ownerName String? // chụp lại lúc tạo, sống sót khi tài khoản bị xóa
+
+  // Điền khi đã ký hợp đồng và chuyển sang bên quản lý dự án.
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  traoDoi CustomerNote[]
+  coHoi   CoHoi[]
+
+  @@index([ownerId])
+  @@index([customerId])
+}
+
+// Một công trình đang chào giá cho một khách. Đứng TRƯỚC dự án.
+//
+// Cố ý KHÔNG có mã duy nhất kiểu Project.code: chào giá mười nơi trúng một thì chín mã
+// kia là rác, mà Project.code lại @unique nên xóa đi mới dùng lại được.
+//
+// Vì sao cần thực thể này chứ không treo báo giá thẳng vào khách: suy đơn giá m² đọc
+// `area` làm mẫu số và `buildingType` để chọn sẵn mẫu báo giá. Không có chỗ giữ hai thứ
+// đó thì phép suy gãy.
+model CoHoi {
+  id          String    @id @default(cuid())
+  khachHangId String
+  khachHang   KhachHang @relation(fields: [khachHangId], references: [id], onDelete: Cascade)
+
+  tenCongTrinh String // "Nhà xưởng Hồng Ngự" — chưa phải tên dự án chính thức
+  diaDiem      String?
+  buildingType String? // khớp Project.buildingType -> chọn sẵn mẫu báo giá
+  area         Float? // m2 — mẫu số khi suy đơn giá m²
+  kK           Float?
+  kL           Float?
+  kH           Float?
+
+  trangThai String  @default("MOI") // MOI|DANG_CHAO|DAM_PHAN|KY_HD|MAT
+  lyDoMat   String?
+
+  // Điền khi đã ký hợp đồng và chuyển sang dự án. Cũng là dấu "cơ hội này đã xong".
+  projectId String?  @unique
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  quotes       Quote[]
+  clientQuotes ClientQuote[]
+
+  @@index([khachHangId])
+  @@index([trangThai])
 }
 
 // Nhật ký trao đổi với chủ đầu tư — cùng hình dạng ProjectNote, nhưng gắn với CĐT
 // và (tùy chọn) một báo giá cụ thể. Đây là phần "CRM" của báo giá: ai đã gọi, nói
 // gì, hẹn liên hệ lại lúc nào.
 model CustomerNote {
-  id         String   @id @default(cuid())
-  customerId String
-  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  id String @id @default(cuid())
+
+  // Ghi chép thuộc về MỘT trong hai: khách đang chào giá (CRM), hoặc chủ đầu tư đã ký.
+  // Cả hai đều nullable vì một ghi chép chỉ treo ở một phía; ràng buộc "đúng một" được
+  // ép ở tầng action, không bằng CHECK constraint (Prisma không sinh ra được).
+  khachHangId String?
+  khachHang   KhachHang? @relation(fields: [khachHangId], references: [id], onDelete: Cascade)
+  customerId  String?
+  customer    Customer?  @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   // Xóa báo giá KHÔNG được xóa lịch sử liên hệ — cuộc gọi đã xảy ra thì vẫn đã xảy ra.
   clientQuoteId String?
@@ -81,6 +166,7 @@ model CustomerNote {
   createdAt        DateTime  @default(now())
 
   @@index([customerId, contactDate])
+  @@index([khachHangId, contactDate])
   @@index([clientQuoteId])
   @@index([nextFollowUpDate])
 }
@@ -135,6 +221,7 @@ model Project {
   quotes         Quote[]
   clientQuotes   ClientQuote[]
   members        ProjectMember[]
+  coHoi          CoHoi? // cơ hội chào giá đã sinh ra dự án này (nếu có)
   @@index([status])
   @@index([customerId])
 }
@@ -517,10 +604,18 @@ model WorkPrice {
 }
 
 // Báo giá chi tiết của 1 dự án (mỗi dự án có thể nhiều bản).
+// Dự toán chi tiết theo Mã CV. Sống được ở HAI nơi, và chỉ một trong hai:
+//   · cơ hội chào giá — giai đoạn đang báo giá, chưa có hợp đồng nào;
+//   · dự án — sau khi ký hợp đồng, bản dự toán theo sang dự án.
+// Cố ý KHÔNG cho cả hai cùng có giá trị: chủ sở hữu quyết định ai được xem/sửa, hai chủ
+// cùng lúc nghĩa là hai luật quyền chồng nhau. Vết "cơ hội nào thành dự án nào" đã nằm ở
+// CoHoi.projectId, không cần giữ thêm ở đây.
 model Quote {
   id           String         @id @default(cuid())
-  projectId    String
-  project      Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId    String?
+  project      Project?       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  coHoiId      String?
+  coHoi        CoHoi?         @relation(fields: [coHoiId], references: [id], onDelete: Cascade)
   title        String // tiêu đề/phiên bản
   recipient    String? // Kính gửi
   location     String? // Địa điểm
@@ -538,6 +633,7 @@ model Quote {
   items        QuoteItem[]
   clientQuotes ClientQuote[] @relation("QuoteToClient")
   @@index([projectId])
+  @@index([coHoiId])
 }
 
 // Phần (A/B/…) và mục con (I/II) — cây 2 cấp qua parentId.
@@ -591,9 +687,13 @@ model QuoteItem {
 // Gộp chung thì một bản m² vừa tạo sẽ thành "báo giá mới nhất" và hiện 0 đ trên
 // dashboard dự án. Tách bảng làm lỗi đó không thể xảy ra.
 model ClientQuote {
-  id        String  @id @default(cuid())
-  projectId String
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  // Cùng luật một chủ như Quote: bản gửi khách sống ở cơ hội lúc còn chào giá, theo
+  // sang dự án khi ký hợp đồng. Xem chú thích ở model Quote.
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  coHoiId   String?
+  coHoi     CoHoi?   @relation(fields: [coHoiId], references: [id], onDelete: Cascade)
 
   quoteNo   String? // Số báo giá: BG-2026-014 (tự nhập)
   title     String // tiêu đề/phiên bản nội bộ
@@ -655,6 +755,7 @@ model ClientQuote {
   contacts CustomerNote[]
 
   @@index([projectId])
+  @@index([coHoiId])
   @@index([customerId])
   @@index([status, expiryDate]) // nguồn cho nhắc việc hằng ngày
 }

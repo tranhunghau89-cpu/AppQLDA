@@ -18,10 +18,11 @@ import { InteractionLog } from "@/components/crm/InteractionLog";
 import { StatusBar } from "./StatusBar";
 import { clearPriceOverride, deleteClientQuote, deleteLine, deleteSpec, recomputePrices } from "./actions";
 import type { ClientQuoteView, LineView, SpecView } from "./types";
+import type { ChuBaoGia } from "@/lib/quoteOwner";
 
 export function ClientQuoteCard({
   q,
-  projectId,
+  chu,
   canEdit,
   canViewCrm,
   canEditCrm,
@@ -33,7 +34,7 @@ export function ClientQuoteCard({
   onEditTerms,
 }: {
   q: ClientQuoteView;
-  projectId: string;
+  chu: ChuBaoGia;
   canEdit: boolean;
   canViewCrm: boolean;
   canEditCrm: boolean;
@@ -66,11 +67,11 @@ export function ClientQuoteCard({
 
   async function onDelete() {
     if (!(await confirm(`Xóa báo giá "${q.title}"? (kèm toàn bộ hạng mục & điều khoản)`))) return;
-    run(() => deleteClientQuote(projectId, q.id));
+    run(() => deleteClientQuote(chu, q.id));
   }
   async function onDeleteLine(l: LineView) {
     if (!(await confirm(`Xóa hạng mục "${l.name}"?`))) return;
-    run(() => deleteLine(projectId, l.id));
+    run(() => deleteLine(chu, l.id));
   }
   async function onRecompute() {
     if (
@@ -80,7 +81,7 @@ export function ClientQuoteCard({
     )
       return;
     start(async () => {
-      const res = await recomputePrices(projectId, q.id);
+      const res = await recomputePrices(chu, q.id);
       if (!res.ok) {
         toast.error(res.error);
         return;
@@ -92,7 +93,7 @@ export function ClientQuoteCard({
 
   async function onDeleteSpec(s: SpecView) {
     if (!(await confirm(`Xóa vật liệu "${s.name}"?`))) return;
-    run(() => deleteSpec(projectId, s.id));
+    run(() => deleteSpec(chu, s.id));
   }
 
   // Gom dòng theo phần, giữ nguyên thứ tự xuất hiện đầu tiên của mỗi phần.
@@ -143,7 +144,7 @@ export function ClientQuoteCard({
         <div className="flex flex-wrap items-center gap-1.5">
           {/* In được thì ai xem được cũng nên in được — không gắn với quyền sửa. */}
           <Link
-            href={`/projects/${projectId}/client-quote/${q.id}/print`}
+            href={`/bao-gia/${q.id}/print`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
@@ -251,7 +252,7 @@ export function ClientQuoteCard({
                             size="icon"
                             title="Bỏ đè giá"
                             aria-label="Bỏ đè giá"
-                            onClick={() => run(() => clearPriceOverride(projectId, l.id))}
+                            onClick={() => run(() => clearPriceOverride(chu, l.id))}
                           >
                             <RotateCcw className="h-3.5 w-3.5" />
                           </Button>
@@ -381,7 +382,7 @@ export function ClientQuoteCard({
         </div>
       </details>
 
-      <StatusBar q={q} projectId={projectId} canEdit={canEdit} tongSauThue={tong.withVat} />
+      <StatusBar q={q} chu={chu} canEdit={canEdit} tongSauThue={tong.withVat} />
 
       {/* ---- Điều khoản tóm tắt ---- */}
       <div className="border-t border-slate-100 p-4 text-sm text-slate-600">
@@ -395,7 +396,7 @@ export function ClientQuoteCard({
         <div className="border-t border-slate-100 p-4">
           {q.customerId ? (
             <InteractionLog
-              customerId={q.customerId}
+              chu={{ loai: "CDT", id: q.customerId }}
               clientQuoteId={q.id}
               notes={q.contacts}
               canEdit={canEditCrm}

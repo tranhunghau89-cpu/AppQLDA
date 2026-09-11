@@ -192,7 +192,7 @@ export function CustomerManager({
                     <tr className="border-b border-slate-100 bg-slate-50/60">
                       <td colSpan={colCount} className="px-4 py-3">
                         <InteractionLog
-                          customerId={c.id}
+                          chu={{ loai: "CDT", id: c.id }}
                           notes={c.notes}
                           canEdit={canEdit}
                           trong

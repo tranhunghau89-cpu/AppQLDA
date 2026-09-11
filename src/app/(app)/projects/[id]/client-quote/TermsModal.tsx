@@ -10,6 +10,7 @@ import { sumStageDays, validatePaymentPercents } from "@/lib/clientQuote";
 import { ModalActions } from "../quote/ModalActions";
 import { saveTerms } from "./actions";
 import type { PaymentView, StageView } from "./types";
+import type { ChuBaoGia } from "@/lib/quoteOwner";
 
 export interface TermsModalState {
   quoteId: string;
@@ -31,12 +32,12 @@ interface PaymentRow {
 const soHoacNull = (v: string) => (v === "" ? null : Number(v));
 
 export function TermsModal({
-  projectId,
+  chu,
   state,
   onClose,
   onDone,
 }: {
-  projectId: string;
+  chu: ChuBaoGia;
   state: TermsModalState;
   onClose: () => void;
   onDone: () => void;
@@ -64,7 +65,7 @@ export function TermsModal({
     const form = new FormData();
     form.set("stages", JSON.stringify(stages));
     form.set("payments", JSON.stringify(payments));
-    run(() => saveTerms(projectId, state.quoteId, form));
+    run(() => saveTerms(chu, state.quoteId, form));
   }
 
   return (

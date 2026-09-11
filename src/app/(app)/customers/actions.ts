@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth";
 import { CUSTOMER_CONTACT_KIND_MAP } from "@/lib/constants";
+import { duocDungKhachHang } from "@/lib/crmScope";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -95,6 +96,7 @@ function contactFields(form: FormData) {
  */
 async function contactPaths(clientQuoteId: string | null) {
   revalidatePath("/customers");
+  revalidatePath("/khach-hang");
   if (!clientQuoteId) return;
   const q = await db.clientQuote.findUnique({
     where: { id: clientQuoteId },
@@ -103,8 +105,16 @@ async function contactPaths(clientQuoteId: string | null) {
   if (q) revalidatePath(`/projects/${q.projectId}/client-quote`);
 }
 
+/**
+ * Ghi chép treo ở đâu: khách đang chào giá (CRM) hay chủ đầu tư đã ký.
+ *
+ * Đúng một trong hai, không bao giờ cả hai — cùng một cuộc gọi mà nằm hai chỗ thì
+ * đọc lại sẽ tưởng gọi hai lần.
+ */
+export type ChuGhiChep = { loai: "KHACH" | "CDT"; id: string };
+
 export async function saveContact(
-  customerId: string,
+  chu: ChuGhiChep,
   noteId: string | null,
   form: FormData
 ): Promise<ActionResult> {
@@ -113,6 +123,19 @@ export async function saveContact(
     actor = await requirePermission("customer", "edit");
   } catch {
     return { ok: false, error: "Bạn không có quyền ghi nhật ký trao đổi." };
+  }
+
+  // Khách chào giá còn phải qua cửa người phụ trách: chỉ ADMIN, người phụ trách, hoặc
+  // khách chưa phân công ai mới ghi được.
+  if (chu.loai === "KHACH") {
+    const kh = await db.khachHang.findUnique({
+      where: { id: chu.id },
+      select: { ownerId: true },
+    });
+    if (!kh) return { ok: false, error: "Không tìm thấy khách hàng." };
+    if (!duocDungKhachHang(actor, kh.ownerId)) {
+      return { ok: false, error: "Khách này do người khác phụ trách." };
+    }
   }
 
   const parsed = contactSchema.safeParse(contactFields(form));
@@ -125,14 +148,18 @@ export async function saveContact(
 
   // clientQuoteId đến từ trình duyệt: phải có thật VÀ phải thuộc đúng CĐT này,
   // nếu không thì một cuộc gọi lại gắn được vào báo giá của khách khác.
+  // Báo giá hiện vẫn gắn CĐT; tới Phase 8.4 mới gắn được vào khách chào giá.
   const clientQuoteId: string | null = d.clientQuoteId || null;
   if (clientQuoteId) {
+    if (chu.loai !== "CDT") {
+      return { ok: false, error: "Chưa gắn được ghi chép vào báo giá của khách chào giá." };
+    }
     const q = await db.clientQuote.findUnique({
       where: { id: clientQuoteId },
       select: { customerId: true },
     });
     if (!q) return { ok: false, error: "Không tìm thấy báo giá." };
-    if (q.customerId !== customerId) {
+    if (q.customerId !== chu.id) {
       return { ok: false, error: "Báo giá không thuộc chủ đầu tư này." };
     }
   }
@@ -147,12 +174,13 @@ export async function saveContact(
   if (noteId) {
     const cu = await db.customerNote.findUnique({
       where: { id: noteId },
-      select: { customerId: true, clientQuoteId: true },
+      select: { customerId: true, khachHangId: true, clientQuoteId: true },
     });
     if (!cu) return { ok: false, error: "Không tìm thấy ghi chép." };
-    if (cu.customerId !== customerId) {
-      return { ok: false, error: "Ghi chép không thuộc chủ đầu tư này." };
-    }
+    const dungChu =
+      chu.loai === "KHACH" ? cu.khachHangId === chu.id : cu.customerId === chu.id;
+    if (!dungChu) return { ok: false, error: "Ghi chép không thuộc bên này." };
+
     // Sửa nội dung thì được, nhưng KHÔNG đổi tác giả: vết "ai nói chuyện với ai"
     // là thứ duy nhất làm nhật ký này đáng tin.
     await db.customerNote.update({ where: { id: noteId }, data });
@@ -161,7 +189,8 @@ export async function saveContact(
     await db.customerNote.create({
       data: {
         ...data,
-        customerId,
+        khachHangId: chu.loai === "KHACH" ? chu.id : null,
+        customerId: chu.loai === "CDT" ? chu.id : null,
         clientQuoteId,
         authorId: actor.userId,
         authorName: actor.name,
@@ -174,16 +203,21 @@ export async function saveContact(
 }
 
 export async function deleteContact(noteId: string): Promise<ActionResult> {
+  let actor;
   try {
-    await requirePermission("customer", "edit");
+    actor = await requirePermission("customer", "edit");
   } catch {
     return { ok: false, error: "Bạn không có quyền xóa nhật ký trao đổi." };
   }
   const cu = await db.customerNote.findUnique({
     where: { id: noteId },
-    select: { clientQuoteId: true },
+    select: { clientQuoteId: true, khachHang: { select: { ownerId: true } } },
   });
   if (!cu) return { ok: false, error: "Không tìm thấy ghi chép." };
+  // Ghi chép của khách chào giá: chỉ người phụ trách (hoặc quản trị) được xóa.
+  if (cu.khachHang && !duocDungKhachHang(actor, cu.khachHang.ownerId)) {
+    return { ok: false, error: "Khách này do người khác phụ trách." };
+  }
   await db.customerNote.delete({ where: { id: noteId } });
   await contactPaths(cu.clientQuoteId);
   return { ok: true };

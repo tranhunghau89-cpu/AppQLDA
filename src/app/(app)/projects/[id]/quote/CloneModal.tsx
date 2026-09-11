@@ -5,15 +5,16 @@ import { Modal } from "@/components/ui/modal";
 import { useActionForm } from "@/components/ui/useActionForm";
 import { ModalActions } from "./ModalActions";
 import { cloneQuoteFrom } from "./actions";
+import type { ChuBaoGia } from "@/lib/quoteOwner";
 import type { CloneSource } from "./types";
 
 export function CloneModal({
-  projectId,
+  chu,
   cloneSources,
   onClose,
   onDone,
 }: {
-  projectId: string;
+  chu: ChuBaoGia;
   cloneSources: CloneSource[];
   onClose: () => void;
   onDone: () => void;
@@ -30,7 +31,7 @@ export function CloneModal({
       run(async () => ({ ok: false, error: "Hãy chọn báo giá nguồn." }));
       return;
     }
-    run(() => cloneQuoteFrom(projectId, sourceId, mk === "" ? null : Number(mk)));
+    run(() => cloneQuoteFrom(chu, sourceId, mk === "" ? null : Number(mk)));
   }
 
   return (

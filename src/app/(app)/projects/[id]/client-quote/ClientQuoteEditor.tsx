@@ -11,13 +11,14 @@ import { SpecModal, type SpecModalState } from "./SpecModal";
 import { TermsModal, type TermsModalState } from "./TermsModal";
 import type { TemplateOption } from "@/lib/quoteTemplatePick";
 import type { ClientQuoteView, CustomerOption, LineView, SpecView } from "./types";
+import type { ChuBaoGia } from "@/lib/quoteOwner";
 
 /**
  * Điều phối: giữ đúng một việc — hộp thoại nào đang mở và mở với bản ghi nào.
  * Mỗi hộp thoại chỉ được dựng khi mở nên state form tự khởi tạo lại theo bản ghi mới.
  */
 export function ClientQuoteEditor({
-  projectId,
+  chu,
   quotes,
   customers,
   canEdit,
@@ -27,7 +28,7 @@ export function ClientQuoteEditor({
   templates,
   templateGoiY,
 }: {
-  projectId: string;
+  chu: ChuBaoGia;
   quotes: ClientQuoteView[];
   customers: CustomerOption[];
   canEdit: boolean;
@@ -75,7 +76,7 @@ export function ClientQuoteEditor({
         <ClientQuoteCard
           key={q.id}
           q={q}
-          projectId={projectId}
+          chu={chu}
           canEdit={canEdit}
           canViewCrm={canViewCrm}
           canEditCrm={canEditCrm}
@@ -96,7 +97,7 @@ export function ClientQuoteEditor({
 
       {headerModal && (
         <HeaderModal
-          projectId={projectId}
+          chu={chu}
           editing={headerModal.editing}
           customers={customers}
           goiY={goiY}
@@ -109,7 +110,7 @@ export function ClientQuoteEditor({
 
       {lineModal && (
         <LineModal
-          projectId={projectId}
+          chu={chu}
           state={lineModal}
           onClose={() => setLineModal(null)}
           onDone={closeAll}
@@ -118,7 +119,7 @@ export function ClientQuoteEditor({
 
       {specModal && (
         <SpecModal
-          projectId={projectId}
+          chu={chu}
           state={specModal}
           onClose={() => setSpecModal(null)}
           onDone={closeAll}
@@ -127,7 +128,7 @@ export function ClientQuoteEditor({
 
       {termsModal && (
         <TermsModal
-          projectId={projectId}
+          chu={chu}
           state={termsModal}
           onClose={() => setTermsModal(null)}
           onDone={closeAll}

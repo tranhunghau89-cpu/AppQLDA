@@ -65,6 +65,7 @@ export async function GET(req: Request) {
         expiryDate: true,
         vatPercent: true,
         project: { select: { code: true } },
+        coHoi: { select: { tenCongTrinh: true } },
         lines: { select: { qty: true, unitPrice: true, amount: true } },
         customer: { select: { name: true } },
         // Hẹn liên hệ lại còn ở phía trước, gần nhất đứng đầu.
@@ -102,7 +103,9 @@ export async function GET(req: Request) {
   const baoGia: BaoGiaTheoDoiInput[] = baoGiaRows.map((q) => ({
     clientQuoteId: q.id,
     quoteNo: q.quoteNo,
-    projectCode: q.project.code,
+    // Báo giá ở cơ hội chưa có mã dự án; lấy tên công trình đang chào để bản tin vẫn
+    // gọi được tên nó.
+    projectCode: q.project?.code ?? q.coHoi?.tenCongTrinh ?? "—",
     // Tên chụp lúc lập ("Kính gửi") là thứ in trên văn bản; CĐT đang gắn chỉ để dự phòng.
     customer: q.recipient ?? q.customer?.name ?? null,
     total: computeClientQuoteTotals(q.lines, q.vatPercent).withVat,

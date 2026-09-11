@@ -7,6 +7,7 @@ import { useActionForm } from "@/components/ui/useActionForm";
 import { sellFromBase } from "@/lib/quote";
 import { ModalActions } from "./ModalActions";
 import { saveItem } from "./actions";
+import type { ChuBaoGia } from "@/lib/quoteOwner";
 import type { CatalogOption, ItemView, SectionView } from "./types";
 
 export interface ItemModalState {
@@ -28,13 +29,13 @@ function leafLabel(sections: SectionView[], s: SectionView): string {
 }
 
 export function ItemModal({
-  projectId,
+  chu,
   catalog,
   state,
   onClose,
   onDone,
 }: {
-  projectId: string;
+  chu: ChuBaoGia;
   catalog: CatalogOption[];
   state: ItemModalState;
   onClose: () => void;
@@ -79,7 +80,7 @@ export function ItemModal({
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    run(() => saveItem(projectId, quoteId, editing?.id ?? null, form));
+    run(() => saveItem(chu, quoteId, editing?.id ?? null, form));
   }
 
   return (

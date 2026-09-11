@@ -8,6 +8,7 @@ import { VAT_TU_TAG } from "@/lib/constants";
 import { ModalActions } from "../quote/ModalActions";
 import { saveLine } from "./actions";
 import type { LineView } from "./types";
+import type { ChuBaoGia } from "@/lib/quoteOwner";
 
 export interface LineModalState {
   quoteId: string;
@@ -15,12 +16,12 @@ export interface LineModalState {
 }
 
 export function LineModal({
-  projectId,
+  chu,
   state,
   onClose,
   onDone,
 }: {
-  projectId: string;
+  chu: ChuBaoGia;
   state: LineModalState;
   onClose: () => void;
   onDone: () => void;
@@ -32,7 +33,7 @@ export function LineModal({
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    run(() => saveLine(projectId, quoteId, editing?.id ?? null, form));
+    run(() => saveLine(chu, quoteId, editing?.id ?? null, form));
   }
 
   return (

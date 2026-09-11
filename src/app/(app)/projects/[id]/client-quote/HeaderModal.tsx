@@ -9,6 +9,7 @@ import { saveClientQuote } from "./actions";
 import { TemplatePicker } from "./TemplatePicker";
 import type { TemplateOption } from "@/lib/quoteTemplatePick";
 import type { ClientQuoteView, CustomerOption } from "./types";
+import type { ChuBaoGia } from "@/lib/quoteOwner";
 
 /** Giá trị gợi ý khi lập báo giá mới — lấy từ dự án và người đang đăng nhập. */
 export interface GoiY {
@@ -21,7 +22,7 @@ export interface GoiY {
 }
 
 export function HeaderModal({
-  projectId,
+  chu,
   editing,
   customers,
   goiY,
@@ -30,7 +31,7 @@ export function HeaderModal({
   onClose,
   onDone,
 }: {
-  projectId: string;
+  chu: ChuBaoGia;
   editing: ClientQuoteView | null;
   customers: CustomerOption[];
   goiY: GoiY;
@@ -57,7 +58,7 @@ export function HeaderModal({
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    run(() => saveClientQuote(projectId, editing?.id ?? null, form));
+    run(() => saveClientQuote(chu, editing?.id ?? null, form));
   }
 
   return (

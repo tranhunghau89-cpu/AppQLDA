@@ -4,6 +4,8 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { denyProject, requirePermission, requireSession } from "@/lib/auth";
+import { denyCoHoi } from "@/lib/coHoiAccess";
+import { duLieuChu, duongDanChu, laCungChu, type ChuBaoGia } from "@/lib/quoteOwner";
 import { diffFields, recordAudit } from "@/lib/audit";
 import {
   computeClientQuoteTotals,
@@ -57,10 +59,67 @@ const int = num.refine(
   "Phải là số nguyên"
 );
 
-function paths(projectId: string) {
-  revalidatePath(`/projects/${projectId}/client-quote`);
+function paths(chu: ChuBaoGia) {
+  revalidatePath(duongDanChu(chu).replace("/quote", "/client-quote"));
   revalidatePath("/client-quotes");
-  revalidatePath(`/projects/${projectId}`);
+  if (chu.loai === "DU_AN") revalidatePath(`/projects/${chu.id}`);
+  else revalidatePath("/khach-hang");
+}
+
+/** Chỉ dự án mới có id dự án để ghi vào nhật ký; báo giá ở cơ hội thì chưa có. */
+const duAnCuaChu = (chu: ChuBaoGia) => (chu.loai === "DU_AN" ? chu.id : null);
+
+/**
+ * Bên nhận và diện tích, lấy theo chủ sở hữu.
+ *
+ * Ở dự án thì lấy từ chủ đầu tư đã ký; ở cơ hội thì lấy từ khách đang chào. Hai nguồn
+ * khác nhau nhưng cùng đổ vào các cột `recipient`/`customerPhone` — chúng là bản CHỤP
+ * lúc lập, nên bản in không đổi khi bên kia đổi tên.
+ */
+async function boiCanhChu(chu: ChuBaoGia): Promise<{
+  area: number | null;
+  location: string | null;
+  customerId: string | null;
+  tenNhan: string | null;
+  dienThoai: string | null;
+}> {
+  if (chu.loai === "DU_AN") {
+    const p = await db.project.findUnique({
+      where: { id: chu.id },
+      select: {
+        area: true,
+        location: true,
+        customerId: true,
+        customer: { select: { name: true, phone: true } },
+      },
+    });
+    return {
+      area: p?.area ?? null,
+      location: p?.location ?? null,
+      customerId: p?.customerId ?? null,
+      tenNhan: p?.customer?.name ?? null,
+      dienThoai: p?.customer?.phone ?? null,
+    };
+  }
+  const c = await db.coHoi.findUnique({
+    where: { id: chu.id },
+    select: {
+      area: true,
+      diaDiem: true,
+      khachHang: {
+        select: { tenCty: true, phone: true, customerId: true },
+      },
+    },
+  });
+  return {
+    area: c?.area ?? null,
+    location: c?.diaDiem ?? null,
+    // Chỉ có giá trị khi khách đã được nối với một chủ đầu tư có sẵn; lúc chào giá
+    // thường là null, và như vậy là đúng.
+    customerId: c?.khachHang.customerId ?? null,
+    tenNhan: c?.khachHang.tenCty ?? null,
+    dienThoai: c?.khachHang.phone ?? null,
+  };
 }
 
 const s = (form: FormData, key: string) => String(form.get(key) ?? "");
@@ -139,15 +198,17 @@ function bangConCuaMau(quoteId: string, k: KhuonBaoGia) {
 }
 
 /**
- * Chặn khi thiếu quyền / ngoài phạm vi dự án, rồi truy MỌI id con ngược về báo giá
- * và đối chiếu báo giá đó có thuộc dự án không.
+ * Chặn khi thiếu quyền / ngoài phạm vi, rồi truy MỌI id con ngược về báo giá và đối
+ * chiếu báo giá đó có đúng chủ không.
  *
- * Mọi id ở đây đều đến từ trình duyệt. Bỏ bước truy ngược này là mở đường ghi chéo
- * sang dự án khác: chỉ cần sửa một id trong request là sửa được báo giá của dự án
- * mà mình không được phân công.
+ * Hai nhánh phạm vi vì báo giá sống được ở hai nơi: dự án chặn theo phân công
+ * (ProjectMember), cơ hội chặn theo người phụ trách khách.
+ *
+ * Mọi id ở đây đều đến từ trình duyệt. Bỏ bước truy ngược này là mở đường ghi chéo:
+ * chỉ cần sửa một id trong request là sửa được báo giá của chỗ mình không có quyền.
  */
 async function guard(
-  projectId: string,
+  chu: ChuBaoGia,
   opts: {
     clientQuoteId?: string | null;
     lineId?: string | null;
@@ -156,12 +217,11 @@ async function guard(
     paymentId?: string | null;
   } = {}
 ): Promise<ActionResult | null> {
-  const denied = await denyProject(
-    "quote",
-    "edit",
-    projectId,
-    "Bạn không có quyền chỉnh sửa báo giá."
-  );
+  const khongDuQuyen = "Bạn không có quyền chỉnh sửa báo giá.";
+  const denied =
+    chu.loai === "DU_AN"
+      ? await denyProject("quote", "edit", chu.id, khongDuQuyen)
+      : await denyCoHoi("quote", "edit", chu.id, khongDuQuyen);
   if (denied) return denied;
 
   const quoteIds = new Set<string>();
@@ -183,10 +243,10 @@ async function guard(
   for (const qid of quoteIds) {
     const q = await db.clientQuote.findUnique({
       where: { id: qid },
-      select: { projectId: true },
+      select: { projectId: true, coHoiId: true },
     });
-    if (!q || q.projectId !== projectId) {
-      return { ok: false, error: "Báo giá không thuộc dự án này." };
+    if (!q || !laCungChu(chu, q)) {
+      return { ok: false, error: "Báo giá không thuộc mục này." };
     }
   }
   return null;
@@ -253,11 +313,11 @@ function quoteFields(form: FormData) {
 }
 
 export async function saveClientQuote(
-  projectId: string,
+  chu: ChuBaoGia,
   clientQuoteId: string | null,
   form: FormData
 ): Promise<ActionResult> {
-  const g = await guard(projectId, { clientQuoteId });
+  const g = await guard(chu, { clientQuoteId });
   if (g) return g;
 
   const parsed = quoteSchema.safeParse(quoteFields(form));
@@ -305,7 +365,7 @@ export async function saveClientQuote(
   } else {
     // Mẫu chỉ có nghĩa lúc TẠO. Sửa báo giá cũ mà đổi mẫu thì phải ghi đè cả bảng
     // vật liệu và điều khoản người dùng đã chỉnh tay — không làm.
-    id = await taoMoiKemMacDinh(projectId, data, s(form, "templateId") || null);
+    id = await taoMoiKemMacDinh(chu, data, s(form, "templateId") || null);
   }
 
   await recordAudit({
@@ -313,12 +373,12 @@ export async function saveClientQuote(
     entity: "ClientQuote",
     entityId: id,
     entityLabel: d.quoteNo ? `${d.quoteNo} — ${d.title}` : d.title,
-    projectId,
+    projectId: duAnCuaChu(chu),
     action: clientQuoteId ? "UPDATE" : "CREATE",
     changes: diffFields(truoc, data, CQ_AUDIT_FIELDS),
   });
 
-  paths(projectId);
+  paths(chu);
   return { ok: true };
 }
 
@@ -332,7 +392,7 @@ export async function saveClientQuote(
  * Người lập vẫn đè được từng ô trong hộp thoại — ô nào để trống mới rơi về mẫu.
  */
 async function taoMoiKemMacDinh(
-  projectId: string,
+  chu: ChuBaoGia,
   data: Record<string, unknown>,
   templateId: string | null
 ): Promise<string> {
@@ -341,7 +401,7 @@ async function taoMoiKemMacDinh(
   return db.$transaction(async (tx) => {
     const q = await tx.clientQuote.create({
       data: {
-        projectId,
+        ...duLieuChu(chu),
         ...(data as { title: string }),
         templateId,
         vatPercent: (data.vatPercent as number | null) ?? k.vatPercent,
@@ -389,10 +449,10 @@ async function taoMoiKemMacDinh(
 }
 
 export async function deleteClientQuote(
-  projectId: string,
+  chu: ChuBaoGia,
   clientQuoteId: string
 ): Promise<ActionResult> {
-  const g = await guard(projectId, { clientQuoteId });
+  const g = await guard(chu, { clientQuoteId });
   if (g) return g;
   const truoc = await db.clientQuote.findUnique({
     where: { id: clientQuoteId },
@@ -404,11 +464,11 @@ export async function deleteClientQuote(
     entity: "ClientQuote",
     entityId: clientQuoteId,
     entityLabel: truoc?.title ?? null,
-    projectId,
+    projectId: duAnCuaChu(chu),
     action: "DELETE",
     changes: diffFields(truoc, null, CQ_AUDIT_FIELDS),
   });
-  paths(projectId);
+  paths(chu);
   return { ok: true };
 }
 
@@ -430,12 +490,12 @@ const lineSchema = z.object({
 });
 
 export async function saveLine(
-  projectId: string,
+  chu: ChuBaoGia,
   clientQuoteId: string,
   lineId: string | null,
   form: FormData
 ): Promise<ActionResult> {
-  const g = await guard(projectId, { clientQuoteId, lineId });
+  const g = await guard(chu, { clientQuoteId, lineId });
   if (g) return g;
 
   const parsed = lineSchema.safeParse({
@@ -496,27 +556,27 @@ export async function saveLine(
     });
   }
 
-  paths(projectId);
+  paths(chu);
   return { ok: true };
 }
 
-export async function deleteLine(projectId: string, lineId: string): Promise<ActionResult> {
-  const g = await guard(projectId, { lineId });
+export async function deleteLine(chu: ChuBaoGia, lineId: string): Promise<ActionResult> {
+  const g = await guard(chu, { lineId });
   if (g) return g;
   await db.clientQuoteLine.delete({ where: { id: lineId } });
-  paths(projectId);
+  paths(chu);
   return { ok: true };
 }
 
 /** Bỏ cờ đè giá để dòng này lại được "Tính lại đơn giá" cập nhật. */
 export async function clearPriceOverride(
-  projectId: string,
+  chu: ChuBaoGia,
   lineId: string
 ): Promise<ActionResult> {
-  const g = await guard(projectId, { lineId });
+  const g = await guard(chu, { lineId });
   if (g) return g;
   await db.clientQuoteLine.update({ where: { id: lineId }, data: { priceOverridden: false } });
-  paths(projectId);
+  paths(chu);
   return { ok: true };
 }
 
@@ -537,12 +597,12 @@ const specSchema = z.object({
 });
 
 export async function saveSpec(
-  projectId: string,
+  chu: ChuBaoGia,
   clientQuoteId: string,
   specId: string | null,
   form: FormData
 ): Promise<ActionResult> {
-  const g = await guard(projectId, { clientQuoteId, specId });
+  const g = await guard(chu, { clientQuoteId, specId });
   if (g) return g;
 
   const parsed = specSchema.safeParse({
@@ -576,15 +636,15 @@ export async function saveSpec(
     });
   }
 
-  paths(projectId);
+  paths(chu);
   return { ok: true };
 }
 
-export async function deleteSpec(projectId: string, specId: string): Promise<ActionResult> {
-  const g = await guard(projectId, { specId });
+export async function deleteSpec(chu: ChuBaoGia, specId: string): Promise<ActionResult> {
+  const g = await guard(chu, { specId });
   if (g) return g;
   await db.clientQuoteSpec.delete({ where: { id: specId } });
-  paths(projectId);
+  paths(chu);
   return { ok: true };
 }
 
@@ -596,11 +656,11 @@ export async function deleteSpec(projectId: string, specId: string): Promise<Act
  * hai bảng này mỗi cái chỉ vài dòng.
  */
 export async function saveTerms(
-  projectId: string,
+  chu: ChuBaoGia,
   clientQuoteId: string,
   form: FormData
 ): Promise<ActionResult> {
-  const g = await guard(projectId, { clientQuoteId });
+  const g = await guard(chu, { clientQuoteId });
   if (g) return g;
 
   const stages = docDongJson(form, "stages", (r) => ({
@@ -629,7 +689,7 @@ export async function saveTerms(
     }),
   ]);
 
-  paths(projectId);
+  paths(chu);
   return { ok: true };
 }
 
@@ -685,18 +745,19 @@ async function nguonBaoGiaChiTiet(sourceQuoteId: string) {
 }
 
 export async function generateFromQuote(
-  projectId: string,
+  chu: ChuBaoGia,
   sourceQuoteId: string,
   form: FormData
 ): Promise<DeriveActionResult> {
-  const g = await guard(projectId);
+  const g = await guard(chu);
   if (g) return g;
 
   const nguon = await nguonBaoGiaChiTiet(sourceQuoteId);
   if (!nguon) return { ok: false, error: "Không tìm thấy báo giá chi tiết nguồn." };
-  // Kiểm lại quyền sở hữu: sourceQuoteId đến từ trình duyệt.
-  if (nguon.src.projectId !== projectId) {
-    return { ok: false, error: "Báo giá chi tiết không thuộc dự án này." };
+  // Kiểm lại quyền sở hữu: sourceQuoteId đến từ trình duyệt. Bản chi tiết phải cùng
+  // chủ với bản gửi khách sắp sinh ra — khác chủ là sinh giá của người khác.
+  if (!laCungChu(chu, nguon.src)) {
+    return { ok: false, error: "Báo giá chi tiết không thuộc mục này." };
   }
   if (nguon.goc.length === 0) {
     return { ok: false, error: "Báo giá chi tiết chưa có phần nào để suy đơn giá." };
@@ -712,10 +773,7 @@ export async function generateFromQuote(
     };
   }
 
-  const project = await db.project.findUnique({
-    where: { id: projectId },
-    select: { code: true, area: true, location: true, customerId: true, customer: { select: { name: true, phone: true } } },
-  });
+  const boiCanh = await boiCanhChu(chu);
 
   const templateId = s(form, "templateId") || null;
   const k = apDungMau(await napMau(templateId));
@@ -758,7 +816,7 @@ export async function generateFromQuote(
     specs,
     nguon.goc.map((sec) => ({ id: sec.id, code: sec.code, area: sec.area })),
     nguon.subtotals,
-    project?.area ?? null
+    boiCanh.area
   );
 
   const title = s(form, "title").trim() || `Báo giá gửi khách — ${nguon.src.title}`;
@@ -768,15 +826,15 @@ export async function generateFromQuote(
   const id = await db.$transaction(async (tx) => {
     const q = await tx.clientQuote.create({
       data: {
-        projectId,
+        ...duLieuChu(chu),
         title,
         templateId,
         derivedFromId: nguon.src.id,
         quoteDate: new Date(),
-        customerId: project?.customerId ?? null,
-        recipient: project?.customer?.name ?? nguon.src.recipient,
-        customerPhone: project?.customer?.phone ?? null,
-        location: nguon.src.location ?? project?.location ?? null,
+        customerId: boiCanh.customerId,
+        recipient: boiCanh.tenNhan ?? nguon.src.recipient,
+        customerPhone: boiCanh.dienThoai,
+        location: nguon.src.location ?? boiCanh.location,
         scope: nguon.src.scope ?? "Kết cấu thép và bao che",
         vatPercent: k.vatPercent,
         validDays: k.validDays,
@@ -809,12 +867,12 @@ export async function generateFromQuote(
     entity: "ClientQuote",
     entityId: id,
     entityLabel: title,
-    projectId,
+    projectId: duAnCuaChu(chu),
     action: "CREATE",
     changes: null,
   });
 
-  paths(projectId);
+  paths(chu);
   return { ok: true, warnings };
 }
 
@@ -823,10 +881,10 @@ export async function generateFromQuote(
  * Dòng đã sửa tay (priceOverridden) được giữ nguyên — xem repriceLines.
  */
 export async function recomputePrices(
-  projectId: string,
+  chu: ChuBaoGia,
   clientQuoteId: string
 ): Promise<DeriveActionResult> {
-  const g = await guard(projectId, { clientQuoteId });
+  const g = await guard(chu, { clientQuoteId });
   if (g) return g;
 
   const q = await db.clientQuote.findUnique({
@@ -839,20 +897,17 @@ export async function recomputePrices(
 
   const nguon = await nguonBaoGiaChiTiet(q.derivedFromId);
   if (!nguon) return { ok: false, error: "Báo giá chi tiết gốc đã bị xóa." };
-  if (nguon.src.projectId !== projectId) {
-    return { ok: false, error: "Báo giá chi tiết không thuộc dự án này." };
+  if (!laCungChu(chu, nguon.src)) {
+    return { ok: false, error: "Báo giá chi tiết không thuộc mục này." };
   }
 
-  const project = await db.project.findUnique({
-    where: { id: projectId },
-    select: { area: true },
-  });
+  const boiCanh = await boiCanhChu(chu);
 
   const { updates, skipped, warnings } = repriceLines(
     q.lines,
     nguon.goc.map((sec) => ({ id: sec.id, code: sec.code, area: sec.area })),
     nguon.subtotals,
-    project?.area ?? null
+    boiCanh.area
   );
 
   if (updates.length > 0) {
@@ -874,7 +929,7 @@ export async function recomputePrices(
     ketQua.push("Không có dòng nào cần tính lại.");
   }
 
-  paths(projectId);
+  paths(chu);
   return { ok: true, warnings: ketQua };
 }
 
@@ -892,11 +947,11 @@ export async function recomputePrices(
  * Chuyển về "Đã gửi" lần thứ hai (từ Đàm phán, từ Hủy) KHÔNG đặt lại hai trường này.
  */
 export async function setClientQuoteStatus(
-  projectId: string,
+  chu: ChuBaoGia,
   clientQuoteId: string,
   status: string
 ): Promise<ActionResult> {
-  const g = await guard(projectId, { clientQuoteId });
+  const g = await guard(chu, { clientQuoteId });
   if (g) return g;
 
   if (!CLIENT_QUOTE_STATUS_MAP[status]) {
@@ -945,12 +1000,12 @@ export async function setClientQuoteStatus(
     entity: "ClientQuote",
     entityId: clientQuoteId,
     entityLabel: truoc.quoteNo ? `${truoc.quoteNo} — ${truoc.title}` : truoc.title,
-    projectId,
+    projectId: duAnCuaChu(chu),
     action: "UPDATE",
     changes: diffFields(truoc, data, ["status", "sentDate", "expiryDate"]),
   });
 
-  paths(projectId);
+  paths(chu);
   return { ok: true };
 }
 
@@ -962,11 +1017,19 @@ export async function setClientQuoteStatus(
  * Cùng khuôn với pushSalePrice của báo giá chi tiết, kể cả phần ghi vết.
  */
 export async function pushSalePriceFromClientQuote(
-  projectId: string,
+  chu: ChuBaoGia,
   clientQuoteId: string
 ): Promise<ActionResult> {
-  const g = await guard(projectId, { clientQuoteId });
+  const g = await guard(chu, { clientQuoteId });
   if (g) return g;
+  // Cơ hội chưa có dự án nào để nhận giá. Chặn ở tầng ghi chứ không chỉ ẩn nút.
+  if (chu.loai !== "DU_AN") {
+    return {
+      ok: false,
+      error: "Chưa có dự án để nhận giá bán — ký hợp đồng và tạo dự án trước đã.",
+    };
+  }
+  const projectId = chu.id;
   try {
     await requirePermission("project", "edit");
   } catch {
@@ -998,11 +1061,11 @@ export async function pushSalePriceFromClientQuote(
     entity: "Project",
     entityId: projectId,
     entityLabel: truocDA?.code ?? null,
-    projectId,
+    projectId: duAnCuaChu(chu),
     action: "UPDATE",
     changes: diffFields(truocDA, { salePrice: total }, ["salePrice"]),
   });
 
-  paths(projectId);
+  paths(chu);
   return { ok: true };
 }

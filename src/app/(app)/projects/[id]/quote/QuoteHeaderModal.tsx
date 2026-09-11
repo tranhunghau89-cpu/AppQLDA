@@ -5,15 +5,16 @@ import { Modal } from "@/components/ui/modal";
 import { useActionForm } from "@/components/ui/useActionForm";
 import { ModalActions } from "./ModalActions";
 import { saveQuote } from "./actions";
+import type { ChuBaoGia } from "@/lib/quoteOwner";
 import type { QuoteView } from "./types";
 
 export function QuoteHeaderModal({
-  projectId,
+  chu,
   editing,
   onClose,
   onDone,
 }: {
-  projectId: string;
+  chu: ChuBaoGia;
   editing: QuoteView | null;
   onClose: () => void;
   onDone: () => void;
@@ -23,7 +24,7 @@ export function QuoteHeaderModal({
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    run(() => saveQuote(projectId, editing?.id ?? null, form));
+    run(() => saveQuote(chu, editing?.id ?? null, form));
   }
 
   return (

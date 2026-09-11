@@ -10,17 +10,18 @@ import { ModalActions } from "./ModalActions";
 import { generateFromQuote } from "../client-quote/actions";
 import { TemplatePicker } from "../client-quote/TemplatePicker";
 import type { TemplateOption } from "@/lib/quoteTemplatePick";
+import { duongDanChu, type ChuBaoGia } from "@/lib/quoteOwner";
 import type { QuoteView } from "./types";
 
 export function GenerateClientQuoteModal({
-  projectId,
+  chu,
   quote,
   projectArea,
   templates,
   templateGoiY,
   onClose,
 }: {
-  projectId: string;
+  chu: ChuBaoGia;
   quote: QuoteView;
   projectArea: number | null;
   templates: TemplateOption[];
@@ -31,7 +32,7 @@ export function GenerateClientQuoteModal({
   const toast = useToast();
   const { error, pending, run } = useActionForm(() => {
     onClose();
-    router.push(`/projects/${projectId}/client-quote`);
+    router.push(duongDanChu(chu).replace("/quote", "/client-quote"));
   });
 
   const phans = quote.sections.filter((s) => !s.parentId);
@@ -43,7 +44,7 @@ export function GenerateClientQuoteModal({
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     run(async () => {
-      const res = await generateFromQuote(projectId, quote.id, form);
+      const res = await generateFromQuote(chu, quote.id, form);
       if (res.ok && res.warnings?.length) {
         for (const w of res.warnings) toast.info(w);
       }

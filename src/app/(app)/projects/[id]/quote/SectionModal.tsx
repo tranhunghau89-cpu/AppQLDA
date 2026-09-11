@@ -6,6 +6,7 @@ import { Modal } from "@/components/ui/modal";
 import { useActionForm } from "@/components/ui/useActionForm";
 import { ModalActions } from "./ModalActions";
 import { saveSection } from "./actions";
+import type { ChuBaoGia } from "@/lib/quoteOwner";
 import type { SectionView } from "./types";
 
 export interface SectionModalState {
@@ -18,12 +19,12 @@ export interface SectionModalState {
 }
 
 export function SectionModal({
-  projectId,
+  chu,
   state,
   onClose,
   onDone,
 }: {
-  projectId: string;
+  chu: ChuBaoGia;
   state: SectionModalState;
   onClose: () => void;
   onDone: () => void;
@@ -38,7 +39,7 @@ export function SectionModal({
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    run(() => saveSection(projectId, quoteId, editing?.id ?? null, form));
+    run(() => saveSection(chu, quoteId, editing?.id ?? null, form));
   }
 
   return (
