@@ -55,6 +55,9 @@ export default async function ClientQuotePrintPage({
   // thì mô tả riêng đè lên.
   const moTaCua = (l: { detail: string | null }) => l.detail ?? quote.lineDetail;
 
+  // Số thứ tự tự đánh, chạy liên tục qua các phần — đúng như báo giá mẫu (01…05).
+  let stt = 0;
+
   const nhomA = quote.specs.filter((s) => s.groupCode === "A");
   const nhomB = quote.specs.filter((s) => s.groupCode === "B");
 
@@ -141,17 +144,21 @@ export default async function ClientQuotePrintPage({
                 </tr>
                 {phan.lines.map((l) => (
                   <tr key={l.id}>
-                    <Td className="text-center">{l.code ?? ""}</Td>
-                    <Td>
+                    {/* STT tự đánh liên tục 01, 02… cho cả bảng; chỉ nhường chỗ khi
+                        người lập cố ý nhập số riêng. */}
+                    <Td className="text-center">{l.code ?? hai(++stt)}</Td>
+                    {/* Ô nội dung dài nhiều dòng nên bám mép trên; các ô còn lại căn
+                        giữa theo chiều cao hàng cho thẳng hàng với tên đầu việc. */}
+                    <Td className="align-top">
                       {l.name}
                       {moTaCua(l) && (
                         <div className="whitespace-pre-line">{moTaCua(l)}</div>
                       )}
                     </Td>
                     <Td className="text-center">{l.unit ?? ""}</Td>
-                    <Td className="text-right">{formatQty(l.qty)}</Td>
-                    <Td className="text-right">{formatNumber(l.unitPrice)}</Td>
-                    <Td className="text-right">{formatNumber(lineAmount(l))}</Td>
+                    <Td className="text-right">{soHoacTrong(l.qty, formatQty)}</Td>
+                    <Td className="text-right">{soHoacTrong(l.unitPrice, formatNumber)}</Td>
+                    <Td className="text-right">{soHoacTrong(lineAmount(l), formatNumber)}</Td>
                     <Td>{l.note ?? ""}</Td>
                   </tr>
                 ))}
@@ -325,7 +332,7 @@ function Td({
   colSpan?: number;
 }) {
   return (
-    <td colSpan={colSpan} className={`border border-slate-400 px-2 py-1 align-top ${className}`}>
+    <td colSpan={colSpan} className={`border border-slate-400 px-2 py-1 align-middle ${className}`}>
       {children}
     </td>
   );
@@ -427,6 +434,23 @@ function DongPhu({ rows }: { rows: [string, number | null, string][] }) {
       ))}
     </div>
   );
+}
+
+/** Số thứ tự hai chữ số như báo giá mẫu: 1 -> "01". */
+function hai(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/**
+ * Ô số để TRỐNG khi chưa có giá trị.
+ *
+ * Hạng mục chưa điền đơn giá thì `lineAmount` ra 0; in số 0 ra báo giá gửi khách
+ * trông như báo giá 0 đồng chứ không phải "chưa có giá". Để trống thì người đọc
+ * hiểu ngay là còn thiếu.
+ */
+function soHoacTrong(v: number | null, dinhDang: (n: number | null) => string): string {
+  if (v == null || v === 0) return "";
+  return dinhDang(v);
 }
 
 /** Tỷ lệ phần trăm: bỏ số 0 thừa (50 -> "50") nhưng giữ số lẻ thật (33,33). */
