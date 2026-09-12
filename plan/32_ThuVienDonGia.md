@@ -474,6 +474,47 @@ Nên xoá trong một release RIÊNG, sau khi thư viện đã chạy thật m�
 
 Phần **nguy hiểm** của việc dọn dẹp thì đã làm xong: cái script ghi vào bảng chết.
 
+## Bổ sung: gỡ đơn giá trọn gói theo m²
+
+Người dùng phát hiện khi nhìn màn thư viện: nhóm **AL · Gia công khác** (7 mã) không
+phải công tác đơn lẻ mà là giá cả một hạng mục tính theo m² —
+*"Gia công sản xuất, lắp dựng khung nhà thép Q235 và tôn phần mái — 670.000 đ/m²"*.
+
+Chúng thuộc tầng báo giá m² gửi chủ đầu tư (file gốc có hẳn sheet "BG M2"). Để lẫn
+trong danh mục đơn giá là **mời gọi cộng trùng**: một bản dự toán vừa có dòng m² trọn
+gói, vừa có các dòng thép, tôn, bulong mà chính dòng m² đó đã bao gồm.
+
+Chúng vào thư viện từ migration chuyển đổi `WorkPrice`, vì bảng cũ không phân biệt
+hai loại này.
+
+**Lọc theo NHÓM MÃ, không theo đơn vị.** Đơn vị "m²" không phải dấu hiệu nhận biết:
+AD, AF, AK có 18 mã tính theo m² nhưng đều là công tác thật (lợp tôn, thi công tôn
+sàn, sàn decking). Cả 7 mã nhóm AL đều là m², và chỉ nhóm AL.
+
+Đối chiếu trước khi xoá: **0 dòng báo giá** (cả `congTacId` lẫn `workCode`), 0 dòng dự
+toán thi công, 0 dòng bộ hạng mục, 0 biến thể vật tư nào trỏ vào chúng.
+
+| | Trước | Sau |
+|---|---|---|
+| `CongTac` | 135 | **128** |
+| nhóm AL | 7 | **0** |
+| `DonGiaCongTac` | 135 | **128** |
+| `EstimateItem` | 516 | 516 |
+| Dòng báo giá mất đường về thư viện | 0 | **0** |
+
+Xoá dữ liệu thôi thì lần nhập Excel sau dựng lại y nguyên — sheet DV vẫn chứa chúng.
+Nên trình nhập cũng bỏ qua nhóm AL, **đếm và nói ra ở bản xem trước** chứ không lặng
+lẽ: người nhập cần biết vì sao 135 mã trong file chỉ vào thư viện 128. Nhãn thống kê
+đổi từ "Mã trong file" thành "Mã đưa vào thư viện" — hai con số nay đã khác nhau.
+
+Và một phép kiểm nữa suýt tự đỏ: script đối soát chốt `CongTac = WorkPrice = 135`.
+Giờ trừ nhóm AL ở **phía cũ** trước khi so, cộng thêm một phép kiểm mới khẳng định
+thư viện không lẫn lại giá trọn gói. Đối soát 6/6 đạt, tổng đơn giá khớp chính xác
+(97.770.772,82 = 101.598.772,82 − 3.828.000).
+
+Dữ liệu gốc vẫn còn ở `WorkPrice` và trong sheet DV, nên lấy lại được nếu sau này cần
+một chỗ chứa riêng cho giá m².
+
 ## Việc còn lại của quản trị viên
 
 1. Khai `KhuVuc` và gán vùng cho 46 nhà cung cấp — mở khoá trục vị trí.

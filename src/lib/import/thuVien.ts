@@ -130,7 +130,9 @@ export async function parseThuVien(buffer: Buffer, fileName: string): Promise<Im
     kind: "thuVien",
     fileName,
     thongKe: [
-      { nhan: "Mã trong file", giaTri: String(kq.congTac.length) },
+      // "Đưa vào thư viện" chứ không phải "trong file": hai con số đã khác nhau kể từ
+      // khi mã trọn gói theo m² bị loại, và nhãn cũ sẽ thành một lời nói sai.
+      { nhan: "Mã đưa vào thư viện", giaTri: String(kq.congTac.length) },
       { nhan: "Công tác mới", giaTri: String(ss.congTacMoi) },
       { nhan: "Đổi đơn giá", giaTri: String(ss.doiGia) },
       { nhan: "Hiệu lực từ", giaTri: hieuLucTu.toLocaleDateString("vi-VN") },

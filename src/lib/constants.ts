@@ -163,6 +163,24 @@ export const NHOM_MA_SANG_NHOM_CHI_PHI: Record<string, string> = {
   AL: "KHAC", // Gia công khác
 };
 
+/**
+ * Nhóm mã KHÔNG phải công tác đơn lẻ, mà là đơn giá TRỌN GÓI THEO m² cho cả một hạng
+ * mục — "Gia công sản xuất, lắp dựng khung nhà thép Q235 và tôn phần mái: 670.000 đ/m²".
+ *
+ * Chúng thuộc tầng báo giá m² gửi chủ đầu tư, không thuộc danh mục đơn giá công tác.
+ * Để lẫn vào thư viện là mời gọi cộng trùng: một bản dự toán vừa có dòng m² trọn gói
+ * vừa có các dòng thép, tôn, bulong mà chính nó đã bao gồm.
+ *
+ * Nhận biết theo NHÓM MÃ chứ không theo đơn vị "m²": AD, AF, AK cũng có 18 mã tính
+ * theo m² nhưng đều là công tác thật (lợp tôn, thi công tôn sàn).
+ */
+export const NHOM_MA_TRON_GOI_M2: readonly string[] = ["AL"];
+
+/** Mã này là đơn giá trọn gói theo m², không phải một công tác để đưa vào thư viện. */
+export function laDonGiaTronGoiM2(ma: string | null | undefined): boolean {
+  return NHOM_MA_TRON_GOI_M2.includes(workGroupOf(ma));
+}
+
 /** Nhóm chi phí mặc định suy từ nhóm mã; nhóm lạ thì về "KHAC". */
 export function nhomChiPhiTheoNhomMa(nhomMa: string | null | undefined): string {
   if (!nhomMa) return "KHAC";

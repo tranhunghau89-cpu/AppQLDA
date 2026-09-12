@@ -6,6 +6,7 @@
 //   A=STT  B=MCV  C=ND  D=Loại  E=TSKT  F=DV  G=VT  H=NC_M  I=HS  J=GT  K=GC
 // Từ cột L trở đi là ô tìm kiếm và bảng chú giải nhóm của file — KHÔNG phải dữ liệu.
 
+import { laDonGiaTronGoiM2 } from "@/lib/constants";
 import { num, text, type SheetLike } from "./cells";
 
 export type { SheetLike };
@@ -33,6 +34,8 @@ export interface CongTacNhap {
 
 export interface KetQuaBocThuVien {
   congTac: CongTacNhap[];
+  /** Số mã bị bỏ vì là đơn giá trọn gói theo m², không phải công tác. */
+  soTronGoiM2: number;
   canhBao: string[];
 }
 
@@ -87,11 +90,20 @@ export function bocTachThuVien(ws: SheetLike): KetQuaBocThuVien {
   const congTac: CongTacNhap[] = [];
   const canhBao: string[] = [];
   const daGap = new Map<string, number>();
+  let soTronGoiM2 = 0;
 
   for (let r = HANG_DAU; r <= ws.rowCount; r++) {
     const o = (c: number) => ws.getCell(r, c).value;
     const ma = text(o(2)).toUpperCase();
     if (!MA_CV.test(ma)) continue;
+
+    // Đơn giá trọn gói theo m² nằm cùng sheet nhưng thuộc tầng báo giá gửi khách.
+    // Đếm và nói ra ở bản xem trước chứ KHÔNG lặng lẽ bỏ: người nhập cần biết vì sao
+    // 135 mã trong file chỉ vào thư viện 128.
+    if (laDonGiaTronGoiM2(ma)) {
+      soTronGoiM2++;
+      continue;
+    }
 
     const ten = text(o(3)) || text(o(4));
     if (!ten) {
@@ -131,8 +143,14 @@ export function bocTachThuVien(ws: SheetLike): KetQuaBocThuVien {
   if (khongGia > 0) {
     canhBao.push(`${khongGia} mã không có đơn giá — vẫn tạo công tác, giá nhập sau.`);
   }
+  if (soTronGoiM2 > 0) {
+    canhBao.push(
+      `${soTronGoiM2} mã là đơn giá trọn gói theo m² cho cả hạng mục — bỏ qua, ` +
+        `chúng thuộc bản báo giá m² gửi khách chứ không phải danh mục công tác.`
+    );
+  }
 
-  return { congTac, canhBao };
+  return { congTac, soTronGoiM2, canhBao };
 }
 
 // ----- So sánh với thư viện đang có -----

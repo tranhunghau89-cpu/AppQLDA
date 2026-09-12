@@ -1,0 +1,24 @@
+-- Gỡ đơn giá trọn gói theo m² khỏi danh mục công tác.
+--
+-- Bảy mã nhóm AL không phải công tác đơn lẻ mà là giá cả một hạng mục tính theo m²:
+-- "Gia công sản xuất, lắp dựng khung nhà thép Q235 và tôn phần mái — 670.000 đ/m²".
+-- Chúng thuộc tầng báo giá m² gửi chủ đầu tư. Để lẫn trong thư viện là mời gọi cộng
+-- trùng: một bản dự toán vừa có dòng m² trọn gói, vừa có các dòng thép, tôn, bulong
+-- mà chính dòng m² đó đã bao gồm.
+--
+-- Chúng vào thư viện từ migration chuyển đổi WorkPrice, vì bảng cũ không phân biệt
+-- hai loại này.
+--
+-- Lọc theo NHÓM MÃ chứ không theo đơn vị: AD, AF, AK có 18 mã tính theo m² nhưng đều
+-- là công tác thật (lợp tôn, thi công tôn sàn, sàn decking).
+--
+-- An toàn đã đối chiếu trước khi viết: 0 dòng báo giá (cả congTacId lẫn workCode),
+-- 0 dòng dự toán thi công, 0 dòng bộ hạng mục, 0 biến thể vật tư nào trỏ vào chúng.
+-- Bảy bản giá đi kèm bị xóa theo quan hệ CASCADE sẵn có của DonGiaCongTac.
+--
+-- KHÔNG đụng EstimateItem.
+--
+-- Dữ liệu gốc vẫn còn nguyên ở bảng WorkPrice và trong sheet DV của file Excel, nên
+-- việc này lấy lại được nếu sau này cần một chỗ chứa riêng cho giá m².
+
+DELETE FROM "CongTac" WHERE "nhomMa" = 'AL';

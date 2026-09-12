@@ -29,9 +29,18 @@ function gan(a: number, b: number): boolean {
   return Math.abs(a - b) < 1;
 }
 
+/**
+ * Nhóm mã CỐ Ý không có trong thư viện: đơn giá trọn gói theo m² cho cả hạng mục.
+ *
+ * Bảng WorkPrice cũ không phân biệt chúng với công tác đơn lẻ, nên mọi phép đếm và
+ * cộng tiền phải trừ chúng ra ở PHÍA CŨ — nếu không, một quyết định đúng lại làm phép
+ * đối soát đỏ, và đó là cách nhanh nhất để không ai đọc nó nữa.
+ */
+const NHOM_KHONG_VAO_THU_VIEN = ["AL"];
+
 async function main() {
   const [soWorkPrice, soCongTac, soDonGia, soEstimateItem] = await Promise.all([
-    db.workPrice.count(),
+    db.workPrice.count({ where: { groupCode: { notIn: NHOM_KHONG_VAO_THU_VIEN } } }),
     db.congTac.count(),
     db.donGiaCongTac.count(),
     db.estimateItem.count(),
@@ -40,7 +49,18 @@ async function main() {
   kiem(
     "Số công tác",
     soCongTac >= soWorkPrice,
-    `WorkPrice ${soWorkPrice} → CongTac ${soCongTac}`
+    `WorkPrice ${soWorkPrice} (đã trừ nhóm ${NHOM_KHONG_VAO_THU_VIEN.join(", ")}) → CongTac ${soCongTac}`
+  );
+
+  // Đơn giá trọn gói theo m² phải KHÔNG còn trong danh mục công tác: trộn chung là
+  // mời gọi cộng trùng, vì giá m² đã bao gồm chính các công tác nằm cạnh nó.
+  const soTronGoi = await db.congTac.count({
+    where: { nhomMa: { in: NHOM_KHONG_VAO_THU_VIEN } },
+  });
+  kiem(
+    "Thư viện không lẫn đơn giá trọn gói m²",
+    soTronGoi === 0,
+    soTronGoi === 0 ? "sạch" : `còn ${soTronGoi} mã nhóm ${NHOM_KHONG_VAO_THU_VIEN.join(", ")}`
   );
   kiem(
     "Số bản giá",
@@ -51,7 +71,10 @@ async function main() {
   // Tổng tiền: chỉ cộng bản giá chuyển đổi, vì bản nhập tay sau này làm lệch tổng
   // một cách hợp lệ và không nói gì về chất lượng chuyển đổi.
   const [tongCu, tongMoi] = await Promise.all([
-    db.workPrice.aggregate({ _sum: { baseCost: true } }),
+    db.workPrice.aggregate({
+      where: { groupCode: { notIn: NHOM_KHONG_VAO_THU_VIEN } },
+      _sum: { baseCost: true },
+    }),
     db.donGiaCongTac.aggregate({
       where: { nguon: "CHUYEN_DOI" },
       _sum: { donGia: true },

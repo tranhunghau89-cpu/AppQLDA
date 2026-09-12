@@ -167,6 +167,46 @@ describe("bocTachThuVien", () => {
   it("sheet rỗng -> kết quả rỗng, không ném lỗi", () => {
     expect(bocTachThuVien(sheet({}, 0)).congTac).toEqual([]);
   });
+
+  it("bỏ mã nhóm AL — đơn giá trọn gói theo m² cho cả hạng mục", () => {
+    const ws = sheet(
+      {
+        5: hang("AA.110", "Thép tổ hợp", { gt: 19008 }),
+        6: hang("AL.100", "Gia công, lắp dựng khung nhà thép và tôn mái", {
+          dv: "m2",
+          gt: 670000,
+        }),
+        7: hang("AL.510", "Cửa đẩy KT 6.0*5.0m", { dv: "m2", gt: 1000000 }),
+      },
+      7
+    );
+    const kq = bocTachThuVien(ws);
+    expect(kq.congTac.map((c) => c.ma)).toEqual(["AA.110"]);
+    expect(kq.soTronGoiM2).toBe(2);
+    expect(kq.canhBao.some((c) => c.includes("trọn gói theo m²"))).toBe(true);
+  });
+
+  it("m² của nhóm KHÁC vẫn giữ — đơn vị không phải dấu hiệu nhận biết", () => {
+    // AD/AF/AK có 18 mã tính theo m² trên bản thật, đều là công tác thật.
+    const ws = sheet(
+      {
+        5: hang("AD.210", "Lợp mái tôn sóng", { dv: "m2", gt: 118000 }),
+        6: hang("AK.410", "Thi công tôn sàn", { dv: "m2", gt: 25000 }),
+        7: hang("AF.100", "Sàn decking", { dv: "m2", gt: 300000 }),
+      },
+      7
+    );
+    const kq = bocTachThuVien(ws);
+    expect(kq.congTac.map((c) => c.ma)).toEqual(["AD.210", "AK.410", "AF.100"]);
+    expect(kq.soTronGoiM2).toBe(0);
+  });
+
+  it("không có mã trọn gói nào thì không sinh cảnh báo thừa", () => {
+    const ws = sheet({ 5: hang("AA.110", "X", { gt: 1 }) }, 5);
+    const kq = bocTachThuVien(ws);
+    expect(kq.soTronGoiM2).toBe(0);
+    expect(kq.canhBao).toEqual([]);
+  });
 });
 
 describe("soSanhVoiThuVien", () => {
