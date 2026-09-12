@@ -184,18 +184,29 @@ export async function applyThuVien(raw: unknown, actor: SessionUser): Promise<Im
   let taoCongTac = 0;
   let themBanGia = 0;
 
-  // Một giao dịch cho cả lô: nhập nửa chừng sẽ để thư viện ở trạng thái mà không ai
-  // biết mã nào đã vào mã nào chưa, và lần nhập lại sau đó không sửa được điều đó.
-  await db.$transaction(async (tx) => {
-    for (const d of canGhi) {
-      const c = theoMa.get(d.ma);
-      if (!c || c.donGia == null) continue;
+  const canTao = canGhi
+    .map((d) => theoMa.get(d.ma))
+    .filter((c): c is NonNullable<typeof c> => !!c && c.donGia != null);
 
-      let congTacId = idTheoMa.get(c.ma);
-      if (!congTacId) {
-        const nhomMa = workGroupOf(c.ma);
-        const moi = await tx.congTac.create({
-          data: {
+  /**
+   * Ghi theo LÔ, không phải từng mã một.
+   *
+   * Nhập 133 mã bằng vòng lặp là ~266 lệnh nối đuôi nhau. Ở máy lập trình, cơ sở dữ
+   * liệu chạy cùng tiến trình nên xong tức thì; trên Supabase ở Tokyo mỗi lệnh mất
+   * ~330ms, tức gần 90 giây — vượt xa hạn 5 giây của một giao dịch tương tác, giao
+   * dịch bị huỷ và KHÔNG ghi được gì.
+   *
+   * `createManyAndReturn` trả về id của công tác mới, nên bản giá vẫn gắn đúng chủ.
+   */
+  const moi = canTao.filter((c) => !idTheoMa.has(c.ma));
+  const cu = canTao.filter((c) => idTheoMa.has(c.ma));
+
+  await db.$transaction(async (tx) => {
+    if (moi.length > 0) {
+      const daTao = await tx.congTac.createManyAndReturn({
+        data: moi.map((c) => {
+          const nhomMa = workGroupOf(c.ma);
+          return {
             ma: c.ma,
             ten: c.ten,
             tenNgan: c.tenNgan,
@@ -206,39 +217,52 @@ export async function applyThuVien(raw: unknown, actor: SessionUser): Promise<Im
             heSo: c.heSo,
             ghiChu: c.ghiChu,
             sortOrder: c.sortOrder,
-          },
-          select: { id: true },
-        });
-        congTacId = moi.id;
-        taoCongTac++;
-      } else {
-        await tx.congTac.update({
-          where: { id: congTacId },
-          data: {
-            ten: c.ten,
-            tenNgan: c.tenNgan,
-            quyCach: c.quyCach,
-            donVi: c.donVi,
-            ghiChu: c.ghiChu,
-          },
-        });
-      }
+          };
+        }),
+        select: { id: true, ma: true },
+      });
+      for (const t of daTao) idTheoMa.set(t.ma, t.id);
+      taoCongTac = daTao.length;
+    }
 
-      await tx.donGiaCongTac.create({
-        data: {
+    // Mỗi mã một nội dung khác nhau nên không gộp được thành một lệnh; nhưng
+    // `Promise.all` trong một giao dịch tương tác vẫn đi chung một lượt gửi.
+    if (cu.length > 0) {
+      await Promise.all(
+        cu.map((c) =>
+          tx.congTac.update({
+            where: { id: idTheoMa.get(c.ma)! },
+            data: {
+              ten: c.ten,
+              tenNgan: c.tenNgan,
+              quyCach: c.quyCach,
+              donVi: c.donVi,
+              ghiChu: c.ghiChu,
+            },
+          })
+        )
+      );
+    }
+
+    const banGia = canTao.flatMap((c) => {
+      const congTacId = idTheoMa.get(c.ma);
+      if (!congTacId) return [];
+      return [
+        {
           congTacId,
           hieuLucTu,
           vatTu: c.vatTu,
           nhanCongMay: c.nhanCongMay,
           heSo: c.heSo,
-          donGia: c.donGia,
+          donGia: c.donGia!,
           nguon: "IMPORT_EXCEL",
           createdById: actor.userId,
           createdByName: actor.name,
         },
-      });
-      themBanGia++;
-    }
+      ];
+    });
+    if (banGia.length > 0) await tx.donGiaCongTac.createMany({ data: banGia });
+    themBanGia = banGia.length;
   });
 
   await recordAudit({

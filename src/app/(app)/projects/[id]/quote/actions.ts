@@ -891,41 +891,51 @@ export async function apBoHangMucVaoDuToan(
   const congTacIds = [...new Set(khung.dong.map((d) => d.congTacId).filter((x): x is string => !!x))];
   const ungVien = await ungVienGia(congTacIds, ngay);
 
+  /**
+   * Ghi bằng BA lệnh, không phải 95.
+   *
+   * Bản trước tạo từng phần rồi từng dòng bằng `create` trong vòng lặp. Ở máy lập
+   * trình, cơ sở dữ liệu chạy cùng tiến trình nên 95 lệnh xong tức thì và mọi lần thử
+   * đều xanh. Trên Supabase ở Tokyo mỗi lệnh mất ~330ms, 95 lệnh là ~32 giây — vượt xa
+   * hạn 5 giây của một giao dịch tương tác Prisma, nên giao dịch bị huỷ và KHÔNG ghi
+   * được gì.
+   *
+   * `createManyAndReturn` trả về id nên vẫn nối được mục con vào cha và dòng vào phần.
+   */
+  const phanGoc = khung.phan.filter((x) => !x.maCha);
+  const phanCon = khung.phan.filter((x) => x.maCha);
+
+  const khuonPhan = (p: (typeof khung.phan)[number], kind: string, parentId: string | null) => ({
+    quoteId,
+    code: p.ma,
+    name: p.ten,
+    kind,
+    parentId,
+    area: dienTichCua(dienTich, p.ma),
+    sortOrder: daCo + p.sortOrder,
+  });
+
   await db.$transaction(async (tx) => {
-    // Tạo phần gốc trước rồi mới tới mục con: mục con cần id của cha, mà id chỉ có
-    // sau khi cha được ghi.
     const idCuaMa = new Map<string, string>();
-    for (const p of khung.phan.filter((x) => !x.maCha)) {
-      const tao = await tx.quoteSection.create({
-        data: {
-          quoteId,
-          code: p.ma,
-          name: p.ten,
-          kind: "PHAN",
-          area: dienTichCua(dienTich, p.ma),
-          sortOrder: daCo + p.sortOrder,
-        },
+
+    // Phần gốc trước: mục con cần id của cha, mà id chỉ có sau khi cha được ghi.
+    const goc = await tx.quoteSection.createManyAndReturn({
+      data: phanGoc.map((p) => khuonPhan(p, "PHAN", null)),
+      select: { id: true, code: true },
+    });
+    for (const s of goc) idCuaMa.set(s.code, s.id);
+
+    if (phanCon.length > 0) {
+      const con = await tx.quoteSection.createManyAndReturn({
+        data: phanCon.map((p) => khuonPhan(p, "SUB", idCuaMa.get(p.maCha!) ?? null)),
+        select: { id: true, code: true },
       });
-      idCuaMa.set(p.ma, tao.id);
-    }
-    for (const p of khung.phan.filter((x) => x.maCha)) {
-      const tao = await tx.quoteSection.create({
-        data: {
-          quoteId,
-          code: p.ma,
-          name: p.ten,
-          kind: "SUB",
-          parentId: idCuaMa.get(p.maCha!) ?? null,
-          area: dienTichCua(dienTich, p.ma),
-          sortOrder: daCo + p.sortOrder,
-        },
-      });
-      idCuaMa.set(p.ma, tao.id);
+      for (const s of con) idCuaMa.set(s.code, s.id);
     }
 
-    for (const d of dongCoKhoiLuong) {
+    const dong = dongCoKhoiLuong.flatMap((d) => {
       const sectionId = idCuaMa.get(d.phanMa);
-      if (!sectionId) continue; // dungKhungDuToan đã lọc, đây là lưới an toàn
+      if (!sectionId) return []; // dungKhungDuToan đã lọc, đây là lưới an toàn
       const kq = d.congTacId
         ? chonDonGia(ungVien, {
             congTacId: d.congTacId,
@@ -935,8 +945,8 @@ export async function apBoHangMucVaoDuToan(
           })
         : null;
       const giaVon = kq?.donGia ?? d.donGia;
-      await tx.quoteItem.create({
-        data: {
+      return [
+        {
           quoteId,
           sectionId,
           workCode: d.maCongTac,
@@ -952,8 +962,10 @@ export async function apBoHangMucVaoDuToan(
           donGiaThuVien: kq?.donGia ?? null,
           chotGiaLuc: kq?.donGia == null ? null : ngay,
         },
-      });
-    }
+      ];
+    });
+
+    if (dong.length > 0) await tx.quoteItem.createMany({ data: dong });
   });
 
   await recordAudit({
