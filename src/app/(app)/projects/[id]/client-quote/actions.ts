@@ -499,6 +499,91 @@ export async function saveLine(
   return { ok: true };
 }
 
+const oHangMucSchema = z.object({
+  name: z.string().trim().min(1, "Nội dung công việc không được để trống"),
+  unit: z.string().trim().optional(),
+  qty: num,
+  unitPrice: num,
+  amount: num,
+  partCode: z.string().trim().optional(),
+  partName: z.string().trim().optional(),
+});
+
+/**
+ * Lưu một dòng hạng mục gõ THẲNG trên bảng: `lineId` rỗng thì tạo dòng mới, còn lại
+ * chỉ sửa đúng năm cột có mặt trên bảng.
+ *
+ * Cố ý KHÔNG gọi lại `saveLine`: hàm đó ghi đè cả `tags`, `detail`, `note`, `code` và
+ * cách xếp phần. Gửi lên vỏn vẹn năm ô là xóa sạch nhãn vật tư và mô tả riêng của
+ * dòng — chính những thứ quyết định bảng "Vật liệu & thông số kỹ thuật" in ra dòng nào.
+ */
+export async function luuOHangMuc(
+  chu: ChuBaoGia,
+  clientQuoteId: string,
+  lineId: string | null,
+  form: FormData
+): Promise<ActionResult> {
+  const g = await guard(chu, { clientQuoteId, lineId });
+  if (g) return g;
+
+  const parsed = oHangMucSchema.safeParse({
+    name: s(form, "name"),
+    unit: s(form, "unit"),
+    qty: s(form, "qty"),
+    unitPrice: s(form, "unitPrice"),
+    amount: s(form, "amount"),
+    partCode: s(form, "partCode"),
+    partName: s(form, "partName"),
+  });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const d = parsed.data;
+
+  const oBang = {
+    name: d.name,
+    unit: d.unit || null,
+    qty: d.qty,
+    unitPrice: d.unitPrice,
+    amount: d.amount,
+  };
+
+  if (lineId) {
+    // Sửa tay đơn giá của một dòng được sinh tự động = đánh dấu đã đè giá, để
+    // "Tính lại đơn giá" sau này không ghi đè công sức của người dùng. Cùng luật với
+    // `saveLine` — sửa ở bảng hay trong hộp thoại đều phải cho cùng kết quả.
+    const truoc = await db.clientQuoteLine.findUnique({
+      where: { id: lineId },
+      select: { unitPrice: true, sourceSectionId: true, priceOverridden: true },
+    });
+    const daDeGia =
+      truoc?.priceOverridden ||
+      (truoc?.sourceSectionId != null && truoc.unitPrice !== d.unitPrice);
+    await db.clientQuoteLine.update({
+      where: { id: lineId },
+      data: { ...oBang, priceOverridden: daDeGia ?? false },
+    });
+  } else {
+    const max = await db.clientQuoteLine.aggregate({
+      where: { quoteId: clientQuoteId },
+      _max: { sortOrder: true },
+    });
+    // Dòng mới mang mã phần của nhóm nó vừa được gõ vào, nên dù `sortOrder` lớn nhất
+    // nó vẫn hiện ở CUỐI ĐÚNG NHÓM đó chứ không rơi xuống cuối bảng.
+    await db.clientQuoteLine.create({
+      data: {
+        quoteId: clientQuoteId,
+        ...oBang,
+        partCode: d.partCode || "I",
+        partName: d.partName || "Phần kết cấu thép",
+        tags: [],
+        sortOrder: (max._max.sortOrder ?? -1) + 1,
+      },
+    });
+  }
+
+  paths(chu);
+  return { ok: true };
+}
+
 export async function deleteLine(chu: ChuBaoGia, lineId: string): Promise<ActionResult> {
   const g = await guard(chu, { lineId });
   if (g) return g;

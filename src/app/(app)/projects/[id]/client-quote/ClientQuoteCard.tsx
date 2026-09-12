@@ -3,20 +3,21 @@
 import { useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, Printer, Eye, FileText, ListChecks, RotateCcw, RefreshCw } from "lucide-react";
+import { Plus, Pencil, Trash2, Printer, Eye, FileText, ListChecks, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
-import { formatVND, formatNumber, formatQty } from "@/lib/utils";
-import { computeClientQuoteTotals, lineAmount, partTotals, sumStageDays } from "@/lib/clientQuote";
+import { formatVND } from "@/lib/utils";
+import { computeClientQuoteTotals, partTotals, sumStageDays } from "@/lib/clientQuote";
 import { docTienVietNam } from "@/lib/money-words";
-import { CLIENT_QUOTE_STATUS_MAP, QUOTE_SPEC_GROUP_MAP, VAT_TU_TAG_MAP } from "@/lib/constants";
+import { CLIENT_QUOTE_STATUS_MAP, QUOTE_SPEC_GROUP_MAP } from "@/lib/constants";
 import { moTaHangMuc, specsHienThi, tagsDangDung } from "@/lib/clientQuoteSpecs";
 import { InteractionLog } from "@/components/crm/InteractionLog";
 import { StatusBar } from "./StatusBar";
 import { ThongTinIn } from "./ThongTinIn";
+import { DongHangMuc, DongMoi } from "./DongHangMuc";
 import { clearPriceOverride, deleteClientQuote, deleteLine, deleteSpec, recomputePrices } from "./actions";
 import type { ClientQuoteView, LineView, SpecView } from "./types";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
@@ -188,20 +189,25 @@ export function ClientQuoteCard({
             <Th className="w-12">STT</Th>
             <Th>Nội dung công việc</Th>
             <Th className="w-16">ĐVT</Th>
-            <Th className="w-28 text-right">Khối lượng</Th>
-            <Th className="w-28 text-right">Đơn giá</Th>
-            <Th className="w-32 text-right">Thành tiền</Th>
+            <Th className="w-24 text-right">Khối lượng</Th>
+            <Th className="w-32 text-right">Đơn giá</Th>
+            <Th className="w-40 text-right">Thành tiền</Th>
             {canEdit && <Th></Th>}
           </tr>
         </THead>
         <tbody>
-          {q.lines.length === 0 && (
-            <Tr>
-              <Td colSpan={colSpan} className="py-6 text-center text-slate-400">
-                Chưa có hạng mục nào.
-              </Td>
-            </Tr>
-          )}
+          {q.lines.length === 0 &&
+            (canEdit ? (
+              // Báo giá trắng thì chưa có phần nào để gắn hàng trắng vào — dựng sẵn
+              // phần mặc định, đúng cái mà hộp thoại cũng điền sẵn.
+              <DongMoi chu={chu} quoteId={q.id} partCode="I" partName="Phần kết cấu thép" />
+            ) : (
+              <Tr>
+                <Td colSpan={colSpan} className="py-6 text-center text-slate-400">
+                  Chưa có hạng mục nào.
+                </Td>
+              </Tr>
+            ))}
           {phans.map((phan) => (
             <PhanGroup key={phan.code}>
               <Tr className="bg-slate-100/80">
@@ -215,73 +221,22 @@ export function ClientQuoteCard({
                 {canEdit && <Td />}
               </Tr>
               {phan.lines.map((l) => (
-                <Tr key={l.id}>
-                  <Td className="text-slate-500">{l.code ?? "—"}</Td>
-                  <Td className="text-slate-900">
-                    <div className="flex items-center gap-2">
-                      <span>{l.name}</span>
-                      {l.priceOverridden && (
-                        <Badge tone="amber" title="Đơn giá đã sửa tay">
-                          đè giá
-                        </Badge>
-                      )}
-                    </div>
-                    {moTaHangMuc(l.detail, q.lineDetail, specs, l.tags) && (
-                      <div className="whitespace-pre-line text-xs text-slate-400">
-                        {moTaHangMuc(l.detail, q.lineDetail, specs, l.tags)}
-                      </div>
-                    )}
-                    {l.tags.length > 0 && (
-                      <div className="mt-0.5 flex flex-wrap gap-1">
-                        {l.tags.map((t) => (
-                          <span key={t} className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
-                            {VAT_TU_TAG_MAP[t]?.label ?? t}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {l.note && <div className="text-xs text-slate-400">{l.note}</div>}
-                  </Td>
-                  <Td className="text-slate-600">{l.unit ?? "—"}</Td>
-                  <Td className="text-right">{formatQty(l.qty)}</Td>
-                  <Td className="text-right">{formatNumber(l.unitPrice)}</Td>
-                  <Td className="text-right font-medium">{formatVND(lineAmount(l))}</Td>
-                  {canEdit && (
-                    <Td className="text-right">
-                      <div className="flex justify-end gap-1">
-                        {l.priceOverridden && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Bỏ đè giá"
-                            aria-label="Bỏ đè giá"
-                            onClick={() => run(() => clearPriceOverride(chu, l.id))}
-                          >
-                            <RotateCcw className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Sửa hạng mục"
-                          onClick={() => onEditLine(l)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-red-600 hover:bg-red-50"
-                          aria-label="Xóa hạng mục"
-                          onClick={() => onDeleteLine(l)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </Td>
-                  )}
-                </Tr>
+                <DongHangMuc
+                  key={l.id}
+                  chu={chu}
+                  quoteId={q.id}
+                  l={l}
+                  moTa={moTaHangMuc(l.detail, q.lineDetail, specs, l.tags) ?? ""}
+                  canEdit={canEdit}
+                  onSua={() => onEditLine(l)}
+                  onXoa={() => onDeleteLine(l)}
+                  onBoDeGia={() => run(() => clearPriceOverride(chu, l.id))}
+                />
               ))}
+              {/* Hàng trắng thường trực: gõ vào là thành hạng mục mới của ĐÚNG phần này. */}
+              {canEdit && (
+                <DongMoi chu={chu} quoteId={q.id} partCode={phan.code} partName={phan.name} />
+              )}
             </PhanGroup>
           ))}
         </tbody>
