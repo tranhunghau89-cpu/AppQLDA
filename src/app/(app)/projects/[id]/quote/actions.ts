@@ -15,6 +15,7 @@ import {
 } from "@/lib/quoteOwner";
 import { diffFields, recordAudit } from "@/lib/audit";
 import { computeQuoteTotals, sellFromBase } from "@/lib/quote";
+import { banGiaTheoMa } from "@/lib/thuVien/napGia";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -354,8 +355,9 @@ export async function cloneQuoteFrom(
     : (src.coHoi?.tenCongTrinh ?? "công trình chào giá");
 
   const markup = markupOverride ?? src.markup ?? 1;
-  const catalog = await db.workPrice.findMany({ select: { code: true, baseCost: true } });
-  const priceMap = new Map(catalog.map((c) => [c.code, c.baseCost]));
+  // Bản chép lấy đơn giá thư viện HIỆN HÀNH, không bê nguyên giá của bản nguồn:
+  // chép một báo giá từ năm ngoái mà giữ nguyên giá năm ngoái là cái bẫy đắt tiền.
+  const priceMap = await banGiaTheoMa();
 
   // Toàn bộ bản sao (báo giá + phần/mục + dòng) nằm trong 1 giao dịch: đứt giữa
   // chừng sẽ không để lại báo giá rỗng hoặc thiếu dòng.
@@ -429,8 +431,9 @@ export async function repriceQuote(
   });
   if (!quote) return { ok: false, error: "Không tìm thấy báo giá." };
   const markup = quote.markup ?? 1;
-  const catalog = await db.workPrice.findMany({ select: { code: true, baseCost: true } });
-  const priceMap = new Map(catalog.map((c) => [c.code, c.baseCost]));
+  // Đơn giá thư viện HIỆN HÀNH (theo hôm nay). Từ khi giá có lịch sử, "giá của một
+  // công tác" luôn phải kèm câu hỏi "tại thời điểm nào".
+  const priceMap = await banGiaTheoMa();
 
   // Cập nhật hàng loạt trong 1 giao dịch: tránh báo giá còn một nửa giá cũ,
   // một nửa giá mới nếu đứt kết nối giữa chừng.

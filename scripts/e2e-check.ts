@@ -376,6 +376,41 @@ async function main() {
       }
     }
 
+    // ---- Kịch bản 6 ----
+    //
+    // Thư viện đơn giá là dữ liệu gốc: mọi vai đều XEM được, chỉ ADMIN được SỬA. Ma
+    // trận quyền đã có test đơn vị, nhưng test đó chỉ chứng minh hàm `can` đúng — nó
+    // không chứng minh trang có HỎI hàm đó không. Đây là phép kiểm cho vế thứ hai.
+    console.log("\nKịch bản 6 — thư viện đơn giá: ai cũng xem, chỉ ADMIN sửa");
+    {
+      const resUser = await user.get("/thu-vien");
+      const htmlUser = await resUser.text();
+      const resAdmin = await admin.get("/thu-vien");
+      const htmlAdmin = await resAdmin.text();
+
+      if (resUser.status === 200 && htmlUser.includes("Thư viện đơn giá")) {
+        dat("tài khoản không phải ADMIN vẫn xem được thư viện", `HTTP ${resUser.status}`);
+      } else {
+        truot(
+          "tài khoản không phải ADMIN vẫn xem được thư viện",
+          `HTTP ${resUser.status}, có tiêu đề: ${htmlUser.includes("Thư viện đơn giá")}`
+        );
+      }
+
+      // Đối chứng đi kèm: nếu ADMIN cũng không có nút thì phép kiểm dưới vô nghĩa —
+      // nó chỉ chứng minh trang hỏng chứ không chứng minh quyền có tác dụng.
+      const adminCoNut = htmlAdmin.includes("Thêm công tác");
+      const userCoNut = htmlUser.includes("Thêm công tác");
+      if (adminCoNut && !userCoNut) {
+        dat("nút sửa thư viện chỉ hiện với ADMIN", "ADMIN có, tài khoản kia không");
+      } else {
+        truot(
+          "nút sửa thư viện chỉ hiện với ADMIN",
+          `ADMIN có nút: ${adminCoNut}, tài khoản kia có nút: ${userCoNut}`
+        );
+      }
+    }
+
     // ---- Kịch bản 3 ----
     console.log("\nKịch bản 3 — thu hồi phiên");
     if (tamSales) {

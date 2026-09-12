@@ -16,7 +16,11 @@ export const AUDIT_ENTITY = {
   ContractItem: "Hạng mục hợp đồng",
   Payment: "Đợt thanh toán",
   Quote: "Báo giá",
+  // Bảng đơn giá cũ. Giữ nhãn lại kể cả sau khi bảng bị xóa — dòng nhật ký cũ sống
+  // lâu hơn bảng nó nói về, và màn nhật ký vẫn phải đọc được chúng.
   WorkPrice: "Đơn giá (Mã CV)",
+  CongTac: "Công tác (thư viện)",
+  DonGiaCongTac: "Đơn giá công tác",
   PurchaseOrder: "Đơn đặt hàng",
   ClientQuote: "Báo giá gửi khách",
   QuoteTemplate: "Mẫu báo giá",
@@ -195,4 +199,19 @@ export const FIELD_LABEL: Record<string, string> = {
   percent: "Tỷ lệ (%)",
   days: "Số ngày",
   templateId: "Mẫu báo giá",
+  // Thư viện đơn giá
+  ma: "Mã",
+  ten: "Tên",
+  tenNgan: "Loại",
+  quyCach: "TSKT",
+  donVi: "Đơn vị",
+  nhomMa: "Nhóm mã",
+  nhomChiPhi: "Nhóm chi phí",
+  heSo: "Hệ số",
+  ghiChu: "Ghi chú",
+  active: "Đang dùng",
+  vatTu: "Vật tư",
+  nhanCongMay: "Nhân công + máy",
+  donGia: "Đơn giá",
+  hieuLucTu: "Hiệu lực từ",
 };

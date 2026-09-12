@@ -141,6 +141,42 @@ export function workGroupOf(code: string | null | undefined): string {
   return g in WORK_GROUP_MAP ? g : "AL";
 }
 
+// ----- Thư viện đơn giá -----
+
+/**
+ * Nhóm mã công việc (AA..AL) -> nhóm chi phí dự toán thi công (ESTIMATE_GROUP).
+ *
+ * Đây là CẦU NỐI để đổ một bản dự toán chào giá xuống dự toán thi công: báo giá
+ * phân loại theo đầu việc, còn mua hàng phân loại theo thứ phải đi mua. Bảng này
+ * chỉ là GIÁ TRỊ KHỞI TẠO khi chuyển đổi dữ liệu — ADMIN sửa lại trên từng công
+ * tác được, nên sai ở đây không sai tiền, chỉ sai nhóm.
+ */
+export const NHOM_MA_SANG_NHOM_CHI_PHI: Record<string, string> = {
+  AA: "KCT", // Kết cấu thép
+  AB: "BL_NEO", // Bulong neo & mã dưỡng
+  AC: "BLLK", // Bulong & phụ kiện liên kết
+  AD: "TON", // Tôn & diềm
+  AE: "VT_PHU", // Phụ kiện tôn
+  AF: "TON", // Sàn decking — mua cùng nhóm tôn (cùng nhà cán)
+  AG: "VAN_CHUYEN",
+  AK: "NHAN_CONG", // Lắp dựng
+  AL: "KHAC", // Gia công khác
+};
+
+/** Nhóm chi phí mặc định suy từ nhóm mã; nhóm lạ thì về "KHAC". */
+export function nhomChiPhiTheoNhomMa(nhomMa: string | null | undefined): string {
+  if (!nhomMa) return "KHAC";
+  return NHOM_MA_SANG_NHOM_CHI_PHI[nhomMa.toUpperCase()] ?? "KHAC";
+}
+
+/** Đơn giá trong thư viện đến từ đâu — để đọc nhật ký biết ai/cái gì sinh ra nó. */
+export const DON_GIA_NGUON: Option[] = [
+  { value: "NHAP_TAY", label: "Nhập tay", tone: "slate" },
+  { value: "IMPORT_EXCEL", label: "Nhập từ Excel", tone: "blue" },
+  { value: "CHUYEN_DOI", label: "Chuyển đổi dữ liệu cũ", tone: "amber" },
+];
+export const DON_GIA_NGUON_MAP = map(DON_GIA_NGUON);
+
 export function labelOf(
   map: Record<string, Option>,
   value: string | null | undefined

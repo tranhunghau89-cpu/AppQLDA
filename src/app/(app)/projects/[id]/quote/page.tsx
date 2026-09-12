@@ -43,7 +43,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
           </p>
         </div>
         <Link
-          href="/catalog"
+          href="/thu-vien"
           className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-200"
         >
           <Tags className="h-4 w-4" /> Bảng đơn giá

@@ -43,14 +43,14 @@ model ProjectMember {
 }
 
 model Customer {
-  id            String    @id @default(cuid())
+  id            String         @id @default(cuid())
   name          String
   contactPerson String?
   phone         String?
   address       String?
   note          String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   projects      Project[]
   clientQuotes  ClientQuote[]
   notes         CustomerNote[]
@@ -172,28 +172,28 @@ model CustomerNote {
 }
 
 model Supplier {
-  id            String            @id @default(cuid())
-  name          String
-  category      String            @default("KHAC") // KCT|XA_GO|TON|BL_NEO|BLLK|LAP_DUNG|KHAC
-  contactPerson String?
-  phone         String?
-  note          String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  id             String            @id @default(cuid())
+  name           String
+  category       String            @default("KHAC") // KCT|XA_GO|TON|BL_NEO|BLLK|LAP_DUNG|KHAC
+  contactPerson  String?
+  phone          String?
+  note           String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
   projectLinks   ProjectSupplier[]
   estimateItems  EstimateItem[]
   purchaseOrders PurchaseOrder[]
 }
 
 model Project {
-  id           String            @id @default(cuid())
-  code         String            @unique // N037...
+  id           String    @id @default(cuid())
+  code         String    @unique // N037...
   name         String // K25L60
   buildingType String? // Xưởng, Nhà xưởng...
-  status       String            @default("CHO") // CHO|SHOP|GIA_CONG|LAP_DUNG|HOAN_THANH
+  status       String    @default("CHO") // CHO|SHOP|GIA_CONG|LAP_DUNG|HOAN_THANH
   location     String?
   customerId   String?
-  customer     Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customer     Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
   startDate    DateTime?
   endDate      DateTime?
   kK           Float? // bước khung K
@@ -202,26 +202,27 @@ model Project {
   area         Float? // m2
   salePrice    Float? // giá bán / hợp đồng
   note         String?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  suppliers      ProjectSupplier[]
-  milestones     Milestone[]
-  weeklyLogs     WeeklyLog[]
-  progressNotes  ProjectNote[]
-  docVersions    DocVersion[]
-  proposals      Proposal[]
-  payments       Payment[]
-  takeoffItems   TakeoffItem[]
-  estimateItems  EstimateItem[]
+  suppliers        ProjectSupplier[]
+  milestones       Milestone[]
+  weeklyLogs       WeeklyLog[]
+  progressNotes    ProjectNote[]
+  docVersions      DocVersion[]
+  proposals        Proposal[]
+  payments         Payment[]
+  takeoffItems     TakeoffItem[]
+  estimateItems    EstimateItem[]
   estimateSections EstimateSection[]
-  contracts      Contract[]
-  purchaseOrders PurchaseOrder[]
-  costSummary    CostSummary?
-  quotes         Quote[]
-  clientQuotes   ClientQuote[]
-  members        ProjectMember[]
-  coHoi          CoHoi? // cơ hội chào giá đã sinh ra dự án này (nếu có)
+  contracts        Contract[]
+  purchaseOrders   PurchaseOrder[]
+  costSummary      CostSummary?
+  quotes           Quote[]
+  clientQuotes     ClientQuote[]
+  members          ProjectMember[]
+  coHoi            CoHoi? // cơ hội chào giá đã sinh ra dự án này (nếu có)
+
   @@index([status])
   @@index([customerId])
 }
@@ -247,6 +248,7 @@ model PurchaseOrder {
   updatedAt    DateTime  @updatedAt
 
   items PurchaseOrderItem[]
+
   @@index([projectId])
   @@index([supplierId])
 }
@@ -267,6 +269,7 @@ model PurchaseOrderItem {
   sortOrder Int           @default(0)
 
   images PoItemImage[]
+
   @@index([orderId])
 }
 
@@ -278,29 +281,31 @@ model PoItemImage {
   data      Bytes // ảnh biên dạng nhúng từ file đơn
   sortOrder Int               @default(0)
   createdAt DateTime          @default(now())
+
   @@index([itemId])
 }
 
 model Contract {
-  id             String         @id @default(cuid())
+  id             String    @id @default(cuid())
   projectId      String
-  project        Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   contractNo     String? // Số HĐ: 0704/2026/HĐMB...
   signDate       DateTime? // ngày ký
   subject        String? // V/v: cung cấp & thi công nhà thép...
   partyAName     String? // Bên A (CĐT)
   partyAInfo     String? // địa chỉ, MST, người đại diện
   valueBeforeVat Float? // giá trị chưa VAT = Σ hạng mục
-  vatPercent     Float?         @default(8)
+  vatPercent     Float?    @default(8)
   valueWithVat   Float? // tổng có VAT
   paymentTerms   String? // các đợt thanh toán
   filePath       String? // đường dẫn file HĐ đã ký
-  status         String         @default("QUOTE") // QUOTE | SIGNED | LIQUIDATED
+  status         String    @default("QUOTE") // QUOTE | SIGNED | LIQUIDATED
   note           String?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   items ContractItem[]
+
   @@index([projectId])
 }
 
@@ -315,6 +320,7 @@ model ContractItem {
   amount     Float? // thành tiền
   sortOrder  Int      @default(0)
   createdAt  DateTime @default(now())
+
   @@index([contractId])
 }
 
@@ -458,9 +464,9 @@ model TakeoffItem {
 }
 
 model EstimateItem {
-  id             String    @id @default(cuid())
+  id             String           @id @default(cuid())
   projectId      String
-  project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project        Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   sectionId      String? // Hạng mục (Khung mái, Vách...) — null = chưa phân
   section        EstimateSection? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   groupLabel     String? // Nhóm cấp 2 (Bulong neo, Máng nước...) hiển thị theo mẫu
@@ -472,12 +478,12 @@ model EstimateItem {
   unitPrice      Float?
   amount         Float?
   supplierId     String?
-  supplier       Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  supplier       Supplier?        @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   orderStatus    String? // Đặt hàng
   dispatchStatus String? // Xuất hàng
   note           String?
-  sortOrder      Int       @default(0)
-  createdAt      DateTime  @default(now())
+  sortOrder      Int              @default(0)
+  createdAt      DateTime         @default(now())
 
   @@index([sectionId])
   @@index([projectId])
@@ -565,6 +571,7 @@ model CostCategory {
   invoice   Float? // HÓA ĐƠN
   sortOrder Int         @default(0)
   items     CostItem[]
+
   @@index([summaryId])
 }
 
@@ -579,6 +586,7 @@ model CostItem {
   ref        String? // Thời gian / HĐ
   note       String? // Ghi chú
   sortOrder  Int          @default(0)
+
   @@index([categoryId])
 }
 
@@ -611,27 +619,28 @@ model WorkPrice {
 // cùng lúc nghĩa là hai luật quyền chồng nhau. Vết "cơ hội nào thành dự án nào" đã nằm ở
 // CoHoi.projectId, không cần giữ thêm ở đây.
 model Quote {
-  id           String         @id @default(cuid())
+  id           String    @id @default(cuid())
   projectId    String?
-  project      Project?       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project      Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   coHoiId      String?
-  coHoi        CoHoi?         @relation(fields: [coHoiId], references: [id], onDelete: Cascade)
+  coHoi        CoHoi?    @relation(fields: [coHoiId], references: [id], onDelete: Cascade)
   title        String // tiêu đề/phiên bản
   recipient    String? // Kính gửi
   location     String? // Địa điểm
   scope        String? // Hạng mục
   quoteDate    DateTime?
-  markup       Float?         @default(1) // hệ số TL: đơn giá bán = giá gốc × markup
+  markup       Float?    @default(1) // hệ số TL: đơn giá bán = giá gốc × markup
   clonedFromId String? // bản gốc đã clone
-  clonedFrom   Quote?         @relation("QuoteClone", fields: [clonedFromId], references: [id], onDelete: SetNull)
-  clones       Quote[]        @relation("QuoteClone")
+  clonedFrom   Quote?    @relation("QuoteClone", fields: [clonedFromId], references: [id], onDelete: SetNull)
+  clones       Quote[]   @relation("QuoteClone")
   note         String?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   sections     QuoteSection[]
   items        QuoteItem[]
-  clientQuotes ClientQuote[] @relation("QuoteToClient")
+  clientQuotes ClientQuote[]  @relation("QuoteToClient")
+
   @@index([projectId])
   @@index([coHoiId])
 }
@@ -651,6 +660,7 @@ model QuoteSection {
   sortOrder Int            @default(0)
 
   items QuoteItem[]
+
   @@index([quoteId])
   @@index([parentId])
 }
@@ -671,6 +681,7 @@ model QuoteItem {
   spec      String? // quy cách
   note      String?
   sortOrder Int          @default(0)
+
   @@index([quoteId])
   @@index([sectionId])
 }
@@ -766,47 +777,49 @@ model ClientQuoteLine {
   quoteId String
   quote   ClientQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
 
-  partCode String  @default("I") // I, II… gom nhóm khi in
-  partName String  @default("Phần kết cấu thép")
-  code     String? // "01"
-  name     String // "Gia công sản xuất, lắp dựng khung nhà thép mác Q235..."
-  detail   String? // các gạch đầu dòng, mỗi dòng một ý
-  unit     String? @default("m2")
-  qty      Float? // tổng khối lượng
+  partCode  String  @default("I") // I, II… gom nhóm khi in
+  partName  String  @default("Phần kết cấu thép")
+  code      String? // "01"
+  name      String // "Gia công sản xuất, lắp dựng khung nhà thép mác Q235..."
+  detail    String? // các gạch đầu dòng, mỗi dòng một ý
+  unit      String? @default("m2")
+  qty       Float? // tổng khối lượng
   unitPrice Float?
   // Để TRỐNG = thành tiền tính bằng qty × unitPrice. Điền = chốt cứng (dòng khoán,
   // vd "Cửa đẩy chớp bằng tôn KT 1.0*3.0m (6 cái)").
-  amount   Float?
-  note     String? // Ghi chú / Quy cách
+  amount    Float?
+  note      String? // Ghi chú / Quy cách
 
   // --- vết sinh tự động ---
   // Hạng mục này dùng những loại vật tư nào (xem VAT_TU_TAG). Bảng vật liệu ở
   // mục 2 chỉ in dòng có nhãn thuộc một hạng mục đang có.
   tags            String[]
   sourceSectionId String? // phần nào của báo giá chi tiết đã sinh ra đơn giá này
-  priceOverridden Boolean @default(false) // true = người dùng sửa tay; "Tính lại" bỏ qua dòng này
+  priceOverridden Boolean  @default(false) // true = người dùng sửa tay; "Tính lại" bỏ qua dòng này
   steelFrameKey   String? // khóa hạng mục bên SteelFrame để rót khối lượng (xem plan/30)
 
   sortOrder Int @default(0)
+
   @@index([quoteId])
 }
 
 // Bảng "Vật liệu áp dụng và thông số kỹ thuật" — nhóm A (kết cấu thép), B (tôn & bao che).
 model ClientQuoteSpec {
-  id        String      @id @default(cuid())
-  quoteId   String
-  quote     ClientQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  groupCode String      @default("A") // A | B
+  id            String      @id @default(cuid())
+  quoteId       String
+  quote         ClientQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  groupCode     String      @default("A") // A | B
   // Loại vật tư (VAT_TU_TAG). Để TRỐNG = vật tư dùng chung, luôn in.
-  tag       String?
-  name      String // "Thép tấm tổ hợp"
-  spec      String? // "fy = 2.450 kG/cm2"
-  origin    String? // cột "Ghi chú và xuất xứ"
+  tag           String?
+  name          String // "Thép tấm tổ hợp"
+  spec          String? // "fy = 2.450 kG/cm2"
+  origin        String? // cột "Ghi chú và xuất xứ"
   // Có nhắc lại dòng này trong mô tả dưới tên hạng mục không. Mặc định KHÔNG:
   // bảng vật liệu ở mục 2 đã kể đủ, nhắc lại tất cả thì hạng mục mái phải gánh 7
   // gạch đầu dòng trong khi báo giá thật chỉ nêu đúng loại tôn.
-  inDescription Boolean @default(false)
-  sortOrder Int         @default(0)
+  inDescription Boolean     @default(false)
+  sortOrder     Int         @default(0)
+
   @@index([quoteId])
 }
 
@@ -818,6 +831,7 @@ model ClientQuoteStage {
   name      String // "Gia công cấu kiện"
   days      Int?
   sortOrder Int         @default(0)
+
   @@index([quoteId])
 }
 
@@ -831,6 +845,7 @@ model ClientQuotePayment {
   basis     String? // "GTHĐ" | "Quyết toán"
   note      String? // "kí hợp đồng" / "thư bảo lãnh 5%"
   sortOrder Int         @default(0)
+
   @@index([quoteId])
 }
 
@@ -892,27 +907,29 @@ model QuoteTemplateLine {
   note     String?
 
   // Khác ClientQuoteLine: mẫu KHÔNG giữ qty/amount (đó là số liệu của từng dự án).
-  defaultUnitPrice Float?
-  tags             String[] // nhãn loại vật tư (VAT_TU_TAG)
+  defaultUnitPrice  Float?
+  tags              String[] // nhãn loại vật tư (VAT_TU_TAG)
   // Mã "phần" bên báo giá chi tiết dùng để suy đơn giá m². Để trống = luôn nhập tay.
   sourceSectionCode String?
   steelFrameKey     String? // khóa hạng mục bên SteelFrame (xem plan/30)
 
   sortOrder Int @default(0)
+
   @@index([templateId])
 }
 
 model QuoteTemplateSpec {
-  id         String        @id @default(cuid())
-  templateId String
-  template   QuoteTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  groupCode  String        @default("A") // A | B
-  tag        String? // để trống = vật tư dùng chung, luôn in
-  name       String
-  spec       String?
-  origin     String?
-  inDescription Boolean    @default(false) // nhắc lại dưới tên hạng mục
-  sortOrder  Int           @default(0)
+  id            String        @id @default(cuid())
+  templateId    String
+  template      QuoteTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  groupCode     String        @default("A") // A | B
+  tag           String? // để trống = vật tư dùng chung, luôn in
+  name          String
+  spec          String?
+  origin        String?
+  inDescription Boolean       @default(false) // nhắc lại dưới tên hạng mục
+  sortOrder     Int           @default(0)
+
   @@index([templateId])
 }
 
@@ -923,6 +940,7 @@ model QuoteTemplateStage {
   name       String
   days       Int?
   sortOrder  Int           @default(0)
+
   @@index([templateId])
 }
 
@@ -935,6 +953,7 @@ model QuoteTemplatePayment {
   basis      String?
   note       String?
   sortOrder  Int           @default(0)
+
   @@index([templateId])
 }
 
@@ -961,4 +980,92 @@ model AuditLog {
   @@index([projectId, createdAt])
   @@index([entity, entityId])
   @@index([actorId, createdAt])
+}
+
+// ===================== THƯ VIỆN DÙNG CHUNG =====================
+//
+// Một nguồn duy nhất cho cả dự toán chào giá, báo giá gửi khách và dự toán thi công.
+// Thay WorkPrice: cùng danh mục công tác, nhưng ĐƠN GIÁ tách ra bảng riêng vì một
+// công tác có nhiều giá theo thời điểm và theo khu vực. Sửa giá tại chỗ như bảng cũ
+// là mất câu trả lời cho "ngày ký báo giá đó giá bao nhiêu".
+
+// Vùng địa lý phục vụ. Người dùng tự khai (Miền Bắc, Đông Nam Bộ...), không cố định
+// 63 tỉnh: giá không chênh theo tỉnh mà chênh theo nhóm nhà cung cấp phục vụ vùng đó.
+model KhuVuc {
+  id        String   @id @default(cuid())
+  ma        String   @unique // MB, MT, DNB...
+  ten       String
+  ghiChu    String?
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  donGia DonGiaCongTac[]
+
+  @@index([active, sortOrder])
+}
+
+// Danh mục CÔNG TÁC — thay WorkPrice. Giữ nguyên mã (AA.110) vì QuoteItem.workCode
+// trỏ vào đây bằng chuỗi (tham chiếu mềm): đổi mã là cắt đứt mọi dòng báo giá đã lập.
+model CongTac {
+  id         String   @id @default(cuid())
+  ma         String   @unique // Mã CV: AA.110
+  ten        String
+  tenNgan    String? // Loại
+  quyCach    String? // TSKT
+  donVi      String?
+  nhomMa     String   @default("AA") // AA..AL — WORK_GROUP
+  // Nhóm chi phí mua hàng (ESTIMATE_GROUP). Đây là CẦU NỐI để đổ dự toán chào giá
+  // xuống dự toán thi công: báo giá chia theo đầu việc, mua hàng chia theo thứ phải mua.
+  nhomChiPhi String   @default("KHAC")
+  heSo       Float? // hệ số gợi ý khi nhập bản giá mới
+  ghiChu     String?
+  sortOrder  Int      @default(0)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  donGia DonGiaCongTac[]
+
+  @@index([nhomMa, sortOrder])
+  @@index([active])
+}
+
+// Một PHIÊN BẢN GIÁ của công tác. Không sửa tại chỗ — đổi giá là thêm dòng mới với
+// hieuLucTu mới; dòng mới tự thay dòng cũ theo luật "hiệu lực <= ngày, lấy mới nhất".
+//
+// Cố ý KHÔNG có hieuLucDen: thêm nó là tạo nguồn sự thật thứ hai cho cùng một việc.
+// Công tác ngừng dùng thì tắt CongTac.active.
+//
+// Hai cột khóa đều cho phép null, và null nghĩa là "áp dụng chung":
+//   congTacVatTuId = null -> mọi biến thể vật liệu; khuVucId = null -> toàn quốc.
+// Nhờ vậy 135 công tác chuyển từ WorkPrice sang dùng được ngay khi chưa khai vật tư
+// hay khu vực nào. Luật chọn dòng nào áp dụng nằm ở src/lib/thuVien/gia.ts.
+model DonGiaCongTac {
+  id             String  @id @default(cuid())
+  congTacId      String
+  congTac        CongTac @relation(fields: [congTacId], references: [id], onDelete: Cascade)
+  // Tham chiếu MỀM tới CongTacVatTu (bảng biến thể, thêm ở giai đoạn sau). Để sẵn cột
+  // từ bây giờ để luật chọn giá không phải đổi khi bảng đó ra đời.
+  congTacVatTuId String?
+  khuVucId       String?
+  khuVuc         KhuVuc? @relation(fields: [khuVucId], references: [id], onDelete: SetNull)
+
+  vatTu       Float? // VT
+  nhanCongMay Float? // NC_M
+  heSo        Float? // HS
+  donGia      Float // = (VT + NC_M) * HS — computeBaseCost()
+
+  hieuLucTu     DateTime
+  nguon         String   @default("NHAP_TAY") // DON_GIA_NGUON
+  ghiChu        String?
+  createdAt     DateTime @default(now())
+  // Chụp lại người tạo, tham chiếu MỀM — cùng lý lẽ với AuditLog: xóa tài khoản
+  // không được phép xóa mất lịch sử giá.
+  createdById   String?
+  createdByName String?
+
+  @@index([congTacId, hieuLucTu])
+  @@index([congTacId, khuVucId, hieuLucTu])
 }

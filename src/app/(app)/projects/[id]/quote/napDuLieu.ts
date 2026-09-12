@@ -9,13 +9,16 @@ import { nguonCloneBaoGia, type CloneSourceRow } from "@/lib/quoteCloneSources";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
 import { whereCuaChu } from "@/lib/quoteOwner";
 import type { SessionUser } from "@/lib/session";
+import { napCongTacCoGia } from "@/lib/thuVien/napGia";
 import type { CatalogOption, QuoteView } from "./types";
 
 export async function napDuLieuBaoGia(
   session: SessionUser,
   chu: ChuBaoGia
 ): Promise<{ quotes: QuoteView[]; catalog: CatalogOption[]; cloneSources: CloneSourceRow[] }> {
-  const [rawQuotes, catalogRows, cloneSources] = await Promise.all([
+  // Thư viện trả về đơn giá HIỆN HÀNH, chỉ để gợi ý cho dòng sắp thêm. Dòng đã có
+  // trong báo giá không bị đụng tới — chúng giữ đơn giá đã chốt lúc lập.
+  const [rawQuotes, congTacs, cloneSources] = await Promise.all([
     db.quote.findMany({
       where: whereCuaChu(chu),
       orderBy: { createdAt: "desc" },
@@ -25,10 +28,7 @@ export async function napDuLieuBaoGia(
         clonedFrom: { select: { title: true } },
       },
     }),
-    db.workPrice.findMany({
-      orderBy: [{ groupCode: "asc" }, { sortOrder: "asc" }],
-      select: { code: true, name: true, unit: true, baseCost: true },
-    }),
+    napCongTacCoGia(),
     // Chép được từ mọi bản dự toán trong phạm vi — dự án được phân công lẫn cơ hội của
     // khách mình phụ trách.
     nguonCloneBaoGia(session),
@@ -66,11 +66,11 @@ export async function napDuLieuBaoGia(
     })),
   }));
 
-  const catalog: CatalogOption[] = catalogRows.map((c) => ({
-    code: c.code,
-    name: c.name,
-    unit: c.unit,
-    baseCost: c.baseCost,
+  const catalog: CatalogOption[] = congTacs.map((c) => ({
+    code: c.ma,
+    name: c.ten,
+    unit: c.donVi,
+    baseCost: c.donGia,
   }));
 
   return { quotes, catalog, cloneSources };

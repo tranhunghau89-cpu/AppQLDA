@@ -26,6 +26,7 @@ export type Resource =
   | "supplier"
   | "user"
   | "template"
+  | "thuVien"
   | "audit"
   | "import";
 
@@ -47,6 +48,7 @@ const MATRIX: Record<Role, Partial<Record<Resource, Action[]>>> = {
     supplier: ["view", "edit"],
     user: ["view", "edit"],
     template: ["view", "edit"],
+    thuVien: ["view", "edit"],
     audit: ["view"],
     import: ["view", "edit"],
   },
@@ -62,6 +64,7 @@ const MATRIX: Record<Role, Partial<Record<Resource, Action[]>>> = {
     profit: ["view"],
     customer: ["view", "edit"],
     supplier: ["view"],
+    thuVien: ["view"],
   },
   ENGINEERING: {
     project: ["view", "edit"],
@@ -72,6 +75,7 @@ const MATRIX: Record<Role, Partial<Record<Resource, Action[]>>> = {
     quote: ["view"],
     customer: ["view"],
     supplier: ["view"],
+    thuVien: ["view"],
   },
   PROCUREMENT: {
     project: ["view"],
@@ -83,6 +87,7 @@ const MATRIX: Record<Role, Partial<Record<Resource, Action[]>>> = {
     quote: ["view"],
     debt: ["view"],
     supplier: ["view", "edit"],
+    thuVien: ["view"],
   },
   ACCOUNTING: {
     project: ["view"],
@@ -95,6 +100,7 @@ const MATRIX: Record<Role, Partial<Record<Resource, Action[]>>> = {
     profit: ["view"],
     customer: ["view"],
     supplier: ["view"],
+    thuVien: ["view"],
   },
 };
 

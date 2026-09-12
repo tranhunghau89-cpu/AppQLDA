@@ -28,7 +28,8 @@
     "import:quote": "tsx scripts/import-quote.ts",
     "import:missing": "tsx scripts/import-missing-projects.ts",
     "members:backfill": "tsx scripts/backfill-project-members.ts",
-    "e2e": "tsx scripts/e2e-check.ts"
+    "e2e": "tsx scripts/e2e-check.ts",
+    "kiemtra:thu-vien": "tsx scripts/kiem-tra-chuyen-doi-thu-vien.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

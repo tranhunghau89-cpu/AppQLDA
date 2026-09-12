@@ -75,11 +75,12 @@ export async function layDanhMucTimKiem(): Promise<SearchDoc[]> {
           orderBy: { createdAt: "desc" },
         })
       : [],
-    // Bảng đơn giá dùng chung, không thuộc dự án nào nên không cần lọc phạm vi.
-    can(role, "estimate", "view")
-      ? db.workPrice.findMany({
-          select: { id: true, code: true, name: true, unit: true, groupCode: true },
-          orderBy: [{ groupCode: "asc" }, { sortOrder: "asc" }],
+    // Thư viện công tác dùng chung, không thuộc dự án nào nên không cần lọc phạm vi.
+    can(role, "thuVien", "view")
+      ? db.congTac.findMany({
+          where: { active: true },
+          select: { id: true, ma: true, ten: true, donVi: true, nhomMa: true },
+          orderBy: [{ nhomMa: "asc" }, { sortOrder: "asc" }],
         })
       : [],
   ]);
@@ -159,11 +160,11 @@ export async function layDanhMucTimKiem(): Promise<SearchDoc[]> {
     docs.push({
       kind: "workPrice",
       id: m.id,
-      title: m.name,
-      subtitle: [m.code, m.unit, m.groupCode].filter(Boolean).join(" · "),
-      href: `/catalog`,
+      title: m.ten,
+      subtitle: [m.ma, m.donVi, m.nhomMa].filter(Boolean).join(" · "),
+      href: `/thu-vien/cong-tac/${m.id}`,
       // Mã CV đứng trước tên: người dùng thường nhớ mã ("AA.110") hơn nội dung.
-      terms: [m.code, m.name, m.groupCode].filter(Boolean),
+      terms: [m.ma, m.ten, m.nhomMa].filter(Boolean),
     });
   }
 

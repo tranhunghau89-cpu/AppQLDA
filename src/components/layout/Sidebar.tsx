@@ -24,6 +24,7 @@ import {
   Truck,
   Users,
   LayoutTemplate,
+  Library,
   History,
   Upload,
   X,
@@ -97,6 +98,12 @@ const NAV: NavGroup[] = [
   {
     ten: "Danh mục",
     items: [
+      {
+        href: "/thu-vien",
+        label: "Thư viện đơn giá",
+        icon: Library,
+        resource: "thuVien",
+      },
       { href: "/customers", label: "Chủ đầu tư", icon: Building2, resource: "customer" },
       { href: "/suppliers", label: "Nhà cung cấp", icon: Truck, resource: "supplier" },
       { href: "/tools", label: "Tra cứu & Bóc KL", icon: Ruler },
