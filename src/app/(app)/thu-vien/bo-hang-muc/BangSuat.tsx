@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 import { formatQty, formatSuat, parseViNumber } from "@/lib/utils";
 import { luuSuatDong } from "./actions";
-import type { DongView } from "./BoHangMucList";
+import { ChonCongTacModal } from "./ChonCongTacModal";
+import type { CongTacView, DongView } from "./BoHangMucList";
 
 /**
  * Thư viện khối lượng của một phần: mỗi dòng công tác một SUẤT — khối lượng trên một
@@ -18,10 +19,12 @@ import type { DongView } from "./BoHangMucList";
 export function BangSuat({
   dong,
   tenPhan,
+  congTac,
   canEdit,
 }: {
   dong: DongView[];
   tenPhan: string;
+  congTac: CongTacView[];
   canEdit: boolean;
 }) {
   const router = useRouter();
@@ -29,6 +32,7 @@ export function BangSuat({
   const [, start] = useTransition();
   // Chỉ giữ ô người dùng ĐANG gõ; còn lại luôn đọc từ máy chủ.
   const [nhap, setNhap] = useState<Record<string, string>>({});
+  const [dongChonMa, setDongChonMa] = useState<DongView | null>(null);
 
   if (dong.length === 0) {
     return <p className="px-4 py-3 text-sm text-slate-400">Phần này chưa có dòng công tác nào.</p>;
@@ -56,12 +60,14 @@ export function BangSuat({
   }
 
   const soCoSuat = dong.filter((d) => d.suatKhoiLuong != null).length;
+  const soCoMa = dong.filter((d) => d.maCongTac).length;
 
   return (
     <div className="bg-slate-50 px-4 py-3">
       <p className="mb-2 text-xs text-slate-500">
         Suất khối lượng của <strong>{tenPhan}</strong> — khối lượng trên 1 m² diện tích
-        của chính phần này. {soCoSuat}/{dong.length} dòng đã khai.
+        của chính phần này. {soCoSuat}/{dong.length} dòng đã khai suất, {soCoMa}/{dong.length}
+        dòng đã gắn mã công việc.
       </p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[34rem] text-xs">
@@ -77,7 +83,22 @@ export function BangSuat({
           <tbody>
             {dong.map((d) => (
               <tr key={d.id} className="border-t border-slate-200/70">
-                <td className="py-1 font-mono text-slate-400">{d.maCongTac ?? "—"}</td>
+                <td className="py-1 font-mono">
+                  {canEdit ? (
+                    <button
+                      type="button"
+                      onClick={() => setDongChonMa(d)}
+                      title="Chọn mã công việc trong thư viện"
+                      className={`rounded px-1.5 py-0.5 hover:bg-white hover:ring-1 hover:ring-slate-300 ${
+                        d.maCongTac ? "text-slate-600" : "text-amber-600"
+                      }`}
+                    >
+                      {d.maCongTac ?? "gắn mã"}
+                    </button>
+                  ) : (
+                    <span className="text-slate-400">{d.maCongTac ?? "—"}</span>
+                  )}
+                </td>
                 <td className="px-2 py-1 text-slate-700">{d.ten}</td>
                 <td className="px-2 py-1 text-slate-500">{d.donVi ?? "—"}</td>
                 <td className="px-2 py-1 text-right">
@@ -105,6 +126,14 @@ export function BangSuat({
           </tbody>
         </table>
       </div>
+
+      {dongChonMa && (
+        <ChonCongTacModal
+          dong={dongChonMa}
+          congTac={congTac}
+          onClose={() => setDongChonMa(null)}
+        />
+      )}
     </div>
   );
 }

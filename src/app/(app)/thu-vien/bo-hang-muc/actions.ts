@@ -373,3 +373,55 @@ export async function luuSuatDong(
   revalidatePath("/thu-vien/bo-hang-muc");
   return { ok: true };
 }
+
+/**
+ * Gắn — hoặc gỡ — mã công tác thư viện cho MỘT dòng của bộ hạng mục.
+ *
+ * Đây là quyết định về TIỀN, không phải dán nhãn cho đẹp: khi áp bộ vào dự toán, đơn
+ * giá lấy từ THƯ VIỆN theo mã này, còn `donGiaMacDinh` của bộ tụt xuống làm số dự
+ * phòng. Gắn nhầm mã là mọi dự toán sau đó sai giá vốn.
+ *
+ * Vì thế gỡ mã (`congTacId = null`) cũng phải làm được. Một dòng chưa phân định được
+ * quy cách — "Diềm" nằm giữa khổ <200mm và <400mm — thà để trống và dùng giá mặc định
+ * còn hơn gắn bừa rồi không ai biết nó bừa.
+ */
+export async function luuCongTacDong(
+  dongId: string,
+  congTacId: string | null
+): Promise<ActionResult> {
+  try {
+    await requirePermission("thuVien", "edit");
+  } catch {
+    return { ok: false, error: KHONG_CO_QUYEN };
+  }
+
+  const dong = await db.boHangMucDong.findUnique({
+    where: { id: dongId },
+    select: { id: true, ten: true, boHangMucId: true, congTacId: true, maCongTac: true },
+  });
+  if (!dong) return { ok: false, error: "Không tìm thấy dòng công tác." };
+
+  let ma: string | null = null;
+  if (congTacId) {
+    const ct = await db.congTac.findUnique({ where: { id: congTacId }, select: { ma: true } });
+    if (!ct) return { ok: false, error: "Không tìm thấy công tác trong thư viện." };
+    ma = ct.ma;
+  }
+
+  await db.boHangMucDong.update({
+    where: { id: dongId },
+    // Biến thể thuộc về công tác cũ — đổi công tác mà giữ biến thể là trỏ sang một
+    // dòng giá của việc khác.
+    data: { congTacId, maCongTac: ma, congTacVatTuId: null },
+  });
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "BoHangMuc",
+    entityId: dong.boHangMucId,
+    entityLabel: dong.ten,
+    action: "UPDATE",
+    changes: { maCongTac: { truoc: dong.maCongTac, sau: ma } },
+  });
+  revalidatePath("/thu-vien/bo-hang-muc");
+  return { ok: true };
+}

@@ -12,11 +12,24 @@ import { luuBoHangMuc, luuPhanBoHangMuc, xoaBoHangMuc } from "./actions";
 import { BangSuat } from "./BangSuat";
 import { LaySuatModal } from "./LaySuatModal";
 
+/** Một công tác trong thư viện, kèm giá đang hiệu lực — để chọn mã cho dòng bộ. */
+export interface CongTacView {
+  id: string;
+  ma: string;
+  ten: string;
+  donVi: string | null;
+  nhomChiPhi: string;
+  donGia: number | null;
+}
+
 export interface DongView {
   id: string;
   ten: string;
   donVi: string | null;
   maCongTac: string | null;
+  congTacId: string | null;
+  donGiaMacDinh: number | null;
+  nhomChiPhi: string;
   /** Khối lượng trên một đơn vị diện tích của phần. */
   suatKhoiLuong: number | null;
   khoiLuongMacDinh: number | null;
@@ -52,9 +65,11 @@ export interface BoView {
 
 export function BoHangMucList({
   items,
+  congTac,
   canEdit,
 }: {
   items: BoView[];
+  congTac: CongTacView[];
   canEdit: boolean;
 }) {
   const router = useRouter();
@@ -243,7 +258,7 @@ export function BoHangMucList({
                   </div>
                 </div>
                 {moSuat === p.id && (
-                  <BangSuat dong={p.dong} tenPhan={p.ten} canEdit={canEdit} />
+                  <BangSuat dong={p.dong} tenPhan={p.ten} congTac={congTac} canEdit={canEdit} />
                 )}
                 </li>
               ))}

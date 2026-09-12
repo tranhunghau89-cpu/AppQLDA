@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
 import { can, type Role } from "@/lib/rbac";
-import { BoHangMucList, type BoView } from "./BoHangMucList";
+import { BoHangMucList, type BoView, type CongTacView } from "./BoHangMucList";
 
 export default async function BoHangMucPage() {
   const session = await requireView("thuVien");
@@ -23,6 +23,9 @@ export default async function BoHangMucPage() {
               ten: true,
               donVi: true,
               maCongTac: true,
+              congTacId: true,
+              donGiaMacDinh: true,
+              nhomChiPhi: true,
               suatKhoiLuong: true,
               khoiLuongMacDinh: true,
             },
@@ -60,10 +63,42 @@ export default async function BoHangMucPage() {
         ten: d.ten,
         donVi: d.donVi,
         maCongTac: d.maCongTac,
+        congTacId: d.congTacId,
+        donGiaMacDinh: d.donGiaMacDinh,
+        nhomChiPhi: d.nhomChiPhi,
         suatKhoiLuong: d.suatKhoiLuong,
         khoiLuongMacDinh: d.khoiLuongMacDinh,
       })),
     })),
+  }));
+
+  // Thư viện công tác để chọn mã cho từng dòng. Giá lấy bản ĐANG hiệu lực (mới nhất
+  // trong số các bản đã tới ngày) — đó là con số dự toán sẽ dùng, nên cũng là con số
+  // phải bày ra lúc chọn.
+  const congTacs = await db.congTac.findMany({
+    where: { active: true },
+    orderBy: { ma: "asc" },
+    select: {
+      id: true,
+      ma: true,
+      ten: true,
+      donVi: true,
+      nhomChiPhi: true,
+      donGia: {
+        where: { hieuLucTu: { lte: new Date() }, khuVucId: null, congTacVatTuId: null },
+        orderBy: { hieuLucTu: "desc" },
+        take: 1,
+        select: { donGia: true },
+      },
+    },
+  });
+  const congTac: CongTacView[] = congTacs.map((c) => ({
+    id: c.id,
+    ma: c.ma,
+    ten: c.ten,
+    donVi: c.donVi,
+    nhomChiPhi: c.nhomChiPhi,
+    donGia: c.donGia[0]?.donGia ?? null,
   }));
 
   return (
@@ -83,7 +118,7 @@ export default async function BoHangMucPage() {
         </p>
       </div>
 
-      <BoHangMucList items={items} canEdit={canEdit} />
+      <BoHangMucList items={items} congTac={congTac} canEdit={canEdit} />
     </div>
   );
 }
