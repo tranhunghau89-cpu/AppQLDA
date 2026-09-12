@@ -9,17 +9,21 @@ import { luuThongTinIn } from "./actions";
 import type { ClientQuoteView } from "./types";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
 
-/** Chín ô in ra, đúng thứ tự chúng xuất hiện trên giấy. */
+/**
+ * Bốn ô về KHÁCH — những thứ chỉ người lập mới biết và phải gõ cho từng bản.
+ *
+ * Năm ô còn lại của bản in không nằm ở đây nữa mà lùi vào "Mục khác…":
+ *   · Người phụ trách / SĐT / Email — gắn thẳng từ tài khoản người lập, không gõ lại.
+ *   · Ngày báo giá — mặc định hôm nay.
+ *   · Hiệu lực — mặc định 7 ngày.
+ * Chúng có giá trị đúng ở hơn 99% số bản; bày ra thành ô trống chỉ làm dải này dài
+ * thêm và làm huy hiệu "còn N ô chưa điền" kêu vì những thứ không ai cần sửa.
+ */
 const O = [
   { ten: "recipient", nhan: "Kính gửi", goiY: "Công ty CP ABC" },
   { ten: "customerPhone", nhan: "SĐT khách", goiY: "0901234567" },
   { ten: "location", nhan: "Địa điểm", goiY: "Hà Nội" },
   { ten: "scope", nhan: "Hạng mục", goiY: "Kết cấu thép và bao che" },
-  { ten: "quoteDate", nhan: "Ngày báo giá", goiY: "", kieu: "date" },
-  { ten: "salesName", nhan: "Người phụ trách", goiY: "Họ và tên" },
-  { ten: "salesPhone", nhan: "SĐT phụ trách", goiY: "0901234567" },
-  { ten: "salesEmail", nhan: "Email phụ trách", goiY: "ten@congty.com", kieu: "email" },
-  { ten: "validDays", nhan: "Hiệu lực (ngày)", goiY: "7", kieu: "number" },
 ] as const;
 
 type Ten = (typeof O)[number]["ten"];
@@ -31,12 +35,6 @@ function giaBanDau(q: ClientQuoteView): Gia {
     customerPhone: q.customerPhone ?? "",
     location: q.location ?? "",
     scope: q.scope ?? "",
-    // <input type="date"> chỉ nhận YYYY-MM-DD, không nhận chuỗi ISO đầy đủ.
-    quoteDate: q.quoteDate ? q.quoteDate.slice(0, 10) : "",
-    salesName: q.salesName ?? "",
-    salesPhone: q.salesPhone ?? "",
-    salesEmail: q.salesEmail ?? "",
-    validDays: q.validDays != null ? String(q.validDays) : "",
   };
 }
 
@@ -138,6 +136,16 @@ export function ThongTinIn({
         )}
       </div>
 
+      {/* Những gì đã lùi vào "Mục khác…" — hiện ra để nhìn là biết bản in sẽ ra gì,
+          nhưng không còn là một ô bắt phải điền. */}
+      <p className="mb-2 text-xs text-slate-400">
+        {q.quoteDate ? `Ngày báo giá ${formatDate(q.quoteDate)}` : "Chưa đặt ngày báo giá"}
+        {q.validDays != null && ` · hiệu lực ${q.validDays} ngày`}
+        {q.salesName && ` · phụ trách: ${q.salesName}`}
+        {q.salesPhone && ` · ${q.salesPhone}`}
+        {q.salesEmail && ` · ${q.salesEmail}`}
+      </p>
+
       <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3 lg:grid-cols-5">
         {O.map((o) => {
           const trong = !gia[o.ten].trim();
@@ -154,7 +162,6 @@ export function ThongTinIn({
               {canEdit ? (
                 <input
                   name={o.ten}
-                  type={"kieu" in o ? o.kieu : "text"}
                   value={gia[o.ten]}
                   placeholder={o.goiY || "chưa điền"}
                   onChange={(e) => setNhap((p) => ({ ...p, [o.ten]: e.target.value }))}

@@ -676,6 +676,54 @@ Bấm vào hạng mục bung ra đúng dòng công tác (*Dòng tôi tự gõ ·
 
 ---
 
+## Bổ sung: thông tin người phụ trách lấy từ tài khoản
+
+Dải "Thông tin in trên bản báo giá" bắt gõ tay chín ô cho từng bản, trong đó bốn ô
+gần như luôn giống nhau: người phụ trách, SĐT, email, hiệu lực — cộng thêm ngày báo
+giá vốn luôn là hôm nay.
+
+**Chỗ hỏng thật:** `generateFromQuote` — đường sinh bản gửi khách từ dự toán, tức
+đường dùng nhiều nhất — **không gán `salesName`/`salesPhone`/`salesEmail` một dòng
+nào**. Nên mọi bản sinh từ đó đều hiện "còn 3 ô chưa điền" và người lập phải gõ lại.
+Hai đường tạo còn lại thì có gán tên và email, nhưng không đường nào có SĐT.
+
+**Vì sao không có SĐT:** bảng `User` không có cột số điện thoại. Tên và email lấy được
+từ phiên đăng nhập, còn SĐT thì không có nguồn nào — nên mới phải gõ tay. Thêm
+`User.phone` là điều kiện để "gắn từ tài khoản" có nghĩa.
+
+**"Mục khác…" chính là thiết lập nâng cao**, và năm ô này đã có sẵn trong đó. Nên việc
+cần làm chỉ là bỏ chúng khỏi dải nhập ngoài, không phải dựng thêm màn hình nào.
+
+### Đã làm
+
+| Tệp | Việc |
+|---|---|
+| `prisma/migrations/20260912160000_user_phone/` | `User.phone` nullable |
+| `src/lib/nguoiLapBaoGia.ts` | `thongTinNguoiLap` — một chỗ cho cả ba đường tạo báo giá |
+| `.../client-quote/actions.ts` | `generateFromQuote` gán đủ ba dòng phụ trách |
+| `.../client-quotes/actions.ts`, `.../co-hoi/.../page.tsx` | Dùng chung helper, có thêm SĐT |
+| `.../client-quote/ThongTinIn.tsx` | Dải nhập còn **4 ô về khách**; 5 ô kia lùi vào "Mục khác…" |
+| `.../users/` | Ô số điện thoại trong hộp thoại tài khoản |
+
+Dải nhập giữ lại một **dòng chữ mờ** tóm tắt những gì đã lùi vào nâng cao (ngày, hiệu
+lực, người phụ trách) — nhìn là biết bản in sẽ ra gì, nhưng không còn là ô bắt phải điền.
+
+### Kiểm chứng
+
+Đặt SĐT cho tài khoản rồi sinh một bản gửi khách mới từ dự toán:
+
+```
+Bản MỚI:  Quản trị viên · 0912345678 · admin@cty.com · hiệu lực 7 · 12/09/2026
+Bản CŨ:   null · null · null                    (tạo trước khi sửa)
+```
+
+Trên màn hình: dải nhập còn đúng 4 ô (Kính gửi · SĐT khách · Địa điểm · Hạng mục), huy
+hiệu chuyển từ "còn 3 ô chưa điền" sang **"đã điền đủ"**, và dòng tóm tắt hiện
+*"Ngày báo giá 12/09/2026 · hiệu lực 7 ngày · phụ trách: Quản trị viên · 0912345678 ·
+admin@cty.com"*.
+
+683 test xanh, `typecheck`/`lint`/`build` sạch.
+
 ## Việc còn lại của quản trị viên
 
 1. Khai `KhuVuc` và gán vùng cho 46 nhà cung cấp — mở khoá trục vị trí.

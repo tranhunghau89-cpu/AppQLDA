@@ -17,6 +17,7 @@ import { sectionSubtotals } from "@/lib/quote";
 import { doanNhan } from "@/lib/clientQuoteSpecs";
 import { deriveLines, repriceLines, type DeriveSpec } from "@/lib/clientQuoteDerive";
 import { apDungMau } from "@/lib/quoteTemplate";
+import { thongTinNguoiLap } from "@/lib/nguoiLapBaoGia";
 import { bangConCuaMau, napMau, taoMoiKemMacDinh } from "./taoBaoGia";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -844,6 +845,8 @@ export async function generateFromQuote(
   );
 
   const title = s(form, "title").trim() || `Báo giá gửi khách — ${nguon.src.title}`;
+  // Người phụ trách in trên bản giấy = người đang bấm nút, lấy thẳng từ tài khoản.
+  const nguoiLap = await thongTinNguoiLap(await requireSession());
 
   // Cả báo giá + dòng + vật liệu + điều khoản trong MỘT giao dịch: một bản báo giá
   // có dòng tiền nhưng thiếu bảng vật liệu hay thiếu điều khoản là văn bản hỏng.
@@ -860,6 +863,7 @@ export async function generateFromQuote(
         customerPhone: boiCanh.dienThoai,
         location: nguon.src.location ?? boiCanh.location,
         scope: nguon.src.scope ?? "Kết cấu thép và bao che",
+        ...nguoiLap,
         vatPercent: k.vatPercent,
         validDays: k.validDays,
         warrantyMonths: k.warrantyMonths,

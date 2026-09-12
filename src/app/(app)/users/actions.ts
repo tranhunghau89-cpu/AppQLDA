@@ -11,6 +11,8 @@ export type ActionResult = { ok: true } | { ok: false; error: string };
 const base = z.object({
   email: z.string().trim().email("Email không hợp lệ"),
   name: z.string().trim().min(1, "Tên không được để trống"),
+  // In lên bản báo giá gửi khách ở dòng "SĐT phụ trách".
+  phone: z.string().trim().optional(),
   role: z.string().refine(isValidRole, "Vai trò không hợp lệ"),
   active: z.boolean(),
   password: z.string().optional(),
@@ -20,6 +22,7 @@ function fields(form: FormData) {
   return {
     email: String(form.get("email") ?? ""),
     name: String(form.get("name") ?? ""),
+    phone: String(form.get("phone") ?? ""),
     role: String(form.get("role") ?? "SALES"),
     active: form.get("active") === "on" || form.get("active") === "true",
     password: String(form.get("password") ?? ""),
@@ -51,6 +54,7 @@ export async function saveUser(
       const data: Record<string, unknown> = {
         email: d.email,
         name: d.name,
+        phone: d.phone || null,
         role: d.role,
         active: d.active,
       };
@@ -73,6 +77,7 @@ export async function saveUser(
         data: {
           email: d.email,
           name: d.name,
+          phone: d.phone || null,
           role: d.role,
           active: d.active,
           passwordHash: await hashPassword(d.password),

@@ -19,6 +19,9 @@ model User {
   name         String
   passwordHash String
   role         String   @default("SALES") // ADMIN | SALES | ENGINEERING | PROCUREMENT | ACCOUNTING
+  // In lên bản báo giá gửi khách ở dòng "SĐT phụ trách". Ở trên tài khoản chứ không
+  // gõ lại từng bản báo giá: một người có một số, và gõ lại là để quên.
+  phone        String?
   active       Boolean  @default(true)
   // Tăng lên mỗi khi cần vô hiệu hóa mọi phiên đang mở của user
   // (đổi mật khẩu, đổi vai trò, khóa tài khoản). Token cũ mang version cũ -> bị từ chối.

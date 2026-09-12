@@ -7,7 +7,7 @@ export default async function UsersPage() {
 
   const users = await db.user.findMany({
     orderBy: [{ role: "asc" }, { name: "asc" }],
-    select: { id: true, email: true, name: true, role: true, active: true },
+    select: { id: true, email: true, name: true, phone: true, role: true, active: true },
   });
 
   return (

@@ -16,6 +16,8 @@ import { useToast } from "@/components/ui/toast";
 export interface UserRow {
   id: string;
   email: string;
+  /** In lên bản báo giá gửi khách ở dòng "SĐT phụ trách". */
+  phone: string | null;
   name: string;
   role: string;
   active: boolean;
@@ -145,6 +147,13 @@ export function UserManager({
             </Field>
             <Field label="Email *">
               <Input name="email" type="email" defaultValue={editing?.email ?? ""} required />
+            </Field>
+            <Field label="Số điện thoại">
+              <Input
+                name="phone"
+                defaultValue={editing?.phone ?? ""}
+                placeholder="0901234567"
+              />
             </Field>
           </div>
           <Field label="Vai trò *">

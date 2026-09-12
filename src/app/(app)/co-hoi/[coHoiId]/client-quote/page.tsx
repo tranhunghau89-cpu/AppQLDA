@@ -8,6 +8,7 @@ import { templateChoices } from "@/lib/quoteTemplatePick";
 import { CO_HOI_TRANG_THAI_MAP } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
 import { formatQty } from "@/lib/utils";
+import { thongTinNguoiLap } from "@/lib/nguoiLapBaoGia";
 import { ClientQuoteEditor } from "../../../projects/[id]/client-quote/ClientQuoteEditor";
 import { napDuLieuBaoGiaKhach } from "../../../projects/[id]/client-quote/napDuLieu";
 
@@ -96,8 +97,7 @@ export default async function CoHoiClientQuotePage({
           recipient: coHoi.khachHang.tenCty,
           customerPhone: coHoi.khachHang.phone,
           location: coHoi.diaDiem,
-          salesName: session.name,
-          salesEmail: session.email,
+          ...(await thongTinNguoiLap(session)),
         }}
       />
     </div>

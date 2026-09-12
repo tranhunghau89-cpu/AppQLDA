@@ -6,6 +6,7 @@ import { requirePermission, requireSession } from "@/lib/auth";
 import { can, type Role } from "@/lib/rbac";
 import { duocDungKhachHang } from "@/lib/crmScope";
 import { recordAudit } from "@/lib/audit";
+import { thongTinNguoiLap } from "@/lib/nguoiLapBaoGia";
 import { docYeuCau, tieuDeCuoi, type OForm } from "@/lib/lapBaoGiaNhanh";
 import { taoMoiKemMacDinh } from "../projects/[id]/client-quote/taoBaoGia";
 
@@ -137,8 +138,7 @@ export async function lapBaoGiaNhanh(form: FormData): Promise<LapNhanhResult> {
       location: coHoi.loai === "MOI" ? coHoi.diaDiem : null,
       scope: "Kết cấu thép và bao che",
       quoteDate: new Date(),
-      salesName: actor.name,
-      salesEmail: actor.email,
+      ...(await thongTinNguoiLap(actor)),
     },
     templateId
   );
