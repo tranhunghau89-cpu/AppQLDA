@@ -132,25 +132,27 @@ export async function applyEstimateTemplate(
   const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa dự toán.");
   if (denied) return denied;
 
-  const template = await db.estimateTemplate.findUnique({
+  // "Mẫu hạng mục" giờ là một PHẦN của bộ hạng mục. Engine computeTemplateLines
+  // giữ nguyên — chỉ đổi tên trường khi nạp vào.
+  const template = await db.boHangMucPhan.findUnique({
     where: { id: payload.templateId },
-    include: { lines: { orderBy: { sortOrder: "asc" } } },
+    include: { dong: { orderBy: { sortOrder: "asc" } } },
   });
-  if (!template) return { ok: false, error: "Không tìm thấy mẫu hạng mục." };
+  if (!template) return { ok: false, error: "Không tìm thấy hạng mục trong thư viện." };
 
-  const lines: TemplateLine[] = template.lines.map((l) => ({
+  const lines: TemplateLine[] = template.dong.map((l) => ({
     id: l.id,
-    groupLabel: l.groupLabel,
-    name: l.name,
-    unit: l.unit,
-    defaultUnitPrice: l.defaultUnitPrice,
-    role: l.role,
-    feedsParam: l.feedsParam,
-    takesFromParam: l.takesFromParam,
-    factor: l.factor,
-    defaultQty: l.defaultQty,
-    groupCode: l.groupCode,
-    note: l.note,
+    groupLabel: l.groupLabel ?? "",
+    name: l.ten,
+    unit: l.donVi,
+    defaultUnitPrice: l.donGiaMacDinh,
+    role: l.vaiTro,
+    feedsParam: l.napThamSo,
+    takesFromParam: l.layTuThamSo,
+    factor: l.heSoQuyDoi,
+    defaultQty: l.khoiLuongMacDinh,
+    groupCode: l.nhomChiPhi,
+    note: l.ghiChu,
     sortOrder: l.sortOrder,
   }));
 
@@ -163,14 +165,14 @@ export async function applyEstimateTemplate(
   if (computed.length === 0)
     return { ok: false, error: "Chưa nhập số lượng nào — không có dòng để tạo." };
 
-  const sectionName = payload.sectionName.trim() || template.name;
+  const sectionName = payload.sectionName.trim() || template.ten;
   const count = await db.estimateSection.count({ where: { projectId } });
 
   await db.estimateSection.create({
     data: {
       projectId,
       name: sectionName,
-      code: template.code,
+      code: template.ma,
       templateId: template.id,
       sortOrder: count,
       items: {

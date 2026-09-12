@@ -21,6 +21,7 @@ import {
   chonDonGia,
   type DongGiaUngVien,
 } from "@/lib/thuVien/gia";
+import { dungKhungDuToan } from "@/lib/thuVien/boHangMuc";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -728,4 +729,149 @@ export async function boDauSuaTay(
   await db.quoteItem.update({ where: { id: itemId }, data: { giaSuaTay: false } });
   paths(chu);
   return { ok: true };
+}
+
+// ---------- Áp bộ hạng mục chuẩn ----------
+
+/**
+ * Dựng sẵn cây phần/mục và các dòng công tác của một bộ hạng mục vào một bản dự toán.
+ *
+ * Đây là thứ tiết kiệm thời gian nhất cho người lập: chọn loại công trình một phát là
+ * có khung, chỉ còn điền khối lượng.
+ *
+ * Hai điều cố ý:
+ *
+ * - CHỈ ÁP VÀO BẢN CÒN RỖNG. Trộn một bộ vào bản đã có dòng sẽ sinh phần trùng mã và
+ *   không ai đoán được kết quả; muốn thêm thì tạo bản mới rồi chép.
+ * - Đơn giá lấy từ THƯ VIỆN theo khu vực của bản, không lấy `donGiaMacDinh` của bộ —
+ *   giá trong bộ là con số soạn từ lâu, còn thư viện mới là nguồn đang sống. Dòng nào
+ *   thư viện chưa có giá thì mới rơi về số mặc định của bộ.
+ */
+export async function apBoHangMucVaoDuToan(
+  chu: ChuBaoGia,
+  quoteId: string,
+  boHangMucId: string
+): Promise<{ ok: true; soPhan: number; soDong: number; canhBao: string[] } | { ok: false; error: string }> {
+  const g = await guard(chu, { quoteId });
+  if (g) return g;
+
+  const [quote, bo] = await Promise.all([
+    db.quote.findUnique({
+      where: { id: quoteId },
+      select: {
+        markup: true,
+        khuVucId: true,
+        _count: { select: { sections: true, items: true } },
+      },
+    }),
+    db.boHangMuc.findUnique({
+      where: { id: boHangMucId },
+      include: {
+        phan: { orderBy: { sortOrder: "asc" } },
+        dong: { orderBy: { sortOrder: "asc" } },
+      },
+    }),
+  ]);
+  if (!quote) return { ok: false, error: "Không tìm thấy bản dự toán." };
+  if (!bo) return { ok: false, error: "Không tìm thấy bộ hạng mục." };
+  if (quote._count.sections > 0 || quote._count.items > 0) {
+    return {
+      ok: false,
+      error:
+        "Bản dự toán này đã có nội dung. Áp bộ hạng mục chỉ làm được trên bản còn rỗng — tạo một bản mới rồi áp.",
+    };
+  }
+
+  const khung = dungKhungDuToan(bo.phan, bo.dong);
+  if (khung.phan.length === 0) {
+    return { ok: false, error: "Bộ hạng mục này chưa khai phần nào." };
+  }
+
+  const markup = quote.markup ?? 1;
+  const ngay = new Date();
+  const congTacIds = [...new Set(khung.dong.map((d) => d.congTacId).filter((x): x is string => !!x))];
+  const ungVien = await ungVienGia(congTacIds, ngay);
+
+  await db.$transaction(async (tx) => {
+    // Tạo phần gốc trước rồi mới tới mục con: mục con cần id của cha, mà id chỉ có
+    // sau khi cha được ghi.
+    const idCuaMa = new Map<string, string>();
+    for (const p of khung.phan.filter((x) => !x.maCha)) {
+      const tao = await tx.quoteSection.create({
+        data: {
+          quoteId,
+          code: p.ma,
+          name: p.ten,
+          kind: "PHAN",
+          sortOrder: p.sortOrder,
+        },
+      });
+      idCuaMa.set(p.ma, tao.id);
+    }
+    for (const p of khung.phan.filter((x) => x.maCha)) {
+      const tao = await tx.quoteSection.create({
+        data: {
+          quoteId,
+          code: p.ma,
+          name: p.ten,
+          kind: "SUB",
+          parentId: idCuaMa.get(p.maCha!) ?? null,
+          sortOrder: p.sortOrder,
+        },
+      });
+      idCuaMa.set(p.ma, tao.id);
+    }
+
+    for (const d of khung.dong) {
+      const sectionId = idCuaMa.get(d.phanMa);
+      if (!sectionId) continue; // dungKhungDuToan đã lọc, đây là lưới an toàn
+      const kq = d.congTacId
+        ? chonDonGia(ungVien, {
+            congTacId: d.congTacId,
+            congTacVatTuId: d.congTacVatTuId,
+            khuVucId: quote.khuVucId,
+            ngay,
+          })
+        : null;
+      const giaVon = kq?.donGia ?? d.donGia;
+      await tx.quoteItem.create({
+        data: {
+          quoteId,
+          sectionId,
+          workCode: d.maCongTac,
+          name: d.ten,
+          unit: d.donVi,
+          qty: d.qty,
+          baseCost: giaVon,
+          sellPrice: giaVon === null ? null : sellFromBase(giaVon, markup),
+          sortOrder: d.sortOrder,
+          congTacId: d.congTacId,
+          congTacVatTuId: d.congTacVatTuId,
+          donGiaId: kq?.donGiaId ?? null,
+          donGiaThuVien: kq?.donGia ?? null,
+          chotGiaLuc: kq?.donGia == null ? null : ngay,
+        },
+      });
+    }
+  });
+
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "Quote",
+    entityId: quoteId,
+    entityLabel: bo.ten,
+    projectId: duAnCuaChu(chu),
+    action: "UPDATE",
+    changes: {
+      boHangMuc: { truoc: null, sau: `${bo.ma} — ${bo.ten}` },
+    },
+  });
+
+  paths(chu);
+  return {
+    ok: true,
+    soPhan: khung.phan.length,
+    soDong: khung.dong.length,
+    canhBao: khung.canhBao,
+  };
 }

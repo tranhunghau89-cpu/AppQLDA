@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -12,8 +12,11 @@ import {
   ArrowUpFromLine,
   Receipt,
   FileOutput,
+  Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
+import { Field, Select } from "@/components/ui/form";
 import { Table, THead, Th } from "@/components/ui/table";
 import { formatVND, formatDate } from "@/lib/utils";
 import { computeQuoteTotals, sectionSubtotals } from "@/lib/quote";
@@ -22,6 +25,7 @@ import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
 import { QuoteRows } from "./QuoteRows";
 import {
+  apBoHangMucVaoDuToan,
   capNhatGiaTuThuVien,
   deleteQuote,
   deleteSection,
@@ -41,6 +45,7 @@ export function QuoteCard({
   q,
   chu,
   canEdit,
+  boHangMucs,
   onEditQuote,
   onGenerateClient,
   onAddPhan,
@@ -52,6 +57,14 @@ export function QuoteCard({
   q: QuoteView;
   chu: ChuBaoGia;
   canEdit: boolean;
+  boHangMucs: {
+    id: string;
+    ma: string;
+    ten: string;
+    loaiCongTrinh: string | null;
+    soPhan: number;
+    soDong: number;
+  }[];
   onEditQuote: () => void;
   onGenerateClient: () => void;
   onAddPhan: () => void;
@@ -64,6 +77,9 @@ export function QuoteCard({
   const [, start] = useTransition();
   const confirm = useConfirm();
   const toast = useToast();
+  const [moApBo, setMoApBo] = useState(false);
+  const [boChon, setBoChon] = useState("");
+  const [loiApBo, setLoiApBo] = useState<string | null>(null);
 
   const totals = useMemo(() => computeQuoteTotals(q.items), [q.items]);
   const soDongTroiGia = useMemo(
@@ -118,6 +134,24 @@ export function QuoteCard({
       return;
     run(() => capNhatGiaTuThuVien(chu, q.id));
   }
+  function onApBo() {
+    if (!boChon) {
+      setLoiApBo("Chọn một bộ hạng mục.");
+      return;
+    }
+    start(async () => {
+      const res = await apBoHangMucVaoDuToan(chu, q.id, boChon);
+      if (!res.ok) {
+        setLoiApBo(res.error);
+        return;
+      }
+      setMoApBo(false);
+      const them = res.canhBao.length > 0 ? ` (${res.canhBao.length} cảnh báo)` : "";
+      toast.success(`Đã dựng ${res.soPhan} phần và ${res.soDong} dòng${them}.`);
+      router.refresh();
+    });
+  }
+
   async function onPush() {
     if (
       !(await confirm(`Đặt giá bán dự án = tổng báo giá (${formatVND(totals.sell)})?`, {
@@ -170,6 +204,21 @@ export function QuoteCard({
           </Link>
           {canEdit && (
             <>
+              {/* Chỉ áp được vào bản CÒN RỖNG — trộn một bộ vào bản đã có dòng sẽ
+                  sinh phần trùng mã và không ai đoán được kết quả. */}
+              {q.sections.length === 0 && q.items.length === 0 && boHangMucs.length > 0 && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setBoChon("");
+                    setLoiApBo(null);
+                    setMoApBo(true);
+                  }}
+                >
+                  <Layers className="h-3.5 w-3.5" /> Áp bộ hạng mục
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={onGenerateClient}>
                 <FileOutput className="h-3.5 w-3.5" /> Tạo báo giá gửi khách
               </Button>
@@ -249,6 +298,44 @@ export function QuoteCard({
           </div>
         </dl>
       </div>
+
+      <Modal
+        open={moApBo}
+        onClose={() => setMoApBo(false)}
+        title="Áp bộ hạng mục chuẩn"
+      >
+        <div className="space-y-3">
+          <Field label="Chọn bộ *">
+            <Select value={boChon} onChange={(e) => setBoChon(e.target.value)}>
+              <option value="">— Chọn bộ hạng mục —</option>
+              {boHangMucs.map((b) => (
+                <option key={b.id} value={b.id} disabled={b.soPhan === 0}>
+                  {b.ma} — {b.ten}
+                  {b.loaiCongTrinh ? ` (${b.loaiCongTrinh})` : ""} · {b.soPhan} phần,{" "}
+                  {b.soDong} dòng
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <p className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">
+            Dựng sẵn cây phần/mục và các dòng công tác của bộ vào bản này. Đơn giá lấy
+            từ <strong>thư viện</strong> theo khu vực{" "}
+            <strong>{q.khuVucTen ?? "chung"}</strong> của bản dự toán, không lấy số mặc
+            định đã soạn từ lâu trong bộ. Khối lượng để trống cho người lập điền.
+          </p>
+          {loiApBo && (
+            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{loiApBo}</p>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={() => setMoApBo(false)}>
+              Hủy
+            </Button>
+            <Button type="button" onClick={onApBo} disabled={!boChon}>
+              Áp bộ hạng mục
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

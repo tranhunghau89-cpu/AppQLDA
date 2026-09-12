@@ -6,23 +6,28 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { apDungMau, type KhuonBaoGia, type MauNguon } from "@/lib/quoteTemplate";
+import { dungKhuonGuiKhach } from "@/lib/thuVien/boHangMuc";
 import { duLieuChu, type ChuBaoGia } from "@/lib/quoteOwner";
 
 /**
- * Nạp một mẫu trong thư viện về dạng thuần để `apDungMau` nấu.
+ * Nạp một BỘ HẠNG MỤC về dạng thuần để `apDungMau` nấu.
  *
- * Mẫu đã bị xóa (hoặc id bịa) trả null — báo giá vẫn lập được bằng giá trị mặc
- * định, chứ không báo lỗi chặn người dùng lại.
+ * Nguồn đã đổi từ bảng mẫu báo giá cũ sang bộ hạng mục, nhưng hình dạng trả về giữ
+ * nguyên `MauNguon` — nên `apDungMau` và cả đường sinh dòng báo giá không phải sửa
+ * một chữ. Đổi nguồn mà không đổi khế ước là cách thay móng mà không dỡ nhà.
+ *
+ * Bộ đã bị xóa (hoặc id bịa) trả null — báo giá vẫn lập được bằng giá trị mặc định,
+ * chứ không báo lỗi chặn người dùng lại.
  */
 export async function napMau(templateId: string | null): Promise<MauNguon | null> {
   if (!templateId) return null;
-  const t = await db.quoteTemplate.findUnique({
+  const t = await db.boHangMuc.findUnique({
     where: { id: templateId },
     include: {
-      lines: { orderBy: { sortOrder: "asc" } },
-      specs: { orderBy: { sortOrder: "asc" } },
-      stages: { orderBy: { sortOrder: "asc" } },
-      payments: { orderBy: { sortOrder: "asc" } },
+      phan: { orderBy: { sortOrder: "asc" } },
+      vatLieu: { orderBy: { sortOrder: "asc" }, include: { vatTu: true } },
+      giaiDoan: { orderBy: { sortOrder: "asc" } },
+      thanhToan: { orderBy: { sortOrder: "asc" } },
     },
   });
   if (!t) return null;
@@ -41,33 +46,23 @@ export async function napMau(templateId: string | null): Promise<MauNguon | null
     colorNote: t.colorNote,
     volumeNote: t.volumeNote,
     excludeNote: t.excludeNote,
-    lines: t.lines.map((l) => ({
-      partCode: l.partCode,
-      partName: l.partName,
-      code: l.code,
-      name: l.name,
-      detail: l.detail,
-      unit: l.unit,
-      note: l.note,
-      defaultUnitPrice: l.defaultUnitPrice,
-      tags: l.tags,
-      sourceSectionCode: l.sourceSectionCode,
-      steelFrameKey: l.steelFrameKey,
+    lines: dungKhuonGuiKhach(t.phan),
+    // Bảng TSKT giờ lấy chữ từ vật tư trong thư viện: sửa quy cách tôn một chỗ là
+    // mọi bộ dùng nó cùng đổi, thay vì phải sửa từng mẫu như trước.
+    specs: t.vatLieu.map((r) => ({
+      groupCode: r.vatTu.nhomTSKT === "B" ? "B" : "A",
+      tag: r.vatTu.tag,
+      name: r.vatTu.ten,
+      spec: r.vatTu.quyCach,
+      origin: r.vatTu.xuatXu,
+      inDescription: r.vatTu.inTrongMoTa,
     })),
-    specs: t.specs.map((r) => ({
-      groupCode: r.groupCode === "B" ? "B" : "A",
-      tag: r.tag,
-      name: r.name,
-      spec: r.spec,
-      origin: r.origin,
-      inDescription: r.inDescription,
-    })),
-    stages: t.stages.map((r) => ({ name: r.name, days: r.days ?? 0 })),
-    payments: t.payments.map((r) => ({
-      label: r.label,
-      percent: r.percent ?? 0,
-      basis: r.basis,
-      note: r.note,
+    stages: t.giaiDoan.map((r) => ({ name: r.ten, days: r.soNgay ?? 0 })),
+    payments: t.thanhToan.map((r) => ({
+      label: r.nhan,
+      percent: r.phanTram ?? 0,
+      basis: r.canCu,
+      note: r.ghiChu,
     })),
   };
 }

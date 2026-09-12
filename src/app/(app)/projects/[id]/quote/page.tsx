@@ -68,6 +68,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
         templates={mau.options}
         templateGoiY={mau.goiY}
         khuVucs={duLieu.khuVucs}
+        boHangMucs={duLieu.boHangMucs}
         khuVucMacDinh={project.khuVucId}
       />
     </div>

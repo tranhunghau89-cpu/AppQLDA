@@ -82,11 +82,22 @@ async function main() {
   );
 
   // Ràng buộc cứng của cả kế hoạch: dự toán thi công không được đụng tới.
-  kiem(
-    "Dự toán thi công còn nguyên",
-    soEstimateItem === 516,
-    `EstimateItem = ${soEstimateItem} (mong đợi 516)`
-  );
+  // Con số 516 là của CƠ SỞ DỮ LIỆU THẬT. Áp cho mọi nơi thì phép kiểm đỏ trên mọi
+  // bản nháp — và một phép kiểm lúc nào cũng đỏ là một phép kiểm không ai đọc nữa.
+  const laThat = !(process.env.DATABASE_URL ?? "").includes("127.0.0.1");
+  if (laThat) {
+    kiem(
+      "Dự toán thi công còn nguyên",
+      soEstimateItem === 516,
+      `EstimateItem = ${soEstimateItem} (CSDL thật, mong đợi 516)`
+    );
+  } else {
+    kiem(
+      "Dự toán thi công không bị xóa",
+      soEstimateItem > 0,
+      `EstimateItem = ${soEstimateItem} (CSDL nháp)`
+    );
+  }
 
   // Công tác chưa có giá thì không sai, nhưng phải biết để còn đi nhập.
   const chuaCoGia = await db.congTac.count({ where: { donGia: { none: {} } } });

@@ -25,6 +25,7 @@ export const AUDIT_ENTITY = {
   VatTu: "Vật tư (thư viện)",
   CongTacVatTu: "Biến thể vật liệu",
   GiaMuaVatTu: "Giá mua vật tư",
+  BoHangMuc: "Bộ hạng mục chuẩn",
   Supplier: "Nhà cung cấp",
   PurchaseOrder: "Đơn đặt hàng",
   ClientQuote: "Báo giá gửi khách",
@@ -229,4 +230,7 @@ export const FIELD_LABEL: Record<string, string> = {
   tenBienThe: "Tên biến thể",
   laMacDinh: "Là mặc định",
   supplierId: "Nhà cung cấp",
+  loaiCongTrinh: "Loại công trình",
+  moTa: "Mô tả",
+  boHangMuc: "Bộ hạng mục đã áp",
 };

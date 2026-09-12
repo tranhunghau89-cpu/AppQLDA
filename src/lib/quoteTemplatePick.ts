@@ -24,11 +24,20 @@ export interface TemplateChoices {
 export async function templateChoices(
   buildingType: string | null | undefined
 ): Promise<TemplateChoices> {
-  const rows = await db.quoteTemplate.findMany({
+  // Đọc từ BỘ HẠNG MỤC, không còn từ bảng mẫu báo giá cũ. `matchTemplate` nhận hình
+  // dạng { buildingType, sortOrder } nên chỉ cần đổi tên trường ở đây — không đụng
+  // vào hàm đã có bộ test tie-break riêng.
+  const bos = await db.boHangMuc.findMany({
     where: { active: true },
     orderBy: { sortOrder: "asc" },
-    select: { id: true, name: true, buildingType: true, sortOrder: true },
+    select: { id: true, ten: true, loaiCongTrinh: true, sortOrder: true },
   });
+  const rows = bos.map((b) => ({
+    id: b.id,
+    name: b.ten,
+    buildingType: b.loaiCongTrinh,
+    sortOrder: b.sortOrder,
+  }));
 
   const hop = matchTemplate(rows, buildingType);
   return {

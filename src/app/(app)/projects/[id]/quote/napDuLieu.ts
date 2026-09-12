@@ -20,10 +20,11 @@ export async function napDuLieuBaoGia(
   catalog: CatalogOption[];
   cloneSources: CloneSourceRow[];
   khuVucs: { id: string; ma: string; ten: string }[];
+  boHangMucs: { id: string; ma: string; ten: string; loaiCongTrinh: string | null; soPhan: number; soDong: number }[];
 }> {
   const ngay = new Date();
 
-  const [rawQuotes, congTacs, banGias, khuVucs, cloneSources] = await Promise.all([
+  const [rawQuotes, congTacs, banGias, khuVucs, boRows, cloneSources] = await Promise.all([
     db.quote.findMany({
       where: whereCuaChu(chu),
       orderBy: { createdAt: "desc" },
@@ -78,6 +79,17 @@ export async function napDuLieuBaoGia(
       where: { active: true },
       orderBy: [{ sortOrder: "asc" }, { ma: "asc" }],
       select: { id: true, ma: true, ten: true },
+    }),
+    db.boHangMuc.findMany({
+      where: { active: true },
+      orderBy: [{ sortOrder: "asc" }, { ma: "asc" }],
+      select: {
+        id: true,
+        ma: true,
+        ten: true,
+        loaiCongTrinh: true,
+        _count: { select: { phan: true, dong: true } },
+      },
     }),
     // Chép được từ mọi bản dự toán trong phạm vi — dự án được phân công lẫn cơ hội của
     // khách mình phụ trách.
@@ -159,5 +171,14 @@ export async function napDuLieuBaoGia(
     })),
   }));
 
-  return { quotes, catalog, cloneSources, khuVucs };
+  const boHangMucs = boRows.map((b) => ({
+    id: b.id,
+    ma: b.ma,
+    ten: b.ten,
+    loaiCongTrinh: b.loaiCongTrinh,
+    soPhan: b._count.phan,
+    soDong: b._count.dong,
+  }));
+
+  return { quotes, catalog, cloneSources, khuVucs, boHangMucs };
 }

@@ -91,6 +91,7 @@ export default async function CoHoiQuotePage({
         templates={mau.options}
         templateGoiY={mau.goiY}
         khuVucs={duLieu.khuVucs}
+        boHangMucs={duLieu.boHangMucs}
         // Cơ hội chưa có dự án nên không có khu vực mặc định — người lập tự chọn.
         khuVucMacDinh={null}
       />

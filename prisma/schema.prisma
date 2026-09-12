@@ -1067,6 +1067,7 @@ model CongTac {
   donGia     DonGiaCongTac[]
   bienThe    CongTacVatTu[]
   dongBaoGia QuoteItem[]
+  dongMau    BoHangMucDong[]
 
   @@index([nhomMa, sortOrder])
   @@index([active])
@@ -1158,6 +1159,7 @@ model VatTu {
 
   congTacLinks CongTacVatTu[]
   giaMua       GiaMuaVatTu[]
+  boHangMuc    BoHangMucVatTu[]
 
   @@index([nhomTSKT, sortOrder])
   @@index([tag])
@@ -1178,6 +1180,7 @@ model CongTacVatTu {
 
   donGia     DonGiaCongTac[]
   dongBaoGia QuoteItem[]
+  dongMau    BoHangMucDong[]
 
   @@unique([congTacId, vatTuId])
   @@index([vatTuId])
@@ -1211,4 +1214,166 @@ model GiaMuaVatTu {
   @@index([vatTuId, hieuLucTu])
   @@index([supplierId, hieuLucTu])
   @@index([khuVucId])
+}
+
+// ===================== BỘ HẠNG MỤC CHUẨN =====================
+//
+// Khung hạng mục theo LOẠI CÔNG TRÌNH: chọn một bộ là có sẵn cây phần/mục và danh
+// sách dòng công tác, chỉ còn việc điền khối lượng.
+//
+// Gộp EstimateTemplate và QuoteTemplate vào MỘT bảng vì chúng mô tả cùng một công
+// trình từ hai phía: mẫu dự toán là các dòng CHI PHÍ, mẫu báo giá là các dòng IN CHO
+// KHÁCH. Để tách thì thêm một hạng mục phải sửa hai chỗ, và lệch nhau là chuyện sớm
+// muộn — đúng cái bệnh mà cả thư viện này sinh ra để chữa.
+
+model BoHangMuc {
+  id            String  @id @default(cuid())
+  ma            String  @unique
+  ten           String
+  loaiCongTrinh String? // khớp Project.buildingType, so khớp bỏ dấu/hoa thường
+  moTa          String?
+  active        Boolean @default(true)
+  sortOrder     Int     @default(0)
+
+  // --- mặc định cho VĂN BẢN gửi khách (nguyên bộ cột của QuoteTemplate) ---
+  vatPercent        Float?  @default(10)
+  validDays         Int?    @default(7)
+  warrantyMonths    Int?    @default(12)
+  maintenanceMonths Int?    @default(120)
+  loadRoof          Float?
+  loadHanging       Float?
+  loadFloor         Float?
+  lineDetail        String?
+  greeting          String?
+  closing           String?
+  colorNote         String?
+  volumeNote        String?
+  excludeNote       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  phan      BoHangMucPhan[]
+  dong      BoHangMucDong[]
+  vatLieu   BoHangMucVatTu[]
+  giaiDoan  BoHangMucGiaiDoan[]
+  thanhToan BoHangMucThanhToan[]
+
+  @@index([loaiCongTrinh])
+  @@index([active, sortOrder])
+}
+
+// Một "phần" của bộ — đồng thời là khuôn QuoteSection (nội bộ) VÀ khuôn
+// ClientQuoteLine (gửi khách). Một dòng, hai mặt: hết cảnh `sourceSectionCode` trỏ
+// bằng chuỗi giữa hai bảng mẫu rời nhau.
+model BoHangMucPhan {
+  id          String    @id @default(cuid())
+  boHangMucId String
+  boHangMuc   BoHangMuc @relation(fields: [boHangMucId], references: [id], onDelete: Cascade)
+
+  ma        String // "A" / "I"
+  ten       String
+  loai      String          @default("PHAN") // PHAN | SUB
+  parentId  String?
+  parent    BoHangMucPhan?  @relation("CayPhan", fields: [parentId], references: [id], onDelete: Cascade)
+  children  BoHangMucPhan[] @relation("CayPhan")
+  sortOrder Int             @default(0)
+
+  // --- mặt gửi khách ---
+  // false = phần này chỉ để tính giá vốn, không lên bản gửi khách.
+  inChoKhach    Boolean  @default(true)
+  partCode      String   @default("I")
+  partName      String   @default("Phần kết cấu thép")
+  maKhach       String? // "01"
+  tenKhachHang  String? // tên dài in cho khách; null = dùng `ten`
+  moTaKhachHang String? // gạch đầu dòng
+  donViKhach    String?  @default("m2")
+  donGiaKhach   Float? // đơn giá m² mặc định; null = suy từ giá vốn của phần
+  ghiChuKhach   String?
+  tags          String[] // VAT_TU_TAG
+  steelFrameKey String?
+
+  dong BoHangMucDong[]
+
+  @@unique([boHangMucId, ma])
+  @@index([parentId])
+}
+
+// Dòng công tác trong khuôn.
+//
+// GIỮ NGUYÊN bốn cột tham số của EstimateTemplateLine (vaiTro/napThamSo/layTuThamSo/
+// heSoQuyDoi) — đó chính là lý do `computeTemplateLines` dùng lại được không sửa một
+// dòng nào. Cơ chế: dòng INPUT nạp khối lượng vào một tham số, dòng DERIVED lấy khối
+// lượng = tham số × hệ số.
+model BoHangMucDong {
+  id          String         @id @default(cuid())
+  boHangMucId String
+  boHangMuc   BoHangMuc      @relation(fields: [boHangMucId], references: [id], onDelete: Cascade)
+  phanId      String?
+  phan        BoHangMucPhan? @relation(fields: [phanId], references: [id], onDelete: SetNull)
+
+  congTacId      String?
+  congTac        CongTac?      @relation(fields: [congTacId], references: [id], onDelete: SetNull)
+  congTacVatTuId String?
+  bienThe        CongTacVatTu? @relation(fields: [congTacVatTuId], references: [id], onDelete: SetNull)
+  // Chụp lại mã công tác để bộ khung còn đọc được khi công tác bị xóa khỏi thư viện.
+  maCongTac      String?
+
+  ten              String
+  donVi            String?
+  donGiaMacDinh    Float?
+  khoiLuongMacDinh Float?
+  groupLabel       String? // nhãn nhóm cấp 2 phía dự toán thi công
+  nhomChiPhi       String  @default("KHAC") // ESTIMATE_GROUP
+  ghiChu           String?
+  sortOrder        Int     @default(0)
+
+  // --- engine tham số ---
+  vaiTro      String  @default("INPUT") // INPUT | DERIVED
+  napThamSo   String?
+  layTuThamSo String?
+  heSoQuyDoi  Float?  @default(1)
+
+  @@index([boHangMucId, sortOrder])
+  @@index([phanId])
+  @@index([congTacId])
+}
+
+// Bảng "Vật liệu áp dụng & TSKT" của bộ — trỏ vào VatTu master thay vì gõ lại chữ.
+// Đây là chỗ đơn giản hoá thật sự: trước đây mỗi mẫu báo giá tự giữ 16 dòng chữ
+// riêng, sửa quy cách tôn phải sửa từng mẫu một.
+model BoHangMucVatTu {
+  id          String    @id @default(cuid())
+  boHangMucId String
+  boHangMuc   BoHangMuc @relation(fields: [boHangMucId], references: [id], onDelete: Cascade)
+  vatTuId     String
+  vatTu       VatTu     @relation(fields: [vatTuId], references: [id], onDelete: Cascade)
+  sortOrder   Int       @default(0)
+
+  @@unique([boHangMucId, vatTuId])
+  @@index([boHangMucId, sortOrder])
+}
+
+model BoHangMucGiaiDoan {
+  id          String    @id @default(cuid())
+  boHangMucId String
+  boHangMuc   BoHangMuc @relation(fields: [boHangMucId], references: [id], onDelete: Cascade)
+  ten         String
+  soNgay      Int?
+  sortOrder   Int       @default(0)
+
+  @@index([boHangMucId, sortOrder])
+}
+
+model BoHangMucThanhToan {
+  id          String    @id @default(cuid())
+  boHangMucId String
+  boHangMuc   BoHangMuc @relation(fields: [boHangMucId], references: [id], onDelete: Cascade)
+  nhan        String
+  phanTram    Float?
+  canCu       String?
+  ghiChu      String?
+  sortOrder   Int       @default(0)
+
+  @@index([boHangMucId, sortOrder])
 }

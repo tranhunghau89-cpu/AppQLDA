@@ -103,21 +103,19 @@ const NAV: NavGroup[] = [
         label: "Thư viện đơn giá",
         icon: Library,
         resource: "thuVien",
+        khopThem: ["/thu-vien/vat-tu", "/thu-vien/khu-vuc"],
       },
       { href: "/customers", label: "Chủ đầu tư", icon: Building2, resource: "customer" },
       { href: "/suppliers", label: "Nhà cung cấp", icon: Truck, resource: "supplier" },
       { href: "/tools", label: "Tra cứu & Bóc KL", icon: Ruler },
       {
-        href: "/estimate-templates",
-        label: "Mẫu dự toán",
+        href: "/thu-vien/bo-hang-muc",
+        label: "Bộ hạng mục chuẩn",
         icon: LayoutTemplate,
-        resource: "template",
-      },
-      {
-        href: "/quote-templates",
-        label: "Mẫu báo giá",
-        icon: LayoutTemplate,
-        resource: "template",
+        resource: "thuVien",
+        // Hai mục "Mẫu dự toán" và "Mẫu báo giá" cũ đã gộp vào đây; giữ đường dẫn cũ
+        // để bookmark còn chạy, nhưng menu chỉ nên có một lối vào.
+        khopThem: ["/estimate-templates", "/quote-templates"],
       },
     ],
   },

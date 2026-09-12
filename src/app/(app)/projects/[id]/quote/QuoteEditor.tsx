@@ -30,6 +30,7 @@ export function QuoteEditor({
   templateGoiY,
   khuVucs,
   khuVucMacDinh,
+  boHangMucs,
 }: {
   /** Dự toán này thuộc dự án hay cơ hội chào giá — quyết định action ghi vào đâu. */
   chu: ChuBaoGia;
@@ -46,6 +47,8 @@ export function QuoteEditor({
   khuVucs: { id: string; ma: string; ten: string }[];
   /** Khu vực của dự án; chọn sẵn khi tạo bản dự toán mới. */
   khuVucMacDinh: string | null;
+  /** Bộ hạng mục áp được vào một bản dự toán còn rỗng. */
+  boHangMucs: { id: string; ma: string; ten: string; loaiCongTrinh: string | null; soPhan: number; soDong: number }[];
 }) {
   const router = useRouter();
   const [quoteModal, setQuoteModal] = useState<{ editing: QuoteView | null } | null>(null);
@@ -116,6 +119,7 @@ export function QuoteEditor({
           onEditSection={(s) =>
             openSection(q, s, s.kind as "PHAN" | "SUB", s.parentId ?? "")
           }
+          boHangMucs={boHangMucs}
           onAddItem={(sectionId) => openItem(q, sectionId, null)}
           onEditItem={(it) => openItem(q, it.sectionId, it)}
         />

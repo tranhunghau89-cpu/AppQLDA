@@ -32,31 +32,33 @@ export default async function EstimatePage({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
-    db.estimateTemplate.findMany({
-      where: { active: true },
-      orderBy: { sortOrder: "asc" },
-      include: { lines: { orderBy: { sortOrder: "asc" } } },
+    // Mỗi PHẦN của bộ hạng mục là một "mẫu" áp được vào dự toán thi công. Engine
+    // INPUT/DERIVED không đổi, chỉ đổi nguồn đọc.
+    db.boHangMucPhan.findMany({
+      where: { boHangMuc: { active: true } },
+      orderBy: [{ boHangMuc: { sortOrder: "asc" } }, { sortOrder: "asc" }],
+      include: { dong: { orderBy: { sortOrder: "asc" } } },
     }),
   ]);
   if (!project) notFound();
 
   const templates: TemplateForClient[] = templateRows.map((t) => ({
     id: t.id,
-    name: t.name,
-    code: t.code,
-    lines: t.lines.map((l) => ({
+    name: t.ten,
+    code: t.ma,
+    lines: t.dong.map((l) => ({
       id: l.id,
-      groupLabel: l.groupLabel,
-      name: l.name,
-      unit: l.unit,
-      defaultUnitPrice: l.defaultUnitPrice,
-      role: l.role,
-      feedsParam: l.feedsParam,
-      takesFromParam: l.takesFromParam,
-      factor: l.factor,
-      defaultQty: l.defaultQty,
-      groupCode: l.groupCode,
-      note: l.note,
+      groupLabel: l.groupLabel ?? "",
+      name: l.ten,
+      unit: l.donVi,
+      defaultUnitPrice: l.donGiaMacDinh,
+      role: l.vaiTro,
+      feedsParam: l.napThamSo,
+      takesFromParam: l.layTuThamSo,
+      factor: l.heSoQuyDoi,
+      defaultQty: l.khoiLuongMacDinh,
+      groupCode: l.nhomChiPhi,
+      note: l.ghiChu,
       sortOrder: l.sortOrder,
     })),
   }));

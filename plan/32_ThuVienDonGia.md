@@ -185,8 +185,76 @@ Thẻ báo giá đếm **1** dòng lệch (loại đúng dòng sửa tay). Hộp
 
 ---
 
+---
+
+# Giai đoạn 4 — Bộ hạng mục chuẩn (gộp hai bảng mẫu cũ)
+
+## Vì sao
+
+App có hai bảng mẫu mô tả **cùng một công trình từ hai phía**: `EstimateTemplate` là các dòng chi phí, `QuoteTemplate` là các dòng in cho khách. Thêm một hạng mục phải sửa hai chỗ, và lệch nhau là chuyện sớm muộn — đúng cái bệnh mà cả thư viện này sinh ra để chữa.
+
+## Ba điều đếm dữ liệu mới thấy
+
+1. **`EstimateSection = 0`** — đường "áp mẫu dự toán" chưa từng được dùng thật; 516 dòng dự toán đều nhập từ Excel. Đổi đường đó ít rủi ro hơn nhiều so với dự đoán ban đầu.
+2. Năm mẫu dự toán là **A Khung mái · B Vách · C Canopy · D Nóc gió · E Dầm sàn** — mã A–E cho thấy chúng là **năm phần của một nhà xưởng**, không phải năm loại công trình. Kế hoạch duyệt ban đầu ghi "chuyển 1:1 máy móc"; dữ liệu thật cho thấy 1:1 sẽ ra kết quả vô nghĩa nên đã hỏi lại và chốt gộp thành **một bộ, năm phần**.
+3. Hai dòng `QuoteTemplateLine` có `sourceSectionCode` = **"A"** và **"B"** — đúng bằng `code` của hai mẫu dự toán *Khung mái* và *Vách*. Cột đó sinh ra chính để nối hai mặt, nên phép gộp là **cơ học chứ không phải phỏng đoán**.
+
+## Quyết định thiết kế
+
+**Một `BoHangMucPhan` mang HAI mặt**: mặt chi phí (các `BoHangMucDong`) và mặt gửi khách (`inChoKhach` + `tenKhachHang` + `tags` + `partCode`…). Hết cảnh `sourceSectionCode` trỏ bằng chuỗi giữa hai bảng rời nhau.
+
+**Giữ nguyên bốn cột tham số INPUT/DERIVED** trên `BoHangMucDong` — đó chính là lý do `computeTemplateLines` dùng lại được **không sửa một dòng nào**, chỉ đổi tên trường ở chỗ nạp.
+
+**`napMau` đổi NGUỒN nhưng giữ nguyên KHẾ ƯỚC `MauNguon`** — nên `apDungMau`, `deriveLines` và cả đường sinh báo giá khách không phải sửa một chữ. Thay móng mà không dỡ nhà.
+
+**Bảng TSKT giờ trỏ vào `VatTu`**: 32 dòng chữ tự do của hai mẫu gộp còn **19 vật tư** (băm id từ *tên + quy cách* nên dòng trùng cho ra cùng một vật tư — gộp trùng miễn phí và migration chạy lại được). Từ nay sửa quy cách tôn một chỗ là mọi bộ dùng nó cùng đổi.
+
+**`apBoHangMucVaoDuToan` CHỈ áp vào bản còn rỗng.** Trộn một bộ vào bản đã có dòng sẽ sinh phần trùng mã và không ai đoán được kết quả.
+
+**Đơn giá lấy từ THƯ VIỆN theo khu vực của bản**, không lấy `donGiaMacDinh` đã soạn từ lâu trong bộ; số trong bộ chỉ là dự phòng khi thư viện chưa có giá.
+
+**`BoHangMucDong.phanId` là SET NULL**, không CASCADE: xóa một phần không được kéo theo các dòng công tác trong đó — chúng chỉ rơi ra ngoài cây và gắn lại được.
+
+## Đã làm
+
+| Tệp | Việc |
+|---|---|
+| `prisma/migrations/20260912120000_bo_hang_muc/` | 6 bảng mới, chỉ thêm |
+| `prisma/migrations/20260912121000_chuyen_doi_mau_cu/` | Gộp 2 + 5 mẫu cũ; mọi id tất định (giữ id cũ hoặc băm md5) nên chạy lại không sinh bản sao |
+| `src/lib/thuVien/boHangMuc.ts` + `.test.ts` | `dungKhungDuToan`, `dungKhuonGuiKhach` — thuần, 15 test |
+| `.../quote/actions.ts` | `apBoHangMucVaoDuToan` |
+| `.../quote/QuoteCard.tsx` | Nút + hộp thoại "Áp bộ hạng mục", chỉ hiện trên bản rỗng |
+| `src/app/(app)/thu-vien/bo-hang-muc/` | Danh sách bộ, sửa bộ, sửa phần (bật/tắt mặt gửi khách) |
+| `src/lib/quoteTemplatePick.ts` | Chọn mẫu đọc từ `BoHangMuc`; `matchTemplate` không đụng tới |
+| `.../client-quote/taoBaoGia.ts` | `napMau` đọc bộ hạng mục; TSKT lấy từ `VatTu` |
+| `.../estimate/{page,actions}.tsx` | "Mẫu hạng mục" giờ là một PHẦN của bộ |
+| `/quote-templates`, `/estimate-templates` | Chuyển hướng về `/thu-vien/bo-hang-muc`; menu gộp còn một lối vào |
+| `scripts/kiem-tra-bo-hang-muc.ts` | Đối soát phép gộp (`npm run kiemtra:bo-hang-muc`) |
+
+Tiện thể sửa một khuyết trong cả hai script đối soát: chúng hard-code `EstimateItem = 516` (số của CSDL thật) nên **luôn đỏ trên mọi bản nháp** — mà một phép kiểm lúc nào cũng đỏ là một phép kiểm không ai đọc nữa. Giờ nhận biết môi trường.
+
+## Kiểm chứng
+
+Đối soát 9/9 đạt, và cấu trúc gộp in ra đọc được bằng mắt:
+
+```
+[BHM-5BF38E] Nhà xưởng kết cấu thép + bao che — loại: Nhà xưởng · 90 dòng · 16 vật liệu
+   A. Khung mái — 32 dòng — gửi khách: 01 Khung thép và tôn phần mái
+   B. Vách     — 14 dòng — gửi khách: 02 Phần thưng
+   C. Canopy   — 15 dòng — chỉ tính giá vốn
+   D. Nóc gió  — 15 dòng — chỉ tính giá vốn
+   E. Dầm sàn  — 14 dòng — chỉ tính giá vốn
+```
+
+Bấm nút thật trên trình duyệt, áp bộ vào một bản dự toán rỗng ở Miền Nam (hệ số ×1,2): dựng đúng **5 phần A–E** và **90 dòng** theo phân bổ 32/14/15/15/14, giá bán = giá vốn × 1,2 (80.000→96.000, 20.580→24.696), khối lượng để trống. Áp xong nút biến mất — chốt chặn "chỉ áp vào bản rỗng" hoạt động ở cả giao diện lẫn server action.
+
+618 test xanh, `typecheck`/`lint`/`build` sạch.
+
+---
+
 ## Phase sau
 
-5. Bộ hạng mục chuẩn — hấp thụ `EstimateTemplate*` **và** `QuoteTemplate*` vào một khuôn
 6. Nối xuống dự toán thi công qua `CongTac.nhomChiPhi`
-7. Nhập Excel thư viện · dọn các bảng cũ
+7. Nhập Excel thư viện · dọn các bảng cũ (`WorkPrice`, `QuoteTemplate*`, `EstimateTemplate*`)
+
+Việc còn lại của quản trị viên: 90 dòng công tác trong bộ **chưa gắn `congTacId`** (tên là chữ tự do, không có cách khớp tự động an toàn với 135 mã công tác). Gắn dần trên giao diện thì chúng mới ăn được đơn giá theo khu vực/vật liệu.
