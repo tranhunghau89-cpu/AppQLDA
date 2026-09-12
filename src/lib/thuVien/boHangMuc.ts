@@ -40,6 +40,8 @@ export interface DongKhung {
   donVi: string | null;
   donGiaMacDinh: number | null;
   khoiLuongMacDinh: number | null;
+  /** Khối lượng trên một đơn vị diện tích của phần chứa dòng này. */
+  suatKhoiLuong: number | null;
   sortOrder: number;
 }
 
@@ -62,6 +64,8 @@ export interface DongDuToan {
   donVi: string | null;
   qty: number | null;
   donGia: number | null;
+  /** Khối lượng trên một đơn vị diện tích của phần; null = không tỉ lệ diện tích. */
+  suatKhoiLuong: number | null;
   sortOrder: number;
 }
 
@@ -192,6 +196,7 @@ export function dungKhungDuToan(
       ten: d.ten,
       donVi: d.donVi,
       qty: d.khoiLuongMacDinh,
+      suatKhoiLuong: d.suatKhoiLuong,
       donGia: d.donGiaMacDinh,
       sortOrder: d.sortOrder,
     });
@@ -226,4 +231,105 @@ export function dungKhuonGuiKhach(phanNguon: readonly PhanKhung[]): LineSeed[] {
       sourceSectionCode: p.ma,
       steelFrameKey: p.steelFrameKey,
     }));
+}
+
+// ----- Thư viện khối lượng -----
+
+/**
+ * Rót khối lượng vào các dòng theo suất × diện tích phần.
+ *
+ * Dòng có suất và phần có diện tích thì khối lượng được TÍNH; ngoài ra giữ nguyên
+ * `qty` sẵn có (số tuyệt đối trong bộ, cho những dòng không tỉ lệ diện tích như
+ * "vận chuyển: 2 chuyến").
+ *
+ * Diện tích ≤ 0 coi như chưa khai — nhân với 0 cho ra khối lượng 0, mà 0 và "chưa
+ * biết" là hai chuyện khác nhau khi người lập nhìn bảng.
+ */
+export function ropKhoiLuongTheoDienTich(
+  dong: readonly DongDuToan[],
+  dienTich: Readonly<Record<string, number | null | undefined>>
+): DongDuToan[] {
+  return dong.map((d) => {
+    if (d.suatKhoiLuong == null || !Number.isFinite(d.suatKhoiLuong)) return { ...d };
+    const dt = dienTich[d.phanMa];
+    if (dt == null || !Number.isFinite(dt) || dt <= 0) return { ...d };
+    const kl = d.suatKhoiLuong * dt;
+    return { ...d, qty: Number.isFinite(kl) ? kl : d.qty };
+  });
+}
+
+/** Một dòng của bản dự toán dùng làm mẫu để rút suất. */
+export interface DongMauSuat {
+  phanMa: string;
+  maCongTac: string | null;
+  qty: number | null;
+}
+
+export interface SuatRutRa {
+  phanMa: string;
+  maCongTac: string;
+  suat: number;
+}
+
+export interface KetQuaRutSuat {
+  suat: SuatRutRa[];
+  canhBao: string[];
+}
+
+/** Khóa nhận dạng một dòng công tác trong một phần. */
+const khoaDong = (phanMa: string, maCongTac: string) =>
+  `${chuanHoaMa(phanMa)}|${chuanHoaMa(maCongTac)}`;
+
+/**
+ * Rút suất khối lượng từ một bản dự toán ĐÃ LÀM: suất = khối lượng ÷ diện tích phần.
+ *
+ * Nhận dạng dòng bằng cặp (mã phần, mã công tác) chứ không bằng tên: tên là chữ tự
+ * do người lập gõ lại mỗi công trình một kiểu, còn mã công tác là khóa của thư viện.
+ *
+ * Cặp khóa xuất hiện NHIỀU LẦN trong cùng một phần thì bỏ kèm cảnh báo, không cộng
+ * dồn: hai dòng cùng mã trong một phần thường là người lập tách ra theo vị trí, và
+ * cộng lại rồi chia đều sẽ cho một con số không ai kiểm chứng được.
+ */
+export function rutSuatKhoiLuong(
+  dong: readonly DongMauSuat[],
+  dienTich: Readonly<Record<string, number | null | undefined>>
+): KetQuaRutSuat {
+  const theoKhoa = new Map<string, DongMauSuat[]>();
+  for (const d of dong) {
+    if (!d.maCongTac) continue;
+    const k = khoaDong(d.phanMa, d.maCongTac);
+    const ds = theoKhoa.get(k);
+    if (ds) ds.push(d);
+    else theoKhoa.set(k, [d]);
+  }
+
+  const suat: SuatRutRa[] = [];
+  const canhBao: string[] = [];
+  let thieuDienTich = 0;
+  let thieuKhoiLuong = 0;
+
+  for (const ds of theoKhoa.values()) {
+    if (ds.length > 1) {
+      canhBao.push(`Mã ${ds[0].maCongTac} xuất hiện ${ds.length} lần trong phần ${ds[0].phanMa} — bỏ qua.`);
+      continue;
+    }
+    const d = ds[0];
+    if (d.qty == null || !Number.isFinite(d.qty)) {
+      thieuKhoiLuong++;
+      continue;
+    }
+    const dt = dienTich[d.phanMa];
+    if (dt == null || !Number.isFinite(dt) || dt <= 0) {
+      thieuDienTich++;
+      continue;
+    }
+    const s = d.qty / dt;
+    if (!Number.isFinite(s)) continue;
+    suat.push({ phanMa: d.phanMa, maCongTac: d.maCongTac!, suat: s });
+  }
+
+  if (thieuKhoiLuong > 0) canhBao.push(`${thieuKhoiLuong} dòng chưa có khối lượng — không rút được suất.`);
+  if (thieuDienTich > 0) canhBao.push(`${thieuDienTich} dòng thuộc phần chưa khai diện tích — không rút được suất.`);
+
+  return { suat, canhBao };
 }

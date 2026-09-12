@@ -360,7 +360,17 @@ export function QuoteCard({
                           <span className="mr-1.5 font-mono text-slate-400">{p.ma}</span>
                           {p.ten}
                         </td>
-                        <td className="px-3 py-1.5 text-right text-slate-500">{p.soDong}</td>
+                        <td className="px-3 py-1.5 text-right text-slate-500">
+                          {p.soDong}
+                          {p.soDongCoSuat > 0 && (
+                            <span
+                              className="ml-1 rounded bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700"
+                              title="Số dòng có suất khối lượng — nhập diện tích là khối lượng tự điền"
+                            >
+                              {p.soDongCoSuat} KL
+                            </span>
+                          )}
+                        </td>
                         <td className="px-3 py-1.5 text-right">
                           <input
                             value={dienTich[p.ma] ?? ""}

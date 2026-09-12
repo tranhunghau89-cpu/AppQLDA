@@ -14,7 +14,20 @@ export default async function BoHangMucPage() {
     include: {
       phan: {
         orderBy: { sortOrder: "asc" },
-        include: { _count: { select: { dong: true } } },
+        include: {
+          _count: { select: { dong: true } },
+          dong: {
+            orderBy: { sortOrder: "asc" },
+            select: {
+              id: true,
+              ten: true,
+              donVi: true,
+              maCongTac: true,
+              suatKhoiLuong: true,
+              khoiLuongMacDinh: true,
+            },
+          },
+        },
       },
       _count: { select: { dong: true, vatLieu: true, giaiDoan: true, thanhToan: true } },
     },
@@ -42,6 +55,14 @@ export default async function BoHangMucPage() {
       tenKhachHang: p.tenKhachHang,
       partCode: p.partCode,
       partName: p.partName,
+      dong: p.dong.map((d) => ({
+        id: d.id,
+        ten: d.ten,
+        donVi: d.donVi,
+        maCongTac: d.maCongTac,
+        suatKhoiLuong: d.suatKhoiLuong,
+        khoiLuongMacDinh: d.khoiLuongMacDinh,
+      })),
     })),
   }));
 

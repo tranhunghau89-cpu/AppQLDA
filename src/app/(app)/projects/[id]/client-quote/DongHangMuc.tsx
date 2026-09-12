@@ -11,6 +11,7 @@ import { VAT_TU_TAG_MAP } from "@/lib/constants";
 import { formatNumber, formatQty, formatVND, parseViNumber } from "@/lib/utils";
 import { luuOHangMuc } from "./actions";
 import type { LineView } from "./types";
+import { NhanLai } from "./GiaVonPanel";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
 
 /** Năm ô có mặt trên bảng. Mọi thứ còn lại của một dòng vẫn sửa trong hộp thoại. */
@@ -105,6 +106,7 @@ export function DongHangMuc({
   quoteId,
   l,
   moTa,
+  giaVonM2,
   canEdit,
   onSua,
   onXoa,
@@ -115,6 +117,8 @@ export function DongHangMuc({
   l: LineView;
   /** Mô tả ghép sẵn từ câu chung + vật tư đã gắn; chỉ để hiện, sửa ở hộp thoại. */
   moTa: string;
+  /** Đơn giá vốn trên m² của phần đã sinh ra dòng này; null = chưa suy được. */
+  giaVonM2?: number | null;
   canEdit: boolean;
   onSua: () => void;
   onXoa: () => void;
@@ -203,6 +207,11 @@ export function DongHangMuc({
               đè giá
             </Badge>
           )}
+          {/* Lãi của riêng hạng mục này — nhìn lướt biết chỗ nào mỏng. Chi tiết giá
+              vốn nằm ở bảng "Giá vốn theo hạng mục" dưới bảng báo giá. */}
+          <span title="Lãi của hạng mục này so với giá vốn">
+            <NhanLai von={giaVonM2 ?? null} ban={l.unitPrice} />
+          </span>
         </div>
         {moTa && <div className="whitespace-pre-line px-1.5 text-xs text-slate-400">{moTa}</div>}
         {l.tags.length > 0 && (

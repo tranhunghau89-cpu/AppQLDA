@@ -21,7 +21,11 @@ import {
   chonDonGia,
   type DongGiaUngVien,
 } from "@/lib/thuVien/gia";
-import { dungKhungDuToan, locPhanConThieu } from "@/lib/thuVien/boHangMuc";
+import {
+  dungKhungDuToan,
+  locPhanConThieu,
+  ropKhoiLuongTheoDienTich,
+} from "@/lib/thuVien/boHangMuc";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -764,6 +768,8 @@ export interface PhanSeThem {
   ma: string;
   ten: string;
   soDong: number;
+  /** Số dòng có suất khối lượng — nhập diện tích là chúng tự điền khối lượng. */
+  soDongCoSuat: number;
 }
 
 export interface XemTruocApBo {
@@ -830,8 +836,12 @@ export async function xemTruocApBoHangMuc(
   if (!n.ok) return { ok: false, error: n.error };
 
   const soDongTheoPhan = new Map<string, number>();
+  const soSuatTheoPhan = new Map<string, number>();
   for (const d of n.khung.dong) {
     soDongTheoPhan.set(d.phanMa, (soDongTheoPhan.get(d.phanMa) ?? 0) + 1);
+    if (d.suatKhoiLuong != null) {
+      soSuatTheoPhan.set(d.phanMa, (soSuatTheoPhan.get(d.phanMa) ?? 0) + 1);
+    }
   }
 
   return {
@@ -841,6 +851,7 @@ export async function xemTruocApBoHangMuc(
         ma: p.ma,
         ten: p.ten,
         soDong: soDongTheoPhan.get(p.ma) ?? 0,
+        soDongCoSuat: soSuatTheoPhan.get(p.ma) ?? 0,
       })),
       phanBoQua: n.boQua,
       canhBao: n.khung.canhBao,
@@ -869,6 +880,11 @@ export async function apBoHangMucVaoDuToan(
   // Phần mới xếp SAU phần đang có, để áp bộ vào bản đã có nội dung không xáo trộn
   // thứ tự người lập đã dựng.
   const daCo = await db.quoteSection.count({ where: { quoteId } });
+
+  // Thư viện khối lượng: dòng nào có suất thì khối lượng = suất × diện tích phần.
+  // Đây chính là lý do hỏi diện tích ngay lúc áp bộ — nó vừa là mẫu số của đơn giá
+  // m² gửi khách, vừa là số nhân để điền sẵn khối lượng.
+  const dongCoKhoiLuong = ropKhoiLuongTheoDienTich(khung.dong, dienTich);
 
   const markup = quote.markup ?? 1;
   const ngay = new Date();
@@ -907,7 +923,7 @@ export async function apBoHangMucVaoDuToan(
       idCuaMa.set(p.ma, tao.id);
     }
 
-    for (const d of khung.dong) {
+    for (const d of dongCoKhoiLuong) {
       const sectionId = idCuaMa.get(d.phanMa);
       if (!sectionId) continue; // dungKhungDuToan đã lọc, đây là lưới an toàn
       const kq = d.congTacId

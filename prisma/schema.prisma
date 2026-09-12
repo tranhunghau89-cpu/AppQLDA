@@ -1341,6 +1341,13 @@ model BoHangMucDong {
   donVi            String?
   donGiaMacDinh    Float?
   khoiLuongMacDinh Float?
+  // Thư viện khối lượng: khối lượng của dòng này trên MỘT đơn vị diện tích của PHẦN
+  // chứa nó (kg thép / m² mái). Mẫu số là diện tích của chính phần đó — thép khung
+  // mái tỉ lệ với m² mái, tôn thưng tỉ lệ với m² vách.
+  //
+  // Có suất thì áp bộ tự tính khối lượng; không có thì lùi về `khoiLuongMacDinh`
+  // (số tuyệt đối, cho những dòng không tỉ lệ với diện tích như "2 chuyến xe").
+  suatKhoiLuong    Float?
   groupLabel       String? // nhãn nhóm cấp 2 phía dự toán thi công
   nhomChiPhi       String  @default("KHAC") // ESTIMATE_GROUP
   ghiChu           String?

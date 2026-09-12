@@ -21,6 +21,30 @@ export interface LineView {
   steelFrameKey: string | null;
 }
 
+/**
+ * Giá vốn của một PHẦN trong bản dự toán chi tiết đã sinh ra bản gửi khách.
+ *
+ * Gom theo phần chứ không nhét vào từng dòng gửi khách: nhiều dòng có thể cùng trỏ về
+ * một phần, và chép bảng chi tiết vào mỗi dòng là gửi cùng một dữ liệu xuống trình
+ * duyệt mấy lần.
+ */
+export interface GiaVonPhan {
+  sectionId: string;
+  ma: string;
+  ten: string;
+  dienTich: number | null;
+  tongGiaVon: number;
+  /** Đơn giá vốn trên m²; null khi phần chưa khai diện tích. */
+  giaVonM2: number | null;
+  dong: {
+    ten: string;
+    donVi: string | null;
+    qty: number | null;
+    donGia: number | null;
+    thanhTien: number;
+  }[];
+}
+
 export interface SpecView {
   id: string;
   groupCode: string; // A | B
@@ -77,6 +101,8 @@ export interface ClientQuoteView {
   excludeNote: string | null;
   note: string | null;
   derivedFromTitle: string | null;
+  /** Giá vốn từng phần của bản dự toán nguồn — chỉ người trong nhà thấy, không in. */
+  giaVon: GiaVonPhan[];
   clonedFromTitle: string | null;
   lines: LineView[];
   specs: SpecView[];

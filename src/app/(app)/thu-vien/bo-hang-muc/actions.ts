@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requirePermission, requireSession } from "@/lib/auth";
 import { diffFields, recordAudit } from "@/lib/audit";
+import { rutSuatKhoiLuong } from "@/lib/thuVien/boHangMuc";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -171,5 +172,204 @@ export async function luuPhanBoHangMuc(
 
   revalidatePath("/thu-vien/bo-hang-muc");
   revalidatePath(`/thu-vien/bo-hang-muc/${phan.boHangMucId}`);
+  return { ok: true };
+}
+
+// ===== Thư viện khối lượng: rút suất từ một bản dự toán đã làm =====
+
+export interface BanDuToanLamMau {
+  id: string;
+  nhan: string;
+  soPhanCoDienTich: number;
+  soDong: number;
+}
+
+/**
+ * Các bản dự toán dùng làm mẫu được cho một bộ hạng mục.
+ *
+ * Chỉ liệt kê bản có ÍT NHẤT MỘT phần khai diện tích và mã phần trùng với bộ: rút
+ * suất là phép chia cho diện tích, bản không khai diện tích thì không cho ra gì, và
+ * bày nó lên danh sách chỉ làm người dùng bấm vào rồi thất vọng.
+ */
+export async function banDuToanLamMauDuoc(boHangMucId: string): Promise<BanDuToanLamMau[]> {
+  await requirePermission("thuVien", "view");
+
+  const bo = await db.boHangMuc.findUnique({
+    where: { id: boHangMucId },
+    select: { phan: { select: { ma: true } } },
+  });
+  if (!bo) return [];
+  const maPhan = new Set(bo.phan.map((p) => p.ma.trim().toUpperCase()));
+  if (maPhan.size === 0) return [];
+
+  const quotes = await db.quote.findMany({
+    where: { sections: { some: { area: { gt: 0 } } } },
+    orderBy: { updatedAt: "desc" },
+    take: 50,
+    select: {
+      id: true,
+      title: true,
+      project: { select: { code: true, name: true } },
+      sections: { select: { code: true, area: true } },
+      _count: { select: { items: true } },
+    },
+  });
+
+  return quotes
+    .map((q) => ({
+      id: q.id,
+      nhan: q.project ? `${q.project.code} — ${q.title}` : q.title,
+      soPhanCoDienTich: q.sections.filter(
+        (s) => (s.area ?? 0) > 0 && maPhan.has(s.code.trim().toUpperCase())
+      ).length,
+      soDong: q._count.items,
+    }))
+    .filter((q) => q.soPhanCoDienTich > 0 && q.soDong > 0);
+}
+
+export interface KetQuaLaySuat {
+  daGan: number;
+  boQua: number;
+  canhBao: string[];
+}
+
+/**
+ * Lấy suất khối lượng từ một bản dự toán đã làm và ghi vào bộ hạng mục.
+ *
+ * Đây là cách dựng "thư viện khối lượng mẫu" từ số THẬT thay vì gõ tay 90 dòng: chọn
+ * một công trình đã làm xong, hệ thống chia khối lượng cho diện tích từng phần rồi
+ * gắn suất vào đúng dòng công tác tương ứng.
+ *
+ * Ghi ĐÈ suất cũ: người dùng chủ động chọn một công trình làm chuẩn, nên ý định là
+ * "lấy theo cái này". Suất cũ không bị mất vĩnh viễn — chạy lại với công trình khác
+ * là ra bộ số khác.
+ */
+export async function laySuatTuDuToan(
+  boHangMucId: string,
+  quoteId: string
+): Promise<{ ok: true; data: KetQuaLaySuat } | { ok: false; error: string }> {
+  try {
+    await requirePermission("thuVien", "edit");
+  } catch {
+    return { ok: false, error: KHONG_CO_QUYEN };
+  }
+
+  const [bo, quote] = await Promise.all([
+    db.boHangMuc.findUnique({
+      where: { id: boHangMucId },
+      select: {
+        ma: true,
+        ten: true,
+        phan: { select: { id: true, ma: true } },
+        dong: { select: { id: true, phanId: true, maCongTac: true } },
+      },
+    }),
+    db.quote.findUnique({
+      where: { id: quoteId },
+      select: {
+        title: true,
+        sections: { select: { id: true, code: true, area: true } },
+        items: { select: { sectionId: true, workCode: true, qty: true } },
+      },
+    }),
+  ]);
+  if (!bo) return { ok: false, error: "Không tìm thấy bộ hạng mục." };
+  if (!quote) return { ok: false, error: "Không tìm thấy bản dự toán mẫu." };
+
+  const maPhanCuaSection = new Map(quote.sections.map((s) => [s.id, s.code]));
+  const dienTich: Record<string, number | null> = {};
+  for (const s of quote.sections) dienTich[s.code] = s.area;
+
+  const kq = rutSuatKhoiLuong(
+    quote.items.map((i) => ({
+      phanMa: maPhanCuaSection.get(i.sectionId) ?? "",
+      maCongTac: i.workCode,
+      qty: i.qty,
+    })),
+    dienTich
+  );
+
+  // Tra ngược về dòng của bộ theo cặp (mã phần, mã công tác) — cùng khóa mà hàm thuần
+  // đã dùng để rút.
+  const maPhanCuaDong = new Map(bo.phan.map((p) => [p.id, p.ma.trim().toUpperCase()]));
+  const theoKhoa = new Map(
+    kq.suat.map((s) => [`${s.phanMa.trim().toUpperCase()}|${s.maCongTac.trim().toUpperCase()}`, s.suat])
+  );
+
+  let daGan = 0;
+  const capNhat: { id: string; suat: number }[] = [];
+  for (const d of bo.dong) {
+    if (!d.maCongTac || !d.phanId) continue;
+    const maPhan = maPhanCuaDong.get(d.phanId);
+    if (!maPhan) continue;
+    const s = theoKhoa.get(`${maPhan}|${d.maCongTac.trim().toUpperCase()}`);
+    if (s == null) continue;
+    capNhat.push({ id: d.id, suat: s });
+    daGan++;
+  }
+
+  if (capNhat.length > 0) {
+    await db.$transaction(
+      capNhat.map((c) =>
+        db.boHangMucDong.update({ where: { id: c.id }, data: { suatKhoiLuong: c.suat } })
+      )
+    );
+  }
+
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "BoHangMuc",
+    entityId: boHangMucId,
+    entityLabel: `${bo.ma} — ${bo.ten}`,
+    action: "UPDATE",
+    changes: {
+      suatKhoiLuong: {
+        truoc: null,
+        sau: `${daGan} dòng lấy suất từ "${quote.title}"`,
+      },
+    },
+  });
+
+  revalidatePath("/thu-vien/bo-hang-muc");
+  return {
+    ok: true,
+    data: { daGan, boQua: bo.dong.length - daGan, canhBao: kq.canhBao },
+  };
+}
+
+/**
+ * Sửa suất khối lượng của MỘT dòng công tác trong bộ.
+ *
+ * Ô trống = xoá suất, dòng đó quay về dùng khối lượng tuyệt đối. Suất ≤ 0 bị từ chối:
+ * nó là số nhân, 0 cho ra khối lượng 0 ở mọi công trình và âm thì vô nghĩa.
+ */
+export async function luuSuatDong(
+  dongId: string,
+  suat: number | null
+): Promise<ActionResult> {
+  try {
+    await requirePermission("thuVien", "edit");
+  } catch {
+    return { ok: false, error: KHONG_CO_QUYEN };
+  }
+  if (suat != null && (!Number.isFinite(suat) || suat <= 0)) {
+    return { ok: false, error: "Suất khối lượng phải là số dương." };
+  }
+  const dong = await db.boHangMucDong.findUnique({
+    where: { id: dongId },
+    select: { id: true, ten: true, suatKhoiLuong: true, boHangMucId: true },
+  });
+  if (!dong) return { ok: false, error: "Không tìm thấy dòng công tác." };
+
+  await db.boHangMucDong.update({ where: { id: dongId }, data: { suatKhoiLuong: suat } });
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "BoHangMuc",
+    entityId: dong.boHangMucId,
+    entityLabel: dong.ten,
+    action: "UPDATE",
+    changes: { suatKhoiLuong: { truoc: dong.suatKhoiLuong, sau: suat } },
+  });
+  revalidatePath("/thu-vien/bo-hang-muc");
   return { ok: true };
 }

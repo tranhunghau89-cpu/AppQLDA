@@ -2,13 +2,25 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Layers, Pencil, Plus, Printer, Trash2 } from "lucide-react";
+import { Layers, Pencil, Plus, Printer, Ruler, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Field, Textarea } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
 import { luuBoHangMuc, luuPhanBoHangMuc, xoaBoHangMuc } from "./actions";
+import { BangSuat } from "./BangSuat";
+import { LaySuatModal } from "./LaySuatModal";
+
+export interface DongView {
+  id: string;
+  ten: string;
+  donVi: string | null;
+  maCongTac: string | null;
+  /** Khối lượng trên một đơn vị diện tích của phần. */
+  suatKhoiLuong: number | null;
+  khoiLuongMacDinh: number | null;
+}
 
 export interface PhanView {
   id: string;
@@ -21,6 +33,7 @@ export interface PhanView {
   tenKhachHang: string | null;
   partCode: string;
   partName: string;
+  dong: DongView[];
 }
 
 export interface BoView {
@@ -51,6 +64,8 @@ export function BoHangMucList({
   const [editingPhan, setEditingPhan] = useState<PhanView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [moSuat, setMoSuat] = useState<string | null>(null);
+  const [boLaySuat, setBoLaySuat] = useState<BoView | null>(null);
 
   const toast = useToast();
   const confirm = useConfirm();
@@ -148,7 +163,10 @@ export function BoHangMucList({
               {b.moTa && <p className="text-sm text-slate-400">{b.moTa}</p>}
             </div>
             {canEdit && (
-              <div className="flex gap-1">
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="sm" onClick={() => setBoLaySuat(b)}>
+                  <Ruler className="h-3.5 w-3.5" /> Lấy suất KL
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -179,14 +197,23 @@ export function BoHangMucList({
           ) : (
             <ul className="divide-y divide-slate-100">
               {b.phan.map((p) => (
-                <li
-                  key={p.id}
-                  className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm"
-                >
+                <li key={p.id} className="text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
                   <div className="min-w-0">
-                    <span className="font-mono text-slate-400">{p.ma}</span>{" "}
-                    <span className="font-medium text-slate-800">{p.ten}</span>
-                    <span className="text-slate-400"> · {p.soDong} dòng</span>
+                    <button
+                      type="button"
+                      onClick={() => setMoSuat(moSuat === p.id ? null : p.id)}
+                      className="text-left hover:underline"
+                    >
+                      <span className="font-mono text-slate-400">{p.ma}</span>{" "}
+                      <span className="font-medium text-slate-800">{p.ten}</span>
+                      <span className="text-slate-400"> · {p.soDong} dòng</span>
+                    </button>
+                    {p.dong.some((d) => d.suatKhoiLuong != null) && (
+                      <span className="ml-2 rounded bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-700">
+                        {p.dong.filter((d) => d.suatKhoiLuong != null).length} suất KL
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     {p.inChoKhach ? (
@@ -214,12 +241,24 @@ export function BoHangMucList({
                       </Button>
                     )}
                   </div>
+                </div>
+                {moSuat === p.id && (
+                  <BangSuat dong={p.dong} tenPhan={p.ten} canEdit={canEdit} />
+                )}
                 </li>
               ))}
             </ul>
           )}
         </div>
       ))}
+
+      {boLaySuat && (
+        <LaySuatModal
+          boHangMucId={boLaySuat.id}
+          tenBo={`${boLaySuat.ma} — ${boLaySuat.ten}`}
+          onClose={() => setBoLaySuat(null)}
+        />
+      )}
 
       {/* ----- Sửa bộ ----- */}
       <Modal

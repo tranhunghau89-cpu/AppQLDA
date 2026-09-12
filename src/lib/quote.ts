@@ -69,7 +69,13 @@ export interface SectionNode {
  */
 export function sectionSubtotals(
   sections: SectionNode[],
-  items: (QuoteLine & { sectionId: string })[]
+  items: (QuoteLine & { sectionId: string })[],
+  /**
+   * Cách tính tiền của một dòng. Mặc định là tiền BÁN vì đó là cái bản gửi khách cần;
+   * truyền `lineCost` để ra tổng GIÁ VỐN của phần — cùng một phép leo cây, chỉ khác
+   * con số, nên viết lại lần hai là tạo cơ hội cho hai bản lệch nhau.
+   */
+  tinhTien: (it: QuoteLine) => number = lineSell
 ): Map<string, number> {
   const chaCua = new Map(sections.map((s) => [s.id, s.parentId]));
 
@@ -94,7 +100,7 @@ export function sectionSubtotals(
     if (id === null) continue;
     const truoc = tong.get(id);
     if (truoc === undefined) continue; // gốc không nằm trong danh sách (vòng lặp)
-    tong.set(id, truoc + lineSell(it));
+    tong.set(id, truoc + tinhTien(it));
   }
 
   return tong;

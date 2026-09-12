@@ -6,7 +6,103 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { whereCuaChu, type ChuBaoGia } from "@/lib/quoteOwner";
-import type { ClientQuoteView, CustomerOption } from "./types";
+import { lineCost, sectionSubtotals } from "@/lib/quote";
+import type { ClientQuoteView, CustomerOption, GiaVonPhan } from "./types";
+
+/**
+ * Giá vốn từng phần của bản dự toán đã sinh ra bản gửi khách.
+ *
+ * Đây là thứ nhân viên kinh doanh cần để quyết định giá bán: biết một m² mái tốn bao
+ * nhiêu tiền vốn thì mới biết bán bao nhiêu là đủ lãi. Con số tính tại chỗ từ các dòng
+ * công tác, KHÔNG lưu cứng — lưu thì nó ôi ngay lần đầu ai đó sửa một dòng.
+ *
+ * Một truy vấn cho tất cả bản dự toán nguồn, không phải một truy vấn mỗi bản.
+ */
+async function napGiaVonTheoPhan(quoteIds: readonly string[]): Promise<Map<string, GiaVonPhan[]>> {
+  const ids = [...new Set(quoteIds)];
+  if (ids.length === 0) return new Map();
+
+  const quotes = await db.quote.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true,
+      sections: {
+        orderBy: { sortOrder: "asc" },
+        select: { id: true, code: true, name: true, area: true, parentId: true },
+      },
+      items: {
+        orderBy: { sortOrder: "asc" },
+        select: { sectionId: true, name: true, unit: true, qty: true, baseCost: true },
+      },
+    },
+  });
+
+  const ra = new Map<string, GiaVonPhan[]>();
+  for (const q of quotes) {
+    // Dùng lại phép leo cây của sectionSubtotals, chỉ đổi con số sang GIÁ VỐN — dòng
+    // nằm trong mục con vẫn phải cộng về phần gốc.
+    const tong = sectionSubtotals(
+      q.sections.map((s) => ({ id: s.id, parentId: s.parentId })),
+      q.items.map((i) => ({
+        sectionId: i.sectionId,
+        qty: i.qty,
+        baseCost: i.baseCost,
+        sellPrice: null,
+      })),
+      lineCost
+    );
+
+    // Dòng chi tiết gom về phần GỐC, để bảng bung ra khớp với con số tổng ở trên.
+    const chaCua = new Map(q.sections.map((s) => [s.id, s.parentId]));
+    const goc = (id: string) => {
+      let cur: string | null = id;
+      for (let i = 0; cur != null && i <= q.sections.length; i++) {
+        const cha: string | null | undefined = chaCua.get(cur);
+        if (cha === undefined) return null;
+        if (cha === null) return cur;
+        cur = cha;
+      }
+      return null;
+    };
+
+    const dongCua = new Map<string, GiaVonPhan["dong"]>();
+    for (const i of q.items) {
+      const g = goc(i.sectionId);
+      if (!g) continue;
+      const ds = dongCua.get(g) ?? [];
+      ds.push({
+        ten: i.name,
+        donVi: i.unit,
+        qty: i.qty,
+        donGia: i.baseCost,
+        thanhTien: lineCost({ qty: i.qty, baseCost: i.baseCost, sellPrice: null }),
+      });
+      dongCua.set(g, ds);
+    }
+
+    ra.set(
+      q.id,
+      q.sections
+        .filter((s) => !s.parentId)
+        .map((s) => {
+          const tongGiaVon = tong.get(s.id) ?? 0;
+          const dt = s.area;
+          return {
+            sectionId: s.id,
+            ma: s.code,
+            ten: s.name,
+            dienTich: dt,
+            tongGiaVon,
+            // Diện tích thiếu hoặc ≤ 0 thì KHÔNG suy — không để lọt Infinity vào một
+            // con số người ta sẽ dựa vào để định giá bán.
+            giaVonM2: dt != null && dt > 0 ? tongGiaVon / dt : null,
+            dong: dongCua.get(s.id) ?? [],
+          };
+        })
+    );
+  }
+  return ra;
+}
 
 export async function napDuLieuBaoGiaKhach(
   chu: ChuBaoGia,
@@ -31,6 +127,11 @@ export async function napDuLieuBaoGiaKhach(
       select: { id: true, name: true, contactPerson: true, phone: true },
     }),
   ]);
+
+  // Giá vốn của các bản dự toán nguồn — một truy vấn cho cả trang.
+  const giaVonCua = await napGiaVonTheoPhan(
+    rawQuotes.map((q) => q.derivedFromId).filter((x): x is string => !!x)
+  );
 
   const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
@@ -65,6 +166,7 @@ export async function napDuLieuBaoGiaKhach(
     excludeNote: q.excludeNote,
     note: q.note,
     derivedFromTitle: q.derivedFrom?.title ?? null,
+    giaVon: q.derivedFromId ? (giaVonCua.get(q.derivedFromId) ?? []) : [],
     clonedFromTitle: q.clonedFrom?.title ?? null,
     lines: q.lines.map((l) => ({
       id: l.id,

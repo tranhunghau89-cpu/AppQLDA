@@ -28,6 +28,20 @@ export function formatQty(value: number | null | undefined): string {
   return vndKhoiLuong.format(value);
 }
 
+const vndSuat = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 4 });
+
+/**
+ * Định dạng SUẤT (khối lượng trên một đơn vị diện tích) — giữ tới 4 chữ số thập phân.
+ *
+ * Rộng hơn `formatQty` vì suất là một TỈ SỐ rồi mới đem nhân với diện tích: làm tròn
+ * 0,125 thành 0,13 rồi nhân 1.500 m² là lệch gần 8 kg, còn làm tròn về số nguyên như
+ * `formatNumber` thì 22,5 thành 23 — sai 2% trên toàn bộ khối lượng thép.
+ */
+export function formatSuat(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return "—";
+  return vndSuat.format(value);
+}
+
 /** Định dạng tiền VND. */
 export function formatVND(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) return "—";

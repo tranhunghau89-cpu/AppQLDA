@@ -584,6 +584,98 @@ tích phần. Bốn dòng cuối bằng 0 vì chưa nhập khối lượng cho c
 
 668 test xanh, `typecheck`/`lint`/`build` sạch.
 
+# Phase 8 — Thư viện khối lượng & giá vốn theo hạng mục
+
+Chủ dự án nêu mô hình đầy đủ: dự toán cho từng hạng mục để biết **đơn giá vốn/m²**, từ
+đó mới quyết định giá bán sao cho đủ lãi. Khối lượng lấy từ **thư viện khối lượng** rút
+từ các công trình đã làm.
+
+## Quyết định (phỏng vấn trước khi làm)
+
+| # | Quyết định |
+|---|---|
+| 1 | Nguồn khối lượng: **nhập tay · lấy từ dự án tương tự · SteelFrame** — mục tiêu là dựng một bộ thư viện khối lượng mẫu |
+| 2 | Nhân viên kinh doanh xem giá vốn: **cả hai** — nhìn lướt trên bảng và bấm mở chi tiết |
+| 3 | Bốn phiên bản khối lượng (chào giá → thi công → mua hàng → quyết toán): **để sau** |
+| 4 | Định mức **chỉ cho KHỐI LƯỢNG**; đơn giá vẫn trọn gói nhập tay như đã chốt |
+| 5 | Suất khối lượng tính trên **diện tích của CHÍNH phần đó** |
+
+Quyết định 4 làm rõ một chỗ tưởng như mâu thuẫn với phỏng vấn ban đầu ("không làm bảng
+định mức"): định mức cho *khối lượng* và định mức cho *giá* là hai thứ khác nhau. Thư
+viện đơn giá không đổi một dòng nào.
+
+## Bốn phát hiện trước khi viết
+
+1. **Phần "giá vốn theo hạng mục" không cần bảng mới nào.** Dữ liệu đã đủ: dòng gửi
+   khách → `sourceSectionId` → phần dự toán → các dòng công tác với `qty × baseCost`.
+2. **Ô diện tích làm ở lượt trước chính là số nhân** mà thư viện khối lượng cần — thêm
+   đúng một cột `suatKhoiLuong`.
+3. **Hợp đồng SteelFrame đã soạn nhưng CHƯA triển khai.** `plan/30` ghi "đề xuất, chờ
+   chốt hai bên"; `steelFrameKey` trong mã nguồn mới chỉ là trường chuyển tiếp. Để sau.
+4. **Đã có `TakeoffItem`** — bảng bóc khối lượng tay theo dự án, chưa nối vào đây.
+
+Và một ràng buộc dữ liệu: muốn tự rút suất bình quân từ mọi công trình cũ thì phải biết
+**diện tích từng hạng mục** trong quá khứ, mà `EstimateSection` không có cột đó — chỉ có
+`Project.area` cho cả nhà. Nên nguồn "tự tính bình quân" bị loại, còn "lấy từ một dự án
+cụ thể" thì làm được vì `QuoteSection.area` đã có.
+
+## Đã làm
+
+| Tệp | Việc |
+|---|---|
+| `prisma/migrations/20260912150000_suat_khoi_luong/` | 1 cột `BoHangMucDong.suatKhoiLuong` |
+| `src/lib/thuVien/boHangMuc.ts` + `.test.ts` | `ropKhoiLuongTheoDienTich`, `rutSuatKhoiLuong` — thuần, 15 test |
+| `src/lib/quote.ts` | `sectionSubtotals` nhận hàm tính tiền (mặc định giá bán) → tái dùng cho giá vốn |
+| `src/lib/utils.ts` | `formatSuat` — 4 chữ số thập phân |
+| `.../quote/actions.ts` | Áp bộ rót khối lượng theo suất × diện tích; xem trước đếm dòng có suất |
+| `.../thu-vien/bo-hang-muc/` | `BangSuat` (nhập tay), `LaySuatModal` + `laySuatTuDuToan` (lấy từ dự án đã làm) |
+| `.../client-quote/GiaVonPanel.tsx` | Bảng giá vốn theo hạng mục, bung chi tiết công tác, dòng tổng |
+| `.../client-quote/napDuLieu.ts` | Tính giá vốn từng phần — một truy vấn cho cả trang, không lưu cứng |
+
+Giá vốn **tính tại chỗ, không lưu**: lưu thì nó ôi ngay lần đầu ai đó sửa một dòng.
+
+## Hai lỗi bắt được khi nhìn màn hình
+
+**Suất 22,5 hiện thành 23.** `formatNumber` làm tròn về số nguyên. Suất là một *tỉ số*
+rồi mới đem nhân với diện tích — 22,5 thành 23 là sai 2% trên toàn bộ khối lượng thép.
+Thêm `formatSuat` giữ 4 chữ số thập phân.
+
+**Diện tích 120,5 m² hiện thành 121.** Cùng nguyên nhân, đổi sang `formatQty`.
+
+## Kiểm chứng
+
+Bấm nút thật. Gán suất cho 3 dòng của phần Vách (22,5 · 5,2 · 0,8), áp bộ với diện tích
+vách 800 m²:
+
+```
+Xà gồ            22,5 × 800 = 18.000
+Bulong liên kết   5,2 × 800 =  4.160
+Ty xà gồ          0,8 × 800 =    640
+Ecu ty xà gồ      (không có suất) → để TRỐNG, không bịa số 0
+```
+
+Bảng xem trước khi áp bộ hiện huy hiệu **"3 KL"** ở phần Vách.
+
+Bảng giá vốn trên bản gửi khách:
+
+| Hạng mục | Diện tích | Tổng giá vốn | Vốn/m² | Bán/m² | Lãi |
+|---|---|---|---|---|---|
+| A Phần tôi tự gõ | 150 m² | 2.000.000 ₫ | 13.333 ₫ | 16.000 ₫ | **16,7%** |
+| **Cả bản dự toán** | | **2.000.000 ₫** | | 2.400.000 ₫ | **16,7%** |
+
+Bấm vào hạng mục bung ra đúng dòng công tác (*Dòng tôi tự gõ · kg · 100 · 20.000 ₫ ·
+2.000.000 ₫*), và chỉ một hạng mục bung một lúc.
+
+683 test xanh, `typecheck`/`lint`/`build` sạch, đối soát bộ hạng mục 9/9 đạt.
+
+## Chưa làm
+
+- **Nhập file SteelFrame** `<mã>-khoiluong.json` — hợp đồng v1 chưa chốt hai bên và
+  chưa có file mẫu thật.
+- **Bốn phiên bản khối lượng** theo vòng đời — chủ dự án chọn để sau.
+
+---
+
 ## Việc còn lại của quản trị viên
 
 1. Khai `KhuVuc` và gán vùng cho 46 nhà cung cấp — mở khoá trục vị trí.

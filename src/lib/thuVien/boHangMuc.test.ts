@@ -3,7 +3,10 @@ import {
   dungKhuonGuiKhach,
   dungKhungDuToan,
   locPhanConThieu,
+  ropKhoiLuongTheoDienTich,
+  rutSuatKhoiLuong,
   type DongKhung,
+  type DongDuToan,
   type KhungDuToan,
   type PhanKhung,
 } from "./boHangMuc";
@@ -36,6 +39,7 @@ const dong = (d: Partial<DongKhung> & { id: string }): DongKhung => ({
   donVi: "kg",
   donGiaMacDinh: null,
   khoiLuongMacDinh: null,
+  suatKhoiLuong: null,
   sortOrder: 0,
   ...d,
 });
@@ -214,6 +218,7 @@ describe("locPhanConThieu", () => {
       donVi: "kg",
       qty: null,
       donGia: null,
+      suatKhoiLuong: null,
       sortOrder: i,
     })),
     canhBao: [],
@@ -277,5 +282,120 @@ describe("locPhanConThieu", () => {
     expect(k.phan).toHaveLength(soPhan);
     expect(k.dong).toHaveLength(soDong);
     expect(k.canhBao).toHaveLength(soCanhBao);
+  });
+});
+
+describe("ropKhoiLuongTheoDienTich", () => {
+  const d = (o: Partial<DongDuToan> & { phanMa: string }): DongDuToan => ({
+    congTacId: null,
+    congTacVatTuId: null,
+    maCongTac: null,
+    ten: "X",
+    donVi: "kg",
+    qty: null,
+    donGia: null,
+    suatKhoiLuong: null,
+    sortOrder: 0,
+    ...o,
+  });
+
+  it("có suất và có diện tích thì tính khối lượng", () => {
+    const ra = ropKhoiLuongTheoDienTich([d({ phanMa: "A", suatKhoiLuong: 22 })], { A: 1500 });
+    expect(ra[0].qty).toBe(33000);
+  });
+
+  it("mỗi phần dùng diện tích của CHÍNH nó", () => {
+    const ra = ropKhoiLuongTheoDienTich(
+      [d({ phanMa: "A", suatKhoiLuong: 22 }), d({ phanMa: "B", suatKhoiLuong: 5 })],
+      { A: 1500, B: 800 }
+    );
+    expect(ra.map((x) => x.qty)).toEqual([33000, 4000]);
+  });
+
+  it("không có suất thì giữ nguyên khối lượng tuyệt đối", () => {
+    const ra = ropKhoiLuongTheoDienTich([d({ phanMa: "A", qty: 2 })], { A: 1500 });
+    expect(ra[0].qty).toBe(2);
+  });
+
+  it("phần chưa khai diện tích thì KHÔNG tính, giữ nguyên", () => {
+    const ra = ropKhoiLuongTheoDienTich(
+      [d({ phanMa: "A", suatKhoiLuong: 22, qty: 7 })],
+      { A: null }
+    );
+    expect(ra[0].qty).toBe(7);
+  });
+
+  it("diện tích 0 hoặc âm coi như chưa khai — 0 và 'chưa biết' là hai chuyện", () => {
+    expect(ropKhoiLuongTheoDienTich([d({ phanMa: "A", suatKhoiLuong: 22 })], { A: 0 })[0].qty).toBeNull();
+    expect(ropKhoiLuongTheoDienTich([d({ phanMa: "A", suatKhoiLuong: 22 })], { A: -5 })[0].qty).toBeNull();
+  });
+
+  it("không trả NaN hay Infinity", () => {
+    const ra = ropKhoiLuongTheoDienTich(
+      [d({ phanMa: "A", suatKhoiLuong: Number.NaN }), d({ phanMa: "B", suatKhoiLuong: Number.POSITIVE_INFINITY })],
+      { A: 100, B: 100 }
+    );
+    for (const x of ra) expect(x.qty === null || Number.isFinite(x.qty)).toBe(true);
+  });
+
+  it("không sửa mảng của người gọi", () => {
+    const ds = [d({ phanMa: "A", suatKhoiLuong: 22 })];
+    ropKhoiLuongTheoDienTich(ds, { A: 1500 });
+    expect(ds[0].qty).toBeNull();
+  });
+});
+
+describe("rutSuatKhoiLuong", () => {
+  const m = (phanMa: string, maCongTac: string | null, qty: number | null) => ({
+    phanMa,
+    maCongTac,
+    qty,
+  });
+
+  it("suất = khối lượng ÷ diện tích phần", () => {
+    const kq = rutSuatKhoiLuong([m("A", "AA.110", 33000)], { A: 1500 });
+    expect(kq.suat).toEqual([{ phanMa: "A", maCongTac: "AA.110", suat: 22 }]);
+    expect(kq.canhBao).toEqual([]);
+  });
+
+  it("mỗi phần chia cho diện tích của chính nó", () => {
+    const kq = rutSuatKhoiLuong([m("A", "AA.110", 3000), m("B", "AA.110", 800)], { A: 1500, B: 800 });
+    expect(kq.suat.map((s) => [s.phanMa, s.suat])).toEqual([
+      ["A", 2],
+      ["B", 1],
+    ]);
+  });
+
+  it("dòng không có mã công tác thì bỏ — tên là chữ tự do, không làm khóa được", () => {
+    const kq = rutSuatKhoiLuong([m("A", null, 100)], { A: 10 });
+    expect(kq.suat).toEqual([]);
+  });
+
+  it("cùng mã xuất hiện hai lần trong một phần thì bỏ kèm cảnh báo, không cộng dồn", () => {
+    const kq = rutSuatKhoiLuong([m("A", "AA.110", 100), m("A", "AA.110", 200)], { A: 10 });
+    expect(kq.suat).toEqual([]);
+    expect(kq.canhBao.some((c) => c.includes("2 lần"))).toBe(true);
+  });
+
+  it("cùng mã ở HAI phần khác nhau thì vẫn rút được cả hai", () => {
+    const kq = rutSuatKhoiLuong([m("A", "AA.110", 100), m("B", "AA.110", 200)], { A: 10, B: 10 });
+    expect(kq.suat).toHaveLength(2);
+    expect(kq.canhBao).toEqual([]);
+  });
+
+  it("thiếu khối lượng hoặc thiếu diện tích thì bỏ kèm cảnh báo riêng", () => {
+    const kq = rutSuatKhoiLuong([m("A", "AA.110", null), m("B", "AD.210", 50)], { A: 10, B: null });
+    expect(kq.suat).toEqual([]);
+    expect(kq.canhBao.some((c) => c.includes("chưa có khối lượng"))).toBe(true);
+    expect(kq.canhBao.some((c) => c.includes("chưa khai diện tích"))).toBe(true);
+  });
+
+  it("diện tích 0 không cho ra Infinity", () => {
+    const kq = rutSuatKhoiLuong([m("A", "AA.110", 100)], { A: 0 });
+    expect(kq.suat).toEqual([]);
+  });
+
+  it("bản dự toán rỗng cho kết quả rỗng", () => {
+    expect(rutSuatKhoiLuong([], {})).toEqual({ suat: [], canhBao: [] });
   });
 });

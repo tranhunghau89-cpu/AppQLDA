@@ -18,6 +18,7 @@ import { InteractionLog } from "@/components/crm/InteractionLog";
 import { StatusBar } from "./StatusBar";
 import { ThongTinIn } from "./ThongTinIn";
 import { DongHangMuc, DongMoi } from "./DongHangMuc";
+import { GiaVonPanel } from "./GiaVonPanel";
 import { clearPriceOverride, deleteClientQuote, deleteLine, deleteSpec, recomputePrices } from "./actions";
 import type { ClientQuoteView, LineView, SpecView } from "./types";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
@@ -59,6 +60,11 @@ export function ClientQuoteCard({
     [q.lines, q.vatPercent]
   );
   const tienPhan = useMemo(() => partTotals(q.lines), [q.lines]);
+  // Tra nhanh giá vốn/m² theo phần nguồn, để mỗi dòng đeo được huy hiệu lãi.
+  const giaVonM2Cua = useMemo(
+    () => new Map(q.giaVon.map((p) => [p.sectionId, p.giaVonM2])),
+    [q.giaVon]
+  );
   const trangThai = CLIENT_QUOTE_STATUS_MAP[q.status];
 
   function run(fn: () => Promise<{ ok: true } | { ok: false; error: string }>) {
@@ -227,6 +233,7 @@ export function ClientQuoteCard({
                   quoteId={q.id}
                   l={l}
                   moTa={moTaHangMuc(l.detail, q.lineDetail, specs, l.tags) ?? ""}
+                  giaVonM2={l.sourceSectionId ? (giaVonM2Cua.get(l.sourceSectionId) ?? null) : null}
                   canEdit={canEdit}
                   onSua={() => onEditLine(l)}
                   onXoa={() => onDeleteLine(l)}
@@ -241,6 +248,8 @@ export function ClientQuoteCard({
           ))}
         </tbody>
       </Table>
+
+      <GiaVonPanel giaVon={q.giaVon} lines={q.lines} />
 
       <div className="flex flex-wrap items-end justify-between gap-4 border-t border-slate-100 p-4">
         {canEdit && (
