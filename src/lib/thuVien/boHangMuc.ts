@@ -71,6 +71,56 @@ export interface KhungDuToan {
   canhBao: string[];
 }
 
+/** So mã phần bỏ qua dấu cách và hoa thường — cùng luật với `deriveLines`. */
+const chuanHoaMa = (s: string) => s.trim().toUpperCase();
+
+export interface KetQuaLocPhan {
+  khung: KhungDuToan;
+  /** Mã phần bị bỏ vì bản dự toán đã có phần mang mã đó. */
+  boQua: string[];
+}
+
+/**
+ * Bỏ khỏi khung những phần mà bản dự toán ĐÃ có.
+ *
+ * Áp một bộ hạng mục vào bản đã có nội dung là việc thường: người lập gõ vài dòng
+ * rồi mới nhớ ra có bộ chuẩn. Luật là THÊM phần còn thiếu và không đụng gì tới phần
+ * đã có — người dùng đoán được kết quả mà không sợ mất khối lượng đã nhập.
+ *
+ * Phần con của một phần bị bỏ thì cũng bỏ: cha nó không được tạo, mà gắn nó vào phần
+ * cùng mã do người dùng tự tạo là tự ý diễn giải một thứ họ không yêu cầu.
+ */
+export function locPhanConThieu(
+  khung: KhungDuToan,
+  maDaCo: readonly string[]
+): KetQuaLocPhan {
+  const daCo = new Set(maDaCo.map(chuanHoaMa));
+  const boQua = new Set<string>();
+
+  // Phần gốc trước, rồi tới con — mảng `phan` đã xếp cha trước con từ dungKhungDuToan.
+  for (const p of khung.phan) {
+    const chaBiBo = p.maCha != null && boQua.has(chuanHoaMa(p.maCha));
+    if (daCo.has(chuanHoaMa(p.ma)) || chaBiBo) boQua.add(chuanHoaMa(p.ma));
+  }
+
+  const giu = khung.phan.filter((p) => !boQua.has(chuanHoaMa(p.ma)));
+  const maGiu = new Set(giu.map((p) => chuanHoaMa(p.ma)));
+  const dong = khung.dong.filter((d) => maGiu.has(chuanHoaMa(d.phanMa)));
+
+  const canhBao = [...khung.canhBao];
+  if (boQua.size > 0) {
+    canhBao.push(
+      `${boQua.size} phần đã có sẵn trong bản dự toán — giữ nguyên, không áp đè: ` +
+        [...boQua].join(", ")
+    );
+  }
+
+  return {
+    khung: { phan: giu, dong, canhBao },
+    boQua: [...boQua],
+  };
+}
+
 /**
  * Bóc bộ hạng mục thành khung để dựng một bản dự toán mới.
  *

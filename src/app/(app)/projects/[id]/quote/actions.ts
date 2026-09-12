@@ -21,7 +21,7 @@ import {
   chonDonGia,
   type DongGiaUngVien,
 } from "@/lib/thuVien/gia";
-import { dungKhungDuToan } from "@/lib/thuVien/boHangMuc";
+import { dungKhungDuToan, locPhanConThieu } from "@/lib/thuVien/boHangMuc";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -747,22 +747,43 @@ export async function boDauSuaTay(
  *   giá trong bộ là con số soạn từ lâu, còn thư viện mới là nguồn đang sống. Dòng nào
  *   thư viện chưa có giá thì mới rơi về số mặc định của bộ.
  */
-export async function apBoHangMucVaoDuToan(
-  chu: ChuBaoGia,
-  quoteId: string,
-  boHangMucId: string
-): Promise<{ ok: true; soPhan: number; soDong: number; canhBao: string[] } | { ok: false; error: string }> {
-  const g = await guard(chu, { quoteId });
-  if (g) return g;
+/**
+ * Diện tích của một phần, đã gạn số rác.
+ *
+ * Diện tích ≤ 0 coi như chưa khai: nó là MẪU SỐ của đơn giá m², và một số 0 lọt vào
+ * đó cho ra Infinity trên bản báo giá gửi khách.
+ */
+function dienTichCua(bang: Record<string, number | null>, ma: string): number | null {
+  const v = bang[ma];
+  if (v == null || !Number.isFinite(v) || v <= 0) return null;
+  return v;
+}
 
-  const [quote, bo] = await Promise.all([
+/** Một phần sẽ được dựng, kèm số dòng công tác — để người lập nhập diện tích trước. */
+export interface PhanSeThem {
+  ma: string;
+  ten: string;
+  soDong: number;
+}
+
+export interface XemTruocApBo {
+  phanSeThem: PhanSeThem[];
+  /** Mã phần bản dự toán đã có — giữ nguyên, không áp đè. */
+  phanBoQua: string[];
+  canhBao: string[];
+}
+
+/**
+ * Nạp bộ hạng mục và lọc ra phần bản dự toán CHƯA có.
+ *
+ * Dùng chung cho bước xem trước và bước ghi, để hai bên không thể nói hai chuyện khác
+ * nhau: người dùng nhập diện tích cho đúng những phần mà lúc ghi sẽ được tạo.
+ */
+async function khungConThieu(quoteId: string, boHangMucId: string) {
+  const [quote, bo, phanDaCo] = await Promise.all([
     db.quote.findUnique({
       where: { id: quoteId },
-      select: {
-        markup: true,
-        khuVucId: true,
-        _count: { select: { sections: true, items: true } },
-      },
+      select: { markup: true, khuVucId: true },
     }),
     db.boHangMuc.findUnique({
       where: { id: boHangMucId },
@@ -771,21 +792,83 @@ export async function apBoHangMucVaoDuToan(
         dong: { orderBy: { sortOrder: "asc" } },
       },
     }),
+    db.quoteSection.findMany({ where: { quoteId }, select: { code: true } }),
   ]);
-  if (!quote) return { ok: false, error: "Không tìm thấy bản dự toán." };
-  if (!bo) return { ok: false, error: "Không tìm thấy bộ hạng mục." };
-  if (quote._count.sections > 0 || quote._count.items > 0) {
-    return {
-      ok: false,
-      error:
-        "Bản dự toán này đã có nội dung. Áp bộ hạng mục chỉ làm được trên bản còn rỗng — tạo một bản mới rồi áp.",
-    };
+  if (!quote) return { ok: false as const, error: "Không tìm thấy bản dự toán." };
+  if (!bo) return { ok: false as const, error: "Không tìm thấy bộ hạng mục." };
+
+  const day = dungKhungDuToan(bo.phan, bo.dong);
+  if (day.phan.length === 0) {
+    return { ok: false as const, error: "Bộ hạng mục này chưa khai phần nào." };
   }
 
-  const khung = dungKhungDuToan(bo.phan, bo.dong);
-  if (khung.phan.length === 0) {
-    return { ok: false, error: "Bộ hạng mục này chưa khai phần nào." };
+  const loc = locPhanConThieu(day, phanDaCo.map((s) => s.code));
+  if (loc.khung.phan.length === 0) {
+    return {
+      ok: false as const,
+      error: "Bản dự toán đã có đủ các phần của bộ này — không còn gì để thêm.",
+    };
   }
+  return {
+    ok: true as const,
+    quote,
+    bo: { ma: bo.ma, ten: bo.ten },
+    khung: loc.khung,
+    boQua: loc.boQua,
+  };
+}
+
+export async function xemTruocApBoHangMuc(
+  chu: ChuBaoGia,
+  quoteId: string,
+  boHangMucId: string
+): Promise<{ ok: true; data: XemTruocApBo } | { ok: false; error: string }> {
+  const g = await guard(chu, { quoteId });
+  if (g) return g;
+
+  const n = await khungConThieu(quoteId, boHangMucId);
+  if (!n.ok) return { ok: false, error: n.error };
+
+  const soDongTheoPhan = new Map<string, number>();
+  for (const d of n.khung.dong) {
+    soDongTheoPhan.set(d.phanMa, (soDongTheoPhan.get(d.phanMa) ?? 0) + 1);
+  }
+
+  return {
+    ok: true,
+    data: {
+      phanSeThem: n.khung.phan.map((p) => ({
+        ma: p.ma,
+        ten: p.ten,
+        soDong: soDongTheoPhan.get(p.ma) ?? 0,
+      })),
+      phanBoQua: n.boQua,
+      canhBao: n.khung.canhBao,
+    },
+  };
+}
+
+export async function apBoHangMucVaoDuToan(
+  chu: ChuBaoGia,
+  quoteId: string,
+  boHangMucId: string,
+  /**
+   * Diện tích từng phần, khóa theo mã phần. Đây là mẫu số của đơn giá m² trên bản gửi
+   * khách — mái, vách và canopy mỗi thứ một diện tích khác nhau, nên hỏi ngay lúc áp
+   * bộ rẻ hơn nhiều so với mở lại từng phần sau đó.
+   */
+  dienTich: Record<string, number | null> = {}
+): Promise<{ ok: true; soPhan: number; soDong: number; canhBao: string[] } | { ok: false; error: string }> {
+  const g = await guard(chu, { quoteId });
+  if (g) return g;
+
+  const n = await khungConThieu(quoteId, boHangMucId);
+  if (!n.ok) return { ok: false, error: n.error };
+  const { quote, bo, khung } = n;
+
+  // Phần mới xếp SAU phần đang có, để áp bộ vào bản đã có nội dung không xáo trộn
+  // thứ tự người lập đã dựng.
+  const daCo = await db.quoteSection.count({ where: { quoteId } });
 
   const markup = quote.markup ?? 1;
   const ngay = new Date();
@@ -803,7 +886,8 @@ export async function apBoHangMucVaoDuToan(
           code: p.ma,
           name: p.ten,
           kind: "PHAN",
-          sortOrder: p.sortOrder,
+          area: dienTichCua(dienTich, p.ma),
+          sortOrder: daCo + p.sortOrder,
         },
       });
       idCuaMa.set(p.ma, tao.id);
@@ -816,7 +900,8 @@ export async function apBoHangMucVaoDuToan(
           name: p.ten,
           kind: "SUB",
           parentId: idCuaMa.get(p.maCha!) ?? null,
-          sortOrder: p.sortOrder,
+          area: dienTichCua(dienTich, p.ma),
+          sortOrder: daCo + p.sortOrder,
         },
       });
       idCuaMa.set(p.ma, tao.id);

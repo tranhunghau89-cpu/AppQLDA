@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   dungKhuonGuiKhach,
   dungKhungDuToan,
+  locPhanConThieu,
   type DongKhung,
+  type KhungDuToan,
   type PhanKhung,
 } from "./boHangMuc";
 
@@ -188,5 +190,92 @@ describe("dungKhuonGuiKhach", () => {
     const ds = dungKhuonGuiKhach(ps);
     expect(ds.map((d) => d.sourceSectionCode)).toEqual(["A", "B"]);
     expect(ps).toEqual(goc);
+  });
+});
+
+describe("locPhanConThieu", () => {
+  const khung = (
+    phan: { ma: string; ten?: string; maCha?: string | null; sortOrder?: number }[],
+    dongMa: string[] = []
+  ): KhungDuToan => ({
+    phan: phan.map((p, i) => ({
+      ma: p.ma,
+      ten: p.ten ?? "Phần " + p.ma,
+      loai: p.maCha ? "SUB" : "PHAN",
+      maCha: p.maCha ?? null,
+      sortOrder: p.sortOrder ?? i,
+    })),
+    dong: dongMa.map((ma, i) => ({
+      phanMa: ma,
+      congTacId: null,
+      congTacVatTuId: null,
+      maCongTac: null,
+      ten: `Dòng ${i} của ${ma}`,
+      donVi: "kg",
+      qty: null,
+      donGia: null,
+      sortOrder: i,
+    })),
+    canhBao: [],
+  });
+
+  it("bản dự toán rỗng thì giữ nguyên cả bộ", () => {
+    const kq = locPhanConThieu(khung([{ ma: "A" }, { ma: "B" }], ["A", "B"]), []);
+    expect(kq.khung.phan.map((p) => p.ma)).toEqual(["A", "B"]);
+    expect(kq.khung.dong).toHaveLength(2);
+    expect(kq.boQua).toEqual([]);
+  });
+
+  it("bỏ phần đã có, giữ phần còn thiếu", () => {
+    const kq = locPhanConThieu(khung([{ ma: "A" }, { ma: "B" }, { ma: "C" }], ["A", "B", "C"]), ["B"]);
+    expect(kq.khung.phan.map((p) => p.ma)).toEqual(["A", "C"]);
+    expect(kq.boQua).toEqual(["B"]);
+  });
+
+  it("dòng của phần bị bỏ cũng bị bỏ theo", () => {
+    const kq = locPhanConThieu(khung([{ ma: "A" }, { ma: "B" }], ["A", "A", "B"]), ["A"]);
+    expect(kq.khung.dong.map((d) => d.phanMa)).toEqual(["B"]);
+  });
+
+  it("so mã không phân biệt hoa thường và dấu cách", () => {
+    const kq = locPhanConThieu(khung([{ ma: "A" }, { ma: "B" }]), [" a "]);
+    expect(kq.khung.phan.map((p) => p.ma)).toEqual(["B"]);
+  });
+
+  it("phần con của phần bị bỏ cũng bị bỏ, không gắn vào phần cùng mã của người dùng", () => {
+    const kq = locPhanConThieu(
+      khung([{ ma: "A" }, { ma: "I", maCha: "A" }, { ma: "B" }], ["I", "B"]),
+      ["A"]
+    );
+    expect(kq.khung.phan.map((p) => p.ma)).toEqual(["B"]);
+    expect(kq.khung.dong.map((d) => d.phanMa)).toEqual(["B"]);
+    expect(kq.boQua.sort()).toEqual(["A", "I"]);
+  });
+
+  it("phần con vẫn được giữ khi cha của nó được giữ", () => {
+    const kq = locPhanConThieu(
+      khung([{ ma: "A" }, { ma: "I", maCha: "A" }, { ma: "B" }], ["I"]),
+      ["B"]
+    );
+    expect(kq.khung.phan.map((p) => p.ma)).toEqual(["A", "I"]);
+    expect(kq.khung.dong).toHaveLength(1);
+  });
+
+  it("bộ trùng hoàn toàn thì không còn gì để thêm", () => {
+    const kq = locPhanConThieu(khung([{ ma: "A" }, { ma: "B" }], ["A", "B"]), ["A", "B"]);
+    expect(kq.khung.phan).toEqual([]);
+    expect(kq.khung.dong).toEqual([]);
+    expect(kq.khung.canhBao.some((c) => c.includes("đã có sẵn"))).toBe(true);
+  });
+
+  it("không sửa khung đầu vào", () => {
+    const k = khung([{ ma: "A" }, { ma: "B" }], ["A", "B"]);
+    const soPhan = k.phan.length;
+    const soDong = k.dong.length;
+    const soCanhBao = k.canhBao.length;
+    locPhanConThieu(k, ["A"]);
+    expect(k.phan).toHaveLength(soPhan);
+    expect(k.dong).toHaveLength(soDong);
+    expect(k.canhBao).toHaveLength(soCanhBao);
   });
 });

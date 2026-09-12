@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Field, Select } from "@/components/ui/form";
 import { Table, THead, Th } from "@/components/ui/table";
-import { formatVND, formatDate } from "@/lib/utils";
+import { formatVND, formatDate, parseViNumber } from "@/lib/utils";
 import { computeQuoteTotals, sectionSubtotals } from "@/lib/quote";
 import { duongDanIn, type ChuBaoGia } from "@/lib/quoteOwner";
 import { useConfirm } from "@/components/ui/confirm";
@@ -31,6 +31,8 @@ import {
   deleteSection,
   deleteItem,
   pushSalePrice,
+  xemTruocApBoHangMuc,
+  type XemTruocApBo,
 } from "./actions";
 import type { ItemView, QuoteView, SectionView } from "./types";
 
@@ -80,6 +82,9 @@ export function QuoteCard({
   const [moApBo, setMoApBo] = useState(false);
   const [boChon, setBoChon] = useState("");
   const [loiApBo, setLoiApBo] = useState<string | null>(null);
+  const [xemTruocBo, setXemTruocBo] = useState<XemTruocApBo | null>(null);
+  // Diện tích từng phần, gõ thô theo kiểu Việt ("1.250,5") rồi mới gạn thành số.
+  const [dienTich, setDienTich] = useState<Record<string, string>>({});
 
   const totals = useMemo(() => computeQuoteTotals(q.items), [q.items]);
   const soDongTroiGia = useMemo(
@@ -134,13 +139,30 @@ export function QuoteCard({
       return;
     run(() => capNhatGiaTuThuVien(chu, q.id));
   }
+  function onChonBo(id: string) {
+    setBoChon(id);
+    setXemTruocBo(null);
+    setDienTich({});
+    setLoiApBo(null);
+    if (!id) return;
+    start(async () => {
+      const res = await xemTruocApBoHangMuc(chu, q.id, id);
+      if (!res.ok) setLoiApBo(res.error);
+      else setXemTruocBo(res.data);
+    });
+  }
+
   function onApBo() {
     if (!boChon) {
       setLoiApBo("Chọn một bộ hạng mục.");
       return;
     }
+    // Diện tích gõ vào là chuỗi; gạn thành số ở đây rồi mới gửi, để server nhận đúng
+    // một kiểu dữ liệu chứ không phải vừa chuỗi vừa số tùy lúc.
+    const soDienTich: Record<string, number | null> = {};
+    for (const [ma, v] of Object.entries(dienTich)) soDienTich[ma] = parseViNumber(v);
     start(async () => {
-      const res = await apBoHangMucVaoDuToan(chu, q.id, boChon);
+      const res = await apBoHangMucVaoDuToan(chu, q.id, boChon, soDienTich);
       if (!res.ok) {
         setLoiApBo(res.error);
         return;
@@ -204,14 +226,16 @@ export function QuoteCard({
           </Link>
           {canEdit && (
             <>
-              {/* Chỉ áp được vào bản CÒN RỖNG — trộn một bộ vào bản đã có dòng sẽ
-                  sinh phần trùng mã và không ai đoán được kết quả. */}
-              {q.sections.length === 0 && q.items.length === 0 && boHangMucs.length > 0 && (
+              {/* Áp được cả vào bản ĐÃ có nội dung: chỉ THÊM phần còn thiếu, phần
+                  trùng mã giữ nguyên. Bước xem trước nói rõ thêm gì, bỏ qua gì. */}
+              {boHangMucs.length > 0 && (
                 <Button
                   variant="secondary"
                   size="sm"
                   onClick={() => {
                     setBoChon("");
+                    setXemTruocBo(null);
+                    setDienTich({});
                     setLoiApBo(null);
                     setMoApBo(true);
                   }}
@@ -306,7 +330,7 @@ export function QuoteCard({
       >
         <div className="space-y-3">
           <Field label="Chọn bộ *">
-            <Select value={boChon} onChange={(e) => setBoChon(e.target.value)}>
+            <Select value={boChon} onChange={(e) => onChonBo(e.target.value)}>
               <option value="">— Chọn bộ hạng mục —</option>
               {boHangMucs.map((b) => (
                 <option key={b.id} value={b.id} disabled={b.soPhan === 0}>
@@ -317,9 +341,62 @@ export function QuoteCard({
               ))}
             </Select>
           </Field>
+
+          {xemTruocBo && (
+            <>
+              <div className="overflow-hidden rounded-lg border border-slate-200">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-slate-100 bg-slate-50 text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-medium">Phần sẽ dựng</th>
+                      <th className="px-3 py-2 text-right font-medium">Dòng</th>
+                      <th className="px-3 py-2 text-right font-medium">Diện tích (m²)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {xemTruocBo.phanSeThem.map((p) => (
+                      <tr key={p.ma}>
+                        <td className="px-3 py-1.5 text-slate-800">
+                          <span className="mr-1.5 font-mono text-slate-400">{p.ma}</span>
+                          {p.ten}
+                        </td>
+                        <td className="px-3 py-1.5 text-right text-slate-500">{p.soDong}</td>
+                        <td className="px-3 py-1.5 text-right">
+                          <input
+                            value={dienTich[p.ma] ?? ""}
+                            onChange={(e) =>
+                              setDienTich((cu) => ({ ...cu, [p.ma]: e.target.value }))
+                            }
+                            inputMode="decimal"
+                            placeholder="—"
+                            className="w-28 rounded border border-slate-200 px-1.5 py-1 text-right text-sm focus:border-blue-500 focus:outline-none"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <p className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                Diện tích là <strong>mẫu số của đơn giá m²</strong> trên bản gửi khách:
+                đơn giá hạng mục = tổng giá bán của phần ÷ diện tích phần đó. Mái, vách
+                và canopy mỗi thứ một diện tích, nên điền ngay ở đây. Để trống cũng
+                được — sửa sau trong từng phần.
+              </p>
+
+              {xemTruocBo.phanBoQua.length > 0 && (
+                <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  Bản dự toán đã có phần{" "}
+                  <strong>{xemTruocBo.phanBoQua.join(", ")}</strong> — giữ nguyên, không
+                  áp đè.
+                </p>
+              )}
+            </>
+          )}
+
           <p className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">
-            Dựng sẵn cây phần/mục và các dòng công tác của bộ vào bản này. Đơn giá lấy
-            từ <strong>thư viện</strong> theo khu vực{" "}
+            Đơn giá lấy từ <strong>thư viện</strong> theo khu vực{" "}
             <strong>{q.khuVucTen ?? "chung"}</strong> của bản dự toán, không lấy số mặc
             định đã soạn từ lâu trong bộ. Khối lượng để trống cho người lập điền.
           </p>
@@ -330,7 +407,7 @@ export function QuoteCard({
             <Button type="button" variant="outline" onClick={() => setMoApBo(false)}>
               Hủy
             </Button>
-            <Button type="button" onClick={onApBo} disabled={!boChon}>
+            <Button type="button" onClick={onApBo} disabled={!boChon || !xemTruocBo}>
               Áp bộ hạng mục
             </Button>
           </div>

@@ -515,6 +515,75 @@ thư viện không lẫn lại giá trọn gói. Đối soát 6/6 đạt, tổng
 Dữ liệu gốc vẫn còn ở `WorkPrice` và trong sheet DV, nên lấy lại được nếu sau này cần
 một chỗ chứa riêng cho giá m².
 
+## Bổ sung: áp bộ hạng mục vào bản đã có, và diện tích từng phần
+
+Chủ dự án nói rõ mô hình: **báo giá m² thực chất là bản thu gọn của báo giá chi tiết**.
+Dự toán chào giá lấy nguyên bộ hạng mục chuẩn của dạng nhà tương tự, nhập lại khối
+lượng và đơn giá, rồi đó là căn cứ tính giá từng hạng mục cho khách.
+
+Phép suy vốn đã có và đúng:
+`đơn giá m² của hạng mục = tổng giá bán của phần tương ứng ÷ diện tích phần đó`.
+Hai thứ chặn nó chạy thật:
+
+**1. Chốt "chỉ áp bộ vào bản còn rỗng" (đặt ở Phase 4) chặn đúng cách làm việc thật.**
+Người lập gõ một dòng là nút biến mất. Lý lẽ cũ — "trộn một bộ vào bản đã có dòng sẽ
+sinh phần trùng mã và không ai đoán được kết quả" — đúng về rủi ro nhưng sai về cách
+chữa: cái cần là làm cho kết quả **đoán được**, không phải cấm. Giờ áp bộ **chỉ THÊM
+phần còn thiếu**, phần trùng mã giữ nguyên không đụng tới, và có bước xem trước liệt kê
+rõ thêm gì / bỏ qua gì.
+
+Phần con của một phần bị bỏ thì cũng bỏ: cha nó không được tạo, mà gắn nó vào phần cùng
+mã do người dùng tự tạo là tự ý diễn giải một thứ họ không yêu cầu.
+
+**2. Diện tích từng phần là mẫu số của đơn giá m², nhưng áp bộ xong thì trống hết.**
+Mái, vách, canopy mỗi thứ một diện tích khác nhau, nên lùi về "diện tích công trình"
+cho cả năm phần là sai. Ô nhập vốn có sẵn trong hộp thoại sửa phần, nhưng phải mở năm
+lần. Giờ **hỏi ngay lúc áp bộ**: bảng xem trước có luôn cột diện tích cho từng phần.
+
+Diện tích ≤ 0 coi như chưa khai — nó là mẫu số, một số 0 lọt vào cho ra Infinity trên
+bản báo giá gửi khách.
+
+### Đã làm
+
+| Tệp | Việc |
+|---|---|
+| `src/lib/thuVien/boHangMuc.ts` + `.test.ts` | `locPhanConThieu` — thuần, 8 test |
+| `.../quote/actions.ts` | `xemTruocApBoHangMuc`; `apBoHangMucVaoDuToan` nhận bảng diện tích, bỏ chốt "chỉ bản rỗng" |
+| `.../quote/QuoteCard.tsx` | Nút hiện cả trên bản đã có nội dung; hộp thoại có bảng nhập diện tích + danh sách phần bỏ qua |
+
+Bước xem trước và bước ghi dùng **chung một hàm nạp** (`khungConThieu`), để hai bên không
+thể nói hai chuyện khác nhau — người dùng nhập diện tích cho đúng những phần sẽ được tạo.
+
+### Kiểm chứng
+
+Bản dự toán đã có sẵn một phần `A` gõ tay (150 m², 1 dòng, giá bán 2.400.000 đ), áp bộ
+`BHM-5BF38E` (phần A–E):
+
+```
+Xem trước:  B Vách 14 dòng · C Canopy 15 · D Nóc gió 15 · E Dầm sàn 14
+            "Bản dự toán đã có phần A — giữ nguyên, không áp đè."
+Nhập diện tích: B=1.200  C=50  D=30  E=120,5
+```
+
+Sau khi áp — phần A còn nguyên tên, dòng và diện tích cũ; B–E thêm mới, xếp sau; diện
+tích gán đúng kể cả số kiểu Việt (`1.200` → 1200, `120,5` → 120,5).
+
+Rồi sinh bản gửi khách từ chính bản dự toán đó:
+
+| Dòng | Từ phần | Diện tích | Tổng bán của phần | Đơn giá m² |
+|---|---|---|---|---|
+| 01 | A | 150 | 2.400.000 | **16.000** |
+| 02 | B | 1.200 | 0 | 0 |
+| 03 | C | 50 | 0 | 0 |
+| 04 | D | 30 | 0 | 0 |
+| 05 | E | 120,5 | 0 | 0 |
+
+Cả năm dòng **nối đúng phần** (`sourceSectionId` không còn null), khối lượng bằng diện
+tích phần. Bốn dòng cuối bằng 0 vì chưa nhập khối lượng cho các dòng công tác bên trong
+— đúng như thiết kế, khối lượng để người lập điền.
+
+668 test xanh, `typecheck`/`lint`/`build` sạch.
+
 ## Việc còn lại của quản trị viên
 
 1. Khai `KhuVuc` và gán vùng cho 46 nhà cung cấp — mở khoá trục vị trí.
