@@ -172,15 +172,17 @@ model CustomerNote {
 }
 
 model Supplier {
-  id             String            @id @default(cuid())
+  id             String             @id @default(cuid())
   name           String
-  category       String            @default("KHAC") // KCT|XA_GO|TON|BL_NEO|BLLK|LAP_DUNG|KHAC
+  category       String             @default("KHAC") // KCT|XA_GO|TON|BL_NEO|BLLK|LAP_DUNG|KHAC
   contactPerson  String?
   phone          String?
   note           String?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
   projectLinks   ProjectSupplier[]
+  khuVucLinks    NhaCungCapKhuVuc[]
+  giaMuaVatTu    GiaMuaVatTu[]
   estimateItems  EstimateItem[]
   purchaseOrders PurchaseOrder[]
 }
@@ -192,6 +194,11 @@ model Project {
   buildingType String? // Xưởng, Nhà xưởng...
   status       String    @default("CHO") // CHO|SHOP|GIA_CONG|LAP_DUNG|HOAN_THANH
   location     String?
+  // Khu vực thi công — quyết định mua của nhóm nhà cung cấp nào, và do đó đơn giá
+  // nào được gợi ý. Cột "location" text tự do ở trên giữ nguyên: nó là địa chỉ, không
+  // phải phân vùng, và 124 dòng cũ không ép chuẩn hoá được.
+  khuVucId     String?
+  khuVuc       KhuVuc?   @relation(fields: [khuVucId], references: [id], onDelete: SetNull)
   customerId   String?
   customer     Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
   startDate    DateTime?
@@ -627,6 +634,11 @@ model Quote {
   title        String // tiêu đề/phiên bản
   recipient    String? // Kính gửi
   location     String? // Địa điểm
+  // Khu vực dùng để tra đơn giá. Có cột RIÊNG chứ không đọc qua Project: một bản dự
+  // toán sống được ở CoHoi, lúc đó chưa có dự án nào để hỏi. Tạo từ dự án thì lấy mặc
+  // định từ Project.khuVucId.
+  khuVucId     String?
+  khuVuc       KhuVuc?   @relation(fields: [khuVucId], references: [id], onDelete: SetNull)
   scope        String? // Hạng mục
   quoteDate    DateTime?
   markup       Float?    @default(1) // hệ số TL: đơn giá bán = giá gốc × markup
@@ -1001,7 +1013,11 @@ model KhuVuc {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  donGia DonGiaCongTac[]
+  donGia     DonGiaCongTac[]
+  nhaCungCap NhaCungCapKhuVuc[]
+  giaMua     GiaMuaVatTu[]
+  duAn       Project[]
+  baoGia     Quote[]
 
   @@index([active, sortOrder])
 }
@@ -1026,7 +1042,8 @@ model CongTac {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  donGia DonGiaCongTac[]
+  donGia  DonGiaCongTac[]
+  bienThe CongTacVatTu[]
 
   @@index([nhomMa, sortOrder])
   @@index([active])
@@ -1043,14 +1060,14 @@ model CongTac {
 // Nhờ vậy 135 công tác chuyển từ WorkPrice sang dùng được ngay khi chưa khai vật tư
 // hay khu vực nào. Luật chọn dòng nào áp dụng nằm ở src/lib/thuVien/gia.ts.
 model DonGiaCongTac {
-  id             String  @id @default(cuid())
+  id             String        @id @default(cuid())
   congTacId      String
-  congTac        CongTac @relation(fields: [congTacId], references: [id], onDelete: Cascade)
-  // Tham chiếu MỀM tới CongTacVatTu (bảng biến thể, thêm ở giai đoạn sau). Để sẵn cột
-  // từ bây giờ để luật chọn giá không phải đổi khi bảng đó ra đời.
+  congTac        CongTac       @relation(fields: [congTacId], references: [id], onDelete: Cascade)
+  // Biến thể vật liệu của công tác. null = bản giá áp cho MỌI biến thể.
   congTacVatTuId String?
+  bienThe        CongTacVatTu? @relation(fields: [congTacVatTuId], references: [id], onDelete: Cascade)
   khuVucId       String?
-  khuVuc         KhuVuc? @relation(fields: [khuVucId], references: [id], onDelete: SetNull)
+  khuVuc         KhuVuc?       @relation(fields: [khuVucId], references: [id], onDelete: SetNull)
 
   vatTu       Float? // VT
   nhanCongMay Float? // NC_M
@@ -1068,4 +1085,104 @@ model DonGiaCongTac {
 
   @@index([congTacId, hieuLucTu])
   @@index([congTacId, khuVucId, hieuLucTu])
+}
+
+// ----- Nhà cung cấp theo khu vực -----
+
+// Bảng nối TƯỜNG MINH (như ProjectSupplier) chứ không dùng quan hệ nhiều-nhiều ngầm
+// của Prisma: cần thêm `uuTien` để biết nhà cung cấp nào được gợi ý trước trong một
+// khu vực. Một NCC phục vụ nhiều vùng (Hoa Sen, Hoà Phát bán toàn quốc), và một vùng
+// có nhiều NCC — nên bắt chọn một-một là ép người dùng tạo bản ghi trùng.
+model NhaCungCapKhuVuc {
+  id         String   @id @default(cuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  khuVucId   String
+  khuVuc     KhuVuc   @relation(fields: [khuVucId], references: [id], onDelete: Cascade)
+  uuTien     Int      @default(0) // nhỏ hơn = gợi ý trước
+  createdAt  DateTime @default(now())
+
+  @@unique([supplierId, khuVucId])
+  @@index([khuVucId, uuTien])
+}
+
+// ----- Vật tư -----
+
+// Vật tư master. Phục vụ BA việc cùng lúc, và đó là lý do nó tồn tại thay vì để mỗi
+// nơi tự gõ chuỗi:
+//   1. nguồn CHỮ cho bảng "Vật liệu áp dụng & TSKT" in kèm báo giá gửi khách;
+//   2. thứ phân biệt các biến thể của một công tác (lợp tôn Hoa Sen ≠ lợp tôn Đông Á);
+//   3. thứ mang giá MUA theo nhà cung cấp và thời điểm.
+model VatTu {
+  id          String   @id @default(cuid())
+  ma          String   @unique // TON-045-HS
+  ten         String
+  quyCach     String? // "0,45mm, fy = 2.450 kG/cm2"
+  hang        String? // Hoa Sen, Hoà Phát, Đông Á
+  xuatXu      String?
+  donVi       String?
+  nhomTSKT    String   @default("A") // QUOTE_SPEC_GROUP: A | B
+  tag         String? // VAT_TU_TAG; null = vật tư dùng chung mọi hạng mục
+  inTrongMoTa Boolean  @default(false)
+  nhomChiPhi  String   @default("KHAC") // ESTIMATE_GROUP
+  ghiChu      String?
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  congTacLinks CongTacVatTu[]
+  giaMua       GiaMuaVatTu[]
+
+  @@index([nhomTSKT, sortOrder])
+  @@index([tag])
+  @@index([active])
+}
+
+// BIẾN THỂ: "công tác X làm bằng vật tư Y". Đây mới là thứ mang đơn giá, không phải
+// VatTu trần — cùng một loại tôn, lợp mái và thưng vách là hai đơn giá khác nhau.
+model CongTacVatTu {
+  id         String  @id @default(cuid())
+  congTacId  String
+  congTac    CongTac @relation(fields: [congTacId], references: [id], onDelete: Cascade)
+  vatTuId    String
+  vatTu      VatTu   @relation(fields: [vatTuId], references: [id], onDelete: Cascade)
+  tenBienThe String? // đè tên hiển thị; null = ghép "tên công tác + tên vật tư"
+  laMacDinh  Boolean @default(false) // biến thể chọn sẵn khi thêm dòng dự toán
+  sortOrder  Int     @default(0)
+
+  donGia DonGiaCongTac[]
+
+  @@unique([congTacId, vatTuId])
+  @@index([vatTuId])
+}
+
+// Giá MUA vật tư từ một nhà cung cấp, theo thời điểm.
+//
+// Cố ý TÁCH khỏi DonGiaCongTac và KHÔNG tự suy ra nhau: giá mua là một SỰ KIỆN về nhà
+// cung cấp, còn đơn giá công tác là một QUYẾT ĐỊNH của người lập dự toán (đã chốt là
+// đơn giá trọn gói, không bóc định mức). Nối hai thứ bằng công thức sẽ làm giá bán
+// nhảy mỗi lần ai đó cập nhật một báo giá vật tư — không ai muốn thế.
+model GiaMuaVatTu {
+  id         String   @id @default(cuid())
+  vatTuId    String
+  vatTu      VatTu    @relation(fields: [vatTuId], references: [id], onDelete: Cascade)
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  khuVucId   String?
+  khuVuc     KhuVuc?  @relation(fields: [khuVucId], references: [id], onDelete: SetNull)
+
+  donGia    Float
+  donVi     String?
+  hieuLucTu DateTime
+  nguon     String   @default("NHAP_TAY") // DON_GIA_NGUON
+  ghiChu    String?
+
+  createdAt     DateTime @default(now())
+  createdById   String?
+  createdByName String?
+
+  @@index([vatTuId, hieuLucTu])
+  @@index([supplierId, hieuLucTu])
+  @@index([khuVucId])
 }

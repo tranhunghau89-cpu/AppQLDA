@@ -186,6 +186,8 @@ const banGiaSchema = z.object({
   heSo: so,
   donGia: so,
   hieuLucTu: z.string().trim().min(1, "Phải chọn ngày hiệu lực"),
+  congTacVatTuId: z.string().trim().optional(),
+  khuVucId: z.string().trim().optional(),
   ghiChu: z.string().trim().optional(),
 });
 
@@ -212,6 +214,8 @@ export async function themBanGia(
     heSo: String(form.get("heSo") ?? ""),
     donGia: String(form.get("donGia") ?? ""),
     hieuLucTu: String(form.get("hieuLucTu") ?? ""),
+    congTacVatTuId: String(form.get("congTacVatTuId") ?? ""),
+    khuVucId: String(form.get("khuVucId") ?? ""),
     ghiChu: String(form.get("ghiChu") ?? ""),
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -223,6 +227,24 @@ export async function themBanGia(
   });
   if (!congTac) return { ok: false, error: "Không tìm thấy công tác." };
 
+  // Biến thể phải thuộc ĐÚNG công tác này — id đến từ client, và gắn bản giá vào biến
+  // thể của công tác khác sẽ tạo ra một dòng giá không bao giờ được chọn tới.
+  const bienTheId = d.congTacVatTuId || null;
+  if (bienTheId) {
+    const bt = await db.congTacVatTu.findUnique({
+      where: { id: bienTheId },
+      select: { congTacId: true },
+    });
+    if (!bt || bt.congTacId !== congTacId)
+      return { ok: false, error: "Biến thể không thuộc công tác này." };
+  }
+
+  const khuVucId = d.khuVucId || null;
+  if (khuVucId) {
+    const kv = await db.khuVuc.findUnique({ where: { id: khuVucId }, select: { id: true } });
+    if (!kv) return { ok: false, error: "Không tìm thấy khu vực." };
+  }
+
   const ngay = dauNgay(new Date(d.hieuLucTu));
   if (Number.isNaN(ngay.getTime()))
     return { ok: false, error: "Ngày hiệu lực không hợp lệ." };
@@ -233,24 +255,24 @@ export async function themBanGia(
   if (!Number.isFinite(donGia) || donGia < 0)
     return { ok: false, error: "Đơn giá không hợp lệ." };
 
+  // Kiểm ở đây NGOÀI bốn chỉ mục riêng phần trong cơ sở dữ liệu: chỉ mục là lưới an
+  // toàn cuối cùng, còn chỗ này mới cho ra được câu báo lỗi người dùng đọc hiểu.
   const trung = await db.donGiaCongTac.findFirst({
-    where: {
-      congTacId,
-      congTacVatTuId: null,
-      khuVucId: null,
-      hieuLucTu: ngay,
-    },
+    where: { congTacId, congTacVatTuId: bienTheId, khuVucId, hieuLucTu: ngay },
   });
   if (trung) {
     return {
       ok: false,
-      error: "Đã có bản giá hiệu lực đúng ngày này. Sửa bản đó hoặc chọn ngày khác.",
+      error:
+        "Đã có bản giá cho đúng tổ hợp vật liệu/khu vực này vào ngày này. Sửa bản đó hoặc chọn ngày khác.",
     };
   }
 
   const tao = await db.donGiaCongTac.create({
     data: {
       congTacId,
+      congTacVatTuId: bienTheId,
+      khuVucId,
       vatTu: d.vatTu,
       nhanCongMay: d.nhanCongMay,
       heSo: d.heSo,

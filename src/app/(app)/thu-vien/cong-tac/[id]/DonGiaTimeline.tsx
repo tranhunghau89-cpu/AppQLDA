@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input, Field } from "@/components/ui/form";
+import { Input, Field, Select } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { DON_GIA_NGUON_MAP, labelOf } from "@/lib/constants";
@@ -24,6 +24,10 @@ export interface BanGiaView {
   nguon: string;
   ghiChu: string | null;
   createdByName: string | null;
+  /** Mã khu vực áp dụng; null = giá chung toàn quốc. */
+  khuVuc: string | null;
+  /** Tên biến thể vật liệu; null = áp cho mọi biến thể. */
+  bienThe: string | null;
   /** Bản đang được dùng cho một báo giá lập hôm nay. */
   dangApDung: boolean;
   /** Đã khai trước, tới ngày mới có hiệu lực. */
@@ -41,11 +45,15 @@ export function DonGiaTimeline({
   congTacId,
   heSoMacDinh,
   banGias,
+  bienTheChon,
+  khuVucChon,
   canEdit,
 }: {
   congTacId: string;
   heSoMacDinh: number | null;
   banGias: BanGiaView[];
+  bienTheChon: { id: string; ten: string }[];
+  khuVucChon: { id: string; ma: string; ten: string }[];
   canEdit: boolean;
 }) {
   const router = useRouter();
@@ -131,6 +139,7 @@ export function DonGiaTimeline({
             <THead>
               <tr>
                 <Th>Hiệu lực từ</Th>
+                <Th>Áp dụng cho</Th>
                 <Th className="hidden sm:table-cell text-right">Vật tư</Th>
                 <Th className="hidden sm:table-cell text-right">NC + Máy</Th>
                 <Th className="hidden md:table-cell text-right">Hệ số</Th>
@@ -154,6 +163,13 @@ export function DonGiaTimeline({
                       <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
                         Chưa hiệu lực
                       </span>
+                    )}
+                  </Td>
+                  <Td className="text-slate-600">
+                    {g.bienThe === null && g.khuVuc === null ? (
+                      <span className="text-slate-400">Mọi vật liệu, mọi vùng</span>
+                    ) : (
+                      [g.bienThe, g.khuVuc].filter(Boolean).join(" · ")
                     )}
                   </Td>
                   <Td className="hidden text-right sm:table-cell">
@@ -200,6 +216,32 @@ export function DonGiaTimeline({
           <Field label="Hiệu lực từ ngày *">
             <Input name="hieuLucTu" type="date" defaultValue={homNay()} required />
           </Field>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="Áp dụng cho vật liệu">
+              <Select name="congTacVatTuId" defaultValue="">
+                <option value="">Mọi vật liệu</option>
+                {bienTheChon.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.ten}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Áp dụng cho khu vực">
+              <Select name="khuVucId" defaultValue="">
+                <option value="">Toàn quốc</option>
+                {khuVucChon.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.ma} — {k.ten}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <p className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">
+            Để trống cả hai là bản giá chung — dùng cho mọi vật liệu, mọi vùng. Bản khai
+            cụ thể hơn sẽ thắng bản chung khi lập dự toán.
+          </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Field label="Vật tư (VT)">
               <Input

@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { MapPin, Package } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
 import { can, type Role } from "@/lib/rbac";
@@ -61,13 +63,29 @@ export default async function ThuVienPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Thư viện đơn giá</h1>
-        <p className="text-sm text-slate-500">
-          Danh mục công tác dùng chung cho dự toán chào giá, báo giá gửi khách và dự
-          toán thi công — {items.length} công tác. Đơn giá có lịch sử theo ngày hiệu
-          lực; mở một công tác để xem và thêm bản giá mới.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">Thư viện đơn giá</h1>
+          <p className="text-sm text-slate-500">
+            Danh mục công tác dùng chung cho dự toán chào giá, báo giá gửi khách và dự
+            toán thi công — {items.length} công tác. Đơn giá có lịch sử theo ngày hiệu
+            lực; mở một công tác để xem và thêm bản giá mới.
+          </p>
+        </div>
+        <nav className="flex gap-2">
+          <Link
+            href="/thu-vien/vat-tu"
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            <Package className="h-4 w-4" /> Vật tư
+          </Link>
+          <Link
+            href="/thu-vien/khu-vuc"
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            <MapPin className="h-4 w-4" /> Khu vực &amp; NCC
+          </Link>
+        </nav>
       </div>
       <CongTacGrid items={items} canEdit={canEdit} />
     </div>
