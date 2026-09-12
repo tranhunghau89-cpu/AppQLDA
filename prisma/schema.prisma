@@ -278,9 +278,15 @@ model PurchaseOrderItem {
   note      String?
   sortOrder Int           @default(0)
 
+  // Món này đặt cho ĐẦU MỤC nào của dự toán thi công. Nullable: mọi đơn hàng đã nhập
+  // từ Excel đều chưa nối, và nối là việc làm dần chứ không bắt buộc.
+  estimateItemId String?
+  estimateItem   EstimateItem? @relation(fields: [estimateItemId], references: [id], onDelete: SetNull)
+
   images PoItemImage[]
 
   @@index([orderId])
+  @@index([estimateItemId])
 }
 
 model PoItemImage {
@@ -508,6 +514,9 @@ model EstimateItem {
   // chuyện thường; chỉ cột này mới kể lại được.
   khuVucId    String?
   khuVuc      KhuVuc?        @relation(fields: [khuVucId], references: [id], onDelete: SetNull)
+
+  chiTiet ChiTietKhoiLuong[]
+  donHang PurchaseOrderItem[]
 
   @@index([sectionId])
   @@index([projectId])
@@ -1446,4 +1455,40 @@ model BoHangMucThanhToan {
   sortOrder   Int       @default(0)
 
   @@index([boHangMucId, sortOrder])
+}
+
+/**
+ * Bảng bóc khối lượng chi tiết của MỘT đầu mục dự toán thi công.
+ *
+ * Đây là chỗ trả lời "12.500 kg thép kia ở đâu ra": từng mã cấu kiện, quy cách, chiều
+ * dài, số lượng, khối lượng đơn. Nguồn là hai loại bảng có sẵn của phòng kỹ thuật —
+ * thống kê kết cấu xuất từ bản vẽ (AC1.1 · PL6*700 · Cot · 6336mm · 351,91 kg) và bảng
+ * bóc tôn theo trục (V2.1 · 2.370mm · 2 tấm).
+ *
+ * MỘT BẢNG CHO CẢ HAI ĐỊNH DẠNG, không phải hai. Chúng khác nhau ở chỗ cột nào có số
+ * chứ không khác nhau về bản chất: đều là "mấy cái, mỗi cái bao nhiêu". Tách đôi thì
+ * mọi hàm cộng tổng, mọi màn hình, mọi phép kiểm đều phải viết hai lần.
+ *
+ * Cột nào được dùng để cộng ra tổng là do ĐƠN VỊ của đầu mục quyết định: kg thì nhân
+ * `klDon`, m² thì nhân `dienTichDon`, mét thì nhân `dai`, còn lại thì đếm `soLuong`.
+ */
+model ChiTietKhoiLuong {
+  id             String       @id @default(cuid())
+  estimateItemId String
+  estimateItem   EstimateItem @relation(fields: [estimateItemId], references: [id], onDelete: Cascade)
+
+  /** Nhóm hiển thị: "TRỤC X1" của bảng tôn, hoặc tên cấu kiện của bảng kết cấu. */
+  nhom        String?
+  maSo        String? // AC1.1 · V2.1
+  quyCach     String? // PL6*700 · L50*4
+  tenCauKien  String? // Cot · Keo · GiangDoc
+  soLuong     Float?
+  dai         Float? // mm
+  klDon       Float? // kg mỗi cái
+  dienTichDon Float? // m² mỗi cái
+  vatTu       String? // SS400
+  ghiChu      String?
+  sortOrder   Int     @default(0)
+
+  @@index([estimateItemId, sortOrder])
 }

@@ -3,7 +3,10 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { denyProject } from "@/lib/auth";
+import { denyProject, requireSession } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
+import { docBangChiTiet, type DongBoc } from "@/lib/import/bocChiTiet";
+import { dienGiaiCach, tongChiTiet } from "@/lib/khoiLuong/tongChiTiet";
 import { ESTIMATE_GROUP_MAP } from "@/lib/constants";
 import { computeTemplateLines, type TemplateLine } from "@/lib/estimateTemplate";
 import {
@@ -113,7 +116,19 @@ export async function saveEstimateItem(
     note: d.note || null,
   };
 
-  if (id) await db.estimateItem.update({ where: { id }, data });
+  // Đầu mục đã có bảng bóc thì khối lượng thiết kế do bảng quyết định — bỏ qua con số
+  // gửi lên. Giao diện đã khoá ô, nhưng một biểu mẫu cũ còn mở trong tab khác vẫn gửi
+  // được, và ghi đè ở đây thì bảng bóc với đầu mục lệch nhau mà không ai biết.
+  if (id) {
+    const soChiTiet = await db.chiTietKhoiLuong.count({ where: { estimateItemId: id } });
+    if (soChiTiet > 0) {
+      const conLai = { ...data };
+      delete (conLai as { designQty?: number | null }).designQty;
+      await db.estimateItem.update({ where: { id }, data: conLai });
+    } else {
+      await db.estimateItem.update({ where: { id }, data });
+    }
+  }
   else await db.estimateItem.create({ data: { projectId, ...data } });
 
   revalidatePath(`/projects/${projectId}/estimate`);
@@ -435,5 +450,205 @@ export async function doXuongDuToanThiCong(
   revalidatePath(`/projects/${projectId}/estimate`);
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/estimates");
+  return { ok: true };
+}
+
+// ---------- Bảng bóc khối lượng chi tiết ----------
+
+export interface XemTruocBangBoc {
+  loai: string | null;
+  tenCongTrinh: string | null;
+  hangMuc: string | null;
+  soDong: number;
+  /** Tổng tính theo đơn vị của đầu mục. */
+  tong: number | null;
+  cachTinh: string;
+  donVi: string | null;
+  /** Khối lượng thiết kế đang lưu, để người dùng thấy sẽ đổi thành gì. */
+  dangLuu: number | null;
+  canhBao: string[];
+  dongMau: DongBoc[];
+  /** Toàn bộ dòng, gửi ngược lên khi xác nhận. Server vẫn validate lại. */
+  duLieu: DongBoc[];
+}
+
+export type KetQuaXemTruoc =
+  | { ok: true; xemTruoc: XemTruocBangBoc }
+  | { ok: false; error: string };
+
+const MAX_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Đọc file bảng bóc và cho xem trước — KHÔNG ghi gì.
+ *
+ * Tách xem trước khỏi ghi theo đúng nếp của trình nhập chung: người dùng thấy hệ thống
+ * hiểu file thế nào, và thấy khối lượng đầu mục sẽ đổi từ số nào sang số nào, rồi mới
+ * quyết định.
+ */
+export async function xemTruocBangBoc(
+  projectId: string,
+  estimateItemId: string,
+  form: FormData
+): Promise<KetQuaXemTruoc> {
+  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa dự toán.", estimateItemId);
+  if (denied) return denied;
+
+  const file = form.get("file");
+  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Chưa chọn file." };
+  if (file.size > MAX_BYTES) {
+    return { ok: false, error: `File ${(file.size / 1024 / 1024).toFixed(1)}MB, vượt giới hạn 10MB.` };
+  }
+  if (!/\.xlsx?$/i.test(file.name)) {
+    return { ok: false, error: "Chỉ nhận file Excel (.xlsx / .xls)." };
+  }
+
+  const dauMuc = await db.estimateItem.findUnique({
+    where: { id: estimateItemId },
+    select: { unit: true, designQty: true },
+  });
+  if (!dauMuc) return { ok: false, error: "Không tìm thấy đầu mục dự toán." };
+
+  let kq;
+  try {
+    kq = await docBangChiTiet(Buffer.from(await file.arrayBuffer()));
+  } catch (e) {
+    return { ok: false, error: `Không đọc được file: ${e instanceof Error ? e.message : String(e)}` };
+  }
+
+  const tong = tongChiTiet(kq.dong, dauMuc.unit);
+  return {
+    ok: true,
+    xemTruoc: {
+      loai: kq.loai,
+      tenCongTrinh: kq.tenCongTrinh,
+      hangMuc: kq.hangMuc,
+      soDong: kq.dong.length,
+      tong: tong.tong,
+      cachTinh: dienGiaiCach(tong),
+      donVi: dauMuc.unit,
+      dangLuu: dauMuc.designQty,
+      canhBao: [...kq.canhBao, ...tong.canhBao],
+      dongMau: kq.dong.slice(0, 12),
+      duLieu: kq.dong,
+    },
+  };
+}
+
+const dongBocSchema = z.object({
+  nhom: z.string().nullable(),
+  maSo: z.string().nullable(),
+  quyCach: z.string().nullable(),
+  tenCauKien: z.string().nullable(),
+  soLuong: z.number().nullable(),
+  dai: z.number().nullable(),
+  klDon: z.number().nullable(),
+  dienTichDon: z.number().nullable(),
+  vatTu: z.string().nullable(),
+  ghiChu: z.string().nullable(),
+});
+
+/**
+ * Ghi bảng bóc vào đầu mục và đặt khối lượng thiết kế bằng tổng của bảng.
+ *
+ * THAY TOÀN BỘ bảng cũ chứ không cộng dồn: nhập lại file là "bản bóc mới thay bản cũ",
+ * và cộng thêm vào bảng đang có sẽ nhân đôi khối lượng mà không ai nhìn ra.
+ *
+ * `actualQty` KHÔNG bị đụng tới. Bảng bóc đến từ bản vẽ nên nó là khối lượng THIẾT KẾ;
+ * khối lượng thực tế là chuyện của công trường.
+ */
+export async function luuBangBoc(
+  projectId: string,
+  estimateItemId: string,
+  payload: unknown
+): Promise<ActionResult> {
+  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa dự toán.", estimateItemId);
+  if (denied) return denied;
+
+  const parsed = z.array(dongBocSchema).safeParse(payload);
+  if (!parsed.success) return { ok: false, error: "Dữ liệu bảng bóc không hợp lệ." };
+  const dong = parsed.data;
+  if (dong.length === 0) return { ok: false, error: "Bảng bóc không có dòng nào." };
+
+  const dauMuc = await db.estimateItem.findUnique({
+    where: { id: estimateItemId },
+    select: { unit: true, name: true, actualQty: true, unitPrice: true },
+  });
+  if (!dauMuc) return { ok: false, error: "Không tìm thấy đầu mục dự toán." };
+
+  const tong = tongChiTiet(dong, dauMuc.unit);
+
+  /**
+   * Tính lại THÀNH TIỀN, đừng để nguyên số cũ.
+   *
+   * `computeAmount` ưu tiên cột `amount` đã lưu hơn phép nhân khối lượng × đơn giá. Nên
+   * đổi khối lượng mà không đụng `amount` thì bảng hiện khối lượng mới bên cạnh số tiền
+   * cũ — sai mà nhìn vẫn thấy hợp lý, loại sai tệ nhất.
+   *
+   * Dùng khối lượng THỰC TẾ nếu đã có, đúng thứ tự ưu tiên của `computeAmount`. Thiếu
+   * đơn giá thì để trống chứ không ghi 0: 0 đồng là một khẳng định, còn trống là chưa biết.
+   */
+  const klTinhTien = dauMuc.actualQty ?? tong.tong;
+  const thanhTien =
+    klTinhTien != null && dauMuc.unitPrice != null ? klTinhTien * dauMuc.unitPrice : null;
+
+  // Ba lệnh, không phải một lệnh mỗi dòng: một bảng bóc kết cấu có hàng trăm dòng, và
+  // ~330ms mỗi lệnh đi-về thì vượt hạn giao dịch từ lâu trước khi ghi xong.
+  await db.$transaction([
+    db.chiTietKhoiLuong.deleteMany({ where: { estimateItemId } }),
+    db.chiTietKhoiLuong.createMany({
+      data: dong.map((d, i) => ({ ...d, estimateItemId, sortOrder: i })),
+    }),
+    db.estimateItem.update({
+      where: { id: estimateItemId },
+      data: { designQty: tong.tong, amount: thanhTien },
+    }),
+  ]);
+
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "EstimateItem",
+    entityId: estimateItemId,
+    entityLabel: dauMuc.name,
+    projectId,
+    action: "UPDATE",
+    changes: {
+      bangBoc: { truoc: null, sau: `${dong.length} dòng` },
+      designQty: { truoc: null, sau: tong.tong },
+    },
+  });
+
+  revalidatePath(`/projects/${projectId}/estimate`);
+  return { ok: true };
+}
+
+/** Gỡ bảng bóc, trả ô khối lượng thiết kế về cho người dùng tự nhập. */
+export async function xoaBangBoc(
+  projectId: string,
+  estimateItemId: string
+): Promise<ActionResult> {
+  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa dự toán.", estimateItemId);
+  if (denied) return denied;
+
+  const dauMuc = await db.estimateItem.findUnique({
+    where: { id: estimateItemId },
+    select: { name: true },
+  });
+  if (!dauMuc) return { ok: false, error: "Không tìm thấy đầu mục dự toán." };
+
+  // Khối lượng thiết kế GIỮ NGUYÊN con số cuối cùng. Xoá bảng bóc rồi xoá luôn khối
+  // lượng là làm mất dữ liệu người dùng không yêu cầu bỏ; từ giờ họ sửa tay được.
+  await db.chiTietKhoiLuong.deleteMany({ where: { estimateItemId } });
+
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "EstimateItem",
+    entityId: estimateItemId,
+    entityLabel: dauMuc.name,
+    projectId,
+    action: "UPDATE",
+    changes: { bangBoc: { truoc: "có", sau: null } },
+  });
+
+  revalidatePath(`/projects/${projectId}/estimate`);
   return { ok: true };
 }

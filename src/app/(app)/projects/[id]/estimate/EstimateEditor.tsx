@@ -2,7 +2,7 @@
 
 import { Fragment, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Table2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
@@ -12,6 +12,7 @@ import { formatVND, formatNumber } from "@/lib/utils";
 import { computeAmount, computeProfit, formatPercent } from "@/lib/profit";
 import { saveEstimateItem, deleteEstimateItem, deleteEstimateSection } from "./actions";
 import { ApplyTemplate, type TemplateForClient } from "./ApplyTemplate";
+import { BangBocModal } from "./BangBocModal";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
 
@@ -32,6 +33,8 @@ export interface EstimateRow {
   dispatchStatus: string | null;
   note: string | null;
   sortOrder: number;
+  /** Số dòng bảng bóc chi tiết đang gắn. >0 nghĩa là KL thiết kế do bảng quyết định. */
+  soChiTiet: number;
 }
 
 export interface SectionInfo {
@@ -75,6 +78,7 @@ export function EstimateEditor({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<EstimateRow | null>(null);
+  const [bangBoc, setBangBoc] = useState<EstimateRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const toast = useToast();
@@ -245,12 +249,31 @@ export function EstimateEditor({
                               {r.note ? <span className="text-slate-400"> · {r.note}</span> : null}
                             </Td>
                             <Td className="text-slate-400">{r.unit ?? ""}</Td>
-                            <Td className="text-right">{formatNumber(r.actualQty ?? r.designQty)}</Td>
+                            <Td className="text-right">
+                              {formatNumber(r.actualQty ?? r.designQty)}
+                              {/* Dấu bảng: khối lượng thiết kế đến từ bảng bóc chi tiết. */}
+                              {r.soChiTiet > 0 && (
+                                <span
+                                  className="ml-1 text-slate-400"
+                                  title={`Khối lượng thiết kế từ bảng bóc ${r.soChiTiet} dòng`}
+                                >
+                                  ▤
+                                </span>
+                              )}
+                            </Td>
                             <Td className="text-right">{formatNumber(r.unitPrice)}</Td>
                             <Td className="text-right font-medium">{formatVND(computeAmount(r))}</Td>
                             {canEdit && (
                               <Td className="text-right">
                                 <div className="flex justify-end gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    title="Bảng bóc khối lượng chi tiết"
+                                    onClick={() => setBangBoc(r)}
+                                  >
+                                    <Table2 className={`h-4 w-4 ${r.soChiTiet > 0 ? "text-blue-600" : ""}`} />
+                                  </Button>
                                   <Button variant="ghost" size="icon" onClick={() => openEdit(r)}>
                                     <Pencil className="h-4 w-4" />
                                   </Button>
@@ -354,7 +377,23 @@ export function EstimateEditor({
           </Field>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Field label="KL thiết kế">
-              <Input name="designQty" type="number" step="any" defaultValue={editing?.designQty ?? ""} />
+              {/*
+                Có bảng bóc thì ô này KHOÁ: con số bằng đúng tổng bảng, và máy chủ cũng
+                bỏ qua giá trị gửi lên. Cho gõ rồi lặng lẽ không nhận là tệ nhất.
+              */}
+              <Input
+                name="designQty"
+                type="number"
+                step="any"
+                defaultValue={editing?.designQty ?? ""}
+                readOnly={(editing?.soChiTiet ?? 0) > 0}
+                className={(editing?.soChiTiet ?? 0) > 0 ? "bg-slate-100 text-slate-500" : undefined}
+              />
+              {(editing?.soChiTiet ?? 0) > 0 && (
+                <p className="text-xs text-slate-500">
+                  Bằng tổng bảng bóc ({editing!.soChiTiet} dòng).
+                </p>
+              )}
             </Field>
             <Field label="KL thực tế">
               <Input name="actualQty" type="number" step="any" defaultValue={editing?.actualQty ?? ""} />
@@ -419,6 +458,15 @@ export function EstimateEditor({
           </div>
         </form>
       </Modal>
+
+      {bangBoc && (
+        <BangBocModal
+          projectId={projectId}
+          dong={bangBoc}
+          soChiTietHienCo={bangBoc.soChiTiet}
+          onClose={() => setBangBoc(null)}
+        />
+      )}
     </div>
   );
 }

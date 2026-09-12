@@ -26,6 +26,9 @@ export const AUDIT_ENTITY = {
   CongTacVatTu: "Biến thể vật liệu",
   GiaMuaVatTu: "Giá mua vật tư",
   BoHangMuc: "Bộ hạng mục chuẩn",
+  // Dòng dự toán thi công. Chỉ ghi nhật ký cho việc gắn/gỡ BẢNG BÓC khối lượng — sửa
+  // dòng bình thường không ghi, vì màn này sửa liên tục và nhật ký sẽ ngập.
+  EstimateItem: "Đầu mục dự toán thi công",
   Supplier: "Nhà cung cấp",
   PurchaseOrder: "Đơn đặt hàng",
   ClientQuote: "Báo giá gửi khách",

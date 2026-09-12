@@ -25,7 +25,12 @@ export default async function EstimatePage({
       include: {
         khuVuc: { select: { ten: true } },
         estimateItems: {
-          include: { supplier: { select: { name: true } } },
+          include: {
+            supplier: { select: { name: true } },
+            // Chỉ ĐẾM dòng bảng bóc, không nạp nội dung: một đầu mục có thể có hàng trăm
+            // dòng chi tiết, mà trang này chỉ cần biết "có hay không" để khoá ô.
+            _count: { select: { chiTiet: true } },
+          },
           orderBy: [{ sortOrder: "asc" }],
         },
         estimateSections: { orderBy: { sortOrder: "asc" } },
@@ -112,6 +117,7 @@ export default async function EstimatePage({
     dispatchStatus: it.dispatchStatus,
     note: it.note,
     sortOrder: it.sortOrder,
+    soChiTiet: it._count.chiTiet,
   }));
 
   return (
