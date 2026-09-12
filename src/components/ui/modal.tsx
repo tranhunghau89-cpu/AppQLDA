@@ -31,7 +31,22 @@ export function Modal({
   const panelRef = React.useRef<HTMLDivElement>(null);
   const titleId = React.useId();
 
+  /**
+   * `onClose` giữ trong ref, KHÔNG đưa vào mảng phụ thuộc bên dưới.
+   *
+   * Mọi chỗ gọi đều truyền một hàm mũi tên viết thẳng tại chỗ (`onClose={() => setMo(false)}`),
+   * nên nó mang định danh MỚI sau mỗi lần vẽ lại. Để nó trong deps thì effect chạy lại
+   * theo từng lần vẽ — và effect có việc "đưa focus về phần tử đầu tiên". Hậu quả: gõ
+   * một ký tự vào ô có kiểm soát trong hộp thoại là focus nhảy về nút X, không gõ tiếp
+   * được. Hộp thoại dùng `defaultValue` không lộ ra vì chúng không vẽ lại mỗi phím.
+   */
+  const dongRef = React.useRef(onClose);
+  React.useEffect(() => {
+    dongRef.current = onClose;
+  });
+
   // Esc để đóng + giữ focus trong hộp thoại (Tab không thoát ra nền).
+  // Chỉ phụ thuộc `open`: mở ra đặt focus một lần, rồi không giành lại nữa.
   React.useEffect(() => {
     if (!open) return;
     const panel = panelRef.current;
@@ -40,7 +55,7 @@ export function Modal({
 
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
-        onClose();
+        dongRef.current();
         return;
       }
       if (e.key !== "Tab" || !panel) return;
@@ -67,7 +82,7 @@ export function Modal({
       document.body.style.overflow = cuonCu;
       truocDo?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
