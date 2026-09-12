@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
@@ -15,6 +16,8 @@ import {
 } from "@/lib/quoteOwner";
 import { diffFields, recordAudit } from "@/lib/audit";
 import { computeQuoteTotals, sellFromBase } from "@/lib/quote";
+import { dungBanSaoBaoGia } from "@/lib/quoteClone";
+import { laCongThuc, tinhBieuThuc } from "@/lib/bieuThuc";
 import { banGiaTheoMa } from "@/lib/thuVien/napGia";
 import {
   DO_KHOP_LABEL,
@@ -24,8 +27,10 @@ import {
 import {
   dungKhungDuToan,
   locPhanConThieu,
+  ropKhoiLuongDanXuat,
   ropKhoiLuongTheoDienTich,
 } from "@/lib/thuVien/boHangMuc";
+import { tinhKhoiLuongDanXuat } from "@/lib/thuVien/danXuat";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -43,10 +48,22 @@ const QUOTE_AUDIT_SELECT = Object.fromEntries(
   QUOTE_AUDIT_FIELDS.map((f) => [f, true])
 ) as Record<(typeof QUOTE_AUDIT_FIELDS)[number], true>;
 
+/**
+ * Ô số của biểu mẫu — nhận thêm CÔNG THỨC bắt đầu bằng "=".
+ *
+ * Chuỗi không có dấu "=" vẫn đi qua `Number()` y như trước, KHÔNG chuyển sang cách đọc
+ * số kiểu Việt: giao diện gửi lên `String(1234.56)`, mà cách đọc kiểu Việt coi dấu chấm
+ * là phân cách nghìn và sẽ biến nó thành 123.456 — sai gấp trăm lần. Quy ước Việt chỉ
+ * áp dụng BÊN TRONG công thức, nơi con số là do người dùng tự gõ.
+ */
 const num = z
   .union([z.string(), z.number()])
-  .transform((v) => (v === "" || v == null ? null : Number(v)))
-  .refine((v) => v === null || !Number.isNaN(v), "Số không hợp lệ")
+  .transform((v) => {
+    if (v === "" || v == null) return null;
+    if (typeof v === "string" && laCongThuc(v)) return tinhBieuThuc(v) ?? Number.NaN;
+    return Number(v);
+  })
+  .refine((v) => v === null || !Number.isNaN(v), "Số hoặc công thức không hợp lệ")
   .nullable();
 
 function paths(chu: ChuBaoGia) {
@@ -275,6 +292,52 @@ const itemSchema = z.object({
   note: z.string().trim().optional(),
 });
 
+/**
+ * Tính lại khối lượng cho các dòng DẪN XUẤT của một bản dự toán.
+ *
+ * Gọi sau mỗi lần một dòng NGUỒN đổi khối lượng. Không gọi vô điều kiện: bản nào không
+ * có dòng dẫn xuất thì đây là hai truy vấn thừa trên mọi thao tác sửa dòng.
+ *
+ * Ghi theo LÔ gom theo giá trị: "Vận chuyển KCT" và "Lắp dựng KCT" của cùng một phần
+ * luôn ra cùng một con số, nên một `updateMany` phục vụ cả hai. Một lệnh mỗi dòng là
+ * bài học đã trả giá ở 7f680ff.
+ */
+async function capNhatDongDanXuat(quoteId: string): Promise<void> {
+  const [dong, phan] = await Promise.all([
+    db.quoteItem.findMany({
+      where: { quoteId },
+      select: {
+        id: true,
+        sectionId: true,
+        qty: true,
+        napThamSo: true,
+        layTuThamSo: true,
+        heSoQuyDoi: true,
+      },
+    }),
+    db.quoteSection.findMany({ where: { quoteId }, select: { id: true, parentId: true } }),
+  ]);
+
+  const kq = tinhKhoiLuongDanXuat(dong, phan);
+  const theoGiaTri = new Map<number | null, string[]>();
+  for (const d of dong) {
+    const tinh = kq.get(d.id);
+    if (!tinh) continue;
+    // Chỉ ghi khi khác thật. Ghi đè cùng một con số chỉ tốn lệnh và làm bẩn nhật ký.
+    if (tinh.khoiLuong === d.qty) continue;
+    const ids = theoGiaTri.get(tinh.khoiLuong);
+    if (ids) ids.push(d.id);
+    else theoGiaTri.set(tinh.khoiLuong, [d.id]);
+  }
+  if (theoGiaTri.size === 0) return;
+
+  await Promise.all(
+    [...theoGiaTri].map(([qty, ids]) =>
+      db.quoteItem.updateMany({ where: { id: { in: ids } }, data: { qty } })
+    )
+  );
+}
+
 export async function saveItem(
   chu: ChuBaoGia,
   quoteId: string,
@@ -315,8 +378,16 @@ export async function saveItem(
     note: d.note || null,
     ...chot,
   };
+  // Dòng này có nạp tham số không — biết TRƯỚC khi ghi, vì sau khi ghi thì muốn biết
+  // phải đọc lại. Dòng gõ tay không nạp gì nên thao tác thường ngày không tốn thêm gì.
+  let coNapThamSo = false;
   if (itemId) {
-    await db.quoteItem.update({ where: { id: itemId }, data });
+    const cu = await db.quoteItem.update({
+      where: { id: itemId },
+      data,
+      select: { napThamSo: true, qty: true },
+    });
+    coNapThamSo = cu.napThamSo != null;
   } else {
     const max = await db.quoteItem.aggregate({
       where: { sectionId: d.sectionId },
@@ -326,6 +397,7 @@ export async function saveItem(
       data: { quoteId, sectionId: d.sectionId, ...data, sortOrder: (max._max.sortOrder ?? -1) + 1 },
     });
   }
+  if (coNapThamSo) await capNhatDongDanXuat(quoteId);
   paths(chu);
   return { ok: true };
 }
@@ -336,7 +408,12 @@ export async function deleteItem(
 ): Promise<ActionResult> {
   const g = await guard(chu, { itemId });
   if (g) return g;
-  await db.quoteItem.delete({ where: { id: itemId } });
+  // Xóa một dòng thép cũng làm cước vận chuyển của phần ấy đổi theo.
+  const xoa = await db.quoteItem.delete({
+    where: { id: itemId },
+    select: { quoteId: true, napThamSo: true },
+  });
+  if (xoa.napThamSo != null) await capNhatDongDanXuat(xoa.quoteId);
   paths(chu);
   return { ok: true };
 }
@@ -400,43 +477,18 @@ export async function cloneQuoteFrom(
       },
     });
 
-    // Tạo lại sections theo thứ tự (PHAN trước SUB nhờ sortOrder) + map id cũ -> mới.
-    const idMap = new Map<string, string>();
-    for (const s of src.sections) {
-      const created = await tx.quoteSection.create({
-        data: {
-          quoteId: newQuote.id,
-          code: s.code,
-          name: s.name,
-          kind: s.kind,
-          parentId: s.parentId ? idMap.get(s.parentId) ?? null : null,
-          area: s.area,
-          sortOrder: s.sortOrder,
-        },
-      });
-      idMap.set(s.id, created.id);
-    }
+    // Ba lệnh cho cả bản sao, không phải một lệnh mỗi hàng — xem `dungBanSaoBaoGia`.
+    const ban = dungBanSaoBaoGia({
+      quoteId: newQuote.id,
+      sections: src.sections,
+      items: src.items,
+      markup,
+      banGia: priceMap,
+      idMoi: randomUUID,
+    });
 
-    for (const it of src.items) {
-      const newSectionId = idMap.get(it.sectionId);
-      if (!newSectionId) continue;
-      const base = it.workCode ? priceMap.get(it.workCode) ?? it.baseCost : it.baseCost;
-      await tx.quoteItem.create({
-        data: {
-          quoteId: newQuote.id,
-          sectionId: newSectionId,
-          workCode: it.workCode,
-          name: it.name,
-          unit: it.unit,
-          qty: it.qty,
-          baseCost: base,
-          sellPrice: base != null ? sellFromBase(base, markup) : it.sellPrice,
-          spec: it.spec,
-          note: it.note,
-          sortOrder: it.sortOrder,
-        },
-      });
-    }
+    if (ban.sections.length > 0) await tx.quoteSection.createMany({ data: ban.sections });
+    if (ban.items.length > 0) await tx.quoteItem.createMany({ data: ban.items });
   });
 
   paths(chu);
@@ -884,7 +936,12 @@ export async function apBoHangMucVaoDuToan(
   // Thư viện khối lượng: dòng nào có suất thì khối lượng = suất × diện tích phần.
   // Đây chính là lý do hỏi diện tích ngay lúc áp bộ — nó vừa là mẫu số của đơn giá
   // m² gửi khách, vừa là số nhân để điền sẵn khối lượng.
-  const dongCoKhoiLuong = ropKhoiLuongTheoDienTich(khung.dong, dienTich);
+  // Hai bước, đúng thứ tự: suất × diện tích ra khối lượng các dòng NGUỒN, rồi mới
+  // cộng chúng lại cho các dòng dẫn xuất (vận chuyển, lắp dựng, lợp tôn).
+  const dongCoKhoiLuong = ropKhoiLuongDanXuat(
+    khung.phan,
+    ropKhoiLuongTheoDienTich(khung.dong, dienTich)
+  );
 
   const markup = quote.markup ?? 1;
   const ngay = new Date();
@@ -953,6 +1010,9 @@ export async function apBoHangMucVaoDuToan(
           name: d.ten,
           unit: d.donVi,
           qty: d.qty,
+          napThamSo: d.napThamSo,
+          layTuThamSo: d.layTuThamSo,
+          heSoQuyDoi: d.heSoQuyDoi,
           baseCost: giaVon,
           sellPrice: giaVon === null ? null : sellFromBase(giaVon, markup),
           sortOrder: d.sortOrder,

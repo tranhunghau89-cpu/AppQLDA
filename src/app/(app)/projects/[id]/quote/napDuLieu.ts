@@ -145,6 +145,7 @@ export async function napDuLieuBaoGia(
         sellPrice: it.sellPrice,
         spec: it.spec,
         note: it.note,
+        layTuThamSo: it.layTuThamSo,
         congTacId: it.congTacId,
         congTacVatTuId: it.congTacVatTuId,
         bienTheTen: it.bienThe

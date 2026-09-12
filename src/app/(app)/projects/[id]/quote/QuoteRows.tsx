@@ -39,7 +39,18 @@ function ItemRows({
             {it.spec ? <span className="text-slate-400"> · {it.spec}</span> : null}
           </Td>
           <Td className="text-slate-600">{it.unit ?? "—"}</Td>
-          <Td className="text-right">{formatQty(it.qty)}</Td>
+          <Td className="text-right">
+            {formatQty(it.qty)}
+            {/* Dấu tổng: khối lượng này do hệ thống cộng từ các dòng nguồn, không ai gõ. */}
+            {it.layTuThamSo && (
+              <span
+                className="ml-1 text-slate-400"
+                title={`Tự tính từ các dòng nạp "${it.layTuThamSo}" trong cùng phần`}
+              >
+                ∑
+              </span>
+            )}
+          </Td>
           <Td className="text-right text-slate-500">
             {formatNumber(it.baseCost)}
             {/*

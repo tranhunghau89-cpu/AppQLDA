@@ -6,6 +6,7 @@
 // dưới đây bóc ra từng mặt.
 
 import type { LineSeed } from "@/lib/quoteTemplate";
+import { tinhKhoiLuongDanXuat } from "./danXuat";
 
 /** Một phần trong bộ — vừa là khuôn QuoteSection, vừa là khuôn ClientQuoteLine. */
 export interface PhanKhung {
@@ -42,6 +43,11 @@ export interface DongKhung {
   khoiLuongMacDinh: number | null;
   /** Khối lượng trên một đơn vị diện tích của phần chứa dòng này. */
   suatKhoiLuong: number | null;
+  /** Dòng này nạp khối lượng vào tham số tên này (KCT_KG, TON_M2...). */
+  napThamSo: string | null;
+  /** Dòng này LẤY khối lượng từ tham số tên này — khác null là dòng dẫn xuất. */
+  layTuThamSo: string | null;
+  heSoQuyDoi: number | null;
   sortOrder: number;
 }
 
@@ -66,6 +72,9 @@ export interface DongDuToan {
   donGia: number | null;
   /** Khối lượng trên một đơn vị diện tích của phần; null = không tỉ lệ diện tích. */
   suatKhoiLuong: number | null;
+  napThamSo: string | null;
+  layTuThamSo: string | null;
+  heSoQuyDoi: number | null;
   sortOrder: number;
 }
 
@@ -197,6 +206,9 @@ export function dungKhungDuToan(
       donVi: d.donVi,
       qty: d.khoiLuongMacDinh,
       suatKhoiLuong: d.suatKhoiLuong,
+      napThamSo: d.napThamSo,
+      layTuThamSo: d.layTuThamSo,
+      heSoQuyDoi: d.heSoQuyDoi,
       donGia: d.donGiaMacDinh,
       sortOrder: d.sortOrder,
     });
@@ -255,6 +267,38 @@ export function ropKhoiLuongTheoDienTich(
     if (dt == null || !Number.isFinite(dt) || dt <= 0) return { ...d };
     const kl = d.suatKhoiLuong * dt;
     return { ...d, qty: Number.isFinite(kl) ? kl : d.qty };
+  });
+}
+
+/**
+ * Điền khối lượng cho các dòng DẪN XUẤT, sau khi các dòng nguồn đã có khối lượng.
+ *
+ * Phải chạy SAU `ropKhoiLuongTheoDienTich`: vận chuyển lấy từ số kg thép, mà số kg thép
+ * chỉ có sau khi nhân suất với diện tích.
+ *
+ * Dòng dẫn xuất chưa đủ nguồn thì để nguyên khối lượng cũ (thường là trống) chứ không
+ * ghi 0 đè lên — 0 trên một dòng dự toán nghĩa là "làm không công".
+ */
+export function ropKhoiLuongDanXuat(
+  phan: readonly PhanDuToan[],
+  dong: readonly DongDuToan[]
+): DongDuToan[] {
+  // Hàm thuần bên `danXuat.ts` làm việc theo id; ở đây mã phần chính là định danh.
+  const kq = tinhKhoiLuongDanXuat(
+    dong.map((d, i) => ({
+      id: String(i),
+      sectionId: d.phanMa,
+      qty: d.qty,
+      napThamSo: d.napThamSo,
+      layTuThamSo: d.layTuThamSo,
+      heSoQuyDoi: d.heSoQuyDoi,
+    })),
+    phan.map((p) => ({ id: p.ma, parentId: p.maCha }))
+  );
+  return dong.map((d, i) => {
+    const tinh = kq.get(String(i));
+    if (!tinh || tinh.khoiLuong == null) return { ...d };
+    return { ...d, qty: tinh.khoiLuong };
   });
 }
 

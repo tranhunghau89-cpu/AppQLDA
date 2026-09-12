@@ -718,6 +718,16 @@ model QuoteItem {
   // tự sửa một báo giá đã lập — người lập thấy huy hiệu lệch giá và tự quyết có cập
   // nhật hay không. Mọi cột dưới đây đều nullable: 72 dòng cũ và những dòng gõ tay
   // hoàn toàn không có gì để chụp.
+  // ----- Khối lượng dẫn xuất -----
+  //
+  // Vận chuyển KCT và Lắp dựng KCT không có khối lượng riêng: chúng bằng tổng kg thép
+  // của phần ấy. Dòng nguồn mang `napThamSo`, dòng đích mang `layTuThamSo` cùng tên.
+  // `layTuThamSo` khác null chính là "dòng này do hệ thống tính" — không thêm cột vai
+  // trò nữa, hai cột cùng nói một điều thì sớm muộn cũng lệch nhau.
+  napThamSo   String?
+  layTuThamSo String?
+  heSoQuyDoi  Float?
+
   congTacId      String?
   congTac        CongTac?       @relation(fields: [congTacId], references: [id], onDelete: SetNull)
   congTacVatTuId String?
@@ -736,6 +746,8 @@ model QuoteItem {
   @@index([quoteId])
   @@index([sectionId])
   @@index([congTacId])
+  // Tra "các dòng dẫn xuất của bản này" mỗi lần sửa một dòng nguồn.
+  @@index([quoteId, layTuThamSo])
 }
 
 // ----- Báo giá gửi khách (theo hạng mục, đơn vị m²) -----

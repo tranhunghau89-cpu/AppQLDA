@@ -5,7 +5,8 @@ import { Input, Select, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { useActionForm } from "@/components/ui/useActionForm";
 import { sellFromBase } from "@/lib/quote";
-import { formatNumber } from "@/lib/utils";
+import { formatNumber, formatQty } from "@/lib/utils";
+import { laCongThuc, tinhBieuThuc } from "@/lib/bieuThuc";
 import { ModalActions } from "./ModalActions";
 import { goiYDonGia, saveItem, type GoiYGia } from "./actions";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
@@ -61,6 +62,21 @@ export function ItemModal({
   const { error, pending, run } = useActionForm(onDone);
 
   const congTac = catalog.find((c) => c.congTacId === f.congTacId) ?? null;
+
+  /**
+   * Kết quả công thức, hiện ngay dưới ô trong lúc gõ.
+   *
+   * Máy chủ mới là nơi tính con số được lưu — ở đây chỉ soi trước, để người lập thấy
+   * "=20*50" ra 1.000 trước khi bấm lưu chứ không phải sau.
+   */
+  const ketQuaCongThuc = laCongThuc(f.qty)
+    ? (() => {
+        const v = tinhBieuThuc(f.qty);
+        return v == null
+          ? { hopLe: false, chu: "Công thức chưa hợp lệ." }
+          : { hopLe: true, chu: `= ${formatQty(v)}` };
+      })()
+    : null;
 
   /** Rót giá thư viện vào ô giá gốc và tính luôn đơn giá bán theo hệ số TL. */
   function apGia(donGia: number | null) {
@@ -227,14 +243,46 @@ export function ItemModal({
               onChange={(e) => setF((p) => ({ ...p, unit: e.target.value }))}
             />
           </Field>
+          {/*
+            Dòng dẫn xuất: khóa ô khối lượng. Vận chuyển KCT bằng tổng kg thép của phần
+            ấy, và máy chủ tính lại mỗi lần một dòng thép đổi — cho gõ rồi ghi đè ngay
+            sau đó thì người lập tưởng mình nhập sai chứ không biết là bị tính lại.
+            Vẫn gửi `qty` lên để lệnh lưu không hụt trường, nhưng nó không được dùng.
+          */}
           <Field label="Khối lượng">
+            {/*
+              Ô CHỮ chứ không phải type="number": ô số của trình duyệt không cho gõ dấu
+              "=", mà đó chính là cách mở một công thức.
+            */}
             <Input
               name="qty"
-              type="number"
-              step="any"
+              inputMode="text"
+              placeholder="Số, hoặc =20*50"
               value={f.qty}
+              readOnly={!!editing?.layTuThamSo}
+              title={
+                editing?.layTuThamSo
+                  ? `Khối lượng lấy từ các dòng nạp "${editing.layTuThamSo}" trong cùng phần — sửa ở dòng nguồn.`
+                  : undefined
+              }
+              className={editing?.layTuThamSo ? "bg-slate-100 text-slate-500" : undefined}
               onChange={(e) => setF((p) => ({ ...p, qty: e.target.value }))}
             />
+            {editing?.layTuThamSo ? (
+              <p className="text-xs text-slate-500">
+                Tự tính từ các dòng nguồn trong cùng phần.
+              </p>
+            ) : (
+              ketQuaCongThuc && (
+                <p
+                  className={`text-xs ${
+                    ketQuaCongThuc.hopLe ? "text-blue-700" : "text-red-600"
+                  }`}
+                >
+                  {ketQuaCongThuc.chu}
+                </p>
+              )
+            )}
           </Field>
           <Field label="Quy cách">
             <Input

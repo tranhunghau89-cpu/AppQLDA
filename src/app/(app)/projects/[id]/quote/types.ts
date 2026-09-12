@@ -22,6 +22,14 @@ export interface ItemView {
   spec: string | null;
   note: string | null;
 
+  /**
+   * Tên tham số dòng này LẤY khối lượng từ đó; null = người lập tự nhập.
+   *
+   * Khác null thì ô khối lượng phải KHÓA: hệ thống tính lại mỗi lần một dòng nguồn
+   * đổi, nên một ô cho gõ mà gõ xong bị ghi đè còn tệ hơn là không cho gõ.
+   */
+  layTuThamSo: string | null;
+
   // ----- Đóng băng giá thư viện -----
   congTacId: string | null;
   congTacVatTuId: string | null;
