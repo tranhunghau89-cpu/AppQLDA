@@ -22,17 +22,31 @@ function kiem(ten: string, dat: boolean, chiTiet: string) {
 /**
  * Kiểm "dự toán thi công còn nguyên".
  *
+ * Đếm dòng CŨ chứ không đếm tổng: từ khi có nút "Đổ xuống dự toán thi công", bảng lớn
+ * lên là chuyện đúng. Dòng cũ nhận diện bằng chỗ trống — chúng nhập từ Excel nên không
+ * mang xuất xứ thư viện nào, dòng đổ xuống thì có.
+ *
  * Con số 516 là của CƠ SỞ DỮ LIỆU THẬT. Áp nó cho mọi nơi thì phép kiểm đỏ trên mọi
  * bản nháp — và một phép kiểm lúc nào cũng đỏ là một phép kiểm không ai đọc nữa.
  * Ở bản nháp chỉ cần khẳng định migration không xóa sạch bảng.
  */
-function kiemDuToanThiCong(soDong: number, kiem: (a: string, b: boolean, c: string) => void) {
+async function kiemDuToanThiCong(
+  soDong: number,
+  kiem: (a: string, b: boolean, c: string) => void
+) {
   const laThat = !(process.env.DATABASE_URL ?? "").includes("127.0.0.1");
-  if (laThat) {
-    kiem("Dự toán thi công còn nguyên", soDong === 516, `EstimateItem = ${soDong} (CSDL thật, mong đợi 516)`);
-  } else {
+  if (!laThat) {
     kiem("Dự toán thi công không bị xóa", soDong > 0, `EstimateItem = ${soDong} (CSDL nháp)`);
+    return;
   }
+  const soDongCu = await db.estimateItem.count({
+    where: { congTacId: null, donGiaId: null, khuVucId: null },
+  });
+  kiem(
+    "Dự toán thi công còn nguyên",
+    soDongCu >= 516,
+    `${soDongCu} dòng cũ (CSDL thật, mong đợi ≥ 516) · tổng ${soDong} dòng`
+  );
 }
 
 async function main() {
@@ -124,7 +138,7 @@ async function main() {
       : `mất: ${boMatVatLieu.map((b) => b.ten).join(", ")}`
   );
 
-  kiemDuToanThiCong(soEI, kiem);
+  await kiemDuToanThiCong(soEI, kiem);
 
   // In cấu trúc ra để đọc bằng mắt.
   console.log("\n--- Cấu trúc bộ hạng mục ---");

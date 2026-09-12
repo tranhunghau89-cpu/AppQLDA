@@ -252,9 +252,108 @@ Bấm nút thật trên trình duyệt, áp bộ vào một bản dự toán r�
 
 ---
 
+# Phase 6 — Nối xuống dự toán thi công
+
+Báo giá chia theo **đầu việc** (phần khung, phần mái, phần vách); mua hàng chia theo
+**thứ phải mua** (thép, tôn, bulong, nhân công). `CongTac.nhomChiPhi` là cây cầu giữa
+hai cách chia đó — nó có mặt trong thư viện từ Phase 1 chính vì chỗ này.
+
+## Dữ liệu thật quyết định thiết kế
+
+Đếm trước khi viết, và ba con số đổi hẳn cách làm:
+
+| Đếm được | Hệ quả |
+|---|---|
+| `QuoteSection` 7 PHẦN + 10 NHÓM, **mã nhóm lặp lại**: mọi phần đều có một nhóm "I — Phần kết cấu thép" | Nhóm KHÔNG thể thành hạng mục: sẽ ra năm hạng mục trùng tên không ai phân biệt nổi |
+| 65/72 dòng nằm trong NHÓM, 7 dòng nằm thẳng trong PHẦN | Phải đỡ được cả hai kiểu |
+| `QuoteItem.congTacId` = **0/72**, nhưng `workCode` khớp `CongTac` **72/72** | Bắt buộc có nhánh lùi tra theo mã; bỏ nhánh đó là mọi dòng cũ rơi vào nhóm "Khác" |
+
+Nên phép ánh xạ là: **PHẦN → hạng mục, NHÓM tụt xuống `groupLabel`.** Dự toán thi công
+phẳng (`EstimateSection` không có cha) và tầng hai của nó vốn nằm ở cột chữ `groupLabel`.
+
+## Quyết định
+
+**Đơn giá lấy giá VỐN, không lấy giá bán.** Dự toán thi công theo dõi tiền bỏ ra.
+
+**Chỉ chèn thêm, không xoá và không sửa dòng nào đang có.** Dự toán thi công là nơi mua
+hàng và kế toán ghi trạng thái đặt hàng, xuất hàng, khối lượng thực — một thao tác "đồng
+bộ" thông minh sẽ xoá mất chính những thứ đó. Có bước xem trước, và nếu dự án đã có dòng
+thì phải tích một ô xác nhận mới bấm được.
+
+**Hạng mục rỗng bị bỏ**, kèm cảnh báo. Một hạng mục không có dòng nào trong dự toán thi
+công chỉ tốn một dòng người dùng phải tự xoá.
+
+**Dòng thiếu khối lượng vẫn đổ xuống.** Nó là đầu việc cần nhớ; xoá đi mới là mất mát,
+còn để trống thì điền sau được. Số dòng thiếu được nói rõ ở bước xem trước.
+
+**`donGiaId` chỉ đi theo khi giá KHÔNG bị sửa tay.** Cột đó trả lời "con số này lấy từ
+bản giá nào"; giá đã gõ đè thì không còn đến từ bản giá ấy nữa, gắn vào là ghi một xuất
+xứ sai. `congTacId` thì vẫn giữ — công tác không đổi khi người ta sửa giá.
+
+**Ba cột xuất xứ, không phải hai.** `khuVucId` không thừa bên cạnh `donGiaId`: bản giá
+chung toàn quốc có `khuVucId` NULL, nên chỉ cột riêng này mới kể được "lúc lập ta đang
+tính giá cho vùng nào". Lập cho Tây Ninh mà phải dùng giá chung là trường hợp thường xuyên.
+
+**Ô chọn nhà cung cấp không lọc bỏ ai** — chỉ đưa nhà cung cấp trong vùng lên nhóm đầu.
+Lọc cứng sẽ làm ô rỗng ngay khi một dự án có khu vực mà chưa nhà cung cấp nào được gán vùng.
+
+## Đã làm
+
+| Tệp | Việc |
+|---|---|
+| `prisma/migrations/20260912130000_estimate_item_nguon_thu_vien/` | 3 cột nullable trên `EstimateItem`, không DEFAULT, không UPDATE |
+| `src/lib/thuVien/doXuong.ts` + `.test.ts` | `doXuongDuToan` — thuần, 16 test |
+| `.../estimate/actions.ts` | `xemTruocDoXuong`, `doXuongDuToanThiCong` |
+| `.../estimate/DoXuongTuBaoGia.tsx` | Nút + hộp thoại xem trước, ô xác nhận khi đã có dòng |
+| `.../estimate/{page,EstimateEditor}.tsx` | Nhà cung cấp tách nhóm theo khu vực dự án |
+| `scripts/kiem-tra-*.ts` | Đổi bất biến "dự toán thi công còn nguyên" |
+
+`nhaCungCapTheoKhuVuc` viết từ Phase 2, có test, nhưng **chưa nơi nào gọi** — phase này
+mới nối nó vào chỗ dùng thật.
+
+### Một phép kiểm sắp tự đỏ
+
+Cả hai script đối soát chốt cứng `EstimateItem === 516`. Từ khi có nút "Đổ xuống", bảng
+lớn lên là chuyện **đúng** — phép kiểm sẽ đỏ ngay lần đầu tính năng chạy thành công, mà
+một phép kiểm đỏ lúc chạy đúng còn tệ hơn không có. Bất biến đổi thành **số dòng cũ ≥ 516**,
+nhận diện dòng cũ bằng chỗ trống: chúng nhập từ Excel nên không mang xuất xứ thư viện nào.
+
+## Kiểm chứng
+
+`EstimateItem` trước và sau migration trên CSDL thật: **516 dòng · 17 dự án ·
+14.628.398.684 đ — giống hệt.** Cả 516 dòng đều NULL ở ba cột mới, tức không có backfill
+nào chạm vào chúng.
+
+Bấm nút thật trên trình duyệt với một bản dự toán dựng đúng hình dạng production (cây hai
+tầng, mã nhóm lặp, kèm mọi ca biên):
+
+```
+A PHẦN KHUNG VÀ MÁI      4 dòng   653.400.000 đ
+B PHẦN THƯNG VÁCH        2 dòng    69.700.000 đ
+F VẬN CHUYỂN VÀ LẮP ĐẶT  1 dòng    45.000.000 đ
+3 hạng mục · khu vực Miền Bắc · 7 dòng · 768.100.000 đ
+⚠ Hạng mục "Z — PHẦN RỖNG" không có dòng nào — bỏ qua.
+⚠ 1 dòng không tra được công tác trong thư viện — xếp vào nhóm "Khác".
+⚠ 1 dòng có giá sửa tay — không gắn nguồn giá thư viện.
+```
+
+Sau khi đổ: nhóm "Phần kết cấu thép" xuất hiện dưới **cả hai** hạng mục A và B mà không
+lẫn nhau; 4 dòng cũ của dự án nằm nguyên dưới "Chưa phân hạng mục"; bảng "Theo nhóm" tự
+tách ra Kết cấu thép / Tôn - Diềm / Nhân công / Khác — tức `nhomChiPhi` đã dẫn đúng.
+
+Đối chiếu trong cơ sở dữ liệu, hai dòng quyết định: *Lợp mái tôn sóng* (giá không sửa)
+**có** `donGiaId`, *Tôn mái loại đặc biệt* (giá sửa tay) **không** — dù cả hai cùng trỏ
+một bản giá ở nguồn.
+
+Ô chọn nhà cung cấp: `Trong khu vực Miền Nam` → CPR, Hòa Phát (theo ưu tiên) · `Nhà cung
+cấp khác` → 11 nhà cung cấp còn lại.
+
+634 test xanh, `typecheck`/`lint`/`build` sạch, hai script đối soát đạt.
+
+---
+
 ## Phase sau
 
-6. Nối xuống dự toán thi công qua `CongTac.nhomChiPhi`
 7. Nhập Excel thư viện · dọn các bảng cũ (`WorkPrice`, `QuoteTemplate*`, `EstimateTemplate*`)
 
 Việc còn lại của quản trị viên: 90 dòng công tác trong bộ **chưa gắn `congTacId`** (tên là chữ tự do, không có cách khớp tự động an toàn với 135 mã công tác). Gắn dần trên giao diện thì chúng mới ăn được đơn giá theo khu vực/vật liệu.

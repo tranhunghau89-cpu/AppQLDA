@@ -82,14 +82,23 @@ async function main() {
   );
 
   // Ràng buộc cứng của cả kế hoạch: dự toán thi công không được đụng tới.
-  // Con số 516 là của CƠ SỞ DỮ LIỆU THẬT. Áp cho mọi nơi thì phép kiểm đỏ trên mọi
-  // bản nháp — và một phép kiểm lúc nào cũng đỏ là một phép kiểm không ai đọc nữa.
+  //
+  // Đếm dòng CŨ chứ không đếm tổng. Từ khi có nút "Đổ xuống dự toán thi công", bảng
+  // này lớn lên là chuyện đúng — chốt tổng bằng 516 sẽ làm phép kiểm đỏ ngay lần đầu
+  // tính năng chạy thành công, mà một phép kiểm đỏ lúc chạy đúng còn tệ hơn không có.
+  // Dòng cũ nhận diện bằng chỗ trống: chúng nhập từ Excel nên không mang xuất xứ thư
+  // viện nào; dòng đổ xuống thì có.
+  //
+  // Con số 516 là của CƠ SỞ DỮ LIỆU THẬT, bản nháp chỉ cần khẳng định bảng chưa bị xóa.
+  const soDongCu = await db.estimateItem.count({
+    where: { congTacId: null, donGiaId: null, khuVucId: null },
+  });
   const laThat = !(process.env.DATABASE_URL ?? "").includes("127.0.0.1");
   if (laThat) {
     kiem(
       "Dự toán thi công còn nguyên",
-      soEstimateItem === 516,
-      `EstimateItem = ${soEstimateItem} (CSDL thật, mong đợi 516)`
+      soDongCu >= 516,
+      `${soDongCu} dòng cũ (CSDL thật, mong đợi ≥ 516) · tổng ${soEstimateItem} dòng`
     );
   } else {
     kiem(

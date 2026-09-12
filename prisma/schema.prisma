@@ -492,9 +492,24 @@ model EstimateItem {
   sortOrder      Int              @default(0)
   createdAt      DateTime         @default(now())
 
+  // ----- Xuất xứ khi dòng được đổ xuống từ dự toán chào giá -----
+  //
+  // Cả ba đều nullable: 516 dòng nhập từ Excel không đến từ thư viện nào, và dòng gõ
+  // tay cũng vậy.
+  congTacId   String?
+  congTac     CongTac?       @relation(fields: [congTacId], references: [id], onDelete: SetNull)
+  donGiaId    String?
+  donGiaNguon DonGiaCongTac? @relation(fields: [donGiaId], references: [id], onDelete: SetNull)
+  // Vùng đang được tính giá LÚC LẬP — khác với khu vực ghi trên bản giá đã dùng. Lập
+  // cho Tây Ninh nhưng phải dùng giá chung toàn quốc (khuVucId của bản giá là null) là
+  // chuyện thường; chỉ cột này mới kể lại được.
+  khuVucId    String?
+  khuVuc      KhuVuc?        @relation(fields: [khuVucId], references: [id], onDelete: SetNull)
+
   @@index([sectionId])
   @@index([projectId])
   @@index([supplierId])
+  @@index([congTacId])
 }
 
 // ----- Mẫu hạng mục dự toán (Khung mái, Vách, Canopy, Nóc gió, Dầm sàn...) -----
@@ -1035,11 +1050,12 @@ model KhuVuc {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  donGia     DonGiaCongTac[]
-  nhaCungCap NhaCungCapKhuVuc[]
-  giaMua     GiaMuaVatTu[]
-  duAn       Project[]
-  baoGia     Quote[]
+  donGia      DonGiaCongTac[]
+  nhaCungCap  NhaCungCapKhuVuc[]
+  giaMua      GiaMuaVatTu[]
+  duAn        Project[]
+  baoGia      Quote[]
+  dongThiCong EstimateItem[]
 
   @@index([active, sortOrder])
 }
@@ -1064,10 +1080,11 @@ model CongTac {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  donGia     DonGiaCongTac[]
-  bienThe    CongTacVatTu[]
-  dongBaoGia QuoteItem[]
-  dongMau    BoHangMucDong[]
+  donGia      DonGiaCongTac[]
+  bienThe     CongTacVatTu[]
+  dongBaoGia  QuoteItem[]
+  dongMau     BoHangMucDong[]
+  dongThiCong EstimateItem[]
 
   @@index([nhomMa, sortOrder])
   @@index([active])
@@ -1107,7 +1124,8 @@ model DonGiaCongTac {
   createdById   String?
   createdByName String?
 
-  dongBaoGia QuoteItem[]
+  dongBaoGia  QuoteItem[]
+  dongThiCong EstimateItem[]
 
   @@index([congTacId, hieuLucTu])
   @@index([congTacId, khuVucId, hieuLucTu])

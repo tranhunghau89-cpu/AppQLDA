@@ -54,6 +54,8 @@ export function EstimateEditor({
   sections,
   templates,
   suppliers,
+  trongKhuVuc,
+  khuVucTen,
   salePrice,
   area,
   canEdit,
@@ -63,6 +65,9 @@ export function EstimateEditor({
   sections: SectionInfo[];
   templates: TemplateForClient[];
   suppliers: SupplierOpt[];
+  /** Id nhà cung cấp phục vụ khu vực của dự án, đã xếp theo ưu tiên. */
+  trongKhuVuc: string[];
+  khuVucTen: string | null;
   salePrice: number | null;
   area: number | null;
   canEdit: boolean;
@@ -79,6 +84,19 @@ export function EstimateEditor({
     () => computeProfit(items, salePrice, area),
     [items, salePrice, area]
   );
+
+  // Tách nhà cung cấp theo khu vực dự án, giữ đúng thứ tự ưu tiên đã tính ở máy chủ.
+  // Nhóm "khác" vẫn hiện đầy đủ — mua ngoài vùng là chuyện có thật, chỉ là không phải
+  // lựa chọn mặc định.
+  const [nccTrongVung, nccNgoaiVung] = useMemo(() => {
+    if (trongKhuVuc.length === 0) return [[], suppliers] as const;
+    const theoId = new Map(suppliers.map((s) => [s.id, s]));
+    const trong = trongKhuVuc
+      .map((id) => theoId.get(id))
+      .filter((s): s is SupplierOpt => !!s);
+    const daCo = new Set(trong.map((s) => s.id));
+    return [trong, suppliers.filter((s) => !daCo.has(s.id))] as const;
+  }, [suppliers, trongKhuVuc]);
 
   // Gom: Hạng mục (Section) → Nhóm (groupLabel, fallback nhãn groupCode).
   const sectionBlocks = useMemo(() => {
@@ -351,11 +369,30 @@ export function EstimateEditor({
           <Field label="Nhà cung cấp">
             <Select name="supplierId" defaultValue={editing?.supplierId ?? ""}>
               <option value="">— Không —</option>
-              {suppliers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
+              {nccTrongVung.length === 0 ? (
+                suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <optgroup label={`Trong khu vực${khuVucTen ? ` ${khuVucTen}` : ""}`}>
+                    {nccTrongVung.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Nhà cung cấp khác">
+                    {nccNgoaiVung.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                </>
+              )}
             </Select>
           </Field>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

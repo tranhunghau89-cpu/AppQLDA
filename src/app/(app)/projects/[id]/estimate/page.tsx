@@ -4,8 +4,10 @@ import { ArrowLeft, Download } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireProjectView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
+import { nhaCungCapTheoKhuVuc } from "@/lib/thuVien/nhaCungCap";
 import { EstimateEditor, type EstimateRow, type SectionInfo } from "./EstimateEditor";
 import type { TemplateForClient } from "./ApplyTemplate";
+import { DoXuongTuBaoGia, type BaoGiaChonDuoc } from "./DoXuongTuBaoGia";
 
 export default async function EstimatePage({
   params,
@@ -16,11 +18,12 @@ export default async function EstimatePage({
   const session = await requireProjectView("estimate", id);
   const canEdit = can(session.role, "estimate", "edit");
 
-  // 3 truy vấn độc lập -> chạy song song (guard phân quyền đã xong ở trên).
-  const [project, suppliers, templateRows] = await Promise.all([
+  // 5 truy vấn độc lập -> chạy song song (guard phân quyền đã xong ở trên).
+  const [project, suppliers, templateRows, quoteRows, lienKetKhuVuc] = await Promise.all([
     db.project.findUnique({
       where: { id },
       include: {
+        khuVuc: { select: { ten: true } },
         estimateItems: {
           include: { supplier: { select: { name: true } } },
           orderBy: [{ sortOrder: "asc" }],
@@ -38,6 +41,15 @@ export default async function EstimatePage({
       where: { boHangMuc: { active: true } },
       orderBy: [{ boHangMuc: { sortOrder: "asc" } }, { sortOrder: "asc" }],
       include: { dong: { orderBy: { sortOrder: "asc" } } },
+    }),
+    // Bản dự toán chào giá của dự án — nguồn để đổ xuống.
+    db.quote.findMany({
+      where: { projectId: id },
+      orderBy: [{ quoteDate: "desc" }, { createdAt: "desc" }],
+      select: { id: true, title: true, quoteDate: true },
+    }),
+    db.nhaCungCapKhuVuc.findMany({
+      select: { supplierId: true, khuVucId: true, uuTien: true },
     }),
   ]);
   if (!project) notFound();
@@ -62,6 +74,19 @@ export default async function EstimatePage({
       sortOrder: l.sortOrder,
     })),
   }));
+
+  const baoGia: BaoGiaChonDuoc[] = quoteRows.map((q) => ({
+    id: q.id,
+    title: q.title,
+    ngay: q.quoteDate ? q.quoteDate.toLocaleDateString("vi-VN") : null,
+  }));
+
+  // Nhà cung cấp phục vụ khu vực của dự án được đưa lên nhóm đầu. KHÔNG lọc bỏ những
+  // nhà cung cấp còn lại: khu vực mới khai nên hầu hết chưa được gán vùng nào, mà một
+  // ô chọn rỗng thì chặn đứng việc nhập liệu.
+  const trongKhuVuc = project.khuVucId
+    ? nhaCungCapTheoKhuVuc(lienKetKhuVuc, project.khuVucId)
+    : [];
 
   const sections: SectionInfo[] = project.estimateSections.map((s) => ({
     id: s.id,
@@ -104,12 +129,15 @@ export default async function EstimatePage({
           </h1>
           <p className="text-sm text-slate-500">Chi phí, đơn giá, nhà cung cấp và lợi nhuận</p>
         </div>
-        <a
-          href={`/api/export/estimate/${project.id}`}
-          className="ml-auto inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-        >
-          <Download className="h-4 w-4" /> Xuất Excel
-        </a>
+        <div className="ml-auto flex items-center gap-2">
+          {canEdit && <DoXuongTuBaoGia projectId={project.id} baoGia={baoGia} />}
+          <a
+            href={`/api/export/estimate/${project.id}`}
+            className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <Download className="h-4 w-4" /> Xuất Excel
+          </a>
+        </div>
       </div>
 
       <EstimateEditor
@@ -118,6 +146,8 @@ export default async function EstimatePage({
         sections={sections}
         templates={templates}
         suppliers={suppliers}
+        trongKhuVuc={trongKhuVuc}
+        khuVucTen={project.khuVuc?.ten ?? null}
         salePrice={project.salePrice}
         area={project.area}
         canEdit={canEdit}
