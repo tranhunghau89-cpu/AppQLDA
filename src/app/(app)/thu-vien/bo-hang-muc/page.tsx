@@ -26,6 +26,7 @@ export default async function BoHangMucPage() {
               congTacId: true,
               donGiaMacDinh: true,
               nhomChiPhi: true,
+              cauThanh: { orderBy: { sortOrder: "asc" }, select: { congTacId: true, soLuong: true } },
               suatKhoiLuong: true,
               khoiLuongMacDinh: true,
             },
@@ -66,6 +67,7 @@ export default async function BoHangMucPage() {
         congTacId: d.congTacId,
         donGiaMacDinh: d.donGiaMacDinh,
         nhomChiPhi: d.nhomChiPhi,
+        cauThanh: d.cauThanh,
         suatKhoiLuong: d.suatKhoiLuong,
         khoiLuongMacDinh: d.khoiLuongMacDinh,
       })),
@@ -84,6 +86,7 @@ export default async function BoHangMucPage() {
       ten: true,
       donVi: true,
       nhomChiPhi: true,
+      khoiLuongDonVi: true,
       donGia: {
         where: { hieuLucTu: { lte: new Date() }, khuVucId: null, congTacVatTuId: null },
         orderBy: { hieuLucTu: "desc" },
@@ -98,6 +101,7 @@ export default async function BoHangMucPage() {
     ten: c.ten,
     donVi: c.donVi,
     nhomChiPhi: c.nhomChiPhi,
+    khoiLuongDonVi: c.khoiLuongDonVi,
     donGia: c.donGia[0]?.donGia ?? null,
   }));
 

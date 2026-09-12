@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { requirePermission, requireSession } from "@/lib/auth";
 import { diffFields, recordAudit } from "@/lib/audit";
 import { rutSuatKhoiLuong } from "@/lib/thuVien/boHangMuc";
+import { quyDoiRaKg } from "@/lib/thuVien/quyDoiKg";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -421,6 +422,139 @@ export async function luuCongTacDong(
     entityLabel: dong.ten,
     action: "UPDATE",
     changes: { maCongTac: { truoc: dong.maCongTac, sau: ma } },
+  });
+  revalidatePath("/thu-vien/bo-hang-muc");
+  return { ok: true };
+}
+
+/** Một cỡ trong bảng cấu thành, như giao diện gửi lên. */
+export interface ChiTietGui {
+  congTacId: string;
+  /** Số bộ/cái cho một công trình mẫu. */
+  soLuong: number | null;
+  /** Trọng lượng một bộ/cái (kg). Thuộc về CÔNG TÁC nên sửa ở đây là sửa toàn thư viện. */
+  khoiLuongDonVi: number | null;
+}
+
+/**
+ * Lưu bảng cấu thành của một dòng bóc theo kg, và đóng đơn giá mỗi kg lên dòng ấy.
+ *
+ * Thay TOÀN BỘ danh sách chứ không vá từng dòng: bảng này chỉ vài cỡ, và "xoá cỡ nào
+ * thì cỡ ấy biến mất" là thứ duy nhất không cần giải thích cho người dùng.
+ *
+ * Dòng vẫn để `congTacId` trống. Không có MỘT mã nào tả được nó — giá đến từ bảng, và
+ * `apBoHangMucVaoDuToan` sẵn sàng lùi về `donGiaMacDinh` khi dòng không có mã, nên chỗ
+ * áp bộ không phải sửa một chữ.
+ *
+ * `khoiLuongDonVi` ghi lên CongTac chứ không lên dòng cấu thành: trọng lượng một bộ
+ * bulong M16x50 là sự thật về cái bulong, không phải về bộ hạng mục nào. Khai một lần,
+ * mọi bộ dùng chung.
+ */
+export async function luuChiTietQuyDoi(
+  dongId: string,
+  ds: ChiTietGui[]
+): Promise<ActionResult> {
+  try {
+    await requirePermission("thuVien", "edit");
+  } catch {
+    return { ok: false, error: KHONG_CO_QUYEN };
+  }
+
+  const dong = await db.boHangMucDong.findUnique({
+    where: { id: dongId },
+    select: { id: true, ten: true, boHangMucId: true, donGiaMacDinh: true },
+  });
+  if (!dong) return { ok: false, error: "Không tìm thấy dòng công tác." };
+
+  const trung = ds.map((d) => d.congTacId).filter((v, i, a) => a.indexOf(v) !== i);
+  if (trung.length > 0) {
+    return { ok: false, error: "Một mã công việc chỉ được khai một lần trong bảng." };
+  }
+  for (const d of ds) {
+    if (d.soLuong != null && (!Number.isFinite(d.soLuong) || d.soLuong <= 0)) {
+      return { ok: false, error: "Số lượng phải là số dương." };
+    }
+    if (d.khoiLuongDonVi != null && (!Number.isFinite(d.khoiLuongDonVi) || d.khoiLuongDonVi <= 0)) {
+      return { ok: false, error: "Trọng lượng một đơn vị phải là số dương." };
+    }
+  }
+
+  const congTac = await db.congTac.findMany({
+    where: { id: { in: ds.map((d) => d.congTacId) } },
+    select: {
+      id: true,
+      ma: true,
+      ten: true,
+      khoiLuongDonVi: true,
+      donGia: {
+        where: { khuVucId: null, congTacVatTuId: null, hieuLucTu: { lte: new Date() } },
+        orderBy: { hieuLucTu: "desc" },
+        take: 1,
+        select: { donGia: true },
+      },
+    },
+  });
+  if (congTac.length !== ds.length) {
+    return { ok: false, error: "Có mã công việc không còn trong thư viện." };
+  }
+  const theoId = new Map(congTac.map((c) => [c.id, c]));
+
+  const kq = quyDoiRaKg(
+    ds.map((d) => {
+      const c = theoId.get(d.congTacId)!;
+      return {
+        congTacId: d.congTacId,
+        ma: c.ma,
+        ten: c.ten,
+        khoiLuongDonVi: d.khoiLuongDonVi,
+        soLuong: d.soLuong,
+        donGia: c.donGia[0]?.donGia ?? null,
+      };
+    })
+  );
+
+  // Gom thành ít lệnh: xoá cũ một lệnh, tạo mới một lệnh, sửa trọng lượng gộp theo giá
+  // trị. Một lệnh cho mỗi dòng là bài học đã trả giá ở 7f680ff.
+  const canSuaKhoiLuong = ds.filter(
+    (d) => (theoId.get(d.congTacId)!.khoiLuongDonVi ?? null) !== (d.khoiLuongDonVi ?? null)
+  );
+  const theoTrongLuong = new Map<number | null, string[]>();
+  for (const d of canSuaKhoiLuong) {
+    const ids = theoTrongLuong.get(d.khoiLuongDonVi);
+    if (ids) ids.push(d.congTacId);
+    else theoTrongLuong.set(d.khoiLuongDonVi, [d.congTacId]);
+  }
+
+  await db.$transaction([
+    db.boHangMucDongChiTiet.deleteMany({ where: { dongId } }),
+    ...(ds.length > 0
+      ? [
+          db.boHangMucDongChiTiet.createMany({
+            data: ds.map((d, i) => ({ dongId, congTacId: d.congTacId, soLuong: d.soLuong, sortOrder: i })),
+          }),
+        ]
+      : []),
+    ...[...theoTrongLuong].map(([kg, ids]) =>
+      db.congTac.updateMany({ where: { id: { in: ids } }, data: { khoiLuongDonVi: kg } })
+    ),
+    db.boHangMucDong.update({
+      where: { id: dongId },
+      // Bảng rỗng thì trả dòng về trạng thái chưa có giá, đừng giữ lại con số cũ không
+      // còn gì chống lưng.
+      data: { donGiaMacDinh: kq.donGiaMotKg },
+    }),
+  ]);
+
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "BoHangMuc",
+    entityId: dong.boHangMucId,
+    entityLabel: dong.ten,
+    action: "UPDATE",
+    changes: {
+      cauThanh: { truoc: null, sau: `${ds.length} cỡ` },
+      donGiaMacDinh: { truoc: dong.donGiaMacDinh, sau: kq.donGiaMotKg },
+    },
   });
   revalidatePath("/thu-vien/bo-hang-muc");
   return { ok: true };

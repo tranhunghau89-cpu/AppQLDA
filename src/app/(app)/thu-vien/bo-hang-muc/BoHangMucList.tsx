@@ -20,6 +20,8 @@ export interface CongTacView {
   donVi: string | null;
   nhomChiPhi: string;
   donGia: number | null;
+  /** Trọng lượng một bộ/cái (kg) — cầu nối sang những dòng bóc theo kg. */
+  khoiLuongDonVi: number | null;
 }
 
 export interface DongView {
@@ -30,6 +32,8 @@ export interface DongView {
   congTacId: string | null;
   donGiaMacDinh: number | null;
   nhomChiPhi: string;
+  /** Các cỡ hợp thành dòng này khi nó bóc theo kg còn thư viện bán theo bộ/cái. */
+  cauThanh: { congTacId: string; soLuong: number | null }[];
   /** Khối lượng trên một đơn vị diện tích của phần. */
   suatKhoiLuong: number | null;
   khoiLuongMacDinh: number | null;

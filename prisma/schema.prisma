@@ -1077,6 +1077,10 @@ model CongTac {
   // xuống dự toán thi công: báo giá chia theo đầu việc, mua hàng chia theo thứ phải mua.
   nhomChiPhi String   @default("KHAC")
   heSo       Float? // hệ số gợi ý khi nhập bản giá mới
+  // Trọng lượng MỘT đơn vị (kg). Cầu nối duy nhất giữa công tác bán theo bộ/cái và
+  // dòng dự toán bóc theo kg — bulong, ty xà gồ, ecu đều bóc từ bản vẽ ra kg nhưng
+  // mua theo bộ. Chỉ khai cho những công tác cần quy đổi, còn lại để trống.
+  khoiLuongDonVi Float?
   ghiChu     String?
   sortOrder  Int      @default(0)
   active     Boolean  @default(true)
@@ -1088,6 +1092,7 @@ model CongTac {
   dongBaoGia  QuoteItem[]
   dongMau     BoHangMucDong[]
   dongThiCong EstimateItem[]
+  cauThanh    BoHangMucDongChiTiet[]
 
   @@index([nhomMa, sortOrder])
   @@index([active])
@@ -1362,8 +1367,33 @@ model BoHangMucDong {
   layTuThamSo String?
   heSoQuyDoi  Float?  @default(1)
 
+  cauThanh BoHangMucDongChiTiet[]
+
   @@index([boHangMucId, sortOrder])
   @@index([phanId])
+  @@index([congTacId])
+}
+
+// Bảng cấu thành của một dòng bóc theo KG: dòng ấy gồm mấy cỡ, mỗi cỡ mấy bộ.
+//
+// Đây là chỗ DUY NHẤT nối được "Bulong liên kết — kg" của bộ hạng mục với AC.110..AC.180
+// của thư viện. Một dòng kg không gắn được vào MỘT mã nào: nhà xưởng dùng M16 ở xà gồ,
+// M20 ở kèo, M24 ở chân cột, và đơn giá mỗi kg của ba cỡ lệch nhau tới 10% vì đầu bulong
+// không tỉ lệ với thân. Nên dòng đó để `congTacId` trống và lấy giá từ bảng này.
+//
+// `soLuong` là số bộ cho MỘT công trình mẫu, không phải cho công trình đang lập: chỉ TỈ
+// LỆ giữa các cỡ mới vào kết quả. Nhờ vậy bảng khai một lần dùng được cho mọi nhà.
+model BoHangMucDongChiTiet {
+  id        String        @id @default(cuid())
+  dongId    String
+  dong      BoHangMucDong @relation(fields: [dongId], references: [id], onDelete: Cascade)
+  congTacId String
+  congTac   CongTac       @relation(fields: [congTacId], references: [id], onDelete: Cascade)
+  soLuong   Float?
+  sortOrder Int           @default(0)
+
+  @@unique([dongId, congTacId])
+  @@index([dongId, sortOrder])
   @@index([congTacId])
 }
 

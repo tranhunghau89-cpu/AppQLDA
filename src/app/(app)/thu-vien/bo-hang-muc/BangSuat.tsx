@@ -3,9 +3,10 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
-import { formatQty, formatSuat, parseViNumber } from "@/lib/utils";
+import { formatNumber, formatQty, formatSuat, parseViNumber } from "@/lib/utils";
 import { luuSuatDong } from "./actions";
 import { ChonCongTacModal } from "./ChonCongTacModal";
+import { ChiTietQuyDoiModal } from "./ChiTietQuyDoiModal";
 import type { CongTacView, DongView } from "./BoHangMucList";
 
 /**
@@ -33,6 +34,7 @@ export function BangSuat({
   // Chỉ giữ ô người dùng ĐANG gõ; còn lại luôn đọc từ máy chủ.
   const [nhap, setNhap] = useState<Record<string, string>>({});
   const [dongChonMa, setDongChonMa] = useState<DongView | null>(null);
+  const [dongQuyDoi, setDongQuyDoi] = useState<DongView | null>(null);
 
   if (dong.length === 0) {
     return <p className="px-4 py-3 text-sm text-slate-400">Phần này chưa có dòng công tác nào.</p>;
@@ -70,12 +72,14 @@ export function BangSuat({
         dòng đã gắn mã công việc.
       </p>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[34rem] text-xs">
+        <table className="w-full min-w-[46rem] text-xs">
           <thead className="text-slate-500">
             <tr>
               <th className="py-1 text-left font-medium">Mã</th>
               <th className="px-2 py-1 text-left font-medium">Công tác</th>
               <th className="px-2 py-1 text-left font-medium">ĐVT</th>
+              <th className="px-2 py-1 text-right font-medium">Đơn giá</th>
+              <th className="px-2 py-1 text-left font-medium">Cấu thành</th>
               <th className="px-2 py-1 text-right font-medium">Suất / m²</th>
               <th className="px-2 py-1 text-right font-medium">KL tuyệt đối</th>
             </tr>
@@ -101,6 +105,27 @@ export function BangSuat({
                 </td>
                 <td className="px-2 py-1 text-slate-700">{d.ten}</td>
                 <td className="px-2 py-1 text-slate-500">{d.donVi ?? "—"}</td>
+                <td className="px-2 py-1 text-right tabular-nums text-slate-600">
+                  {d.donGiaMacDinh == null ? "—" : formatNumber(d.donGiaMacDinh)}
+                </td>
+                <td className="px-2 py-1">
+                  {canEdit ? (
+                    <button
+                      type="button"
+                      onClick={() => setDongQuyDoi(d)}
+                      title="Khai các cỡ hợp thành để quy đổi đơn vị"
+                      className={`rounded px-1.5 py-0.5 hover:bg-white hover:ring-1 hover:ring-slate-300 ${
+                        d.cauThanh.length > 0 ? "text-slate-600" : "text-slate-400"
+                      }`}
+                    >
+                      {d.cauThanh.length > 0 ? `${d.cauThanh.length} cỡ` : "quy đổi"}
+                    </button>
+                  ) : (
+                    <span className="text-slate-400">
+                      {d.cauThanh.length > 0 ? `${d.cauThanh.length} cỡ` : "—"}
+                    </span>
+                  )}
+                </td>
                 <td className="px-2 py-1 text-right">
                   {canEdit ? (
                     <input
@@ -126,6 +151,14 @@ export function BangSuat({
           </tbody>
         </table>
       </div>
+
+      {dongQuyDoi && (
+        <ChiTietQuyDoiModal
+          dong={dongQuyDoi}
+          congTac={congTac}
+          onClose={() => setDongQuyDoi(null)}
+        />
+      )}
 
       {dongChonMa && (
         <ChonCongTacModal
