@@ -8,6 +8,10 @@ const HO_TRO: Record<ImportKind, { moTa: string; sanSang: boolean }> = {
   estimate: { moTa: "File dự toán, sheet TongHop — mỗi file 1 dự án", sanSang: true },
   thcp: { moTa: "Quyết toán hoặc sổ giá thành — mỗi file 1 dự án", sanSang: true },
   order: { moTa: "File DH_*.xlsx — mỗi file 1 đơn, nhiều sheet vật tư", sanSang: true },
+  thuVien: {
+    moTa: "File BG_*.xlsx, sheet DV — cập nhật đơn giá chung, không thuộc dự án nào",
+    sanSang: true,
+  },
 };
 
 export default async function ImportPage() {
@@ -34,7 +38,7 @@ export default async function ImportPage() {
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
         <div className="font-medium text-slate-800">Các loại chưa chuyển lên web</div>
         <p className="mt-1 text-xs">
-          Hợp đồng, bảng đơn giá và báo giá mẫu vẫn nhập bằng lệnh trên máy phát triển
+          Hợp đồng và báo giá mẫu vẫn nhập bằng lệnh trên máy phát triển
           (<code className="font-mono">npm run import:*</code>). Đây đều là những việc
           làm một lần hoặc hiếm khi lặp lại.
         </p>

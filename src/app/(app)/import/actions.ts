@@ -5,6 +5,7 @@ import { requirePermission } from "@/lib/auth";
 import { applyEstimate, parseEstimate } from "@/lib/import/estimate";
 import { applyThcp, parseThcp } from "@/lib/import/thcp";
 import { applyOrder, parseOrder } from "@/lib/import/order";
+import { applyThuVien, parseThuVien } from "@/lib/import/thuVien";
 import type { ImportKind, ImportPreview, ImportResult } from "@/lib/import/types";
 
 export type PreviewResult =
@@ -46,6 +47,8 @@ export async function previewImport(kind: ImportKind, form: FormData): Promise<P
         return { ok: true, preview: await parseThcp(buffer, file.name) };
       case "order":
         return { ok: true, preview: await parseOrder(buffer, file.name, file.size) };
+      case "thuVien":
+        return { ok: true, preview: await parseThuVien(buffer, file.name) };
       default:
         return { ok: false, error: "Loại nhập này chưa được hỗ trợ trên web." };
     }
@@ -97,6 +100,9 @@ export async function applyImport(
         ketQua = await applyOrder(payload, lai, session);
         break;
       }
+      case "thuVien":
+        ketQua = await applyThuVien(payload, session);
+        break;
       default:
         return { ok: false, thongDiep: "Loại nhập này chưa được hỗ trợ trên web." };
     }
@@ -106,6 +112,7 @@ export async function applyImport(
       revalidatePath("/estimates");
       revalidatePath("/costs");
       revalidatePath("/purchases");
+      revalidatePath("/thu-vien");
       if (ketQua.projectId) revalidatePath(`/projects/${ketQua.projectId}`);
     }
     return ketQua;

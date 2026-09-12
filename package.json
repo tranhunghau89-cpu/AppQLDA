@@ -24,7 +24,6 @@
     "import:contracts": "tsx scripts/import-contracts.ts",
     "import:orders": "tsx scripts/import-orders.ts",
     "import:thcp": "tsx scripts/import-thcp.ts",
-    "import:pricebook": "tsx scripts/import-pricebook.ts",
     "import:quote": "tsx scripts/import-quote.ts",
     "import:missing": "tsx scripts/import-missing-projects.ts",
     "members:backfill": "tsx scripts/backfill-project-members.ts",

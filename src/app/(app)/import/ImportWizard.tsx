@@ -133,18 +133,20 @@ export function ImportWizard({
             <span className="font-mono text-xs text-slate-500">{preview.fileName}</span>
           </div>
 
-          <div
-            className={`rounded-lg border p-3 text-sm ${
-              preview.duAn.taoMoi
-                ? "border-amber-200 bg-amber-50 text-amber-900"
-                : "border-slate-200 bg-slate-50 text-slate-700"
-            }`}
-          >
-            <span className="font-medium">Dự án đích: </span>
-            {preview.duAn.code && <span className="font-mono">{preview.duAn.code} </span>}
-            {preview.duAn.name}
-            <div className="text-xs opacity-80">{preview.duAn.cachKhop}</div>
-          </div>
+          {preview.duAn && (
+            <div
+              className={`rounded-lg border p-3 text-sm ${
+                preview.duAn.taoMoi
+                  ? "border-amber-200 bg-amber-50 text-amber-900"
+                  : "border-slate-200 bg-slate-50 text-slate-700"
+              }`}
+            >
+              <span className="font-medium">Dự án đích: </span>
+              {preview.duAn.code && <span className="font-mono">{preview.duAn.code} </span>}
+              {preview.duAn.name}
+              <div className="text-xs opacity-80">{preview.duAn.cachKhop}</div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {preview.thongKe.map((s) => (

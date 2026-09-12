@@ -9,6 +9,7 @@ export const IMPORT_KIND = {
   estimate: "Dự toán chi tiết",
   thcp: "Tổng hợp chi phí (quyết toán)",
   order: "Đơn đặt hàng vật tư",
+  thuVien: "Thư viện đơn giá (sheet DV)",
 } as const;
 
 export type ImportKind = keyof typeof IMPORT_KIND;
@@ -37,7 +38,12 @@ export interface PreviewRow {
 export interface ImportPreview {
   kind: ImportKind;
   fileName: string;
-  duAn: ProjectMatch;
+  /**
+   * Dự án đích. Vắng mặt khi file KHÔNG thuộc dự án nào — thư viện đơn giá là dữ liệu
+   * toàn cục. Thà để trống còn hơn bịa một dự án giả chỉ để lấp chỗ: giao diện sẽ hiện
+   * một ô "Dự án đích" nói dối.
+   */
+  duAn?: ProjectMatch;
   /** Số liệu tổng hợp hiện lên đầu (diện tích, tổng chi phí, số dòng...). */
   thongKe: PreviewStat[];
   /** Cảnh báo — không chặn, nhưng người dùng nên đọc trước khi xác nhận. */

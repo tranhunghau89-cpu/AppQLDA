@@ -352,8 +352,132 @@ cấp khác` → 11 nhà cung cấp còn lại.
 
 ---
 
-## Phase sau
+# Phase 7 — Nhập Excel thư viện
 
-7. Nhập Excel thư viện · dọn các bảng cũ (`WorkPrice`, `QuoteTemplate*`, `EstimateTemplate*`)
+Cho tới đây, cách duy nhất để đổi đơn giá là gõ tay từng mã trên giao diện, và chỉ
+ADMIN làm được — nút cổ chai đúng như đã lường trong bảng rủi ro. Phase này mở van.
+
+## Nguồn thật là gì
+
+Kế hoạch ban đầu ghi nguồn là `DuToanMau/`, `THCPMau/`, `TD_DA.xlsx`. **Sai** — hai
+thư mục đó là file theo dự án, đã có bộ nhập riêng. Nguồn thật của 135 mã đơn giá là
+sheet **"DV"** (Bảng danh mục công việc & đơn giá) trong file báo giá `BG_NX_*.xlsx`.
+
+Bố cục sheet, hàng 4 là tiêu đề, dữ liệu từ hàng 5:
+
+```
+A=STT  B=MCV  C=ND  D=Loại  E=TSKT  F=DV  G=VT  H=NC_M  I=HS  J=GT  K=GC
+```
+
+Khớp một-đối-một với `CongTac` + `DonGiaCongTac`. Từ cột L trở đi là ô tìm kiếm và
+bảng chú giải nhóm của chính file — không phải dữ liệu. Tiện thể, bảng chú giải ấy
+(AA=Thép, AB=Bulong neo, AC=Bulong liên kết, AD=Tôn diềm inox, AE=Phụ kiện, AF=Dầm sàn,
+AG=Vận chuyển, AK=Lắp đặt) khớp đúng bảng ánh xạ `NHOM_MA_SANG_NHOM_CHI_PHI` đã chốt
+lúc phỏng vấn — một xác nhận độc lập rằng ánh xạ đó không phải tôi đoán.
+
+## Con số đổi cả thiết kế
+
+Bốn file bảng giá trải từ 2023 đến 2026, đối chiếu toàn bộ 135 mã:
+
+| File | Đổi giá | Thêm mã | Mất mã |
+|---|---|---|---|
+| `BG_NX_KL_HN_D1312_25` | **1** (AC.630: 26.500 → 32.500) | 0 | 0 |
+| `BG_NX_K35L35_PT_D2903_25` | 0 | 0 | 0 |
+| `BG_NX_K30L72_HN_D08_26` | 0 | 0 | 0 |
+
+Bảng giá được **chép từ file báo giá này sang file báo giá khác**, nên hai file cách
+nhau ba năm vẫn gần như y hệt. Nếu trình nhập cứ mỗi file chèn 135 bản giá, nhập bốn
+file sẽ sinh 540 dòng mà 539 dòng là rác — và lịch sử giá, đúng thứ thư viện sinh ra
+để giữ, bị chôn dưới đống trùng lặp.
+
+Nên: **chỉ ghi khi con số thật sự đổi.** Kèm theo đó, nhập lại cùng một file trở nên
+vô hại — tính bất biến có được miễn phí, không cần khoá hay cờ "đã nhập".
+
+## Quyết định khác
+
+**Ngày hiệu lực đọc từ tên file** theo quy ước `BG_..._D<ngày><tháng>_<năm>`, có cả
+dạng ngắn chỉ tháng (`_D08_26`). Không đọc được thì lùi về hôm nay và **nói rõ trên
+màn hình** — đoán bừa một ngày quá khứ sẽ chèn bản giá xuống dưới các bản đã có rồi
+âm thầm không có tác dụng gì.
+
+**Bảng xem trước chỉ hiện dòng THẬT SỰ đổi.** Một danh sách 135 dòng mà 134 dòng
+"không đổi" thì người duyệt sẽ lướt qua — và đó đúng là lúc một thay đổi sai lọt lưới.
+
+**`ImportPreview.duAn` thành tuỳ chọn.** Thư viện là dữ liệu toàn cục, không thuộc dự
+án nào. Thà để trống còn hơn bịa một dự án giả để lấp chỗ: giao diện sẽ hiện một ô
+"Dự án đích" nói dối.
+
+**Mã trùng trong cùng file: giữ dòng ĐẦU.** Dòng sau thường là bản nháp bỏ quên bên
+dưới; lấy dòng cuối là âm thầm đổi giá của mã đó.
+
+**Nhập không đụng `nhomChiPhi`** của công tác đã có: đó là giá trị ADMIN sửa trên giao
+diện, file Excel không biết gì về nó.
+
+## Đã làm
+
+| Tệp | Việc |
+|---|---|
+| `src/lib/import/thuVien-parse.ts` + `.test.ts` | `bocTachThuVien`, `ngayHieuLucTuTenFile`, `soSanhVoiThuVien` — thuần, 23 test |
+| `src/lib/import/thuVien.ts` | `parseThuVien` / `applyThuVien` |
+| `src/lib/import/types.ts` | Thêm `thuVien` vào `IMPORT_KIND`; `duAn` thành tuỳ chọn |
+| `.../import/{page,actions,ImportWizard}.tsx` | Nối loại mới; ô "Dự án đích" chỉ hiện khi có |
+| `scripts/import-pricebook.ts` | **Xoá** |
+
+### Vì sao xoá `import-pricebook.ts`
+
+Script đó ghi vào `WorkPrice` — bảng mà từ Phase 1 **không còn ai đọc**. Nó không
+còn là một lối nhập nữa, nó là một cái bẫy: chạy xong thấy báo "135 mã, cập nhật 135"
+và tin rằng đã đổi giá, trong khi thư viện không hề thay đổi. Kẻ ghi cuối cùng vào
+`WorkPrice` biến mất cùng nó.
+
+## Kiểm chứng
+
+Bấm qua giao diện thật với hai file báo giá gốc:
+
+```
+BG_NX_KL_HN_D2504_23.xlsx   135 mã · 131 công tác mới · 2 đổi giá · hiệu lực 25/4/2023
+  -> Đã thêm 133 bản giá hiệu lực 25/4/2023 và tạo 131 công tác mới. 2 mã không đổi — bỏ qua.
+
+BG_NX_KL_HN_D1312_25.xlsx   135 mã ·   0 công tác mới · 1 đổi giá · hiệu lực 13/12/2025
+  AC.630  Cáp bọc nhựa D20  Đổi giá  26.500 ₫ -> 32.500 ₫
+  -> Đã thêm 1 bản giá hiệu lực 13/12/2025. 134 mã không đổi giá — bỏ qua.
+```
+
+135 mã vào, **1 dòng** ra. Lịch sử giá của AC.630 trong cơ sở dữ liệu sau đó:
+
+| Hiệu lực từ | Đơn giá | Nguồn |
+|---|---|---|
+| 25/04/2023 | 26.500 | IMPORT_EXCEL |
+| 13/12/2025 | 32.500 | IMPORT_EXCEL |
+
+Màn thư viện hiện đúng giá mới nhất (32.500 · 13/12/2025), và câu hỏi "ngày ký báo
+giá đó giá bao nhiêu" từ nay tra được.
+
+657 test xanh, `typecheck`/`lint`/`build` sạch.
+
+---
+
+## Chưa làm: dọn các bảng cũ
+
+Kế hoạch xếp việc DROP `WorkPrice`, `QuoteTemplate*`, `EstimateTemplate*` vào phase
+này. **Cố ý để lại**, vì ba lý do:
+
+1. Hai script đối soát (`kiemtra:thu-vien`, `kiemtra:bo-hang-muc`) **đọc chính các
+   bảng đó** để chứng minh phép chuyển đổi là trung thực — 135 = 135, tổng đơn giá
+   khớp, 90 dòng mẫu về đủ. Xoá bảng là xoá luôn phép kiểm độc lập duy nhất.
+2. `migrate deploy` trên Supabase **không lùi được**.
+3. Thư viện mới mới sống được vài giờ, và chưa ai khai một khu vực hay một biến thể
+   vật liệu nào. Chưa đủ thời gian để tin.
+
+Ba bảng đó tốn khoảng 270 dòng dữ liệu — rẻ hơn nhiều so với việc mất đường đối soát.
+Nên xoá trong một release RIÊNG, sau khi thư viện đã chạy thật một thời gian.
+
+Phần **nguy hiểm** của việc dọn dẹp thì đã làm xong: cái script ghi vào bảng chết.
+
+## Việc còn lại của quản trị viên
+
+1. Khai `KhuVuc` và gán vùng cho 46 nhà cung cấp — mở khoá trục vị trí.
+2. Gắn `congTacId` cho 90 dòng trong bộ hạng mục.
+3. Khai biến thể vật liệu (`CongTacVatTu`) cho các công tác có nhiều loại tôn/thép.
 
 Việc còn lại của quản trị viên: 90 dòng công tác trong bộ **chưa gắn `congTacId`** (tên là chữ tự do, không có cách khớp tự động an toàn với 135 mã công tác). Gắn dần trên giao diện thì chúng mới ăn được đơn giá theo khu vực/vật liệu.
