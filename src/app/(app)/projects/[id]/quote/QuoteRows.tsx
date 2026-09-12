@@ -33,11 +33,40 @@ function ItemRows({
           <Td className="font-mono text-xs text-slate-500">{it.workCode ?? "—"}</Td>
           <Td className="text-slate-900">
             {it.name}
+            {it.bienTheTen ? (
+              <span className="text-slate-500"> · {it.bienTheTen}</span>
+            ) : null}
             {it.spec ? <span className="text-slate-400"> · {it.spec}</span> : null}
           </Td>
           <Td className="text-slate-600">{it.unit ?? "—"}</Td>
           <Td className="text-right">{formatQty(it.qty)}</Td>
-          <Td className="text-right text-slate-500">{formatNumber(it.baseCost)}</Td>
+          <Td className="text-right text-slate-500">
+            {formatNumber(it.baseCost)}
+            {/*
+              Huy hiệu lệch giá hiện cho CẢ dòng đã sửa tay — người dùng vẫn cần biết
+              thư viện đã đổi. Chỉ có việc "Cập nhật giá" là bỏ qua dòng đó.
+            */}
+            {it.coTroiGia && it.donGiaHienHanh !== null && (
+              <span
+                className="ml-1.5 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800"
+                title={
+                  it.giaSuaTay
+                    ? "Thư viện đã đổi giá, nhưng dòng này đã sửa tay nên không tự cập nhật"
+                    : "Thư viện đã đổi giá kể từ lúc chốt"
+                }
+              >
+                → {formatNumber(it.donGiaHienHanh)}
+              </span>
+            )}
+            {it.giaSuaTay && (
+              <span
+                className="ml-1.5 inline-block rounded bg-slate-200 px-1.5 py-0.5 text-xs font-medium text-slate-600"
+                title="Giá do người lập tự nhập, không theo thư viện"
+              >
+                sửa tay
+              </span>
+            )}
+          </Td>
           <Td className="text-right">{formatNumber(it.sellPrice)}</Td>
           <Td className="text-right font-medium">{formatVND(lineSell(it))}</Td>
           {canEdit && (

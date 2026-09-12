@@ -10,13 +10,18 @@ export default async function ProjectsPage() {
   const canEdit = can(session.role, "project", "edit");
   const where = await scopedProjectWhere(session);
 
-  const [projects, customers] = await Promise.all([
+  const [projects, customers, khuVucs] = await Promise.all([
     db.project.findMany({
       where,
       orderBy: { code: "desc" },
       include: { customer: { select: { name: true } } },
     }),
     db.customer.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    db.khuVuc.findMany({
+      where: { active: true },
+      orderBy: [{ sortOrder: "asc" }, { ma: "asc" }],
+      select: { id: true, ma: true, ten: true },
+    }),
   ]);
 
   const rows: ProjectRow[] = projects.map((p) => ({
@@ -26,6 +31,7 @@ export default async function ProjectsPage() {
     buildingType: p.buildingType,
     status: p.status,
     location: p.location,
+    khuVucId: p.khuVucId,
     customerId: p.customerId,
     customerName: p.customer?.name ?? null,
     startDate: p.startDate?.toISOString() ?? null,
@@ -59,7 +65,12 @@ export default async function ProjectsPage() {
           tiết dự án).
         </div>
       )}
-      <ProjectList projects={rows} customers={customers} canEdit={canEdit} />
+      <ProjectList
+        projects={rows}
+        customers={customers}
+        khuVucs={khuVucs}
+        canEdit={canEdit}
+      />
     </div>
   );
 }

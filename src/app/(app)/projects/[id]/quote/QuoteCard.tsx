@@ -21,7 +21,13 @@ import { duongDanIn, type ChuBaoGia } from "@/lib/quoteOwner";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
 import { QuoteRows } from "./QuoteRows";
-import { deleteQuote, deleteSection, deleteItem, repriceQuote, pushSalePrice } from "./actions";
+import {
+  capNhatGiaTuThuVien,
+  deleteQuote,
+  deleteSection,
+  deleteItem,
+  pushSalePrice,
+} from "./actions";
 import type { ItemView, QuoteView, SectionView } from "./types";
 
 /**
@@ -60,6 +66,14 @@ export function QuoteCard({
   const toast = useToast();
 
   const totals = useMemo(() => computeQuoteTotals(q.items), [q.items]);
+  const soDongTroiGia = useMemo(
+    () => q.items.filter((it) => it.coTroiGia && !it.giaSuaTay).length,
+    [q.items]
+  );
+  const soDongSuaTay = useMemo(
+    () => q.items.filter((it) => it.giaSuaTay).length,
+    [q.items]
+  );
   const tienPhanCua = useMemo(() => sectionSubtotals(q.sections, q.items), [q.sections, q.items]);
 
   /** Chạy một action không có form: lỗi thì báo toast, xong thì tải lại. */
@@ -84,12 +98,35 @@ export function QuoteCard({
     run(() => deleteItem(chu, it.id));
   }
   async function onReprice() {
-    if (!(await confirm("Cập nhật lại giá gốc từ bảng đơn giá (đơn giá bán = giá gốc × TL)?")))
+    const loi =
+      soDongTroiGia === 0
+        ? "Không dòng nào lệch giá so với thư viện. Vẫn cập nhật?"
+        : `Cập nhật ${soDongTroiGia} dòng đang lệch giá về đúng đơn giá thư viện hiện hành?`;
+    const themVeSuaTay =
+      soDongSuaTay > 0
+        ? ` ${soDongSuaTay} dòng đã sửa tay sẽ được GIỮ NGUYÊN.`
+        : "";
+    // Truyền nhãn: mặc định của hộp xác nhận là nút đỏ "Xóa" vì đa số lời gọi là xóa.
+    // Một thao tác cập nhật giá mà hỏi bằng nút "Xóa" màu đỏ là làm người dùng sợ sai chỗ.
+    if (
+      !(await confirm(loi + themVeSuaTay, {
+        title: "Cập nhật giá từ thư viện",
+        confirmLabel: "Cập nhật",
+        danger: false,
+      }))
+    )
       return;
-    run(() => repriceQuote(chu, q.id));
+    run(() => capNhatGiaTuThuVien(chu, q.id));
   }
   async function onPush() {
-    if (!(await confirm(`Đặt giá bán dự án = tổng báo giá (${formatVND(totals.sell)})?`))) return;
+    if (
+      !(await confirm(`Đặt giá bán dự án = tổng báo giá (${formatVND(totals.sell)})?`, {
+        title: "Đẩy giá bán sang dự án",
+        confirmLabel: "Đẩy giá bán",
+        danger: false,
+      }))
+    )
+      return;
     run(() => pushSalePrice(chu, q.id));
   }
 
@@ -103,6 +140,14 @@ export function QuoteCard({
             <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">
               TL ×{q.markup ?? 1}
             </span>
+            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">
+              {q.khuVucTen ?? "Giá chung"}
+            </span>
+            {soDongTroiGia > 0 && (
+              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
+                {soDongTroiGia} dòng lệch giá thư viện
+              </span>
+            )}
           </div>
           <div className="text-sm text-slate-500">
             {q.recipient && <span>Kính gửi: {q.recipient} · </span>}
@@ -134,8 +179,12 @@ export function QuoteCard({
                   <ArrowUpFromLine className="h-3.5 w-3.5" /> Đẩy giá bán
                 </Button>
               )}
-              <Button variant="outline" size="sm" onClick={onReprice}>
-                <RefreshCw className="h-3.5 w-3.5" /> Cập nhật đơn giá
+              <Button
+                variant={soDongTroiGia > 0 ? "secondary" : "outline"}
+                size="sm"
+                onClick={onReprice}
+              >
+                <RefreshCw className="h-3.5 w-3.5" /> Cập nhật giá từ thư viện
               </Button>
               <Button variant="ghost" size="icon" onClick={onEditQuote}>
                 <Pencil className="h-4 w-4" />

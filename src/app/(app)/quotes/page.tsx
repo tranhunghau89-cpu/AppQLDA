@@ -49,7 +49,7 @@ export default async function QuotesPage({
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Báo giá chi tiết</h1>
+          <h1 className="text-2xl font-semibold text-slate-900">Dự toán chào giá</h1>
           <p className="text-sm text-slate-500">
             Bảng tính giá thành theo Mã CV — {rows.length} bản
           </p>

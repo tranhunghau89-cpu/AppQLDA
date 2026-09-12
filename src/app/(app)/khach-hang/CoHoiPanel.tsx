@@ -144,7 +144,7 @@ export function CoHoiPanel({
                     >
                       <Calculator className="h-3.5 w-3.5" />
                       {c.soDuToan > 0
-                        ? `Dự toán chi tiết (${c.soDuToan})`
+                        ? `Dự toán chào giá (${c.soDuToan})`
                         : "Lập dự toán chi tiết"}
                     </Link>
                     <Link

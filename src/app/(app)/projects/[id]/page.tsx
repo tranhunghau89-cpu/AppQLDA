@@ -455,7 +455,7 @@ export default async function ProjectDetailPage({
       {canViewQuote && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Báo giá chi tiết (Mã CV)</CardTitle>
+            <CardTitle>Dự toán chào giá (Mã CV)</CardTitle>
             <div className="flex flex-wrap items-center gap-2">
               <Link
                 href={`/projects/${project.id}/client-quote`}

@@ -131,9 +131,62 @@ Nên thu gọn theo nhà cung cấp trước (lấy bản mới nhất của t�
 
 ---
 
+---
+
+# Giai đoạn 3 — Gợi ý giá theo khu vực, đóng băng giá, cảnh báo lệch
+
+## Vì sao
+
+Hai giai đoạn trước dựng được kho giá nhiều chiều, nhưng dự toán vẫn chưa dùng tới: nó lấy một con số duy nhất theo mã, không biết khu vực lẫn vật liệu, và không lưu lại mình đã lấy từ đâu. Giai đoạn này nối thư viện vào chỗ thật sự ra tiền.
+
+## Quyết định thiết kế
+
+**`donGiaId` mới là ảnh chụp thật, không phải `donGiaThuVien`.** Con số chỉ nói "giá lúc đó là bao nhiêu"; id bản giá nói được "lấy từ bản nào, hiệu lực từ ngày nào, do ai nhập". Cột số giữ lại để so lệch mà không phải join.
+
+**Lệch giá TÍNH RA mỗi lần tải trang, không lưu cờ.** Một cờ `coTroi` trong CSDL ôi ngay khi ai đó thêm một dòng giá, mà không có job nào làm mới nó.
+
+**`giaSuaTay` suy ra từ CON SỐ, không từ ô tích.** Người dùng gõ giá khác đề xuất là đã nói lên ý mình; bắt tích thêm một ô để xác nhận là thừa. Đây cũng là chỗ duy nhất quyết định cờ đó.
+
+**Huy hiệu lệch giá hiện cho CẢ dòng đã sửa tay**, chỉ có việc *cập nhật* là bỏ qua. Người lập vẫn cần biết thư viện đã đổi; giấu đi là giấu thông tin, không phải bảo vệ.
+
+**Gộp `repriceQuote` (cũ) vào `capNhatGiaTuThuVien` và xóa hàm cũ.** Hai hàm cùng mang nghĩa "tính lại giá" với hai luật khác nhau — cái cũ khớp theo chuỗi mã, bỏ qua khu vực, biến thể lẫn dấu sửa tay — là đúng cái bẫy mà cả kế hoạch này sinh ra để tránh.
+
+**Hàm mới vẫn nhận dòng chỉ có `workCode`** (chưa gắn `congTacId`) và gắn id cho nó khi cập nhật. Không có nhánh này thì 72 dòng lập trước khi có thư viện bị bỏ rơi vĩnh viễn.
+
+**`guard()` thu hẹp kiểu trả về** thành `{ ok: false } | null`. "Chặn thành công" là khái niệm vô nghĩa; khai rộng hơn thực tế bắt mọi chỗ gọi tự ép kiểu.
+
+## Đã làm
+
+| Tệp | Việc |
+|---|---|
+| `prisma/migrations/20260912110000_quote_item_dong_bang_gia/` | 6 cột nullable trên `QuoteItem`; khóa ngoại đều **SET NULL** — xóa công tác khỏi thư viện không được xóa dòng báo giá đã lập |
+| `.../quote/napDuLieu.ts` | Nạp thư viện kèm biến thể; tính lệch giá cho từng dòng theo khu vực của BẢN dự toán |
+| `.../quote/actions.ts` | `goiYDonGia`, `capNhatGiaTuThuVien`, `boDauSuaTay`, `chotGiaThuVien`; `saveQuote` nhận `khuVucId`; gỡ `repriceQuote` |
+| `.../quote/ItemModal.tsx` | Chọn công tác → chọn vật liệu → hỏi giá đề xuất kèm nhãn độ khớp; cảnh báo trước khi đánh dấu sửa tay |
+| `.../quote/QuoteRows.tsx` | Huy hiệu `→ giá mới` và nhãn `sửa tay` trên từng dòng |
+| `.../quote/QuoteCard.tsx` | Đếm dòng lệch giá trên đầu thẻ; nút cập nhật nói rõ sẽ giữ nguyên bao nhiêu dòng sửa tay |
+| `projects/ProjectList.tsx`, `projects/actions.ts` | Chọn khu vực cho dự án |
+| Nhãn khắp app | "Dự toán chào giá" (Quote) vs "Dự toán thi công & chi phí" (EstimateItem) |
+| `QuoteCard` confirm | Hộp xác nhận không-phải-xóa giờ hiện nút xanh "Cập nhật"/"Đẩy giá bán" thay vì nút đỏ "Xóa" |
+
+## Kiểm chứng
+
+Dựng một bản dự toán ở **Miền Nam** có 3 dòng, rồi bấm nút thật trên trình duyệt:
+
+| Dòng | Trước | Sau | Kỳ vọng |
+|---|---|---|---|
+| Chốt giá cũ, chưa sửa tay (Hoa Sen) | 150.000 | **203.000**, bán 233.450 (×1,15) | Lấy đúng bản khai riêng cho *Hoa Sen + Miền Nam*, thắng cả 196.000 (chỉ biến thể) lẫn 185.000 (giá chung) ✓ |
+| Chốt giá cũ, **đã sửa tay** | 175.000 | **175.000 — không đụng** | Bỏ qua, nhưng vẫn hiện huy hiệu lệch ✓ |
+| Chỉ có `workCode`, chưa gắn công tác | 99.000 | **185.000** + tự gắn `congTacId` | Đường di trú cho dòng cũ; lấy giá chung vì dòng không khai vật liệu ✓ |
+
+Thẻ báo giá đếm **1** dòng lệch (loại đúng dòng sửa tay). Hộp xác nhận nói: *"Cập nhật 1 dòng đang lệch giá… 1 dòng đã sửa tay sẽ được GIỮ NGUYÊN."*
+
+603 test xanh, `typecheck`/`lint`/`build` sạch.
+
+---
+
 ## Phase sau
 
-4. Gợi ý giá theo khu vực, đóng băng giá trên dòng báo giá, huy hiệu cảnh báo lệch giá
 5. Bộ hạng mục chuẩn — hấp thụ `EstimateTemplate*` **và** `QuoteTemplate*` vào một khuôn
 6. Nối xuống dự toán thi công qua `CongTac.nhomChiPhi`
 7. Nhập Excel thư viện · dọn các bảng cũ

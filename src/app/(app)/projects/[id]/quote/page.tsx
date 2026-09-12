@@ -16,7 +16,15 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
   const [project, duLieu] = await Promise.all([
     db.project.findUnique({
       where: { id },
-      select: { id: true, code: true, name: true, location: true, area: true, buildingType: true },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        location: true,
+        area: true,
+        buildingType: true,
+        khuVucId: true,
+      },
     }),
     napDuLieuBaoGia(session, { loai: "DU_AN", id }),
   ]);
@@ -36,10 +44,10 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
         </Link>
         <div className="flex-1">
           <h1 className="text-2xl font-semibold text-slate-900">
-            Báo giá chi tiết — <span className="font-mono">{project.code}</span> {project.name}
+            Dự toán chào giá — <span className="font-mono">{project.code}</span> {project.name}
           </h1>
           <p className="text-sm text-slate-500">
-            Lập báo giá theo Mã CV{project.location ? ` · ${project.location}` : ""}
+            Bóc giá vốn và giá bán theo mã công tác{project.location ? ` · ${project.location}` : ""}
           </p>
         </div>
         <Link
@@ -59,6 +67,8 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
         projectArea={project.area}
         templates={mau.options}
         templateGoiY={mau.goiY}
+        khuVucs={duLieu.khuVucs}
+        khuVucMacDinh={project.khuVucId}
       />
     </div>
   );

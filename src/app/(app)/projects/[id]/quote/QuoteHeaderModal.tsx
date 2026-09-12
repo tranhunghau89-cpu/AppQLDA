@@ -1,6 +1,6 @@
 "use client";
 
-import { Input, Textarea, Field } from "@/components/ui/form";
+import { Input, Textarea, Field, Select } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { useActionForm } from "@/components/ui/useActionForm";
 import { ModalActions } from "./ModalActions";
@@ -11,11 +11,16 @@ import type { QuoteView } from "./types";
 export function QuoteHeaderModal({
   chu,
   editing,
+  khuVucs,
+  khuVucMacDinh,
   onClose,
   onDone,
 }: {
   chu: ChuBaoGia;
   editing: QuoteView | null;
+  khuVucs: { id: string; ma: string; ten: string }[];
+  /** Khu vực của dự án — chọn sẵn khi tạo bản mới. */
+  khuVucMacDinh: string | null;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -56,6 +61,21 @@ export function QuoteHeaderModal({
             <Input name="markup" type="number" step="any" defaultValue={editing?.markup ?? 1} />
           </Field>
         </div>
+        {/*
+          Khu vực nằm ở BẢN dự toán chứ không đọc qua dự án: một bản dự toán sống được
+          ở cơ hội chào giá, lúc đó chưa có dự án nào để hỏi. Tạo từ dự án thì ô này
+          chọn sẵn khu vực của dự án.
+        */}
+        <Field label="Khu vực (dùng để tra đơn giá thư viện)">
+          <Select name="khuVucId" defaultValue={editing?.khuVucId ?? khuVucMacDinh ?? ""}>
+            <option value="">Không theo khu vực — dùng giá chung</option>
+            {khuVucs.map((k) => (
+              <option key={k.id} value={k.id}>
+                {k.ma} — {k.ten}
+              </option>
+            ))}
+          </Select>
+        </Field>
         <Field label="Ghi chú">
           <Textarea name="note" defaultValue={editing?.note ?? ""} />
         </Field>

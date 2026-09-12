@@ -12,7 +12,7 @@ import { QuoteEditor } from "../../../projects/[id]/quote/QuoteEditor";
 import { napDuLieuBaoGia } from "../../../projects/[id]/quote/napDuLieu";
 
 /**
- * Dự toán chi tiết của một công trình đang chào giá — chưa có dự án nào.
+ * Dự toán chào giá của một công trình đang chào giá — chưa có dự án nào.
  *
  * Cùng màn hình với dự toán ở dự án, chỉ khác chủ sở hữu. Đây là chỗ nhân viên kinh
  * doanh dựng giá thành trước khi suy ra đơn giá m² cho bản gửi khách.
@@ -90,6 +90,9 @@ export default async function CoHoiQuotePage({
         projectArea={coHoi.area}
         templates={mau.options}
         templateGoiY={mau.goiY}
+        khuVucs={duLieu.khuVucs}
+        // Cơ hội chưa có dự án nên không có khu vực mặc định — người lập tự chọn.
+        khuVucMacDinh={null}
       />
     </div>
   );

@@ -71,7 +71,7 @@ const NAV: NavGroup[] = [
         // của khu này — không đánh dấu thì vào đó menu trông như không ở đâu cả.
         khopThem: ["/co-hoi"],
       },
-      { href: "/quotes", label: "Đơn giá & Báo giá", icon: Receipt, resource: "quote" },
+      { href: "/quotes", label: "Dự toán chào giá", icon: Receipt, resource: "quote" },
       { href: "/client-quotes", label: "Báo giá gửi khách", icon: FileText, resource: "quote" },
     ],
   },
@@ -87,7 +87,7 @@ const NAV: NavGroup[] = [
   {
     ten: "Chi phí & hợp đồng",
     items: [
-      { href: "/estimates", label: "Dự toán & chi phí", icon: Calculator, resource: "estimate" },
+      { href: "/estimates", label: "Dự toán thi công & chi phí", icon: Calculator, resource: "estimate" },
       { href: "/contracts", label: "Hợp đồng & Báo giá", icon: FileSignature, resource: "contract" },
       { href: "/purchases", label: "Đơn hàng & Mua hàng", icon: ShoppingCart, resource: "purchase" },
       { href: "/costs", label: "Tổng hợp chi phí", icon: Wallet, resource: "cost" },

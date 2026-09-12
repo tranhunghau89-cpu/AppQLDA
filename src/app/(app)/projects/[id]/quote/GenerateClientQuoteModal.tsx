@@ -97,7 +97,7 @@ export function GenerateClientQuoteModal({
               {phans.length === 0 && (
                 <tr>
                   <td colSpan={2} className="px-3 py-4 text-center text-slate-400">
-                    Báo giá chi tiết chưa có phần nào.
+                    Dự toán chào giá chưa có phần nào.
                   </td>
                 </tr>
               )}

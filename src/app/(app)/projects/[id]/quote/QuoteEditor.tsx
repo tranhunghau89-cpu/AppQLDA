@@ -28,6 +28,8 @@ export function QuoteEditor({
   projectArea,
   templates,
   templateGoiY,
+  khuVucs,
+  khuVucMacDinh,
 }: {
   /** Dự toán này thuộc dự án hay cơ hội chào giá — quyết định action ghi vào đâu. */
   chu: ChuBaoGia;
@@ -40,6 +42,10 @@ export function QuoteEditor({
   /** Mẫu báo giá gửi khách — chỉ dùng cho hộp thoại "Tạo báo giá gửi khách". */
   templates: TemplateOption[];
   templateGoiY: string | null;
+  /** Khu vực khai trong thư viện — để chọn khu vực tra giá cho từng bản dự toán. */
+  khuVucs: { id: string; ma: string; ten: string }[];
+  /** Khu vực của dự án; chọn sẵn khi tạo bản dự toán mới. */
+  khuVucMacDinh: string | null;
 }) {
   const router = useRouter();
   const [quoteModal, setQuoteModal] = useState<{ editing: QuoteView | null } | null>(null);
@@ -119,6 +125,8 @@ export function QuoteEditor({
         <QuoteHeaderModal
           chu={chu}
           editing={quoteModal.editing}
+          khuVucs={khuVucs}
+          khuVucMacDinh={khuVucMacDinh}
           onClose={() => setQuoteModal(null)}
           onDone={closeAll}
         />

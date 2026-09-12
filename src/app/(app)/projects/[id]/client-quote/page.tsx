@@ -64,7 +64,7 @@ export default async function ClientQuotePage({
           href={`/projects/${project.id}/quote`}
           className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-200"
         >
-          <Receipt className="h-4 w-4" /> Báo giá chi tiết
+          <Receipt className="h-4 w-4" /> Dự toán chào giá
         </Link>
       </div>
 

@@ -16,6 +16,11 @@ import {
 import { diffFields, recordAudit } from "@/lib/audit";
 import { computeQuoteTotals, sellFromBase } from "@/lib/quote";
 import { banGiaTheoMa } from "@/lib/thuVien/napGia";
+import {
+  DO_KHOP_LABEL,
+  chonDonGia,
+  type DongGiaUngVien,
+} from "@/lib/thuVien/gia";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -26,6 +31,7 @@ const QUOTE_AUDIT_FIELDS = [
   "scope",
   "quoteDate",
   "markup",
+  "khuVucId",
   "note",
 ] as const;
 const QUOTE_AUDIT_SELECT = Object.fromEntries(
@@ -58,7 +64,9 @@ const duAnCuaChu = (chu: ChuBaoGia) => (chu.loai === "DU_AN" ? chu.id : null);
 async function guard(
   chu: ChuBaoGia,
   opts: { quoteId?: string | null; sectionId?: string | null; itemId?: string | null } = {}
-): Promise<ActionResult | null> {
+  // Chỉ trả về NHÁNH LỖI hoặc null, không phải cả `ActionResult`: "chặn thành công"
+  // là một khái niệm vô nghĩa, và khai rộng hơn thực tế làm mọi chỗ gọi phải tự ép kiểu.
+): Promise<{ ok: false; error: string } | null> {
   const khongDuQuyen = "Bạn không có quyền chỉnh sửa báo giá.";
   const denied =
     chu.loai === "DU_AN"
@@ -105,6 +113,7 @@ const quoteSchema = z.object({
   scope: z.string().trim().optional(),
   quoteDate: z.string().trim().optional(),
   markup: num,
+  khuVucId: z.string().trim().optional(),
   note: z.string().trim().optional(),
 });
 
@@ -122,6 +131,7 @@ export async function saveQuote(
     scope: String(form.get("scope") ?? ""),
     quoteDate: String(form.get("quoteDate") ?? ""),
     markup: String(form.get("markup") ?? ""),
+    khuVucId: String(form.get("khuVucId") ?? ""),
     note: String(form.get("note") ?? ""),
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -133,6 +143,7 @@ export async function saveQuote(
     scope: d.scope || null,
     quoteDate: d.quoteDate ? new Date(d.quoteDate) : null,
     markup: d.markup ?? 1,
+    khuVucId: d.khuVucId || null,
     note: d.note || null,
   };
   const truoc = quoteId
@@ -280,6 +291,14 @@ export async function saveItem(
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
+
+  const chot = await chotGiaThuVien(
+    quoteId,
+    String(form.get("congTacId") ?? ""),
+    String(form.get("congTacVatTuId") ?? ""),
+    d.baseCost
+  );
+
   const data = {
     workCode: d.workCode || null,
     name: d.name,
@@ -289,6 +308,7 @@ export async function saveItem(
     sellPrice: d.sellPrice,
     spec: d.spec || null,
     note: d.note || null,
+    ...chot,
   };
   if (itemId) {
     await db.quoteItem.update({ where: { id: itemId }, data });
@@ -418,39 +438,6 @@ export async function cloneQuoteFrom(
   return { ok: true };
 }
 
-// ---------- Cập nhật đơn giá từ catalog ----------
-export async function repriceQuote(
-  chu: ChuBaoGia,
-  quoteId: string
-): Promise<ActionResult> {
-  const g = await guard(chu, { quoteId });
-  if (g) return g;
-  const quote = await db.quote.findUnique({
-    where: { id: quoteId },
-    include: { items: true },
-  });
-  if (!quote) return { ok: false, error: "Không tìm thấy báo giá." };
-  const markup = quote.markup ?? 1;
-  // Đơn giá thư viện HIỆN HÀNH (theo hôm nay). Từ khi giá có lịch sử, "giá của một
-  // công tác" luôn phải kèm câu hỏi "tại thời điểm nào".
-  const priceMap = await banGiaTheoMa();
-
-  // Cập nhật hàng loạt trong 1 giao dịch: tránh báo giá còn một nửa giá cũ,
-  // một nửa giá mới nếu đứt kết nối giữa chừng.
-  const updates = quote.items
-    .filter((it) => it.workCode && priceMap.get(it.workCode) != null)
-    .map((it) => {
-      const base = priceMap.get(it.workCode!)!;
-      return db.quoteItem.update({
-        where: { id: it.id },
-        data: { baseCost: base, sellPrice: sellFromBase(base, markup) },
-      });
-    });
-  if (updates.length > 0) await db.$transaction(updates);
-  paths(chu);
-  return { ok: true };
-}
-
 // ---------- Đẩy giá bán sang dự án ----------
 export async function pushSalePrice(
   chu: ChuBaoGia,
@@ -494,6 +481,251 @@ export async function pushSalePrice(
     changes: diffFields(truocDA, { salePrice: total }, ["salePrice"]),
   });
   revalidatePath(`/projects/${projectId}`);
+  paths(chu);
+  return { ok: true };
+}
+
+// ---------- Đóng băng giá thư viện ----------
+
+/**
+ * Ứng viên đơn giá của một công tác, còn hiệu lực tới hôm nay.
+ *
+ * Tách riêng vì cả `chotGiaThuVien`, `goiYDonGia` và `capNhatGiaTuThuVien` đều cần
+ * đúng một câu hỏi này.
+ */
+async function ungVienGia(congTacIds: string[], ngay: Date): Promise<DongGiaUngVien[]> {
+  if (congTacIds.length === 0) return [];
+  return db.donGiaCongTac.findMany({
+    where: { congTacId: { in: congTacIds }, hieuLucTu: { lte: ngay } },
+    select: {
+      id: true,
+      congTacId: true,
+      congTacVatTuId: true,
+      khuVucId: true,
+      donGia: true,
+      hieuLucTu: true,
+      createdAt: true,
+    },
+  });
+}
+
+/**
+ * Tính bộ giá trị đóng băng cho một dòng sắp lưu.
+ *
+ * `giaSuaTay` bật khi giá người dùng gõ KHÁC giá thư viện đề xuất. Đây là chỗ duy nhất
+ * quyết định cờ đó, và nó suy ra từ con số chứ không từ một ô tích: người dùng sửa giá
+ * là đã nói lên ý mình rồi, bắt họ tích thêm một ô nữa chỉ để xác nhận là thừa.
+ */
+async function chotGiaThuVien(
+  quoteId: string,
+  congTacIdRaw: string,
+  bienTheIdRaw: string,
+  baseCost: number | null
+) {
+  const congTacId = congTacIdRaw || null;
+  if (!congTacId) {
+    // Dòng gõ tay hoàn toàn: xóa sạch dấu vết thư viện. Nếu không, sửa một dòng từ
+    // "chọn từ thư viện" thành "tự nhập" sẽ để lại ảnh chụp cũ và huy hiệu lệch giá
+    // đòi cập nhật về một công tác không còn liên quan.
+    return {
+      congTacId: null,
+      congTacVatTuId: null,
+      donGiaId: null,
+      donGiaThuVien: null,
+      chotGiaLuc: null,
+      giaSuaTay: false,
+    };
+  }
+
+  const quote = await db.quote.findUnique({
+    where: { id: quoteId },
+    select: { khuVucId: true },
+  });
+
+  // Biến thể phải thuộc đúng công tác — id đến từ client.
+  let bienTheId = bienTheIdRaw || null;
+  if (bienTheId) {
+    const bt = await db.congTacVatTu.findUnique({
+      where: { id: bienTheId },
+      select: { congTacId: true },
+    });
+    if (!bt || bt.congTacId !== congTacId) bienTheId = null;
+  }
+
+  const ngay = new Date();
+  const kq = chonDonGia(await ungVienGia([congTacId], ngay), {
+    congTacId,
+    congTacVatTuId: bienTheId,
+    khuVucId: quote?.khuVucId ?? null,
+    ngay,
+  });
+
+  return {
+    congTacId,
+    congTacVatTuId: bienTheId,
+    donGiaId: kq.donGiaId,
+    donGiaThuVien: kq.donGia,
+    chotGiaLuc: ngay,
+    giaSuaTay:
+      kq.donGia !== null && baseCost !== null && Math.abs(baseCost - kq.donGia) >= 1,
+  };
+}
+
+export interface GoiYGia {
+  donGia: number | null;
+  doKhop: string;
+  nhan: string;
+  canhBao: string[];
+}
+
+/**
+ * Đơn giá thư viện đề xuất cho một công tác (kèm biến thể) trong bối cảnh của một bản
+ * dự toán — tức là theo đúng khu vực của bản đó.
+ *
+ * Hỏi server thay vì tính ở trình duyệt vì khu vực thuộc về từng BẢN dự toán, mà một
+ * trang liệt kê nhiều bản; đẩy hết bảng giá xuống client rồi tự chọn là nhân bản luật
+ * chọn giá ra hai nơi.
+ */
+export async function goiYDonGia(
+  chu: ChuBaoGia,
+  quoteId: string,
+  congTacId: string,
+  congTacVatTuId: string | null
+): Promise<{ ok: true; goiY: GoiYGia } | { ok: false; error: string }> {
+  const g = await guard(chu, { quoteId });
+  if (g) return g;
+
+  const quote = await db.quote.findUnique({
+    where: { id: quoteId },
+    select: { khuVucId: true },
+  });
+  const ngay = new Date();
+  const kq = chonDonGia(await ungVienGia([congTacId], ngay), {
+    congTacId,
+    congTacVatTuId,
+    khuVucId: quote?.khuVucId ?? null,
+    ngay,
+  });
+
+  return {
+    ok: true,
+    goiY: {
+      donGia: kq.donGia,
+      doKhop: kq.doKhop,
+      nhan: DO_KHOP_LABEL[kq.doKhop],
+      canhBao: kq.canhBao,
+    },
+  };
+}
+
+/**
+ * Kéo đơn giá của các dòng về đúng giá thư viện hiện hành.
+ *
+ * BỎ QUA dòng người dùng đã sửa tay — cùng ngữ nghĩa với `repriceLines` bỏ qua
+ * `priceOverridden` bên báo giá gửi khách, để người dùng chỉ phải học một luật. Muốn
+ * kéo cả dòng đã sửa tay thì phải xóa dấu sửa tay trước, đó là một quyết định riêng.
+ *
+ * `itemIds` rỗng = làm cả bản.
+ */
+export async function capNhatGiaTuThuVien(
+  chu: ChuBaoGia,
+  quoteId: string,
+  itemIds?: string[]
+): Promise<ActionResult> {
+  const g = await guard(chu, { quoteId });
+  if (g) return g;
+
+  const quote = await db.quote.findUnique({
+    where: { id: quoteId },
+    select: { markup: true, khuVucId: true },
+  });
+  if (!quote) return { ok: false, error: "Không tìm thấy báo giá." };
+  const markup = quote.markup ?? 1;
+
+  const items = await db.quoteItem.findMany({
+    where: {
+      quoteId,
+      giaSuaTay: false,
+      // Dòng cũ chỉ có `workCode` (chuỗi mã) chứ chưa gắn `congTacId` — vẫn phải cập
+      // nhật được, nếu không thì 72 dòng lập trước khi có thư viện bị bỏ rơi vĩnh viễn.
+      OR: [{ congTacId: { not: null } }, { workCode: { not: null } }],
+      ...(itemIds && itemIds.length > 0 ? { id: { in: itemIds } } : {}),
+    },
+    select: {
+      id: true,
+      congTacId: true,
+      congTacVatTuId: true,
+      workCode: true,
+      baseCost: true,
+    },
+  });
+  if (items.length === 0) return { ok: true };
+
+  // Bắc cầu từ mã sang id cho những dòng chưa gắn công tác.
+  const maCanTra = items.filter((it) => !it.congTacId && it.workCode).map((it) => it.workCode!);
+  const theoMa = new Map(
+    maCanTra.length === 0
+      ? []
+      : (
+          await db.congTac.findMany({
+            where: { ma: { in: maCanTra } },
+            select: { id: true, ma: true },
+          })
+        ).map((c) => [c.ma, c.id] as const)
+  );
+
+  const congTacCuaDong = new Map(
+    items
+      .map((it) => [it.id, it.congTacId ?? (it.workCode ? theoMa.get(it.workCode) : null)] as const)
+      .filter((x): x is readonly [string, string] => Boolean(x[1]))
+  );
+  if (congTacCuaDong.size === 0) return { ok: true };
+
+  const ngay = new Date();
+  const ungVien = await ungVienGia([...new Set(congTacCuaDong.values())], ngay);
+
+  const capNhat = [];
+  for (const it of items) {
+    const congTacId = congTacCuaDong.get(it.id);
+    if (!congTacId) continue; // mã tự nhập, không có trong thư viện
+    const kq = chonDonGia(ungVien, {
+      congTacId,
+      congTacVatTuId: it.congTacVatTuId,
+      khuVucId: quote.khuVucId,
+      ngay,
+    });
+    if (kq.donGia === null) continue; // thư viện không còn giá -> để nguyên
+    capNhat.push(
+      db.quoteItem.update({
+        where: { id: it.id },
+        data: {
+          baseCost: kq.donGia,
+          sellPrice: sellFromBase(kq.donGia, markup),
+          // Gắn luôn công tác cho dòng cũ: từ lần này nó có ảnh chụp đầy đủ và tra
+          // ngược về thư viện được, thay vì mãi khớp bằng chuỗi mã.
+          congTacId,
+          donGiaId: kq.donGiaId,
+          donGiaThuVien: kq.donGia,
+          chotGiaLuc: ngay,
+        },
+      })
+    );
+  }
+
+  // Một giao dịch: đứt giữa chừng sẽ để lại báo giá nửa giá cũ nửa giá mới.
+  if (capNhat.length > 0) await db.$transaction(capNhat);
+  paths(chu);
+  return { ok: true };
+}
+
+/** Xóa dấu "đã sửa tay" để dòng này lại theo thư viện. */
+export async function boDauSuaTay(
+  chu: ChuBaoGia,
+  itemId: string
+): Promise<ActionResult> {
+  const g = await guard(chu, { itemId });
+  if (g) return g;
+  await db.quoteItem.update({ where: { id: itemId }, data: { giaSuaTay: false } });
   paths(chu);
   return { ok: true };
 }

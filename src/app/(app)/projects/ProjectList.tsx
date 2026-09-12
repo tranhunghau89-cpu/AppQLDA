@@ -20,6 +20,7 @@ export interface ProjectRow {
   buildingType: string | null;
   status: string;
   location: string | null;
+  khuVucId: string | null;
   customerId: string | null;
   customerName: string | null;
   startDate: string | null;
@@ -45,10 +46,12 @@ function toInputDate(v: string | null): string {
 export function ProjectList({
   projects,
   customers,
+  khuVucs,
   canEdit,
 }: {
   projects: ProjectRow[];
   customers: CustomerOption[];
+  khuVucs: { id: string; ma: string; ten: string }[];
   canEdit: boolean;
 }) {
   const router = useRouter();
@@ -208,6 +211,16 @@ export function ProjectList({
               <Input name="location" defaultValue={editing?.location ?? ""} />
             </Field>
           </div>
+          <Field label="Khu vực (quyết định mua của nhóm NCC nào, và đơn giá nào được gợi ý)">
+            <Select name="khuVucId" defaultValue={editing?.khuVucId ?? ""}>
+              <option value="">— Chưa chọn —</option>
+              {khuVucs.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.ma} — {k.ten}
+                </option>
+              ))}
+            </Select>
+          </Field>
           <Field label="Chủ đầu tư">
             <Select name="customerId" defaultValue={editing?.customerId ?? ""}>
               <option value="">— Chưa gán —</option>

@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Input, Select, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { useActionForm } from "@/components/ui/useActionForm";
 import { sellFromBase } from "@/lib/quote";
+import { formatNumber } from "@/lib/utils";
 import { ModalActions } from "./ModalActions";
-import { saveItem } from "./actions";
+import { goiYDonGia, saveItem, type GoiYGia } from "./actions";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
 import type { CatalogOption, ItemView, SectionView } from "./types";
 
@@ -45,6 +46,8 @@ export function ItemModal({
   const [f, setF] = useState({
     sectionId: editing?.sectionId ?? state.defaultSectionId,
     workCode: editing?.workCode ?? "",
+    congTacId: editing?.congTacId ?? "",
+    congTacVatTuId: editing?.congTacVatTuId ?? "",
     name: editing?.name ?? "",
     unit: editing?.unit ?? "",
     qty: editing?.qty != null ? String(editing.qty) : "",
@@ -53,28 +56,67 @@ export function ItemModal({
     spec: editing?.spec ?? "",
     note: editing?.note ?? "",
   });
+  const [goiY, setGoiY] = useState<GoiYGia | null>(null);
+  const [, startGoiY] = useTransition();
   const { error, pending, run } = useActionForm(onDone);
 
-  /** Chọn Mã CV thì rót sẵn tên/đơn vị/giá gốc và tính luôn đơn giá bán theo TL. */
-  function onPickCatalog(code: string) {
-    if (!code) {
-      setF((p) => ({ ...p, workCode: "" }));
-      return;
-    }
-    const c = catalog.find((x) => x.code === code);
-    if (!c) {
-      setF((p) => ({ ...p, workCode: code }));
-      return;
-    }
-    const base = c.baseCost ?? 0;
+  const congTac = catalog.find((c) => c.congTacId === f.congTacId) ?? null;
+
+  /** Rót giá thư viện vào ô giá gốc và tính luôn đơn giá bán theo hệ số TL. */
+  function apGia(donGia: number | null) {
+    if (donGia === null) return;
     setF((p) => ({
       ...p,
-      workCode: code,
+      baseCost: String(donGia),
+      sellPrice: String(Math.round(sellFromBase(donGia, markup))),
+    }));
+  }
+
+  /**
+   * Hỏi server giá đề xuất cho tổ hợp (công tác, biến thể) trong khu vực của BẢN dự
+   * toán này. Không tự tính ở trình duyệt: khu vực thuộc về từng bản, và nhân bản luật
+   * chọn giá ra hai nơi là cách chắc chắn để hai nơi lệch nhau.
+   */
+  function hoiGoiY(congTacId: string, bienTheId: string) {
+    if (!congTacId) {
+      setGoiY(null);
+      return;
+    }
+    startGoiY(async () => {
+      const res = await goiYDonGia(chu, quoteId, congTacId, bienTheId || null);
+      if (!res.ok) {
+        setGoiY(null);
+        return;
+      }
+      setGoiY(res.goiY);
+      apGia(res.goiY.donGia);
+    });
+  }
+
+  /** Chọn công tác thì rót sẵn tên/đơn vị, chọn biến thể mặc định, rồi hỏi giá. */
+  function onChonCongTac(congTacId: string) {
+    if (!congTacId) {
+      setF((p) => ({ ...p, congTacId: "", congTacVatTuId: "", workCode: "" }));
+      setGoiY(null);
+      return;
+    }
+    const c = catalog.find((x) => x.congTacId === congTacId);
+    if (!c) return;
+    const macDinh = c.bienThe.find((b) => b.laMacDinh)?.id ?? "";
+    setF((p) => ({
+      ...p,
+      congTacId,
+      congTacVatTuId: macDinh,
+      workCode: c.code,
       name: c.name,
       unit: c.unit ?? "",
-      baseCost: String(base),
-      sellPrice: String(Math.round(sellFromBase(base, markup))),
     }));
+    hoiGoiY(congTacId, macDinh);
+  }
+
+  function onChonBienThe(bienTheId: string) {
+    setF((p) => ({ ...p, congTacVatTuId: bienTheId }));
+    hoiGoiY(f.congTacId, bienTheId);
   }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -83,9 +125,18 @@ export function ItemModal({
     run(() => saveItem(chu, quoteId, editing?.id ?? null, form));
   }
 
+  const daLechGoiY =
+    goiY?.donGia != null &&
+    f.baseCost !== "" &&
+    Math.abs(Number(f.baseCost) - goiY.donGia) >= 1;
+
   return (
     <Modal open onClose={onClose} title={editing ? "Sửa dòng vật tư" : "Thêm dòng vật tư"}>
       <form onSubmit={onSubmit} className="space-y-3">
+        <input type="hidden" name="congTacId" value={f.congTacId} />
+        <input type="hidden" name="congTacVatTuId" value={f.congTacVatTuId} />
+        <input type="hidden" name="workCode" value={f.workCode} />
+
         <Field label="Thuộc mục *">
           <Select
             name="sectionId"
@@ -99,16 +150,67 @@ export function ItemModal({
             ))}
           </Select>
         </Field>
-        <Field label="Chọn Mã CV từ bảng đơn giá">
-          <Select name="workCode" value={f.workCode} onChange={(e) => onPickCatalog(e.target.value)}>
+
+        <Field label="Chọn công tác từ thư viện">
+          <Select value={f.congTacId} onChange={(e) => onChonCongTac(e.target.value)}>
             <option value="">— Tự nhập —</option>
             {catalog.map((c) => (
-              <option key={c.code} value={c.code}>
+              <option key={c.congTacId} value={c.congTacId}>
                 {c.code} — {c.name}
               </option>
             ))}
           </Select>
         </Field>
+
+        {congTac && congTac.bienThe.length > 0 && (
+          <Field label="Vật liệu">
+            <Select
+              value={f.congTacVatTuId}
+              onChange={(e) => onChonBienThe(e.target.value)}
+            >
+              <option value="">Không chọn vật liệu cụ thể</option>
+              {congTac.bienThe.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.ten}
+                  {b.laMacDinh ? " (mặc định)" : ""}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
+
+        {goiY && (
+          <div className="rounded-md bg-slate-50 px-3 py-2 text-sm">
+            {goiY.donGia === null ? (
+              <span className="text-amber-700">
+                Thư viện chưa có đơn giá cho công tác này — nhập tay bên dưới.
+              </span>
+            ) : (
+              <>
+                <span className="text-slate-600">Thư viện đề xuất </span>
+                <span className="font-semibold text-blue-700">
+                  {formatNumber(goiY.donGia)}
+                </span>
+                <span className="text-slate-500"> — {goiY.nhan}</span>
+                {daLechGoiY && (
+                  <button
+                    type="button"
+                    onClick={() => apGia(goiY.donGia)}
+                    className="ml-2 font-medium text-blue-700 underline"
+                  >
+                    Dùng giá này
+                  </button>
+                )}
+              </>
+            )}
+            {goiY.canhBao.map((c) => (
+              <p key={c} className="mt-1 text-xs text-amber-700">
+                {c}
+              </p>
+            ))}
+          </div>
+        )}
+
         <Field label="Nội dung công việc *">
           <Input
             name="name"
@@ -172,6 +274,13 @@ export function ItemModal({
             />
           </Field>
         </div>
+        {daLechGoiY && (
+          <p className="text-xs text-slate-500">
+            Giá gốc đang khác đề xuất của thư viện → dòng này sẽ được đánh dấu{" "}
+            <strong>đã sửa tay</strong>, và nút &quot;Cập nhật giá từ thư viện&quot; sẽ
+            bỏ qua nó.
+          </p>
+        )}
         <Field label="Ghi chú">
           <Input
             name="note"

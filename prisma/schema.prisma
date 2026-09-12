@@ -684,7 +684,7 @@ model QuoteItem {
   quote     Quote        @relation(fields: [quoteId], references: [id], onDelete: Cascade)
   sectionId String
   section   QuoteSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  workCode  String? // tham chiếu WorkPrice.code (có thể tự nhập)
+  workCode  String? // tham chiếu MỀM tới CongTac.ma (có thể tự nhập)
   name      String
   unit      String?
   qty       Float? // khối lượng
@@ -694,8 +694,30 @@ model QuoteItem {
   note      String?
   sortOrder Int          @default(0)
 
+  // ----- Đóng băng giá thư viện -----
+  //
+  // Dòng báo giá CHỤP LẠI đơn giá tại thời điểm lập. Thư viện đổi giá không bao giờ
+  // tự sửa một báo giá đã lập — người lập thấy huy hiệu lệch giá và tự quyết có cập
+  // nhật hay không. Mọi cột dưới đây đều nullable: 72 dòng cũ và những dòng gõ tay
+  // hoàn toàn không có gì để chụp.
+  congTacId      String?
+  congTac        CongTac?       @relation(fields: [congTacId], references: [id], onDelete: SetNull)
+  congTacVatTuId String?
+  bienThe        CongTacVatTu?  @relation(fields: [congTacVatTuId], references: [id], onDelete: SetNull)
+  // ĐÚNG bản giá đã dùng. Đây mới là ảnh chụp thật; `donGiaThuVien` chỉ là con số
+  // tiện tra, còn cái này nói được "lấy từ bản giá nào, hiệu lực từ ngày nào".
+  donGiaId       String?
+  donGiaNguon    DonGiaCongTac? @relation(fields: [donGiaId], references: [id], onDelete: SetNull)
+  // Giá thư viện LÚC CHỐT. Khác `baseCost` khi người dùng sửa tay.
+  donGiaThuVien  Float?
+  chotGiaLuc     DateTime?
+  // Gương của ClientQuoteLine.priceOverridden: người dùng đã đè giá, nên "Cập nhật
+  // giá từ thư viện" phải bỏ qua dòng này.
+  giaSuaTay      Boolean        @default(false)
+
   @@index([quoteId])
   @@index([sectionId])
+  @@index([congTacId])
 }
 
 // ----- Báo giá gửi khách (theo hạng mục, đơn vị m²) -----
@@ -1042,8 +1064,9 @@ model CongTac {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  donGia  DonGiaCongTac[]
-  bienThe CongTacVatTu[]
+  donGia     DonGiaCongTac[]
+  bienThe    CongTacVatTu[]
+  dongBaoGia QuoteItem[]
 
   @@index([nhomMa, sortOrder])
   @@index([active])
@@ -1082,6 +1105,8 @@ model DonGiaCongTac {
   // không được phép xóa mất lịch sử giá.
   createdById   String?
   createdByName String?
+
+  dongBaoGia QuoteItem[]
 
   @@index([congTacId, hieuLucTu])
   @@index([congTacId, khuVucId, hieuLucTu])
@@ -1151,7 +1176,8 @@ model CongTacVatTu {
   laMacDinh  Boolean @default(false) // biến thể chọn sẵn khi thêm dòng dự toán
   sortOrder  Int     @default(0)
 
-  donGia DonGiaCongTac[]
+  donGia     DonGiaCongTac[]
+  dongBaoGia QuoteItem[]
 
   @@unique([congTacId, vatTuId])
   @@index([vatTuId])
