@@ -11,6 +11,26 @@ import { sellFromBase } from "./quote";
  * hạn 5 giây của một giao dịch tương tác Prisma. Giao dịch bị huỷ, KHÔNG ghi được gì,
  * và trang đổ vào error boundary. Đây đúng cái lỗi đã sửa ở 7f680ff cho `apBoHangMuc
  * VaoDuToan`, còn sót lại ở đây.
+ *
+ * SÁU CỘT CỐ Ý KHÔNG CHÉP — `congTacId`, `congTacVatTuId`, `donGiaId`, `donGiaThuVien`,
+ * `chotGiaLuc`, `giaSuaTay`. Bản trước cũng không chép, và giữ nguyên là ĐÚNG chứ không
+ * phải sót:
+ *
+ * - `donGiaId` / `donGiaThuVien` / `chotGiaLuc` là ẢNH CHỤP GIÁ CỦA BẢN NGUỒN. Dòng chép
+ *   ra lấy `baseCost` từ bảng giá HÔM NAY, nên bê ba cột kia sang là để dòng mới khai
+ *   man xuất xứ của chính nó: huy hiệu lệch giá so `baseCost` với `donGiaThuVien` và sẽ
+ *   báo lệch ở nơi không hề lệch. Để trống = "dòng này chưa chụp giá nào", đúng như 72
+ *   dòng cũ và mọi dòng gõ tay.
+ * - `giaSuaTay` là "người dùng đã đè giá tay". Giá của bản chép đến từ thư viện, không
+ *   ai đè cả; bê `true` sang sẽ làm "Cập nhật giá từ thư viện" bỏ qua một dòng chưa hề
+ *   được sửa tay trên bản này.
+ * - `congTacId` / `congTacVatTuId` là ĐỊNH DANH, không phải giá — mất chúng mới đáng
+ *   tiếc. Nhưng `workCode` vẫn được chép, và `capNhatGiaTuThuVien` tự bắc cầu mã ->
+ *   `congTacId` rồi gắn lại cả bốn cột ảnh chụp cho dòng chưa có. Nghĩa là bản chép tự
+ *   lành ngay lần bấm "Cập nhật giá từ thư viện" đầu tiên.
+ *
+ * Nối lại `congTacId` ngay lúc chép thì tốt hơn, nhưng đó là đổi hành vi — không gộp
+ * vào một bản sửa số lượt đi-về.
  */
 
 export type NguonPhan = {
