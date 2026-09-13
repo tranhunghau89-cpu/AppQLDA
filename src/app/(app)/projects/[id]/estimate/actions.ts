@@ -321,7 +321,10 @@ async function napNguonDoXuong(projectId: string, quoteId: string) {
     return {
       id: i.id,
       sectionId: i.sectionId,
-      ten: i.name,
+      // Tên gọn: dự toán thi công ghi "Vật tư" dưới nhóm "Bulong neo", không chép lại
+      // nguyên câu thông số kỹ thuật của bản chào giá.
+      ten: i.tenGon?.trim() || i.name,
+      groupLabel: i.groupLabel,
       donVi: i.unit,
       khoiLuong: i.qty,
       // Giá VỐN, không phải giá bán: dự toán thi công theo dõi chi phí bỏ ra.

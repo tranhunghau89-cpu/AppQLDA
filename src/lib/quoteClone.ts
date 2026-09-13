@@ -47,6 +47,8 @@ export type NguonDong = {
   sectionId: string;
   workCode: string | null;
   name: string;
+  tenGon: string | null;
+  groupLabel: string | null;
   unit: string | null;
   qty: number | null;
   baseCost: number | null;
@@ -118,6 +120,8 @@ export function dungBanSaoBaoGia(args: {
         sectionId,
         workCode: it.workCode,
         name: it.name,
+        tenGon: it.tenGon,
+        groupLabel: it.groupLabel,
         unit: it.unit,
         qty: it.qty,
         baseCost: base,

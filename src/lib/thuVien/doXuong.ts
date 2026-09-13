@@ -27,7 +27,10 @@ export interface PhanNguon {
 export interface DongNguon {
   id: string;
   sectionId: string;
+  /** Tên GỌN — dự toán thi công không nhắc lại thông số kỹ thuật của bản chào giá. */
   ten: string;
+  /** Nhóm ghi trên chính dòng ("Bulong neo"); thắng tên mục con khi có. */
+  groupLabel: string | null;
   donVi: string | null;
   khoiLuong: number | null;
   /** Giá VỐN của dòng — dự toán thi công theo dõi chi phí, không theo dõi giá bán. */
@@ -168,7 +171,7 @@ export function doXuongDuToan(
       thuTuNhom: nhom ? nhom.sortOrder : KHONG_CO_NHOM,
       dong: {
         hangMucKhoa: hangMuc.id,
-        groupLabel: nhom ? nhom.ten : null,
+        groupLabel: d.groupLabel?.trim() || (nhom ? nhom.ten : null),
         groupCode: d.nhomChiPhi ?? NHOM_MAC_DINH,
         ten: d.ten,
         donVi: d.donVi,

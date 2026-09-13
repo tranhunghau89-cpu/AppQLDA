@@ -7,6 +7,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { whereCuaChu, type ChuBaoGia } from "@/lib/quoteOwner";
 import { lineCost, sectionSubtotals } from "@/lib/quote";
+import { nhanNhomDongBaoGia } from "@/lib/nhomDong";
 import type { ClientQuoteView, CustomerOption, GiaVonPhan } from "./types";
 
 /**
@@ -36,14 +37,40 @@ async function napGiaVonTheoPhan(quoteIds: readonly string[]): Promise<Map<strin
           id: true,
           sectionId: true,
           name: true,
+          tenGon: true,
+          groupLabel: true,
+          note: true,
+          workCode: true,
           unit: true,
           qty: true,
           baseCost: true,
           layTuThamSo: true,
+          congTac: { select: { nhomChiPhi: true } },
         },
       },
     },
   });
+
+  // Dòng lập trước khi có thư viện chỉ mang mã công tác, không mang khoá ngoại — tra
+  // nhóm chi phí theo mã, một truy vấn cho cả trang. Cùng lý do với đổ xuống dự toán
+  // thi công: bỏ nhánh này thì mọi dòng cũ rơi hết vào nhóm "Khác".
+  const maCanTra = [
+    ...new Set(
+      quotes.flatMap((q) =>
+        q.items.filter((i) => !i.congTac && i.workCode).map((i) => i.workCode!)
+      )
+    ),
+  ];
+  const nhomTheoMa = new Map(
+    maCanTra.length
+      ? (
+          await db.congTac.findMany({
+            where: { ma: { in: maCanTra } },
+            select: { ma: true, nhomChiPhi: true },
+          })
+        ).map((c) => [c.ma, c.nhomChiPhi])
+      : []
+  );
 
   const ra = new Map<string, GiaVonPhan[]>();
   for (const q of quotes) {
@@ -73,15 +100,25 @@ async function napGiaVonTheoPhan(quoteIds: readonly string[]): Promise<Map<strin
       return null;
     };
 
+    const phanTheoId = new Map(q.sections.map((s) => [s.id, s]));
     const dongCua = new Map<string, GiaVonPhan["dong"]>();
     for (const i of q.items) {
       const g = goc(i.sectionId);
       if (!g) continue;
       const ds = dongCua.get(g) ?? [];
+      const mucCon = i.sectionId !== g ? phanTheoId.get(i.sectionId) : undefined;
       ds.push({
         id: i.id,
         laDanXuat: i.layTuThamSo != null,
-        ten: i.name,
+        ten: i.tenGon?.trim() || i.name,
+        tenDayDu: i.name,
+        ghiChu: i.note,
+        nhom: nhanNhomDongBaoGia({
+          groupLabel: i.groupLabel,
+          tenMucCon: mucCon?.name ?? null,
+          nhomChiPhi:
+            i.congTac?.nhomChiPhi ?? (i.workCode ? (nhomTheoMa.get(i.workCode) ?? null) : null),
+        }),
         donVi: i.unit,
         qty: i.qty,
         donGia: i.baseCost,

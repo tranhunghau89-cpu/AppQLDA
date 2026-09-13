@@ -7,6 +7,7 @@ import { useActionForm } from "@/components/ui/useActionForm";
 import { sellFromBase } from "@/lib/quote";
 import { formatNumber, formatQty } from "@/lib/utils";
 import { laCongThuc, tinhBieuThuc } from "@/lib/bieuThuc";
+import { ESTIMATE_GROUP } from "@/lib/constants";
 import { ModalActions } from "./ModalActions";
 import { goiYDonGia, saveItem, type GoiYGia } from "./actions";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
@@ -19,6 +20,8 @@ export interface ItemModalState {
   editing: ItemView | null;
   /** Mục vừa được bấm thêm dòng — dùng khi thêm mới. */
   defaultSectionId: string;
+  /** Nhóm các dòng khác của bản đang dùng — gợi ý trước, để cùng nhóm gõ ra cùng một chữ. */
+  nhomDaDung: string[];
 }
 
 /** Nhãn trong ô chọn mục: mục con hiện kèm mã của phần cha. */
@@ -50,6 +53,8 @@ export function ItemModal({
     congTacId: editing?.congTacId ?? "",
     congTacVatTuId: editing?.congTacVatTuId ?? "",
     name: editing?.name ?? "",
+    tenGon: editing?.tenGon ?? "",
+    groupLabel: editing?.groupLabel ?? "",
     unit: editing?.unit ?? "",
     qty: editing?.qty != null ? String(editing.qty) : "",
     baseCost: editing?.baseCost != null ? String(editing.baseCost) : "",
@@ -125,6 +130,8 @@ export function ItemModal({
       congTacVatTuId: macDinh,
       workCode: c.code,
       name: c.name,
+      // Tên gọn người lập đã gõ thì giữ; chưa có thì gợi ý tên ngắn của thư viện.
+      tenGon: p.tenGon || (c.tenNgan ?? ""),
       unit: c.unit ?? "",
     }));
     hoiGoiY(congTacId, macDinh);
@@ -227,7 +234,7 @@ export function ItemModal({
           </div>
         )}
 
-        <Field label="Nội dung công việc *">
+        <Field label="Nội dung công việc * (đầy đủ, kèm thông số kỹ thuật)">
           <Input
             name="name"
             value={f.name}
@@ -235,6 +242,36 @@ export function ItemModal({
             required
           />
         </Field>
+        {/*
+          Hai ô cho bảng giá vốn và dự toán thi công, nơi dòng này hiện là "Vật tư" dưới
+          nhóm "Bulong neo" thay vì nguyên câu thông số kỹ thuật.
+        */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Tên gọn (bảng giá vốn)">
+            <Input
+              name="tenGon"
+              value={f.tenGon}
+              placeholder={f.name || "Để trống = dùng tên đầy đủ"}
+              onChange={(e) => setF((p) => ({ ...p, tenGon: e.target.value }))}
+            />
+          </Field>
+          <Field label="Nhóm">
+            <Input
+              name="groupLabel"
+              list="nhom-dong-bao-gia"
+              value={f.groupLabel}
+              placeholder="Bulong neo, Kết cấu thép…"
+              onChange={(e) => setF((p) => ({ ...p, groupLabel: e.target.value }))}
+            />
+            <datalist id="nhom-dong-bao-gia">
+              {[...new Set([...state.nhomDaDung, ...ESTIMATE_GROUP.map((g) => g.label)])].map(
+                (n) => (
+                  <option key={n} value={n} />
+                )
+              )}
+            </datalist>
+          </Field>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="Đơn vị">
             <Input

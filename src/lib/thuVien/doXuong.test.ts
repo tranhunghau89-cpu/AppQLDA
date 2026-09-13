@@ -15,6 +15,7 @@ function phan(p: Partial<PhanNguon> & { id: string }): PhanNguon {
 function dong(d: Partial<DongNguon> & { id: string; sectionId: string }): DongNguon {
   return {
     ten: "Dòng " + d.id,
+    groupLabel: null,
     donVi: "kg",
     khoiLuong: 10,
     giaVon: 1000,
@@ -29,6 +30,23 @@ function dong(d: Partial<DongNguon> & { id: string; sectionId: string }): DongNg
 }
 
 describe("doXuongDuToan — hình dạng cây", () => {
+  it("nhóm ghi trên dòng thắng tên mục con; dòng không ghi thì vẫn lấy mục con", () => {
+    // Áp bộ hạng mục ghi thẳng "Bulong neo" lên dòng. Cùng luật với bảng giá vốn của
+    // báo giá gửi khách, để hai nơi chia nhóm y hệt nhau.
+    const kq = doXuongDuToan(
+      [phan({ id: "a", ma: "A" }), phan({ id: "a1", parentId: "a", ten: "Phần kết cấu thép" })],
+      [
+        dong({ id: "d1", sectionId: "a1", groupLabel: "Bulong neo" }),
+        dong({ id: "d2", sectionId: "a1", groupLabel: " " }),
+        dong({ id: "d3", sectionId: "a", groupLabel: "Kết cấu thép" }),
+      ]
+    );
+    const nhan = new Map(kq.dong.map((d) => [d.ten, d.groupLabel]));
+    expect(nhan.get("Dòng d1")).toBe("Bulong neo");
+    expect(nhan.get("Dòng d2")).toBe("Phần kết cấu thép");
+    expect(nhan.get("Dòng d3")).toBe("Kết cấu thép");
+  });
+
   it("PHẦN thành hạng mục, NHÓM tụt xuống groupLabel", () => {
     const kq = doXuongDuToan(
       [

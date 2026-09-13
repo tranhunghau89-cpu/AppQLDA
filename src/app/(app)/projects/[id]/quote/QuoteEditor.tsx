@@ -84,6 +84,7 @@ export function QuoteEditor({
       sections: q.sections,
       editing,
       defaultSectionId,
+      nhomDaDung: [...new Set(q.items.map((i) => i.groupLabel).filter((x): x is string => !!x))],
     });
   }
 

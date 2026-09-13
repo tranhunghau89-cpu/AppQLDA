@@ -284,6 +284,8 @@ const itemSchema = z.object({
   sectionId: z.string().trim().min(1, "Thiếu mục chứa dòng"),
   workCode: z.string().trim().optional(),
   name: z.string().trim().min(1, "Tên công việc không được để trống"),
+  tenGon: z.string().trim().optional(),
+  groupLabel: z.string().trim().optional(),
   unit: z.string().trim().optional(),
   qty: num,
   baseCost: num,
@@ -350,6 +352,8 @@ export async function saveItem(
     sectionId: String(form.get("sectionId") ?? ""),
     workCode: String(form.get("workCode") ?? ""),
     name: String(form.get("name") ?? ""),
+    tenGon: String(form.get("tenGon") ?? ""),
+    groupLabel: String(form.get("groupLabel") ?? ""),
     unit: String(form.get("unit") ?? ""),
     qty: String(form.get("qty") ?? ""),
     baseCost: String(form.get("baseCost") ?? ""),
@@ -370,6 +374,8 @@ export async function saveItem(
   const data = {
     workCode: d.workCode || null,
     name: d.name,
+    tenGon: d.tenGon || null,
+    groupLabel: d.groupLabel || null,
     unit: d.unit || null,
     qty: d.qty,
     baseCost: d.baseCost,
@@ -923,7 +929,10 @@ async function khungConThieu(quoteId: string, boHangMucId: string) {
       where: { id: boHangMucId },
       include: {
         phan: { orderBy: { sortOrder: "asc" } },
-        dong: { orderBy: { sortOrder: "asc" } },
+        dong: {
+          orderBy: { sortOrder: "asc" },
+          include: { congTac: { select: { ten: true } } },
+        },
       },
     }),
     db.quoteSection.findMany({ where: { quoteId }, select: { code: true } }),
@@ -931,7 +940,10 @@ async function khungConThieu(quoteId: string, boHangMucId: string) {
   if (!quote) return { ok: false as const, error: "Không tìm thấy bản dự toán." };
   if (!bo) return { ok: false as const, error: "Không tìm thấy bộ hạng mục." };
 
-  const day = dungKhungDuToan(bo.phan, bo.dong);
+  const day = dungKhungDuToan(
+    bo.phan,
+    bo.dong.map((d) => ({ ...d, tenCongTac: d.congTac?.ten ?? null }))
+  );
   if (day.phan.length === 0) {
     return { ok: false as const, error: "Bộ hạng mục này chưa khai phần nào." };
   }
@@ -1084,6 +1096,9 @@ export async function apBoHangMucVaoDuToan(
           sectionId,
           workCode: d.maCongTac,
           name: d.ten,
+          tenGon: d.tenGon,
+          groupLabel: d.groupLabel,
+          note: d.ghiChu,
           unit: d.donVi,
           qty: d.qty,
           napThamSo: d.napThamSo,

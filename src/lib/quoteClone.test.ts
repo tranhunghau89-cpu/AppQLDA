@@ -20,6 +20,8 @@ const phan = (p: Partial<NguonPhan> & { id: string }): NguonPhan => ({
 const dong = (d: Partial<NguonDong> & { sectionId: string }): NguonDong => ({
   workCode: null,
   name: "Dòng",
+  tenGon: null,
+  groupLabel: null,
   unit: null,
   qty: null,
   baseCost: null,
@@ -154,6 +156,21 @@ describe("dungBanSaoBaoGia", () => {
     expect(kq.items[0].napThamSo).toBe("kgThep");
     expect(kq.items[1].layTuThamSo).toBe("kgThep");
     expect(kq.items[1].heSoQuyDoi).toBe(0.5);
+  });
+
+  it("giữ tên gọn và nhóm để bảng giá vốn của bản sao vẫn chia nhóm như bản nguồn", () => {
+    const kq = dung({
+      sections: [phan({ id: "cu-A" })],
+      items: [
+        dong({
+          sectionId: "cu-A",
+          name: "Bulong neo M22 dày 650, CT34, xi kẽm ren",
+          tenGon: "Vật tư",
+          groupLabel: "Bulong neo",
+        }),
+      ],
+    });
+    expect(kq.items[0]).toMatchObject({ tenGon: "Vật tư", groupLabel: "Bulong neo" });
   });
 
   it("bỏ dòng trỏ tới phần không còn trong bản nguồn", () => {

@@ -712,7 +712,11 @@ model QuoteItem {
   sectionId String
   section   QuoteSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   workCode  String? // tham chiếu MỀM tới CongTac.ma (có thể tự nhập)
-  name      String
+  name      String // tên ĐẦY ĐỦ, kèm thông số kỹ thuật
+  // Tên gọn + nhóm cho bảng giá vốn và dự toán thi công ("Vật tư" dưới "Bulong neo").
+  // null = lùi về `name` / nhóm chi phí của công tác.
+  tenGon     String?
+  groupLabel String?
   unit      String?
   qty       Float? // khối lượng
   baseCost  Float? // giá gốc (snapshot, override được)

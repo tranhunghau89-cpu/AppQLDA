@@ -66,6 +66,42 @@ describe("dungKhungDuToan", () => {
     expect(kq.canhBao).toEqual([]);
   });
 
+  it("dự toán chào giá ghi tên ĐẦY ĐỦ của công tác, tên trong bộ thành tên gọn", () => {
+    // "Vật tư" chỉ có nghĩa khi đứng dưới nhóm "Bulong neo"; bản chào giá cần nguyên
+    // thông số kỹ thuật, còn bảng giá vốn và dự toán thi công cần tên gọn + nhóm.
+    const kq = dungKhungDuToan(
+      [phan({ id: "pA", ma: "A" })],
+      [
+        dong({
+          id: "d1",
+          ten: "Vật tư",
+          tenCongTac: "Bulong neo M22 dày 650, CT34, xi kẽm ren",
+          groupLabel: "Bulong neo",
+          ghiChu: " Q355 ",
+        }),
+      ]
+    );
+    expect(kq.dong[0]).toMatchObject({
+      ten: "Bulong neo M22 dày 650, CT34, xi kẽm ren",
+      tenGon: "Vật tư",
+      groupLabel: "Bulong neo",
+      ghiChu: "Q355",
+    });
+  });
+
+  it("dòng chưa gắn công tác thì tên đầy đủ lùi về tên trong bộ", () => {
+    const kq = dungKhungDuToan(
+      [phan({ id: "pA", ma: "A" })],
+      [dong({ id: "d1", ten: "Bulong liên kết", tenCongTac: null, groupLabel: "  " })]
+    );
+    expect(kq.dong[0]).toMatchObject({
+      ten: "Bulong liên kết",
+      tenGon: "Bulong liên kết",
+      groupLabel: null,
+      ghiChu: null,
+    });
+  });
+
   it("phần con trỏ về cha bằng MÃ, không phải id", () => {
     // Hành động tạo phần theo thứ tự rồi mới biết id thật; khuôn phải nói bằng mã.
     const kq = dungKhungDuToan(
@@ -218,6 +254,9 @@ describe("locPhanConThieu", () => {
       congTacVatTuId: null,
       maCongTac: null,
       ten: `Dòng ${i} của ${ma}`,
+      tenGon: `Dòng ${i}`,
+      groupLabel: null,
+      ghiChu: null,
       donVi: "kg",
       qty: null,
       donGia: null,
@@ -297,6 +336,9 @@ describe("ropKhoiLuongTheoDienTich", () => {
     congTacVatTuId: null,
     maCongTac: null,
     ten: "X",
+    tenGon: "X",
+    groupLabel: null,
+    ghiChu: null,
     donVi: "kg",
     qty: null,
     donGia: null,

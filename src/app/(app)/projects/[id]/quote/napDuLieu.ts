@@ -49,6 +49,7 @@ export async function napDuLieuBaoGia(
         id: true,
         ma: true,
         ten: true,
+        tenNgan: true,
         donVi: true,
         bienThe: {
           orderBy: { sortOrder: "asc" },
@@ -139,6 +140,8 @@ export async function napDuLieuBaoGia(
         sectionId: it.sectionId,
         workCode: it.workCode,
         name: it.name,
+        tenGon: it.tenGon,
+        groupLabel: it.groupLabel,
         unit: it.unit,
         qty: it.qty,
         baseCost: it.baseCost,
@@ -163,6 +166,7 @@ export async function napDuLieuBaoGia(
     code: c.ma,
     congTacId: c.id,
     name: c.ten,
+    tenNgan: c.tenNgan,
     unit: c.donVi,
     baseCost: chonDonGia(theoCongTac.get(c.id) ?? [], { congTacId: c.id, ngay }).donGia,
     bienThe: c.bienThe.map((b) => ({

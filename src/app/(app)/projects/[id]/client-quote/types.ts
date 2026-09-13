@@ -41,7 +41,13 @@ export interface GiaVonPhan {
     id: string;
     /** Khối lượng tự tính từ dòng nguồn cùng phần; ô khối lượng phải khoá. */
     laDanXuat: boolean;
+    /** Tên GỌN ("Vật tư"); dòng chưa có tên gọn thì là tên đầy đủ. */
     ten: string;
+    /** Tên đầy đủ kèm thông số kỹ thuật, như trên dự toán chào giá — để di chuột xem. */
+    tenDayDu: string;
+    ghiChu: string | null;
+    /** Nhóm cấp hai ("Bulong neo"), cùng nghĩa với nhóm của dự toán thi công. */
+    nhom: string | null;
     donVi: string | null;
     qty: number | null;
     donGia: number | null;

@@ -15,6 +15,10 @@ export interface ItemView {
   sectionId: string;
   workCode: string | null;
   name: string;
+  /** Tên gọn cho bảng giá vốn và dự toán thi công; null = dùng `name`. */
+  tenGon: string | null;
+  /** Nhóm cấp hai ("Bulong neo") — bảng giá vốn chia nhóm theo cột này. */
+  groupLabel: string | null;
   unit: string | null;
   qty: number | null;
   baseCost: number | null;
@@ -66,6 +70,8 @@ export interface CatalogOption {
   code: string;
   congTacId: string;
   name: string;
+  /** Tên ngắn trong thư viện — gợi ý sẵn cho ô tên gọn. */
+  tenNgan: string | null;
   unit: string | null;
   /**
    * Đơn giá CHUNG hiện hành. Giá theo khu vực và biến thể phải hỏi server qua

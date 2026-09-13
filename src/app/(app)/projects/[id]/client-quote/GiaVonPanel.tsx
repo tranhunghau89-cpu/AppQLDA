@@ -4,6 +4,7 @@ import { Fragment, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Wallet } from "lucide-react";
 import { OSoSua } from "@/components/ui/OSoSua";
 import { formatNumber, formatVND, formatQty } from "@/lib/utils";
+import { gomNhomTheoThuTu } from "@/lib/nhomDong";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
 import { suaOGiaVon } from "../quote/actions";
 import type { GiaVonPhan, LineView } from "./types";
@@ -13,6 +14,11 @@ import type { GiaVonPhan, LineView } from "./types";
  *
  * Bày đủ ba tầng: một dòng cho mỗi hạng mục để nhìn lướt biết chỗ nào mỏng lãi, bấm
  * vào thì bung ra từng công tác, và một dòng tổng cho cả bản dự toán.
+ *
+ * Công tác bung ra đọc theo kiểu DỰ TOÁN THI CÔNG: chia nhóm ("Bulong neo", "Kết cấu
+ * thép"), mỗi dòng chỉ tên gọn + ghi chú. Tên đầy đủ kèm thông số kỹ thuật đã nằm trên
+ * dự toán chào giá — nhắc lại ở đây thì bảng dài gấp đôi mà không thêm thông tin nào
+ * cho việc quyết giá. Di chuột lên tên để xem tên đầy đủ.
  *
  * KHÔNG in cho khách. Đây là số nội bộ; bản in nằm ở XemTruoc.tsx và không đọc gì ở đây.
  */
@@ -135,45 +141,70 @@ export function GiaVonPanel({
                               </tr>
                             </thead>
                             <tbody>
-                              {p.dong.map((d) => (
-                                <tr key={d.id} className="border-t border-slate-200/70">
-                                  <td className="py-1 text-slate-700">{d.ten}</td>
-                                  <td className="px-2 py-1 text-slate-500">{d.donVi ?? "—"}</td>
-                                  <td className="px-2 py-1 text-right tabular-nums text-slate-600">
-                                    {canEdit ? (
-                                      <OSoSua
-                                        nhan={`Khối lượng công tác — ${d.ten}`}
-                                        giaTri={d.qty}
-                                        dinhDang={formatQty}
-                                        khoa={d.laDanXuat}
-                                        lyDoKhoa="Tự tính từ các dòng nguồn trong cùng phần — sửa ở dòng nguồn"
-                                        luu={(tho) => suaOGiaVon(chu, d.id, "qty", tho)}
-                                      />
-                                    ) : d.qty != null ? (
-                                      formatQty(d.qty)
-                                    ) : (
-                                      "—"
-                                    )}
-                                  </td>
-                                  <td className="px-2 py-1 text-right tabular-nums text-slate-600">
-                                    {canEdit ? (
-                                      <OSoSua
-                                        nhan={`Đơn giá vốn — ${d.ten}`}
-                                        giaTri={d.donGia}
-                                        dinhDang={formatNumber}
-                                        khoa={false}
-                                        luu={(tho) => suaOGiaVon(chu, d.id, "baseCost", tho)}
-                                      />
-                                    ) : d.donGia != null ? (
-                                      formatVND(d.donGia)
-                                    ) : (
-                                      "—"
-                                    )}
-                                  </td>
-                                  <td className="px-2 py-1 text-right tabular-nums text-slate-800">
-                                    {formatVND(d.thanhTien)}
-                                  </td>
-                                </tr>
+                              {gomNhomTheoThuTu(p.dong, (d) => d.nhom).map((nhom) => (
+                                <Fragment key={nhom.nhan ?? ""}>
+                                  {nhom.nhan != null && (
+                                    <tr className="border-t border-slate-200">
+                                      <td
+                                        colSpan={4}
+                                        className="pt-2 pb-1 font-semibold text-slate-700"
+                                      >
+                                        {nhom.nhan}
+                                      </td>
+                                      <td className="px-2 pt-2 pb-1 text-right font-medium tabular-nums text-slate-500">
+                                        {formatVND(nhom.dong.reduce((t, d) => t + d.thanhTien, 0))}
+                                      </td>
+                                    </tr>
+                                  )}
+                                  {nhom.dong.map((d) => (
+                                    <tr key={d.id} className="border-t border-slate-200/70">
+                                      <td
+                                        className={`py-1 text-slate-700 ${nhom.nhan != null ? "pl-4" : ""}`}
+                                        title={d.tenDayDu !== d.ten ? d.tenDayDu : undefined}
+                                      >
+                                        {d.ten}
+                                        {d.ghiChu ? (
+                                          <span className="text-slate-400"> · {d.ghiChu}</span>
+                                        ) : null}
+                                      </td>
+                                      <td className="px-2 py-1 text-slate-500">{d.donVi ?? "—"}</td>
+                                      <td className="px-2 py-1 text-right tabular-nums text-slate-600">
+                                        {canEdit ? (
+                                          <OSoSua
+                                            nhan={`Khối lượng công tác — ${tenO(d.ten, nhom.nhan)}`}
+                                            giaTri={d.qty}
+                                            dinhDang={formatQty}
+                                            khoa={d.laDanXuat}
+                                            lyDoKhoa="Tự tính từ các dòng nguồn trong cùng phần — sửa ở dòng nguồn"
+                                            luu={(tho) => suaOGiaVon(chu, d.id, "qty", tho)}
+                                          />
+                                        ) : d.qty != null ? (
+                                          formatQty(d.qty)
+                                        ) : (
+                                          "—"
+                                        )}
+                                      </td>
+                                      <td className="px-2 py-1 text-right tabular-nums text-slate-600">
+                                        {canEdit ? (
+                                          <OSoSua
+                                            nhan={`Đơn giá vốn — ${tenO(d.ten, nhom.nhan)}`}
+                                            giaTri={d.donGia}
+                                            dinhDang={formatNumber}
+                                            khoa={false}
+                                            luu={(tho) => suaOGiaVon(chu, d.id, "baseCost", tho)}
+                                          />
+                                        ) : d.donGia != null ? (
+                                          formatVND(d.donGia)
+                                        ) : (
+                                          "—"
+                                        )}
+                                      </td>
+                                      <td className="px-2 py-1 text-right tabular-nums text-slate-800">
+                                        {formatVND(d.thanhTien)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </Fragment>
                               ))}
                             </tbody>
                           </table>
@@ -227,4 +258,13 @@ export function NhanLai({ von, ban }: { von: number | null; ban: number | null }
       {(bien * 100).toFixed(1)}%
     </span>
   );
+}
+
+/**
+ * Tên đọc to của một ô sửa. Tên gọn LẶP giữa các nhóm — "Vận chuyển" có ở cả bulong
+ * neo lẫn kết cấu thép — nên phải kèm nhóm, không thì trình đọc màn hình và phép tìm ô
+ * theo nhãn đều trỏ nhầm dòng.
+ */
+function tenO(ten: string, nhom: string | null): string {
+  return nhom ? `${ten} (${nhom})` : ten;
 }

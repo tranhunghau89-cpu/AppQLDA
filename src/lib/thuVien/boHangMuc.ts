@@ -37,7 +37,16 @@ export interface DongKhung {
   congTacId: string | null;
   congTacVatTuId: string | null;
   maCongTac: string | null;
+  /** Tên GỌN trong bộ ("Vật tư") — thứ bảng giá vốn và dự toán thi công hiển thị. */
   ten: string;
+  /**
+   * Tên đầy đủ của công tác trong thư viện, kèm thông số kỹ thuật ("Bulong neo M22 dày
+   * 650, CT34, xi kẽm ren"). Dự toán chào giá ghi tên này; thiếu thì lùi về `ten`.
+   */
+  tenCongTac?: string | null;
+  /** Nhóm cấp hai ("Bulong neo") — cùng nghĩa với groupLabel của dự toán thi công. */
+  groupLabel?: string | null;
+  ghiChu?: string | null;
   donVi: string | null;
   donGiaMacDinh: number | null;
   khoiLuongMacDinh: number | null;
@@ -66,7 +75,12 @@ export interface DongDuToan {
   congTacId: string | null;
   congTacVatTuId: string | null;
   maCongTac: string | null;
+  /** Tên đầy đủ — ghi vào QuoteItem.name. */
   ten: string;
+  /** Tên gọn — ghi vào QuoteItem.tenGon. */
+  tenGon: string;
+  groupLabel: string | null;
+  ghiChu: string | null;
   donVi: string | null;
   qty: number | null;
   donGia: number | null;
@@ -202,7 +216,10 @@ export function dungKhungDuToan(
       congTacId: d.congTacId,
       congTacVatTuId: d.congTacVatTuId,
       maCongTac: d.maCongTac,
-      ten: d.ten,
+      ten: d.tenCongTac?.trim() || d.ten,
+      tenGon: d.ten,
+      groupLabel: d.groupLabel?.trim() || null,
+      ghiChu: d.ghiChu?.trim() || null,
       donVi: d.donVi,
       qty: d.khoiLuongMacDinh,
       suatKhoiLuong: d.suatKhoiLuong,
