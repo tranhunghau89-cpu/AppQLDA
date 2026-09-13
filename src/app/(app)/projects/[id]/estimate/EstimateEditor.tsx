@@ -244,12 +244,12 @@ export function EstimateEditor({
                       <tbody>
                         {grp.rows.map((r) => (
                           <Tr key={r.id}>
-                            <Td className="pl-6 text-slate-800">
+                            <Td className="py-1 pl-6 text-slate-800">
                               {r.name}
                               {r.note ? <span className="text-slate-400"> · {r.note}</span> : null}
                             </Td>
-                            <Td className="text-slate-400">{r.unit ?? ""}</Td>
-                            <Td className="text-right">
+                            <Td className="py-1 text-slate-400">{r.unit ?? ""}</Td>
+                            <Td className="py-1 text-right">
                               {formatNumber(r.actualQty ?? r.designQty)}
                               {/* Dấu bảng: khối lượng thiết kế đến từ bảng bóc chi tiết. */}
                               {r.soChiTiet > 0 && (
@@ -261,29 +261,30 @@ export function EstimateEditor({
                                 </span>
                               )}
                             </Td>
-                            <Td className="text-right">{formatNumber(r.unitPrice)}</Td>
-                            <Td className="text-right font-medium">{formatVND(computeAmount(r))}</Td>
+                            <Td className="py-1 text-right">{formatNumber(r.unitPrice)}</Td>
+                            <Td className="py-1 text-right font-medium">{formatVND(computeAmount(r))}</Td>
                             {canEdit && (
-                              <Td className="text-right">
-                                <div className="flex justify-end gap-1">
+                              <Td className="py-1 text-right">
+                                <div className="flex justify-end gap-0.5">
                                   <Button
                                     variant="ghost"
                                     size="icon"
+                                    className="h-7 w-7"
                                     title="Bảng bóc khối lượng chi tiết"
                                     onClick={() => setBangBoc(r)}
                                   >
-                                    <Table2 className={`h-4 w-4 ${r.soChiTiet > 0 ? "text-blue-600" : ""}`} />
+                                    <Table2 className={`h-3.5 w-3.5 ${r.soChiTiet > 0 ? "text-blue-600" : ""}`} />
                                   </Button>
-                                  <Button variant="ghost" size="icon" onClick={() => openEdit(r)}>
-                                    <Pencil className="h-4 w-4" />
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(r)}>
+                                    <Pencil className="h-3.5 w-3.5" />
                                   </Button>
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="text-red-600 hover:bg-red-50"
+                                    className="h-7 w-7 text-red-600 hover:bg-red-50"
                                     onClick={() => onDelete(r)}
                                   >
-                                    <Trash2 className="h-4 w-4" />
+                                    <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
                                 </div>
                               </Td>
