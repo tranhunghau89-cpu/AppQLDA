@@ -2,7 +2,9 @@ import Link from "next/link";
 import { Tags } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
-import { myProjectIds } from "@/lib/scope";
+import { myProjectIds, scopedProjectWhere } from "@/lib/scope";
+import { can, type Role } from "@/lib/rbac";
+import { LapDuToanDuAn } from "./LapDuToanDuAn";
 import { whereBaoGiaTrongPhamVi } from "@/lib/crmScope";
 import { docGiaiDoan, ghepLoc } from "@/lib/giaiDoan";
 import { GiaiDoanChips } from "@/components/GiaiDoanChips";
@@ -25,7 +27,7 @@ export default async function QuotesPage({
 
   // Đếm trong CÙNG phạm vi, không phải toàn bảng — con số trên chip phải là số bản
   // người này thật sự mở được, nếu không bấm sang lại thấy ít hơn.
-  const [quotes, soChaoGia, soDuAn] = await Promise.all([
+  const [quotes, soChaoGia, soDuAn, duAnRows] = await Promise.all([
     db.quote.findMany({
       where: ghepLoc(pham, giaiDoan),
       orderBy: { createdAt: "desc" },
@@ -37,7 +39,14 @@ export default async function QuotesPage({
     }),
     db.quote.count({ where: ghepLoc(pham, "CHAO_GIA") }),
     db.quote.count({ where: ghepLoc(pham, "DU_AN") }),
+    // Dự án trong phạm vi, cho nút lập dự toán — trang dự án không còn lối vào này.
+    db.project.findMany({
+      where: await scopedProjectWhere(session),
+      orderBy: { code: "asc" },
+      select: { id: true, code: true, name: true, _count: { select: { quotes: true } } },
+    }),
   ]);
+  const canEdit = can(session.role as Role, "quote", "edit");
 
   const rows = quotes.map((q) => ({
     ...q,
@@ -56,12 +65,24 @@ export default async function QuotesPage({
             Bảng tính giá thành theo Mã CV — {rows.length} bản
           </p>
         </div>
-        <Link
-          href="/thu-vien"
-          className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-200"
-        >
-          <Tags className="h-4 w-4" /> Bảng đơn giá
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/thu-vien"
+            className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-200"
+          >
+            <Tags className="h-4 w-4" /> Bảng đơn giá
+          </Link>
+          {canEdit && (
+            <LapDuToanDuAn
+              duAn={duAnRows.map((d) => ({
+                id: d.id,
+                code: d.code,
+                name: d.name,
+                soDuToan: d._count.quotes,
+              }))}
+            />
+          )}
+        </div>
       </div>
 
       <GiaiDoanChips
