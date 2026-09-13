@@ -6,6 +6,7 @@ import { scopedByProjectWhere } from "@/lib/scope";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { formatVND } from "@/lib/utils";
 import { formatPercent } from "@/lib/profit";
+import { TabTrang, TAB_CHI_PHI } from "@/components/layout/TabTrang";
 
 export default async function CostsPage() {
   const session = await requireView("cost");
@@ -22,6 +23,7 @@ export default async function CostsPage() {
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_CHI_PHI} hienTai="/costs" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Tổng hợp chi phí</h1>
         <p className="text-sm text-slate-500">

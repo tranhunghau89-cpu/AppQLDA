@@ -17,6 +17,7 @@ import { scopedProjectWhere, scopedByProjectWhere } from "@/lib/scope";
 import { computeContractTotals } from "@/lib/contract";
 import { serverNow } from "@/lib/now";
 import { formatVND, formatNumber, formatDate } from "@/lib/utils";
+import { TabTrang, TAB_CHI_PHI } from "@/components/layout/TabTrang";
 import {
   buildBaoCaoKy,
   cacKyGanDay,
@@ -129,6 +130,7 @@ export default async function ReportsPage({
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_CHI_PHI} hienTai="/reports" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Báo cáo theo kỳ</h1>
         <p className="text-sm text-slate-500">

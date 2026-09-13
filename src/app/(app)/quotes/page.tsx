@@ -9,6 +9,7 @@ import { GiaiDoanChips } from "@/components/GiaiDoanChips";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { formatVND, formatDate } from "@/lib/utils";
 import { computeQuoteTotals } from "@/lib/quote";
+import { TabTrang, TAB_CHAO_GIA } from "@/components/layout/TabTrang";
 
 export default async function QuotesPage({
   searchParams,
@@ -47,6 +48,7 @@ export default async function QuotesPage({
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_CHAO_GIA} hienTai="/quotes" role={session.role} />
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Dự toán chào giá</h1>

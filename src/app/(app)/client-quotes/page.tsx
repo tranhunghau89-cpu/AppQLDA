@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatVND, formatDate } from "@/lib/utils";
 import { computeClientQuoteTotals } from "@/lib/clientQuote";
 import { CLIENT_QUOTE_OPEN, CLIENT_QUOTE_STATUS_MAP } from "@/lib/constants";
+import { TabTrang, TAB_CHAO_GIA } from "@/components/layout/TabTrang";
 
 export default async function ClientQuotesPage({
   searchParams,
@@ -81,6 +82,7 @@ export default async function ClientQuotesPage({
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_CHAO_GIA} hienTai="/client-quotes" role={session.role} />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Báo giá gửi khách</h1>

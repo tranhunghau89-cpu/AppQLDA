@@ -6,6 +6,7 @@ import { serverNow } from "@/lib/now";
 import { Badge } from "@/components/ui/badge";
 import { MILESTONE_TYPE, PROJECT_STATUS_MAP } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
+import { TabTrang, TAB_TIEN_DO } from "@/components/layout/TabTrang";
 
 // Gantt toàn cảnh: mỗi dự án 1 hàng, các mốc kế hoạch/thực tế vẽ trên trục thời gian.
 export default async function GanttPage() {
@@ -71,6 +72,7 @@ export default async function GanttPage() {
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_TIEN_DO} hienTai="/gantt" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Kế hoạch (Gantt)</h1>
         <p className="text-sm text-slate-500">

@@ -6,15 +6,12 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   FolderKanban,
-  BarChart3,
   CalendarRange,
-  GanttChart,
   Ruler,
   CheckCheck,
   Calculator,
   ChevronDown,
   FileSignature,
-  FileText,
   ShoppingCart,
   Wallet,
   Receipt,
@@ -23,7 +20,6 @@ import {
   UserSearch,
   Truck,
   Users,
-  LayoutTemplate,
   Library,
   History,
   Upload,
@@ -32,6 +28,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { can, type Role, type Resource } from "@/lib/rbac";
+import { TAB_CHAO_GIA, TAB_CHI_PHI, TAB_TIEN_DO, type MucTab } from "./TabTrang";
 
 interface NavItem {
   href: string;
@@ -50,10 +47,24 @@ interface NavGroup {
 
 /**
  * Menu chia theo NHỊP LÀM VIỆC, không theo tên bảng dữ liệu: bán hàng trước hợp đồng,
- * thi công sau hợp đồng, tiền bạc, rồi những thứ tra cứu và ít khi động tới.
+ * thi công và tiền bạc sau hợp đồng, rồi những thứ tra cứu và ít khi động tới.
  *
- * Hai mươi hai mục xếp phẳng thì không ai đọc — mắt chỉ quét được một danh sách ngắn.
+ * Mắt chỉ quét được một danh sách ngắn. Nên những trang là HAI CÁCH NHÌN cùng một việc
+ * dùng chung một mục, chuyển qua lại bằng tab ở đầu trang (`TabTrang`):
+ *   Chào giá          = dự toán chào giá · báo giá gửi khách
+ *   Tiến độ           = theo tuần · Gantt
+ *   Chi phí & báo cáo = tổng hợp · theo kỳ
+ * và Bộ hạng mục chuẩn không còn mục riêng vì Thư viện đơn giá đã có lối vào nó.
+ *
+ * Mục gộp lấy href của tab ĐẦU và khớp thêm các tab còn lại — đọc từ chính bộ tab, để
+ * menu và thanh tab không bao giờ nói hai điều khác nhau.
  */
+const mucGop = (tabs: readonly MucTab[]) => ({
+  href: tabs[0].href,
+  resource: tabs[0].resource,
+  khopThem: tabs.slice(1).map((t) => t.href),
+});
+
 const NAV: NavGroup[] = [
   {
     ten: null,
@@ -71,57 +82,37 @@ const NAV: NavGroup[] = [
         // của khu này — không đánh dấu thì vào đó menu trông như không ở đâu cả.
         khopThem: ["/co-hoi"],
       },
-      { href: "/quotes", label: "Dự toán chào giá", icon: Receipt, resource: "quote" },
-      { href: "/client-quotes", label: "Báo giá gửi khách", icon: FileText, resource: "quote" },
+      { ...mucGop(TAB_CHAO_GIA), label: "Chào giá", icon: Receipt },
     ],
   },
   {
-    ten: "Dự án",
+    ten: "Thi công",
     items: [
       { href: "/projects", label: "Dự án", icon: FolderKanban, resource: "project" },
-      { href: "/weekly", label: "Tiến độ", icon: CalendarRange, resource: "progress" },
-      { href: "/gantt", label: "Kế hoạch (Gantt)", icon: GanttChart, resource: "progress" },
+      { ...mucGop(TAB_TIEN_DO), label: "Tiến độ", icon: CalendarRange },
       { href: "/approvals", label: "Phê duyệt", icon: CheckCheck },
-    ],
-  },
-  {
-    ten: "Chi phí & hợp đồng",
-    items: [
       { href: "/estimates", label: "Dự toán thi công & chi phí", icon: Calculator, resource: "estimate" },
       { href: "/contracts", label: "Hợp đồng & Báo giá", icon: FileSignature, resource: "contract" },
       { href: "/purchases", label: "Đơn hàng & Mua hàng", icon: ShoppingCart, resource: "purchase" },
-      { href: "/costs", label: "Tổng hợp chi phí", icon: Wallet, resource: "cost" },
+      { ...mucGop(TAB_CHI_PHI), label: "Chi phí & báo cáo", icon: Wallet },
       { href: "/debts", label: "Công nợ", icon: HandCoins, resource: "debt" },
-      { href: "/reports", label: "Báo cáo theo kỳ", icon: BarChart3, resource: "cost" },
     ],
   },
   {
-    ten: "Danh mục",
+    ten: "Danh mục & hệ thống",
     items: [
       {
         href: "/thu-vien",
         label: "Thư viện đơn giá",
         icon: Library,
         resource: "thuVien",
-        khopThem: ["/thu-vien/vat-tu", "/thu-vien/khu-vuc"],
+        // /thu-vien/* (vật tư, khu vực, bộ hạng mục) đã khớp theo tiền tố. Hai đường dẫn
+        // mẫu cũ đã gộp vào Bộ hạng mục; giữ để bookmark cũ vẫn sáng đúng mục.
+        khopThem: ["/estimate-templates", "/quote-templates"],
       },
       { href: "/customers", label: "Chủ đầu tư", icon: Building2, resource: "customer" },
       { href: "/suppliers", label: "Nhà cung cấp", icon: Truck, resource: "supplier" },
       { href: "/tools", label: "Tra cứu & Bóc KL", icon: Ruler },
-      {
-        href: "/thu-vien/bo-hang-muc",
-        label: "Bộ hạng mục chuẩn",
-        icon: LayoutTemplate,
-        resource: "thuVien",
-        // Hai mục "Mẫu dự toán" và "Mẫu báo giá" cũ đã gộp vào đây; giữ đường dẫn cũ
-        // để bookmark còn chạy, nhưng menu chỉ nên có một lối vào.
-        khopThem: ["/estimate-templates", "/quote-templates"],
-      },
-    ],
-  },
-  {
-    ten: "Hệ thống",
-    items: [
       { href: "/import", label: "Nhập từ Excel", icon: Upload, resource: "import" },
       { href: "/audit", label: "Nhật ký thay đổi", icon: History, resource: "audit" },
       { href: "/users", label: "Người dùng", icon: Users, resource: "user" },
