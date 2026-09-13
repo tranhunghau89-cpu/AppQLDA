@@ -65,3 +65,26 @@ export function gomNhomTheoThuTu<T>(
   // Map giữ thứ tự chèn, nên đây chính là thứ tự xuất hiện đầu tiên.
   return [...theoNhan].map(([n, ds]) => ({ nhan: n, dong: ds }));
 }
+
+export interface ChiSoNhom {
+  /** Phần của nhóm trong tổng giá vốn của hạng mục (0..1); null khi hạng mục chưa có vốn. */
+  tyLe: number | null;
+  /** Tiền của nhóm chia cho diện tích hạng mục; null khi hạng mục chưa khai diện tích. */
+  moiM2: number | null;
+}
+
+/**
+ * Hai chỉ số của một nhóm trong hạng mục: đơn giá trên m² và tỉ trọng chi phí.
+ *
+ * Mẫu số m² là diện tích của HẠNG MỤC chứa nhóm, không phải của nhóm — "bulong neo tốn
+ * 8.000 đ trên mỗi m² mái" là con số người lập dùng để so giữa các công trình.
+ *
+ * Mẫu số thiếu hoặc ≤ 0 thì trả null chứ không trả 0 hay Infinity: bảng hiện gạch, và
+ * không ai định giá bán dựa trên một con số chia cho không.
+ */
+export function chiSoNhom(tienNhom: number, tienHangMuc: number, dienTich: number | null): ChiSoNhom {
+  return {
+    tyLe: tienHangMuc > 0 ? tienNhom / tienHangMuc : null,
+    moiM2: dienTich != null && dienTich > 0 ? tienNhom / dienTich : null,
+  };
+}

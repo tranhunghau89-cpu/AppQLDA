@@ -4,7 +4,7 @@ import { Fragment, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Wallet } from "lucide-react";
 import { OSoSua } from "@/components/ui/OSoSua";
 import { formatNumber, formatVND, formatQty } from "@/lib/utils";
-import { gomNhomTheoThuTu } from "@/lib/nhomDong";
+import { chiSoNhom, gomNhomTheoThuTu } from "@/lib/nhomDong";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
 import { suaOGiaVon } from "../quote/actions";
 import type { GiaVonPhan, LineView } from "./types";
@@ -141,18 +141,35 @@ export function GiaVonPanel({
                               </tr>
                             </thead>
                             <tbody>
-                              {gomNhomTheoThuTu(p.dong, (d) => d.nhom).map((nhom) => (
+                              {gomNhomTheoThuTu(p.dong, (d) => d.nhom).map((nhom) => {
+                                const tienNhom = nhom.dong.reduce((t, d) => t + d.thanhTien, 0);
+                                // Cùng hai chỉ số với bảng dự toán chào giá: tỉ trọng vốn
+                                // trong hạng mục, và vốn của nhóm trên mỗi m² hạng mục.
+                                const cs = chiSoNhom(tienNhom, p.tongGiaVon, p.dienTich);
+                                return (
                                 <Fragment key={nhom.nhan ?? ""}>
                                   {nhom.nhan != null && (
                                     <tr className="border-t border-slate-200">
                                       <td
-                                        colSpan={4}
+                                        colSpan={3}
                                         className="pt-2 pb-1 font-semibold text-slate-700"
                                       >
                                         {nhom.nhan}
+                                        <span
+                                          className="ml-2 font-medium text-slate-500"
+                                          title="Tỉ trọng giá vốn của nhóm trong hạng mục"
+                                        >
+                                          {cs.tyLe != null ? `${(cs.tyLe * 100).toFixed(1)}%` : "—"} chi phí
+                                        </span>
+                                      </td>
+                                      <td
+                                        className="px-2 pt-2 pb-1 text-right tabular-nums text-slate-500"
+                                        title="Giá vốn của nhóm trên mỗi m² hạng mục"
+                                      >
+                                        {cs.moiM2 != null ? `${formatNumber(cs.moiM2)}/m²` : "—"}
                                       </td>
                                       <td className="px-2 pt-2 pb-1 text-right font-medium tabular-nums text-slate-500">
-                                        {formatVND(nhom.dong.reduce((t, d) => t + d.thanhTien, 0))}
+                                        {formatVND(tienNhom)}
                                       </td>
                                     </tr>
                                   )}
@@ -205,7 +222,8 @@ export function GiaVonPanel({
                                     </tr>
                                   ))}
                                 </Fragment>
-                              ))}
+                                );
+                              })}
                             </tbody>
                           </table>
                         )}

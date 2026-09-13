@@ -19,6 +19,8 @@ export interface ItemView {
   tenGon: string | null;
   /** Nhóm cấp hai ("Bulong neo") — bảng giá vốn chia nhóm theo cột này. */
   groupLabel: string | null;
+  /** Nhóm chi phí của công tác trong thư viện — nhóm dự phòng khi dòng chưa ghi nhóm. */
+  nhomChiPhi: string | null;
   unit: string | null;
   qty: number | null;
   baseCost: number | null;

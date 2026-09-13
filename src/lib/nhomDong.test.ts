@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gomNhomTheoThuTu, nhanNhomDongBaoGia } from "./nhomDong";
+import { chiSoNhom, gomNhomTheoThuTu, nhanNhomDongBaoGia } from "./nhomDong";
 
 describe("nhanNhomDongBaoGia", () => {
   it("nhóm ghi trên dòng thắng tên mục con và nhóm chi phí", () => {
@@ -64,5 +64,21 @@ describe("gomNhomTheoThuTu", () => {
 
   it("danh sách rỗng thì không có nhóm nào", () => {
     expect(gomNhomTheoThuTu([], () => "x")).toEqual([]);
+  });
+});
+
+describe("chiSoNhom", () => {
+  it("tỉ trọng trên tổng hạng mục, đơn giá trên diện tích hạng mục", () => {
+    expect(chiSoNhom(25_000_000, 100_000_000, 1_000)).toEqual({ tyLe: 0.25, moiM2: 25_000 });
+  });
+
+  it("hạng mục chưa có tiền thì không có tỉ trọng", () => {
+    expect(chiSoNhom(0, 0, 1_000).tyLe).toBeNull();
+  });
+
+  it("thiếu diện tích hoặc diện tích ≤ 0 thì không suy đơn giá m²", () => {
+    expect(chiSoNhom(1_000, 2_000, null).moiM2).toBeNull();
+    expect(chiSoNhom(1_000, 2_000, 0).moiM2).toBeNull();
+    expect(chiSoNhom(1_000, 2_000, -5).moiM2).toBeNull();
   });
 });

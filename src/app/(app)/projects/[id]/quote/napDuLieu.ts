@@ -36,6 +36,7 @@ export async function napDuLieuBaoGia(
             bienThe: {
               select: { tenBienThe: true, vatTu: { select: { ten: true } } },
             },
+            congTac: { select: { nhomChiPhi: true } },
           },
         },
         khuVuc: { select: { ten: true } },
@@ -51,6 +52,7 @@ export async function napDuLieuBaoGia(
         ten: true,
         tenNgan: true,
         donVi: true,
+        nhomChiPhi: true,
         bienThe: {
           orderBy: { sortOrder: "asc" },
           select: {
@@ -104,6 +106,9 @@ export async function napDuLieuBaoGia(
     else theoCongTac.set(g.congTacId, [g]);
   }
 
+  // Dòng lập trước khi có thư viện chỉ mang mã công tác — tra nhóm theo mã.
+  const nhomTheoMa = new Map(congTacs.map((c) => [c.ma, c.nhomChiPhi]));
+
   const quotes: QuoteView[] = rawQuotes.map((q) => ({
     id: q.id,
     title: q.title,
@@ -142,6 +147,8 @@ export async function napDuLieuBaoGia(
         name: it.name,
         tenGon: it.tenGon,
         groupLabel: it.groupLabel,
+        nhomChiPhi:
+          it.congTac?.nhomChiPhi ?? (it.workCode ? (nhomTheoMa.get(it.workCode) ?? null) : null),
         unit: it.unit,
         qty: it.qty,
         baseCost: it.baseCost,
