@@ -294,6 +294,7 @@ export function QuoteCard({
             items={q.items}
             canEdit={canEdit}
             tienPhan={(phanId) => tienPhanCua.get(phanId) ?? 0}
+            tongBan={totals.sell}
             h={{ onAddSub, onEditSection, onDeleteSection, onAddItem, onEditItem, onDeleteItem }}
           />
         </tbody>

@@ -67,14 +67,14 @@ export function gomNhomTheoThuTu<T>(
 }
 
 export interface ChiSoNhom {
-  /** Phần của nhóm trong tổng giá vốn của hạng mục (0..1); null khi hạng mục chưa có vốn. */
+  /** Tỉ lệ của nhóm trong hạng mục (0..1); null khi hạng mục chưa có tiền. */
   tyLe: number | null;
   /** Tiền của nhóm chia cho diện tích hạng mục; null khi hạng mục chưa khai diện tích. */
   moiM2: number | null;
 }
 
 /**
- * Hai chỉ số của một nhóm trong hạng mục: đơn giá trên m² và tỉ trọng chi phí.
+ * Hai chỉ số của một nhóm trong hạng mục: đơn giá trên m² và tỉ lệ của nhóm trong hạng mục.
  *
  * Mẫu số m² là diện tích của HẠNG MỤC chứa nhóm, không phải của nhóm — "bulong neo tốn
  * 8.000 đ trên mỗi m² mái" là con số người lập dùng để so giữa các công trình.

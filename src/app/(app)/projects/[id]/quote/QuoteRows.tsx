@@ -20,7 +20,10 @@ export interface RowHandlers {
 
 /** Tiền của cả hạng mục, để nhóm tính tỉ trọng và đơn giá m² trên cùng một mẫu số. */
 interface HangMucMauSo {
-  von: number;
+  /** Thành tiền (giá bán) của cả hạng mục — đúng con số hiện trên hàng hạng mục. */
+  ban: number;
+  /** Thành tiền của cả bản dự toán — đúng "Tổng giá bán" dưới bảng. */
+  tongBan: number;
   dienTich: number | null;
 }
 
@@ -29,12 +32,13 @@ const phanTram = (x: number | null) => (x == null ? "—" : `${(x * 100).toFixed
 /**
  * Dòng của một phần (hoặc mục con), chia NHÓM theo kiểu dự toán thi công.
  *
- * Mỗi nhóm có một hàng tiêu đề: tên nhóm kèm tỉ trọng chi phí trong hạng mục, và ngay
- * dưới cột giá gốc / đơn giá bán là số tiền của nhóm trên mỗi m² hạng mục. Người lập
- * đọc được "bulong neo tốn 8.000 đ/m² mái, 3% chi phí" mà không phải cộng tay.
+ * Mỗi nhóm có một hàng tiêu đề: tên nhóm kèm HAI tỉ lệ — trong hạng mục và trên tổng cả
+ * bản — và ngay dưới cột giá gốc / đơn giá bán là số tiền của nhóm trên mỗi m² hạng mục.
+ * Người lập đọc được "bulong neo 12% hạng mục, 3% tổng, 8.000 đ/m² mái" mà không phải
+ * cộng tay.
  *
- * Tỉ trọng tính trên GIÁ VỐN: đó là cơ cấu chi phí thật. Giá bán chỉ là vốn nhân hệ số,
- * trừ những dòng người lập đè giá — tính trên giá bán thì cơ cấu đổi theo mỗi lần đè.
+ * Cả hai tỉ lệ chia THÀNH TIỀN — mẫu số là con số trên hàng hạng mục và "Tổng giá bán"
+ * dưới bảng, nên người đọc tự nhẩm lại được.
  */
 function ItemRows({
   items,
@@ -56,8 +60,9 @@ function ItemRows({
         const coNhom = nhom.nhan != null;
         const von = nhom.dong.reduce((t, it) => t + lineCost(it), 0);
         const ban = nhom.dong.reduce((t, it) => t + lineSell(it), 0);
-        const cs = chiSoNhom(von, mauSo.von, mauSo.dienTich);
-        const banM2 = chiSoNhom(ban, 0, mauSo.dienTich).moiM2;
+        const vonM2 = chiSoNhom(von, 0, mauSo.dienTich).moiM2;
+        const cs = chiSoNhom(ban, mauSo.ban, mauSo.dienTich);
+        const tyLeTong = chiSoNhom(ban, mauSo.tongBan, null).tyLe;
         return (
           <PhanGroup key={nhom.nhan ?? ""}>
             {coNhom && (
@@ -67,22 +72,28 @@ function ItemRows({
                   {nhom.nhan}
                   <span
                     className="ml-2 text-xs font-medium text-slate-500"
-                    title="Tỉ trọng giá vốn của nhóm trong hạng mục"
+                    title="Thành tiền của nhóm ÷ thành tiền của hạng mục"
                   >
-                    {phanTram(cs.tyLe)} chi phí
+                    {phanTram(cs.tyLe)} hạng mục
+                  </span>
+                  <span
+                    className="ml-2 text-xs font-medium text-slate-400"
+                    title="Thành tiền của nhóm ÷ tổng giá bán cả bản dự toán"
+                  >
+                    · {phanTram(tyLeTong)} tổng
                   </span>
                 </Td>
                 <Td
                   className="text-right text-xs text-slate-500"
                   title="Giá vốn của nhóm trên mỗi m² hạng mục"
                 >
-                  {cs.moiM2 != null ? `${formatNumber(cs.moiM2)}/m²` : "—"}
+                  {vonM2 != null ? `${formatNumber(vonM2)}/m²` : "—"}
                 </Td>
                 <Td
                   className="text-right text-xs text-slate-600"
                   title="Giá bán của nhóm trên mỗi m² hạng mục"
                 >
-                  {banM2 != null ? `${formatNumber(banM2)}/m²` : "—"}
+                  {cs.moiM2 != null ? `${formatNumber(cs.moiM2)}/m²` : "—"}
                 </Td>
                 <Td className="text-right font-medium text-slate-600">{formatVND(ban)}</Td>
                 {canEdit && <Td />}
@@ -195,12 +206,15 @@ export function QuoteRows({
   items,
   canEdit,
   tienPhan,
+  tongBan,
   h,
 }: {
   sections: SectionView[];
   items: ItemView[];
   canEdit: boolean;
   tienPhan: (phanId: string) => number;
+  /** Tổng giá bán cả bản — mẫu số của tỉ lệ nhóm trên tổng. */
+  tongBan: number;
   h: RowHandlers;
 }) {
   const colSpan = canEdit ? 8 : 7;
@@ -211,11 +225,11 @@ export function QuoteRows({
   }
   const phans = sections.filter((s) => !s.parentId);
   const subsOf = (phanId: string) => sections.filter((s) => s.parentId === phanId);
-  // Mẫu số của từng hạng mục: giá vốn gộp cả dòng trong mục con, diện tích của phần gốc.
+  // Mẫu số của từng hạng mục: thành tiền gộp cả dòng trong mục con (chính con số trên
+  // hàng hạng mục), diện tích của phần gốc.
   const mauSoCua = (phan: SectionView): HangMucMauSo => ({
-    von: [phan, ...subsOf(phan.id)]
-      .flatMap((s) => itemsBySection.get(s.id) ?? [])
-      .reduce((t, it) => t + lineCost(it), 0),
+    ban: tienPhan(phan.id),
+    tongBan,
     dienTich: phan.area,
   });
 

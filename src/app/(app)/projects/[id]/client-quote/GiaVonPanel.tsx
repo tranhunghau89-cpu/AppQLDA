@@ -143,9 +143,11 @@ export function GiaVonPanel({
                             <tbody>
                               {gomNhomTheoThuTu(p.dong, (d) => d.nhom).map((nhom) => {
                                 const tienNhom = nhom.dong.reduce((t, d) => t + d.thanhTien, 0);
-                                // Cùng hai chỉ số với bảng dự toán chào giá: tỉ trọng vốn
-                                // trong hạng mục, và vốn của nhóm trên mỗi m² hạng mục.
+                                // Cùng hai chỉ số với bảng dự toán chào giá: tỉ lệ của nhóm
+                                // trong hạng mục (bảng này là tiền vốn, nên chia tổng vốn
+                                // hạng mục), và vốn của nhóm trên mỗi m² hạng mục.
                                 const cs = chiSoNhom(tienNhom, p.tongGiaVon, p.dienTich);
+                                const tyLeTong = chiSoNhom(tienNhom, tong, null).tyLe;
                                 return (
                                 <Fragment key={nhom.nhan ?? ""}>
                                   {nhom.nhan != null && (
@@ -157,9 +159,15 @@ export function GiaVonPanel({
                                         {nhom.nhan}
                                         <span
                                           className="ml-2 font-medium text-slate-500"
-                                          title="Tỉ trọng giá vốn của nhóm trong hạng mục"
+                                          title="Thành tiền của nhóm ÷ tổng giá vốn của hạng mục"
                                         >
-                                          {cs.tyLe != null ? `${(cs.tyLe * 100).toFixed(1)}%` : "—"} chi phí
+                                          {cs.tyLe != null ? `${(cs.tyLe * 100).toFixed(1)}%` : "—"} hạng mục
+                                        </span>
+                                        <span
+                                          className="ml-2 font-medium text-slate-400"
+                                          title="Thành tiền của nhóm ÷ tổng giá vốn cả bản dự toán"
+                                        >
+                                          · {tyLeTong != null ? `${(tyLeTong * 100).toFixed(1)}%` : "—"} tổng
                                         </span>
                                       </td>
                                       <td
