@@ -141,7 +141,7 @@ export function GiaVonPanel({
                               </tr>
                             </thead>
                             <tbody>
-                              {gomNhomTheoThuTu(p.dong, (d) => d.nhom).map((nhom) => {
+                              {gomNhomTheoThuTu(p.dong, (d) => d.nhom).map((nhom, i) => {
                                 const tienNhom = nhom.dong.reduce((t, d) => t + d.thanhTien, 0);
                                 // Cùng hai chỉ số với bảng dự toán chào giá: tỉ lệ của nhóm
                                 // trong hạng mục (bảng này là tiền vốn, nên chia tổng vốn
@@ -156,6 +156,7 @@ export function GiaVonPanel({
                                         colSpan={3}
                                         className="pt-2 pb-1 font-semibold text-slate-700"
                                       >
+                                        <span className="mr-1.5 text-slate-500">{i + 1}.</span>
                                         {nhom.nhan}
                                         <span
                                           className="ml-2 font-medium text-slate-500"

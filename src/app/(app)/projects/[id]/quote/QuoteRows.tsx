@@ -56,7 +56,9 @@ function ItemRows({
   );
   return (
     <>
-      {nhoms.map((nhom) => {
+      {/* Số thứ tự nhóm đánh lại từ 1 trong mỗi hạng mục (và mỗi mục con), đứng ở cột
+          Mã CV như mã phần "A" đứng trên nó. */}
+      {nhoms.map((nhom, i) => {
         const coNhom = nhom.nhan != null;
         const von = nhom.dong.reduce((t, it) => t + lineCost(it), 0);
         const ban = nhom.dong.reduce((t, it) => t + lineSell(it), 0);
@@ -67,7 +69,7 @@ function ItemRows({
           <PhanGroup key={nhom.nhan ?? ""}>
             {coNhom && (
               <Tr className="bg-white">
-                <Td />
+                <Td className="font-semibold text-slate-700">{i + 1}</Td>
                 <Td colSpan={3} className="font-semibold text-slate-700">
                   {nhom.nhan}
                   <span
