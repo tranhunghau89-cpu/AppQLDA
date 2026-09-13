@@ -44,8 +44,10 @@ export default async function ClientQuotePage({
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
+        {/* Cùng lý do với trang dự toán chào giá: đây là việc của mục Chào giá. */}
         <Link
-          href={`/projects/${project.id}`}
+          href="/client-quotes"
+          aria-label="Về danh sách báo giá gửi khách"
           className="rounded-md p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
         >
           <ArrowLeft className="h-5 w-5" />

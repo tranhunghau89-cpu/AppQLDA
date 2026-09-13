@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { can, type Role, type Resource } from "@/lib/rbac";
+import { laTrangChaoGia } from "@/lib/duongDanChaoGia";
 import { TAB_CHAO_GIA, TAB_CHI_PHI, TAB_TIEN_DO, type MucTab } from "./TabTrang";
 
 interface NavItem {
@@ -37,6 +38,11 @@ interface NavItem {
   resource?: Resource; // nếu có, lọc theo quyền view
   /** Đường dẫn khác cũng thuộc mục này — trang con không có mục riêng trên menu. */
   khopThem?: string[];
+  /**
+   * Mục này GIÀNH lấy những trang mà hàm này nhận — thắng mọi khớp theo tiền tố của mục
+   * khác. Dành cho trang nằm dưới đường dẫn của một mục nhưng thuộc về mục khác.
+   */
+  gianh?: (pathname: string) => boolean;
 }
 
 interface NavGroup {
@@ -82,7 +88,9 @@ const NAV: NavGroup[] = [
         // của khu này — không đánh dấu thì vào đó menu trông như không ở đâu cả.
         khopThem: ["/co-hoi"],
       },
-      { ...mucGop(TAB_CHAO_GIA), label: "Chào giá", icon: Receipt },
+      // Dự toán chào giá và báo giá gửi khách của từng dự án/cơ hội mang đường dẫn
+      // /projects/… và /co-hoi/…, nhưng thuộc về mục này chứ không phải "Dự án".
+      { ...mucGop(TAB_CHAO_GIA), label: "Chào giá", icon: Receipt, gianh: laTrangChaoGia },
     ],
   },
   {
@@ -173,6 +181,9 @@ function ghiNhomDong(sau: ReadonlySet<string>) {
 
 function dangO(pathname: string, item: NavItem): boolean {
   if (item.href === "/") return pathname === "/";
+  // Trang đã có mục khác giành thì chỉ mục đó sáng.
+  const mucGianh = NAV.flatMap((n) => n.items).find((i) => i.gianh?.(pathname));
+  if (mucGianh) return mucGianh === item;
   const duongDan = [item.href, ...(item.khopThem ?? [])];
   return duongDan.some((p) => pathname.startsWith(p));
 }
