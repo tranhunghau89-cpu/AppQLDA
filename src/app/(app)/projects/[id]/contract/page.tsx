@@ -20,7 +20,7 @@ export default async function ContractPage({
     include: {
       contracts: {
         orderBy: [{ status: "asc" }, { createdAt: "asc" }],
-        include: { items: { orderBy: { sortOrder: "asc" } } },
+        include: { items: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] } },
       },
     },
   });

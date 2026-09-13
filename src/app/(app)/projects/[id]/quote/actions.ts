@@ -512,8 +512,8 @@ export async function cloneQuoteFrom(
   const src = await db.quote.findUnique({
     where: { id: sourceQuoteId },
     include: {
-      sections: { orderBy: { sortOrder: "asc" } },
-      items: { orderBy: { sortOrder: "asc" } },
+      sections: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
+      items: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
       project: { select: { code: true, name: true } },
       coHoi: { select: { tenCongTrinh: true } },
     },
@@ -928,9 +928,9 @@ async function khungConThieu(quoteId: string, boHangMucId: string) {
     db.boHangMuc.findUnique({
       where: { id: boHangMucId },
       include: {
-        phan: { orderBy: { sortOrder: "asc" } },
+        phan: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
         dong: {
-          orderBy: { sortOrder: "asc" },
+          orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
           include: { congTac: { select: { ten: true } } },
         },
       },

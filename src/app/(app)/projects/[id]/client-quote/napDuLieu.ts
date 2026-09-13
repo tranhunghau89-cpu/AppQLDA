@@ -28,11 +28,11 @@ async function napGiaVonTheoPhan(quoteIds: readonly string[]): Promise<Map<strin
     select: {
       id: true,
       sections: {
-        orderBy: { sortOrder: "asc" },
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
         select: { id: true, code: true, name: true, area: true, parentId: true },
       },
       items: {
-        orderBy: { sortOrder: "asc" },
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
         select: {
           id: true,
           sectionId: true,
@@ -160,10 +160,10 @@ export async function napDuLieuBaoGiaKhach(
       where: whereCuaChu(chu),
       orderBy: { createdAt: "desc" },
       include: {
-        lines: { orderBy: { sortOrder: "asc" } },
-        specs: { orderBy: { sortOrder: "asc" } },
-        stages: { orderBy: { sortOrder: "asc" } },
-        payments: { orderBy: { sortOrder: "asc" } },
+        lines: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
+        specs: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
+        stages: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
+        payments: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
         contacts: { orderBy: { contactDate: "desc" }, take: 50 },
         derivedFrom: { select: { title: true } },
         clonedFrom: { select: { title: true } },

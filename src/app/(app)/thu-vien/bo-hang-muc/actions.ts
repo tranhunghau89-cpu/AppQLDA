@@ -488,7 +488,7 @@ export async function luuChiTietQuyDoi(
       khoiLuongDonVi: true,
       donGia: {
         where: { khuVucId: null, congTacVatTuId: null, hieuLucTu: { lte: new Date() } },
-        orderBy: { hieuLucTu: "desc" },
+        orderBy: [{ hieuLucTu: "desc" }, { createdAt: "desc" }, { id: "desc" }],
         take: 1,
         select: { donGia: true },
       },

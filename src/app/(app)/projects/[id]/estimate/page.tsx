@@ -31,9 +31,9 @@ export default async function EstimatePage({
             // dòng chi tiết, mà trang này chỉ cần biết "có hay không" để khoá ô.
             _count: { select: { chiTiet: true } },
           },
-          orderBy: [{ sortOrder: "asc" }],
+          orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
         },
-        estimateSections: { orderBy: { sortOrder: "asc" } },
+        estimateSections: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
       },
     }),
     db.supplier.findMany({
@@ -45,7 +45,7 @@ export default async function EstimatePage({
     db.boHangMucPhan.findMany({
       where: { boHangMuc: { active: true } },
       orderBy: [{ boHangMuc: { sortOrder: "asc" } }, { sortOrder: "asc" }],
-      include: { dong: { orderBy: { sortOrder: "asc" } } },
+      include: { dong: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] } },
     }),
     // Bản dự toán chào giá của dự án — nguồn để đổ xuống.
     db.quote.findMany({

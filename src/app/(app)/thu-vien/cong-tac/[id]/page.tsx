@@ -24,14 +24,14 @@ export default async function Page({
       where: { id },
       include: {
         donGia: {
-          orderBy: { hieuLucTu: "desc" },
+          orderBy: [{ hieuLucTu: "desc" }, { createdAt: "desc" }, { id: "desc" }],
           include: {
             khuVuc: { select: { ma: true } },
             bienThe: { select: { id: true, tenBienThe: true, vatTu: { select: { ten: true } } } },
           },
         },
         bienThe: {
-          orderBy: { sortOrder: "asc" },
+          orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
           include: {
             vatTu: { select: { ma: true, ten: true, hang: true, quyCach: true } },
             _count: { select: { donGia: true } },

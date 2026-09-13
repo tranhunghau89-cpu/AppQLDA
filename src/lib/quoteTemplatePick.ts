@@ -29,7 +29,7 @@ export async function templateChoices(
   // vào hàm đã có bộ test tie-break riêng.
   const bos = await db.boHangMuc.findMany({
     where: { active: true },
-    orderBy: { sortOrder: "asc" },
+    orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
     select: { id: true, ten: true, loaiCongTrinh: true, sortOrder: true },
   });
   const rows = bos.map((b) => ({

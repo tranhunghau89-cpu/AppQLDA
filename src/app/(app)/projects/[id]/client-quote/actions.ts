@@ -757,8 +757,8 @@ async function nguonBaoGiaChiTiet(sourceQuoteId: string) {
   const src = await db.quote.findUnique({
     where: { id: sourceQuoteId },
     include: {
-      sections: { orderBy: { sortOrder: "asc" } },
-      items: { orderBy: { sortOrder: "asc" } },
+      sections: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
+      items: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
     },
   });
   if (!src) return null;

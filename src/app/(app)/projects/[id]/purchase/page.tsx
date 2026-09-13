@@ -25,8 +25,8 @@ export default async function PurchasePage({
           include: {
             supplier: { select: { id: true, name: true } },
             items: {
-              orderBy: { sortOrder: "asc" },
-              include: { images: { orderBy: { sortOrder: "asc" }, select: { id: true } } },
+              orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+              include: { images: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }], select: { id: true } } },
             },
           },
         },

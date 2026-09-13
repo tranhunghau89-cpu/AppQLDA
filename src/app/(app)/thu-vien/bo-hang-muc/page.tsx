@@ -13,11 +13,11 @@ export default async function BoHangMucPage() {
     orderBy: [{ sortOrder: "asc" }, { ma: "asc" }],
     include: {
       phan: {
-        orderBy: { sortOrder: "asc" },
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
         include: {
           _count: { select: { dong: true } },
           dong: {
-            orderBy: { sortOrder: "asc" },
+            orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
             select: {
               id: true,
               ten: true,
@@ -26,7 +26,7 @@ export default async function BoHangMucPage() {
               congTacId: true,
               donGiaMacDinh: true,
               nhomChiPhi: true,
-              cauThanh: { orderBy: { sortOrder: "asc" }, select: { congTacId: true, soLuong: true } },
+              cauThanh: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }], select: { congTacId: true, soLuong: true } },
               suatKhoiLuong: true,
               khoiLuongMacDinh: true,
             },
@@ -89,7 +89,7 @@ export default async function BoHangMucPage() {
       khoiLuongDonVi: true,
       donGia: {
         where: { hieuLucTu: { lte: new Date() }, khuVucId: null, congTacVatTuId: null },
-        orderBy: { hieuLucTu: "desc" },
+        orderBy: [{ hieuLucTu: "desc" }, { createdAt: "desc" }, { id: "desc" }],
         take: 1,
         select: { donGia: true },
       },

@@ -29,9 +29,9 @@ export async function napDuLieuBaoGia(
       where: whereCuaChu(chu),
       orderBy: { createdAt: "desc" },
       include: {
-        sections: { orderBy: { sortOrder: "asc" } },
+        sections: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
         items: {
-          orderBy: { sortOrder: "asc" },
+          orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
           include: {
             bienThe: {
               select: { tenBienThe: true, vatTu: { select: { ten: true } } },
@@ -54,7 +54,7 @@ export async function napDuLieuBaoGia(
         donVi: true,
         nhomChiPhi: true,
         bienThe: {
-          orderBy: { sortOrder: "asc" },
+          orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
           select: {
             id: true,
             tenBienThe: true,

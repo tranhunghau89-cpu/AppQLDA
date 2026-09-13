@@ -15,8 +15,8 @@ export default async function CoHoiQuotePrintPage({
     where: { id: quoteId },
     include: {
       coHoi: { select: { tenCongTrinh: true, diaDiem: true } },
-      sections: { orderBy: { sortOrder: "asc" } },
-      items: { orderBy: { sortOrder: "asc" } },
+      sections: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
+      items: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
     },
   });
   // Quyền kiểm theo `coHoiId` trên URL, nên phải chắc bản dự toán đúng là của cơ hội

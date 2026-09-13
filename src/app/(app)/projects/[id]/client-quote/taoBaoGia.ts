@@ -24,10 +24,10 @@ export async function napMau(templateId: string | null): Promise<MauNguon | null
   const t = await db.boHangMuc.findUnique({
     where: { id: templateId },
     include: {
-      phan: { orderBy: { sortOrder: "asc" } },
-      vatLieu: { orderBy: { sortOrder: "asc" }, include: { vatTu: true } },
-      giaiDoan: { orderBy: { sortOrder: "asc" } },
-      thanhToan: { orderBy: { sortOrder: "asc" } },
+      phan: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
+      vatLieu: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }], include: { vatTu: true } },
+      giaiDoan: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
+      thanhToan: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
     },
   });
   if (!t) return null;

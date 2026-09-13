@@ -16,7 +16,7 @@ export default async function VatTuPage() {
       orderBy: [{ nhomTSKT: "asc" }, { sortOrder: "asc" }, { ma: "asc" }],
       include: {
         giaMua: {
-          orderBy: { hieuLucTu: "desc" },
+          orderBy: [{ hieuLucTu: "desc" }, { createdAt: "desc" }, { id: "desc" }],
           include: { supplier: { select: { name: true } }, khuVuc: { select: { ma: true } } },
         },
         _count: { select: { congTacLinks: true } },

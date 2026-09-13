@@ -22,9 +22,9 @@ export async function GET(
     include: {
       estimateItems: {
         include: { supplier: { select: { name: true } } },
-        orderBy: [{ sortOrder: "asc" }],
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
       },
-      estimateSections: { orderBy: { sortOrder: "asc" } },
+      estimateSections: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
     },
   });
   if (!project) return new Response("Not found", { status: 404 });

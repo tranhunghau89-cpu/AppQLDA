@@ -162,7 +162,7 @@ export async function applyEstimateTemplate(
   // giữ nguyên — chỉ đổi tên trường khi nạp vào.
   const template = await db.boHangMucPhan.findUnique({
     where: { id: payload.templateId },
-    include: { dong: { orderBy: { sortOrder: "asc" } } },
+    include: { dong: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] } },
   });
   if (!template) return { ok: false, error: "Không tìm thấy hạng mục trong thư viện." };
 
@@ -282,8 +282,8 @@ async function napNguonDoXuong(projectId: string, quoteId: string) {
     where: { id: quoteId },
     include: {
       khuVuc: { select: { id: true, ten: true } },
-      sections: { orderBy: { sortOrder: "asc" } },
-      items: { orderBy: { sortOrder: "asc" } },
+      sections: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
+      items: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
     },
   });
   if (!quote)

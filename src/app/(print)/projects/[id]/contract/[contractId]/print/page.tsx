@@ -20,7 +20,7 @@ export default async function ContractPrintPage({
     where: { id: contractId },
     include: {
       project: { select: { id: true, code: true, name: true, location: true } },
-      items: { orderBy: { sortOrder: "asc" } },
+      items: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
     },
   });
   // Quyền được kiểm theo `id` trên URL nên phải chắc hợp đồng này đúng là của dự án đó.

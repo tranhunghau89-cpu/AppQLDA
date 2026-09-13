@@ -44,10 +44,10 @@ export default async function ClientQuotePrintPage({
     include: {
       project: { select: { id: true, code: true, name: true, location: true } },
       coHoi: { select: { id: true, tenCongTrinh: true, diaDiem: true } },
-      lines: { orderBy: { sortOrder: "asc" } },
-      specs: { orderBy: { sortOrder: "asc" } },
-      stages: { orderBy: { sortOrder: "asc" } },
-      payments: { orderBy: { sortOrder: "asc" } },
+      lines: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
+      specs: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
+      stages: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
+      payments: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
     },
   });
   if (!quote) notFound();

@@ -18,8 +18,8 @@ export default async function CostPage({ params }: { params: Promise<{ id: strin
       costSummary: {
         include: {
           categories: {
-            orderBy: { sortOrder: "asc" },
-            include: { items: { orderBy: { sortOrder: "asc" } } },
+            orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+            include: { items: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] } },
           },
         },
       },

@@ -15,8 +15,8 @@ export default async function QuotePrintPage({
     where: { id: quoteId },
     include: {
       project: { select: { code: true, name: true, location: true } },
-      sections: { orderBy: { sortOrder: "asc" } },
-      items: { orderBy: { sortOrder: "asc" } },
+      sections: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
+      items: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
     },
   });
   // Kiểm quyền ở trên theo `id` trên URL, nên phải chắc báo giá này đúng là của dự án

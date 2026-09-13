@@ -4,7 +4,11 @@
 // giá trị hợp lệ + nhãn định nghĩa ở src/lib/constants.ts (validate bằng Zod).
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // Gộp cả cây `include`/`select` lồng nhau thành MỘT câu SQL (LATERAL JOIN + JSON)
+  // thay vì một truy vấn cho mỗi tầng quan hệ. App chậm vì SỐ LƯỢT đi–về tới Supabase,
+  // không vì công việc của CSDL — trang dự toán chào giá từng tốn 21 lượt cho một lần tải.
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {
