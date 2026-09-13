@@ -8,9 +8,15 @@ import { Input, Select, Textarea, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { Table, Tr, Td } from "@/components/ui/table";
 import { ESTIMATE_GROUP, ESTIMATE_GROUP_MAP } from "@/lib/constants";
-import { formatVND, formatNumber } from "@/lib/utils";
+import { formatVND, formatNumber, formatQty } from "@/lib/utils";
+import { OSoSua } from "@/components/ui/OSoSua";
 import { computeAmount, computeProfit, formatPercent } from "@/lib/profit";
-import { saveEstimateItem, deleteEstimateItem, deleteEstimateSection } from "./actions";
+import {
+  saveEstimateItem,
+  deleteEstimateItem,
+  deleteEstimateSection,
+  suaOEstimate,
+} from "./actions";
 import { ApplyTemplate, type TemplateForClient } from "./ApplyTemplate";
 import { BangBocModal } from "./BangBocModal";
 import { useConfirm } from "@/components/ui/confirm";
@@ -250,18 +256,46 @@ export function EstimateEditor({
                             </Td>
                             <Td className="text-slate-400">{r.unit ?? ""}</Td>
                             <Td className="text-right">
-                              {formatNumber(r.actualQty ?? r.designQty)}
-                              {/* Dấu bảng: khối lượng thiết kế đến từ bảng bóc chi tiết. */}
-                              {r.soChiTiet > 0 && (
-                                <span
-                                  className="ml-1 text-slate-400"
-                                  title={`Khối lượng thiết kế từ bảng bóc ${r.soChiTiet} dòng`}
-                                >
-                                  ▤
-                                </span>
+                              {canEdit ? (
+                                // Sửa đúng số đang hiện: KL thực tế nếu đã có, không thì KL thiết
+                                // kế. KL thiết kế đã có bảng bóc thì khoá — đổi bảng bóc.
+                                <OSoSua
+                                  nhan={`Khối lượng — ${r.name}`}
+                                  giaTri={r.actualQty ?? r.designQty}
+                                  dinhDang={formatQty}
+                                  khoa={r.actualQty == null && r.soChiTiet > 0}
+                                  dauKhoa="▤"
+                                  lyDoKhoa={`Bằng tổng bảng bóc ${r.soChiTiet} dòng — sửa bằng nút bảng bóc`}
+                                  luu={(tho) => suaOEstimate(projectId, r.id, "qty", tho)}
+                                />
+                              ) : (
+                                <>
+                                  {formatNumber(r.actualQty ?? r.designQty)}
+                                  {/* Dấu bảng: khối lượng thiết kế đến từ bảng bóc chi tiết. */}
+                                  {r.soChiTiet > 0 && (
+                                    <span
+                                      className="ml-1 text-slate-400"
+                                      title={`Khối lượng thiết kế từ bảng bóc ${r.soChiTiet} dòng`}
+                                    >
+                                      ▤
+                                    </span>
+                                  )}
+                                </>
                               )}
                             </Td>
-                            <Td className="text-right">{formatNumber(r.unitPrice)}</Td>
+                            <Td className="text-right">
+                              {canEdit ? (
+                                <OSoSua
+                                  nhan={`Đơn giá — ${r.name}`}
+                                  giaTri={r.unitPrice}
+                                  dinhDang={formatNumber}
+                                  khoa={false}
+                                  luu={(tho) => suaOEstimate(projectId, r.id, "unitPrice", tho)}
+                                />
+                              ) : (
+                                formatNumber(r.unitPrice)
+                              )}
+                            </Td>
                             <Td className="text-right font-medium">{formatVND(computeAmount(r))}</Td>
                             {canEdit && (
                               <Td className="text-right">

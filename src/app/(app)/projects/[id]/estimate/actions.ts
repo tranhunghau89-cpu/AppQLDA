@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { denyProject, requireSession } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
+import { laCongThuc, tinhBieuThuc } from "@/lib/bieuThuc";
 import { docBangChiTiet, type DongBoc } from "@/lib/import/bocChiTiet";
 import { dienGiaiCach, tongChiTiet } from "@/lib/khoiLuong/tongChiTiet";
 import { ESTIMATE_GROUP_MAP } from "@/lib/constants";
@@ -650,5 +651,88 @@ export async function xoaBangBoc(
   });
 
   revalidatePath(`/projects/${projectId}/estimate`);
+  return { ok: true };
+}
+
+// ---------- Sửa một ô ngay trên bảng ----------
+
+/**
+ * Sửa MỘT ô của một đầu mục dự toán thi công — khối lượng hoặc đơn giá — ngay trên bảng,
+ * không mở hộp thoại. Cùng cách với bảng "Giá vốn theo hạng mục" của báo giá gửi khách.
+ *
+ * KHỐI LƯỢNG LÀ SỐ ĐANG HIỆN. Bảng chỉ có một cột khối lượng và nó hiện KL thực tế nếu
+ * đã có, không thì KL thiết kế (`computeAmount` cũng theo đúng thứ tự đó). Ô sửa ghi vào
+ * đúng trường đang hiện — gõ vào một con số mà nó lại ghi sang trường khác thì người
+ * dùng thấy số không đổi và tưởng lưu hỏng.
+ *
+ * KL thiết kế của đầu mục ĐÃ CÓ BẢNG BÓC thì không cho sửa ở đây: nó bằng tổng bảng
+ * bóc, đổi thì đổi bảng bóc. KL thực tế thì vẫn sửa được — đó là chuyện công trường.
+ *
+ * THÀNH TIỀN TÍNH LẠI mỗi lần sửa. `computeAmount` ưu tiên cột `amount` đã lưu hơn phép
+ * nhân, nên không tính lại là bảng hiện khối lượng mới bên cạnh số tiền cũ. Đã đếm trên
+ * bản thật trước khi quyết: 515/516 dòng có `amount` lưu sẵn và KHÔNG dòng nào khác
+ * KL × đơn giá — tính lại không làm mất một con số ghi đè có chủ ý nào.
+ *
+ * Nhận chuỗi thô: số kiểu Việt và công thức "=" qua `tinhBieuThuc`, như mọi ô số khác.
+ */
+export async function suaOEstimate(
+  projectId: string,
+  itemId: string,
+  truong: "qty" | "unitPrice",
+  tho: string
+): Promise<ActionResult> {
+  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa dự toán.", itemId);
+  if (denied) return denied;
+
+  const giaTri = tho.trim() === "" ? null : tinhBieuThuc(tho);
+  if (tho.trim() !== "" && giaTri == null) {
+    return { ok: false, error: laCongThuc(tho) ? "Công thức không hợp lệ." : "Không phải là số." };
+  }
+  if (giaTri != null && giaTri < 0) return { ok: false, error: "Không được là số âm." };
+
+  const dong = await db.estimateItem.findUnique({
+    where: { id: itemId },
+    select: {
+      name: true,
+      designQty: true,
+      actualQty: true,
+      unitPrice: true,
+      _count: { select: { chiTiet: true } },
+    },
+  });
+  if (!dong) return { ok: false, error: "Không tìm thấy đầu mục dự toán." };
+
+  let { designQty, actualQty, unitPrice } = dong;
+  if (truong === "qty") {
+    if (actualQty != null) {
+      actualQty = giaTri;
+    } else {
+      if (dong._count.chiTiet > 0) {
+        return {
+          ok: false,
+          error: `Khối lượng "${dong.name}" bằng tổng bảng bóc ${dong._count.chiTiet} dòng — sửa bảng bóc.`,
+        };
+      }
+      designQty = giaTri;
+    }
+  } else {
+    unitPrice = giaTri;
+  }
+
+  const kl = actualQty ?? designQty;
+  await db.estimateItem.update({
+    where: { id: itemId },
+    data: {
+      designQty,
+      actualQty,
+      unitPrice,
+      // Thiếu một vế thì để trống chứ không ghi 0: 0 đồng là một khẳng định.
+      amount: kl != null && unitPrice != null ? kl * unitPrice : null,
+    },
+  });
+
+  revalidatePath(`/projects/${projectId}/estimate`);
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/estimates");
   return { ok: true };
 }
