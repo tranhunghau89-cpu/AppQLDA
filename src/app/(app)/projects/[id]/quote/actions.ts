@@ -402,6 +402,82 @@ export async function saveItem(
   return { ok: true };
 }
 
+/**
+ * Sửa MỘT ô của một dòng dự toán chào giá — khối lượng hoặc đơn giá vốn — ngay trên
+ * bảng "Giá vốn theo hạng mục" của báo giá gửi khách.
+ *
+ * Người lập đang ngồi quyết giá bán ở đó; bắt họ mở dự toán ra, tìm dòng, mở hộp thoại,
+ * sửa, lưu, rồi quay lại là đủ để họ thôi không sửa nữa và báo giá dựa trên số sai.
+ *
+ * Nhận CHUỖI THÔ chứ không nhận số: đây là ô người gõ tay, nên đọc theo kiểu Việt
+ * ("20.580" là hai mươi nghìn) và nhận cả công thức "=12*1000" — cùng `tinhBieuThuc`
+ * với mọi ô số khác. Ô trống nghĩa là xoá giá trị.
+ *
+ * Ghi đúng các luật mà hộp thoại sửa dòng đang ghi, để hai lối vào không bao giờ cho ra
+ * hai kết quả khác nhau:
+ *   - Dòng DẪN XUẤT (vận chuyển, lắp dựng...) không cho sửa khối lượng.
+ *   - Sửa khối lượng một dòng NGUỒN thì các dòng dẫn xuất cùng phần tính lại.
+ *   - Sửa giá vốn thì đơn giá bán tính lại theo hệ số TL của bản, và `giaSuaTay` bật
+ *     khi lệch giá thư viện — để "Cập nhật giá từ thư viện" không đè lên số vừa gõ.
+ */
+export async function suaOGiaVon(
+  chu: ChuBaoGia,
+  itemId: string,
+  truong: "qty" | "baseCost",
+  tho: string
+): Promise<ActionResult> {
+  const g = await guard(chu, { itemId });
+  if (g) return g;
+
+  const giaTri = tho.trim() === "" ? null : tinhBieuThuc(tho);
+  if (tho.trim() !== "" && giaTri == null) {
+    return { ok: false, error: laCongThuc(tho) ? "Công thức không hợp lệ." : "Không phải là số." };
+  }
+  if (giaTri != null && giaTri < 0) return { ok: false, error: "Không được là số âm." };
+
+  const dong = await db.quoteItem.findUnique({
+    where: { id: itemId },
+    select: {
+      quoteId: true,
+      name: true,
+      napThamSo: true,
+      layTuThamSo: true,
+      donGiaThuVien: true,
+      quote: { select: { markup: true } },
+    },
+  });
+  if (!dong) return { ok: false, error: "Không tìm thấy dòng dự toán." };
+
+  if (truong === "qty") {
+    if (dong.layTuThamSo) {
+      return {
+        ok: false,
+        error: `Khối lượng "${dong.name}" tự tính từ các dòng nguồn cùng phần — sửa ở dòng nguồn.`,
+      };
+    }
+    await db.quoteItem.update({ where: { id: itemId }, data: { qty: giaTri } });
+    if (dong.napThamSo) await capNhatDongDanXuat(dong.quoteId);
+  } else {
+    const markup = dong.quote.markup ?? 1;
+    await db.quoteItem.update({
+      where: { id: itemId },
+      data: {
+        baseCost: giaTri,
+        // Làm tròn đúng như hộp thoại sửa dòng khi rót giá (ItemModal `apGia`), để
+        // cùng một giá vốn ra cùng một giá bán dù sửa ở lối nào.
+        sellPrice: giaTri == null ? null : Math.round(sellFromBase(giaTri, markup)),
+        giaSuaTay:
+          dong.donGiaThuVien != null &&
+          giaTri != null &&
+          Math.abs(giaTri - dong.donGiaThuVien) >= 1,
+      },
+    });
+  }
+
+  paths(chu);
+  return { ok: true };
+}
+
 export async function deleteItem(
   chu: ChuBaoGia,
   itemId: string

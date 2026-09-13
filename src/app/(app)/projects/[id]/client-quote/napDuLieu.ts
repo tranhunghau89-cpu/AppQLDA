@@ -32,7 +32,15 @@ async function napGiaVonTheoPhan(quoteIds: readonly string[]): Promise<Map<strin
       },
       items: {
         orderBy: { sortOrder: "asc" },
-        select: { sectionId: true, name: true, unit: true, qty: true, baseCost: true },
+        select: {
+          id: true,
+          sectionId: true,
+          name: true,
+          unit: true,
+          qty: true,
+          baseCost: true,
+          layTuThamSo: true,
+        },
       },
     },
   });
@@ -71,6 +79,8 @@ async function napGiaVonTheoPhan(quoteIds: readonly string[]): Promise<Map<strin
       if (!g) continue;
       const ds = dongCua.get(g) ?? [];
       ds.push({
+        id: i.id,
+        laDanXuat: i.layTuThamSo != null,
         ten: i.name,
         donVi: i.unit,
         qty: i.qty,

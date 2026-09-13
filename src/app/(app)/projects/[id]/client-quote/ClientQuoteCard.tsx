@@ -249,7 +249,7 @@ export function ClientQuoteCard({
         </tbody>
       </Table>
 
-      <GiaVonPanel giaVon={q.giaVon} lines={q.lines} />
+      <GiaVonPanel chu={chu} canEdit={canEdit} giaVon={q.giaVon} lines={q.lines} />
 
       <div className="flex flex-wrap items-end justify-between gap-4 border-t border-slate-100 p-4">
         {canEdit && (

@@ -1,8 +1,13 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronRight, Wallet } from "lucide-react";
-import { formatVND, formatQty } from "@/lib/utils";
+import { useToast } from "@/components/ui/toast";
+import { formatNumber, formatVND, formatQty } from "@/lib/utils";
+import { laCongThuc, tinhBieuThuc } from "@/lib/bieuThuc";
+import type { ChuBaoGia } from "@/lib/quoteOwner";
+import { suaOGiaVon } from "../quote/actions";
 import type { GiaVonPhan, LineView } from "./types";
 
 /**
@@ -14,9 +19,14 @@ import type { GiaVonPhan, LineView } from "./types";
  * KHÔNG in cho khách. Đây là số nội bộ; bản in nằm ở XemTruoc.tsx và không đọc gì ở đây.
  */
 export function GiaVonPanel({
+  chu,
+  canEdit,
   giaVon,
   lines,
 }: {
+  chu: ChuBaoGia;
+  /** Cùng quyền với sửa dự toán chào giá — số ở đây CHÍNH LÀ các dòng của bản đó. */
+  canEdit: boolean;
   giaVon: GiaVonPhan[];
   lines: LineView[];
 }) {
@@ -127,15 +137,40 @@ export function GiaVonPanel({
                               </tr>
                             </thead>
                             <tbody>
-                              {p.dong.map((d, i) => (
-                                <tr key={i} className="border-t border-slate-200/70">
+                              {p.dong.map((d) => (
+                                <tr key={d.id} className="border-t border-slate-200/70">
                                   <td className="py-1 text-slate-700">{d.ten}</td>
                                   <td className="px-2 py-1 text-slate-500">{d.donVi ?? "—"}</td>
                                   <td className="px-2 py-1 text-right tabular-nums text-slate-600">
-                                    {d.qty != null ? formatQty(d.qty) : "—"}
+                                    {canEdit ? (
+                                      <OSoGiaVon
+                                        nhan={`Khối lượng công tác — ${d.ten}`}
+                                        giaTri={d.qty}
+                                        dinhDang={formatQty}
+                                        khoa={d.laDanXuat}
+                                        lyDoKhoa="Tự tính từ các dòng nguồn trong cùng phần — sửa ở dòng nguồn"
+                                        luu={(tho) => suaOGiaVon(chu, d.id, "qty", tho)}
+                                      />
+                                    ) : d.qty != null ? (
+                                      formatQty(d.qty)
+                                    ) : (
+                                      "—"
+                                    )}
                                   </td>
                                   <td className="px-2 py-1 text-right tabular-nums text-slate-600">
-                                    {d.donGia != null ? formatVND(d.donGia) : "—"}
+                                    {canEdit ? (
+                                      <OSoGiaVon
+                                        nhan={`Đơn giá vốn — ${d.ten}`}
+                                        giaTri={d.donGia}
+                                        dinhDang={formatNumber}
+                                        khoa={false}
+                                        luu={(tho) => suaOGiaVon(chu, d.id, "baseCost", tho)}
+                                      />
+                                    ) : d.donGia != null ? (
+                                      formatVND(d.donGia)
+                                    ) : (
+                                      "—"
+                                    )}
                                   </td>
                                   <td className="px-2 py-1 text-right tabular-nums text-slate-800">
                                     {formatVND(d.thanhTien)}
@@ -192,6 +227,101 @@ export function NhanLai({ von, ban }: { von: number | null; ban: number | null }
       }`}
     >
       {(bien * 100).toFixed(1)}%
+    </span>
+  );
+}
+
+/**
+ * Một ô số sửa được ngay trong bảng giá vốn.
+ *
+ * Hiện số đã định dạng kiểu Việt; bấm vào là gõ. Enter hoặc rời ô thì lưu, Esc thì thôi.
+ * Chỉ gửi lên khi chuỗi THỰC SỰ khác số đang hiện — bấm vào rồi bấm ra không được sinh
+ * một lượt ghi, vì mỗi lượt ghi dòng nguồn còn kéo theo tính lại các dòng dẫn xuất.
+ *
+ * Giữ chuỗi người đang gõ ở state riêng (`nhap`), còn lại luôn đọc số từ máy chủ — đúng
+ * nếp của bảng suất khối lượng. Sau khi lưu, `router.refresh()` kéo số mới về, kể cả
+ * thành tiền, tổng hạng mục và các dòng vận chuyển vừa được tính lại.
+ */
+function OSoGiaVon({
+  giaTri,
+  dinhDang,
+  khoa,
+  lyDoKhoa,
+  nhan,
+  luu,
+}: {
+  giaTri: number | null;
+  dinhDang: (v: number | null) => string;
+  khoa: boolean;
+  lyDoKhoa?: string;
+  nhan: string;
+  luu: (tho: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+}) {
+  const router = useRouter();
+  const toast = useToast();
+  const [dangLuu, start] = useTransition();
+  const [nhap, setNhap] = useState<string | null>(null);
+  const huy = useRef(false);
+
+  const hienThi = giaTri == null ? "" : dinhDang(giaTri);
+
+  if (khoa) {
+    return (
+      <span className="tabular-nums text-slate-500" title={lyDoKhoa}>
+        {giaTri == null ? "—" : dinhDang(giaTri)}
+        <span className="ml-1 text-slate-400">∑</span>
+      </span>
+    );
+  }
+
+  function roiO(tho: string) {
+    if (huy.current) {
+      huy.current = false;
+      setNhap(null);
+      return;
+    }
+    if (tho.trim() === hienThi) {
+      setNhap(null);
+      return;
+    }
+    start(async () => {
+      const res = await luu(tho);
+      if (!res.ok) toast.error(res.error);
+      else router.refresh();
+      setNhap(null);
+    });
+  }
+
+  const xemTruoc = nhap != null && laCongThuc(nhap) ? tinhBieuThuc(nhap) : null;
+
+  return (
+    <span className="relative inline-block">
+      <input
+        aria-label={nhan}
+        inputMode="decimal"
+        value={nhap ?? hienThi}
+        placeholder="—"
+        disabled={dangLuu}
+        onFocus={(e) => {
+          setNhap(hienThi);
+          e.currentTarget.select();
+        }}
+        onChange={(e) => setNhap(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") {
+            huy.current = true;
+            e.currentTarget.blur();
+          }
+        }}
+        onBlur={(e) => roiO(e.currentTarget.value)}
+        className="w-28 rounded border border-transparent bg-transparent px-1.5 py-0.5 text-right tabular-nums text-slate-700 hover:border-slate-300 focus:border-blue-500 focus:bg-white focus:outline-none disabled:opacity-50"
+      />
+      {xemTruoc != null && (
+        <span className="absolute right-1 top-full z-10 mt-0.5 whitespace-nowrap rounded bg-slate-800 px-1.5 py-0.5 text-[11px] text-white">
+          = {dinhDang(xemTruoc)}
+        </span>
+      )}
     </span>
   );
 }

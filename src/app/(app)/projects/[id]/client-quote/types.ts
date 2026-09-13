@@ -37,6 +37,10 @@ export interface GiaVonPhan {
   /** Đơn giá vốn trên m²; null khi phần chưa khai diện tích. */
   giaVonM2: number | null;
   dong: {
+    /** id dòng dự toán chào giá — để sửa khối lượng / giá vốn ngay trên bảng này. */
+    id: string;
+    /** Khối lượng tự tính từ dòng nguồn cùng phần; ô khối lượng phải khoá. */
+    laDanXuat: boolean;
     ten: string;
     donVi: string | null;
     qty: number | null;
