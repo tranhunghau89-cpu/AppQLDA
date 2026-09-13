@@ -96,3 +96,36 @@ body {
     color: inherit;
   }
 }
+
+/*
+ * Nút nằm trong Ô BẢNG thu nhỏ lại.
+ *
+ * Chiều cao một dòng bảng do nút thao tác quyết định chứ không phải do chữ: chữ cao 20px,
+ * nút icon cao 36px. Ba nút sửa/xoá/lịch sử cạnh nhau là mỗi dòng 53px, và bảng thư viện
+ * 128 dòng thành một trang cuộn dài vô ích.
+ *
+ * Viết một lần ở đây thay vì thêm className vào từng nút: có hơn ba chục bảng, dùng cả
+ * <Td> chung lẫn <td> tự viết. Chỉ nhắm vào nút nằm trong <td>, nên nút trên thanh công
+ * cụ, trong hộp thoại và trên trang in không bị đụng tới.
+ *
+ * CHỈ TỪ MÀN RỘNG TRỞ LÊN. Trên điện thoại ngón tay cần mục tiêu đủ lớn để bấm; 28px sát
+ * nhau là bấm nhầm nút xoá. Chuột thì 28px là thừa.
+ *
+ * Nằm trong @layer utilities và có độ đặc hiệu (0,1,1), cao hơn lớp `.h-9` (0,1,0) của
+ * chính nút, nên thắng mà không cần !important.
+ */
+@layer utilities {
+  @media (min-width: 640px) {
+    td [data-size="icon"] {
+      height: 1.75rem;
+      width: 1.75rem;
+    }
+    td [data-size="icon"] svg {
+      height: 0.875rem;
+      width: 0.875rem;
+    }
+    td [data-size="sm"] {
+      height: 1.75rem;
+    }
+  }
+}

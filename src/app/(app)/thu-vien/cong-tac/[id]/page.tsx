@@ -6,6 +6,7 @@ import { requireView } from "@/lib/auth";
 import { can, type Role } from "@/lib/rbac";
 import { ESTIMATE_GROUP_MAP, WORK_GROUP_MAP, labelOf } from "@/lib/constants";
 import { chonDonGia } from "@/lib/thuVien/gia";
+import { quyCachBoSung } from "@/lib/text";
 import { DonGiaTimeline, type BanGiaView } from "./DonGiaTimeline";
 import { BienTheEditor, type BienTheView } from "./BienTheEditor";
 
@@ -112,7 +113,7 @@ export default async function Page({
           {labelOf(WORK_GROUP_MAP, congTac.nhomMa)} · Nhóm chi phí:{" "}
           {labelOf(ESTIMATE_GROUP_MAP, congTac.nhomChiPhi)}
           {congTac.donVi ? ` · Đơn vị: ${congTac.donVi}` : ""}
-          {congTac.quyCach ? ` · ${congTac.quyCach}` : ""}
+          {quyCachBoSung(congTac.ten, congTac.quyCach) ? ` · ${quyCachBoSung(congTac.ten, congTac.quyCach)}` : ""}
         </p>
       </div>
 

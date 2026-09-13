@@ -130,11 +130,11 @@ function RowGroup({
   return (
     <>
       <tr className="cursor-pointer hover:bg-slate-50" onClick={toggle}>
-        <td className="px-3 py-2.5 text-slate-400">
+        <td className="px-3 py-1.5 text-slate-400">
           {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         </td>
-        <td className="px-3 py-2.5 font-mono font-medium text-blue-600">{r.code}</td>
-        <td className="px-3 py-2.5 font-medium text-slate-800">
+        <td className="px-3 py-1.5 font-mono font-medium text-blue-600">{r.code}</td>
+        <td className="px-3 py-1.5 font-medium text-slate-800">
           {r.name}
           {r.location ? <span className="ml-1.5 text-xs text-slate-400">· {r.location}</span> : null}
           {/* Màn hẹp: gộp trạng thái + tiến độ mốc vào ngay dưới tên, vì 3 cột kia bị ẩn. */}
@@ -150,7 +150,7 @@ function RowGroup({
             </span>
           </div>
         </td>
-        <td className="hidden px-3 py-2.5 sm:table-cell">
+        <td className="hidden px-3 py-1.5 sm:table-cell">
           <div className="flex items-center gap-1.5">
             <Badge tone={st?.tone ?? "slate"}>{st?.label ?? r.status}</Badge>
             {Object.keys(r.lateTypes).length > 0 && (
@@ -160,7 +160,7 @@ function RowGroup({
             )}
           </div>
         </td>
-        <td className="hidden px-3 py-2.5 md:table-cell">
+        <td className="hidden px-3 py-1.5 md:table-cell">
           <div className="flex items-center gap-2">
             <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-100">
               <div className="h-full rounded-full bg-green-500" style={{ width: `${pct}%` }} />
@@ -170,14 +170,20 @@ function RowGroup({
             </span>
           </div>
         </td>
-        <td className="hidden max-w-[320px] px-3 py-2.5 lg:table-cell">
+        <td className="hidden max-w-[320px] px-3 py-1.5 lg:table-cell">
           {r.latest ? (
-            <div>
-              <div className="text-xs text-slate-400">
+            // MỘT hàng: nhãn tuần đứng trước nội dung, cả khối cắt bằng dấu "…". Xếp hai tầng
+            // làm dòng này cao 48px giữa những dòng 33px. Phần bị cắt đọc đủ trong title khi
+            // rê chuột, và mở dòng ra là thấy nguyên văn.
+            <div
+              className="truncate"
+              title={`${r.latest.label}${r.latest.author ? ` · ${r.latest.author}` : ""} — ${r.latest.content}`}
+            >
+              <span className="text-xs text-slate-400">
                 {r.latest.label}
-                {r.latest.author ? ` · ${r.latest.author}` : ""}
-              </div>
-              <div className="truncate text-slate-700">{r.latest.content}</div>
+                {r.latest.author ? ` · ${r.latest.author}` : ""} ·{" "}
+              </span>
+              <span className="text-slate-700">{r.latest.content}</span>
             </div>
           ) : (
             <span className="text-slate-300">—</span>

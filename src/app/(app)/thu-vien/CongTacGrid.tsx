@@ -21,6 +21,7 @@ import { formatDate, formatNumber } from "@/lib/utils";
 import { computeBaseCost } from "@/lib/quote";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
+import { quyCachBoSung } from "@/lib/text";
 import { luuCongTac, xoaCongTac } from "./actions";
 
 export interface CongTacView {
@@ -191,8 +192,8 @@ export function CongTacGrid({
                   <Td className="font-mono text-slate-700">{it.ma}</Td>
                   <Td className="font-medium text-slate-900">
                     {it.ten}
-                    {it.quyCach ? (
-                      <span className="text-slate-400"> · {it.quyCach}</span>
+                    {quyCachBoSung(it.ten, it.quyCach) ? (
+                      <span className="text-slate-400"> · {quyCachBoSung(it.ten, it.quyCach)}</span>
                     ) : null}
                   </Td>
                   <Td className="hidden text-slate-600 sm:table-cell">
@@ -216,6 +217,9 @@ export function CongTacGrid({
                       <Link
                         href={`/thu-vien/cong-tac/${it.id}`}
                         title={`Lịch sử giá (${it.soBanGia} bản)`}
+                        // Link mang dáng nút icon — khai cùng dấu hiệu với <Button> để quy tắc
+                        // thu gọn nút trong ô bảng (globals.css) nhận ra nó.
+                        data-size="icon"
                         className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-600 transition-colors hover:bg-slate-100"
                       >
                         <History className="h-4 w-4" />

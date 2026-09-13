@@ -28,6 +28,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "primary", size = "md", ...props }, ref) => (
     <button
       ref={ref}
+      // Khai kích cỡ ra DOM để CSS thu gọn được nút nằm trong ô bảng (globals.css) mà
+      // không phải sửa từng chỗ gọi — hơn ba chục bảng trong app đều có nút thao tác.
+      data-size={size}
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
         variants[variant],

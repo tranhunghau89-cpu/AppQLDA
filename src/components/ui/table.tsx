@@ -84,7 +84,7 @@ export function Td({
   return (
     <td
       className={cn(
-        "border-r border-slate-100 px-3 py-2 text-slate-700 last:border-r-0",
+        "border-r border-slate-100 px-3 py-1 text-slate-700 last:border-r-0",
         hideBelow && HIDE[hideBelow],
         className
       )}
