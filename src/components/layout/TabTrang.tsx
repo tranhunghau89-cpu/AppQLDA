@@ -18,7 +18,13 @@ import { cn } from "@/lib/utils";
 export interface MucTab {
   href: string;
   label: string;
-  resource: Resource;
+  /** Quyền xem của trang; bỏ trống = ai đăng nhập cũng vào được (như Tra cứu). */
+  resource?: Resource;
+}
+
+/** Các tab người này được xem — dùng chung cho thanh tab và menu bên trái. */
+export function tabDuocXem(tabs: readonly MucTab[], role: Role): MucTab[] {
+  return tabs.filter((t) => !t.resource || can(role, t.resource, "view"));
 }
 
 export const TAB_CHAO_GIA: readonly MucTab[] = [
@@ -36,6 +42,19 @@ export const TAB_CHI_PHI: readonly MucTab[] = [
   { href: "/reports", label: "Theo kỳ", resource: "cost" },
 ];
 
+// Hai danh bạ đối tác: bên mua (CĐT) và bên bán (NCC). Khác quyền nhau — người mua hàng
+// có thể chỉ thấy NCC — nên menu và thanh tab đều phải lọc theo từng tab.
+export const TAB_DOI_TAC: readonly MucTab[] = [
+  { href: "/customers", label: "Chủ đầu tư", resource: "customer" },
+  { href: "/suppliers", label: "Nhà cung cấp", resource: "supplier" },
+];
+
+export const TAB_TIEN_ICH: readonly MucTab[] = [
+  { href: "/tools", label: "Tra cứu & Bóc KL" },
+  { href: "/import", label: "Nhập từ Excel", resource: "import" },
+  { href: "/audit", label: "Nhật ký thay đổi", resource: "audit" },
+];
+
 export function TabTrang({
   tabs,
   hienTai,
@@ -48,7 +67,7 @@ export function TabTrang({
 }) {
   // Lọc theo quyền dù các cặp hiện tại cùng quyền: một tab bấm vào báo "không có quyền"
   // là lỗi dễ lọt khi ai đó gộp thêm một cặp khác quyền về sau.
-  const hien = tabs.filter((t) => can(role as Role, t.resource, "view"));
+  const hien = tabDuocXem(tabs, role as Role);
   // Chỉ còn một tab thì thanh tab chỉ là một nút tự trỏ về chính nó.
   if (hien.length < 2) return null;
 

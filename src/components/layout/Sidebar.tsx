@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   FolderKanban,
   CalendarRange,
-  Ruler,
   CheckCheck,
   Calculator,
   ChevronDown,
@@ -18,18 +17,24 @@ import {
   HandCoins,
   Building2,
   UserSearch,
-  Truck,
   Users,
   Library,
-  History,
-  Upload,
+  Wrench,
   X,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { can, type Role, type Resource } from "@/lib/rbac";
 import { laTrangChaoGia } from "@/lib/duongDanChaoGia";
-import { TAB_CHAO_GIA, TAB_CHI_PHI, TAB_TIEN_DO, type MucTab } from "./TabTrang";
+import {
+  TAB_CHAO_GIA,
+  TAB_CHI_PHI,
+  TAB_DOI_TAC,
+  TAB_TIEN_DO,
+  TAB_TIEN_ICH,
+  tabDuocXem,
+  type MucTab,
+} from "./TabTrang";
 
 interface NavItem {
   href: string;
@@ -43,6 +48,11 @@ interface NavItem {
    * khác. Dành cho trang nằm dưới đường dẫn của một mục nhưng thuộc về mục khác.
    */
   gianh?: (pathname: string) => boolean;
+  /**
+   * Mục gộp: các trang con, mỗi trang một quyền. Mục hiện khi xem được ÍT NHẤT một trang,
+   * và bấm vào mở trang đầu tiên người này được xem — không mở một trang báo thiếu quyền.
+   */
+  tabs?: readonly MucTab[];
 }
 
 interface NavGroup {
@@ -60,15 +70,17 @@ interface NavGroup {
  *   Chào giá          = dự toán chào giá · báo giá gửi khách
  *   Tiến độ           = theo tuần · Gantt
  *   Chi phí & báo cáo = tổng hợp · theo kỳ
+ *   Chủ đầu tư & NCC  = chủ đầu tư · nhà cung cấp
+ *   Tiện ích          = tra cứu & bóc KL · nhập từ Excel · nhật ký thay đổi
  * và Bộ hạng mục chuẩn không còn mục riêng vì Thư viện đơn giá đã có lối vào nó.
  *
- * Mục gộp lấy href của tab ĐẦU và khớp thêm các tab còn lại — đọc từ chính bộ tab, để
+ * Mục gộp mở tab ĐẦU TIÊN người dùng được xem và khớp thêm các tab còn lại — đọc từ chính bộ tab, để
  * menu và thanh tab không bao giờ nói hai điều khác nhau.
  */
 const mucGop = (tabs: readonly MucTab[]) => ({
   href: tabs[0].href,
-  resource: tabs[0].resource,
   khopThem: tabs.slice(1).map((t) => t.href),
+  tabs,
 });
 
 const NAV: NavGroup[] = [
@@ -118,11 +130,8 @@ const NAV: NavGroup[] = [
         // mẫu cũ đã gộp vào Bộ hạng mục; giữ để bookmark cũ vẫn sáng đúng mục.
         khopThem: ["/estimate-templates", "/quote-templates"],
       },
-      { href: "/customers", label: "Chủ đầu tư", icon: Building2, resource: "customer" },
-      { href: "/suppliers", label: "Nhà cung cấp", icon: Truck, resource: "supplier" },
-      { href: "/tools", label: "Tra cứu & Bóc KL", icon: Ruler },
-      { href: "/import", label: "Nhập từ Excel", icon: Upload, resource: "import" },
-      { href: "/audit", label: "Nhật ký thay đổi", icon: History, resource: "audit" },
+      { ...mucGop(TAB_DOI_TAC), label: "Chủ đầu tư & NCC", icon: Building2 },
+      { ...mucGop(TAB_TIEN_ICH), label: "Tiện ích", icon: Wrench },
       { href: "/users", label: "Người dùng", icon: Users, resource: "user" },
     ],
   },
@@ -240,7 +249,14 @@ export function Sidebar({
 
       <nav className="flex-1 overflow-y-auto p-3">
         {NAV.map((nhom) => {
-          const items = nhom.items.filter((i) => !i.resource || can(role, i.resource, "view"));
+          const items = nhom.items.flatMap((i): NavItem[] => {
+            if (i.tabs) {
+              const hien = tabDuocXem(i.tabs, role);
+              if (hien.length === 0) return [];
+              return [{ ...i, href: hien[0].href }];
+            }
+            return !i.resource || can(role, i.resource, "view") ? [i] : [];
+          });
           // Cả nhóm bị quyền lọc sạch thì bỏ luôn tiêu đề — không để lại tiêu đề trống.
           if (items.length === 0) return null;
 

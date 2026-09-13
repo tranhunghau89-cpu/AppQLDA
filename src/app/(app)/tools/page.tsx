@@ -4,6 +4,7 @@ import { canAccessProject, myProjects } from "@/lib/scope";
 import { takeoffDb } from "@/lib/takeoff";
 import { SteelLookup } from "./SteelLookup";
 import { TakeoffBoard } from "./TakeoffBoard";
+import { TabTrang, TAB_TIEN_ICH } from "@/components/layout/TabTrang";
 
 export default async function ToolsPage({
   searchParams,
@@ -27,6 +28,7 @@ export default async function ToolsPage({
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_TIEN_ICH} hienTai="/tools" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Tra cứu & Bóc khối lượng</h1>
         <p className="text-sm text-slate-500">

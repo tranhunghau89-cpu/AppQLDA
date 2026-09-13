@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
 import { AUDIT_ACTION_LABEL, AUDIT_ENTITY } from "@/lib/audit";
 import { AuditEntries, type AuditRow } from "@/components/audit/AuditEntries";
+import { TabTrang, TAB_TIEN_ICH } from "@/components/layout/TabTrang";
 
 const MOI_TRANG = 50;
 
@@ -11,7 +12,7 @@ export default async function AuditPage({
 }: {
   searchParams: Promise<{ entity?: string; action?: string; actor?: string; trang?: string }>;
 }) {
-  await requireView("audit");
+  const session = await requireView("audit");
   const sp = await searchParams;
 
   const entity = sp.entity && sp.entity in AUDIT_ENTITY ? sp.entity : undefined;
@@ -65,6 +66,7 @@ export default async function AuditPage({
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_TIEN_ICH} hienTai="/audit" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Nhật ký thay đổi</h1>
         <p className="text-sm text-slate-500">

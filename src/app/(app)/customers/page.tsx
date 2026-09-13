@@ -4,6 +4,7 @@ import { can } from "@/lib/rbac";
 import { myProjectIds } from "@/lib/scope";
 import { getReceivables } from "@/lib/debt";
 import { CustomerManager } from "./CustomerManager";
+import { TabTrang, TAB_DOI_TAC } from "@/components/layout/TabTrang";
 import type { NoteView } from "@/components/crm/InteractionLog";
 
 export default async function CustomersPage() {
@@ -76,6 +77,7 @@ export default async function CustomersPage() {
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_DOI_TAC} hienTai="/customers" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Chủ đầu tư</h1>
         <p className="text-sm text-slate-500">
