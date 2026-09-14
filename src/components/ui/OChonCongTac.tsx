@@ -7,9 +7,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 import { formatNumber } from "@/lib/utils";
 import { locCongTac } from "@/lib/thuVien/locCongTac";
-import type { ChuBaoGia } from "@/lib/quoteOwner";
-import { suaCongViecDong } from "./actions";
-import type { CatalogOption, ItemView } from "./types";
+import type { CongTacTimDuoc } from "@/lib/thuVien/locCongTac";
 
 /**
  * Ô "Nội dung công việc" sửa ngay trên bảng: gõ để đổi tên, hoặc chọn một công tác khác
@@ -20,15 +18,32 @@ import type { CatalogOption, ItemView } from "./types";
  *
  * Danh sách vẽ bằng portal với vị trí `fixed`: bảng nằm trong khung `overflow-x-auto`,
  * mà khung đó cắt mọi thứ tràn ra ngoài, kể cả theo chiều dọc.
+ *
+ * Dùng chung cho dự toán chào giá và dự toán thi công: ô chỉ lo gõ, tìm, chọn; việc
+ * đổi công tác kéo theo những gì (tên dài hay tên gọn, giá theo khu vực nào) là của
+ * action mà mỗi bảng truyền vào qua `luu`.
  */
-export function OCongViec({
-  chu,
-  it,
+export interface CongTacChon extends CongTacTimDuoc {
+  congTacId: string;
+  unit: string | null;
+  /** Đơn giá chung hiện hành, chỉ để hiện tham khảo trong danh sách. */
+  baseCost: number | null;
+}
+
+export function OChonCongTac({
+  ten,
+  congTacId,
   catalog,
+  luu,
 }: {
-  chu: ChuBaoGia;
-  it: ItemView;
-  catalog: CatalogOption[];
+  /** Tên đang hiện của dòng. */
+  ten: string;
+  /** Công tác đang gắn, để đánh dấu trong danh sách; null = dòng gõ tay. */
+  congTacId: string | null;
+  catalog: CongTacChon[];
+  luu: (
+    chon: { ten: string } | { congTacId: string }
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -75,18 +90,18 @@ export function OCongViec({
 
   function gui(chon: { ten: string } | { congTacId: string }) {
     start(async () => {
-      const res = await suaCongViecDong(chu, it.id, chon);
+      const res = await luu(chon);
       if (!res.ok) toast.error(res.error);
       else router.refresh();
     });
   }
 
-  function chonCongTac(c: CatalogOption) {
+  function chonCongTac(c: CongTacChon) {
     // Rời ô ngay sau đây sẽ gọi `roiO` với tên đang gõ dở — đánh dấu huỷ để nó không
     // lưu đè một cái tên lên công tác vừa chọn.
     huy.current = true;
     oRef.current?.blur();
-    if (c.congTacId === it.congTacId) return;
+    if (c.congTacId === congTacId) return;
     gui({ congTacId: c.congTacId });
   }
 
@@ -96,10 +111,10 @@ export function OCongViec({
       dong();
       return;
     }
-    const ten = (nhap ?? "").trim();
+    const moi = (nhap ?? "").trim();
     dong();
-    if (!ten || ten === it.name) return;
-    gui({ ten });
+    if (!moi || moi === ten) return;
+    gui({ ten: moi });
   }
 
   function phim(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -128,18 +143,18 @@ export function OCongViec({
       <textarea
         ref={oRef}
         rows={1}
-        aria-label={`Nội dung công việc — ${it.name}`}
+        aria-label={`Nội dung công việc — ${ten}`}
         role="combobox"
         aria-expanded={dangSua && ketQua.length > 0}
         aria-controls={idDs}
         aria-autocomplete="list"
         title="Gõ để đổi tên, hoặc chọn công tác khác trong thư viện"
-        value={nhap ?? it.name}
+        value={nhap ?? ten}
         disabled={dangLuu}
         // KHÔNG bôi đen cả tên khi bấm vào: người bấm để sửa vài chữ mà gõ đè mất cả tên
         // đầy đủ kèm TSKT là mất công gõ lại. Danh sách thư viện đã hiện đủ để chọn bằng
         // chuột; muốn tìm thì xoá tên rồi gõ.
-        onFocus={() => setNhap(it.name)}
+        onFocus={() => setNhap(ten)}
         onChange={(e) => {
           setNhap(e.target.value.replace(/\n/g, " "));
           setDaGo(true);
@@ -193,7 +208,7 @@ export function OCongViec({
                   <span className="w-14 shrink-0 font-mono text-xs text-slate-500">{c.code}</span>
                   <span className="min-w-0 flex-1 text-slate-800">
                     {c.name}
-                    {c.congTacId === it.congTacId && (
+                    {c.congTacId === congTacId && (
                       <Check className="ml-1 inline h-3.5 w-3.5 text-blue-600" aria-label="đang dùng" />
                     )}
                   </span>

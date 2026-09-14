@@ -10,12 +10,14 @@ import { Table, Tr, Td } from "@/components/ui/table";
 import { ESTIMATE_GROUP, ESTIMATE_GROUP_MAP } from "@/lib/constants";
 import { formatVND, formatNumber, formatQty } from "@/lib/utils";
 import { OSoSua } from "@/components/ui/OSoSua";
+import { OChonCongTac, type CongTacChon } from "@/components/ui/OChonCongTac";
 import { computeAmount, computeProfit, formatPercent } from "@/lib/profit";
 import {
   saveEstimateItem,
   deleteEstimateItem,
   deleteEstimateSection,
   suaOEstimate,
+  suaCongViecEstimate,
 } from "./actions";
 import { ApplyTemplate, type TemplateForClient } from "./ApplyTemplate";
 import { BangBocModal } from "./BangBocModal";
@@ -41,6 +43,8 @@ export interface EstimateRow {
   sortOrder: number;
   /** Số dòng bảng bóc chi tiết đang gắn. >0 nghĩa là KL thiết kế do bảng quyết định. */
   soChiTiet: number;
+  /** Công tác thư viện đang gắn; null = dòng nhập từ Excel hoặc gõ tay. */
+  congTacId: string | null;
 }
 
 export interface SectionInfo {
@@ -68,6 +72,7 @@ export function EstimateEditor({
   salePrice,
   area,
   canEdit,
+  catalog,
 }: {
   projectId: string;
   items: EstimateRow[];
@@ -80,6 +85,8 @@ export function EstimateEditor({
   salePrice: number | null;
   area: number | null;
   canEdit: boolean;
+  /** Công tác thư viện — cho ô chọn công việc ngay trên bảng. */
+  catalog: CongTacChon[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -251,8 +258,25 @@ export function EstimateEditor({
                         {grp.rows.map((r) => (
                           <Tr key={r.id}>
                             <Td className="pl-6 text-slate-800">
-                              {r.name}
-                              {r.note ? <span className="text-slate-400"> · {r.note}</span> : null}
+                              {canEdit ? (
+                                <>
+                                  {/* Gõ để đổi tên, hoặc chọn công tác khác của thư viện. */}
+                                  <OChonCongTac
+                                    ten={r.name}
+                                    congTacId={r.congTacId}
+                                    catalog={catalog}
+                                    luu={(chon) => suaCongViecEstimate(projectId, r.id, chon)}
+                                  />
+                                  {r.note ? (
+                                    <div className="px-1.5 text-xs text-slate-400">{r.note}</div>
+                                  ) : null}
+                                </>
+                              ) : (
+                                <>
+                                  {r.name}
+                                  {r.note ? <span className="text-slate-400"> · {r.note}</span> : null}
+                                </>
+                              )}
                             </Td>
                             <Td className="text-slate-400">{r.unit ?? ""}</Td>
                             <Td className="text-right">

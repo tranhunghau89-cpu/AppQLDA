@@ -9,6 +9,7 @@ import { laCongThuc, tinhBieuThuc } from "@/lib/bieuThuc";
 import { docBangChiTiet, type DongBoc } from "@/lib/import/bocChiTiet";
 import { dienGiaiCach, tongChiTiet } from "@/lib/khoiLuong/tongChiTiet";
 import { ESTIMATE_GROUP_MAP } from "@/lib/constants";
+import { chonDonGia } from "@/lib/thuVien/gia";
 import { computeTemplateLines, type TemplateLine } from "@/lib/estimateTemplate";
 import {
   doXuongDuToan,
@@ -733,6 +734,85 @@ export async function suaOEstimate(
       amount: kl != null && unitPrice != null ? kl * unitPrice : null,
     },
   });
+
+  revalidatePath(`/projects/${projectId}/estimate`);
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/estimates");
+  return { ok: true };
+}
+
+/**
+ * Sửa ô tên của một đầu mục dự toán thi công ngay trên bảng: đổi TÊN, hoặc đổi sang một
+ * CÔNG TÁC khác của thư viện.
+ *
+ * Đổi tên chỉ ghi tên.
+ *
+ * Đổi công tác thì đầu mục nhận tên GỌN của công tác (bảng thi công ghi gọn, như lúc đổ
+ * xuống từ dự toán chào giá), đơn vị, nhóm chi phí, và đơn giá thư viện theo khu vực
+ * của dự án — thành tiền tính lại. Giữ nguyên những gì thuộc về công trường: khối lượng
+ * (kể cả bảng bóc), nhà cung cấp, trạng thái đặt/xuất hàng, ghi chú, hạng mục và nhóm.
+ *
+ * Thư viện chưa có giá thì giữ đơn giá đang có — ô trống làm thành tiền về rỗng mà
+ * người đọc lướt dễ không nhận ra.
+ */
+export async function suaCongViecEstimate(
+  projectId: string,
+  itemId: string,
+  chon: { ten: string } | { congTacId: string }
+): Promise<ActionResult> {
+  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa dự toán.", itemId);
+  if (denied) return denied;
+
+  if ("ten" in chon) {
+    const ten = chon.ten.trim();
+    if (!ten) return { ok: false, error: "Tên hạng mục không được để trống." };
+    await db.estimateItem.update({ where: { id: itemId }, data: { name: ten } });
+  } else {
+    const ngay = new Date();
+    const [dong, ct, project, ungVien] = await Promise.all([
+      db.estimateItem.findUnique({
+        where: { id: itemId },
+        select: { designQty: true, actualQty: true, unitPrice: true, groupCode: true },
+      }),
+      db.congTac.findFirst({
+        where: { id: chon.congTacId, active: true },
+        select: { id: true, ten: true, tenNgan: true, donVi: true, nhomChiPhi: true },
+      }),
+      db.project.findUnique({ where: { id: projectId }, select: { khuVucId: true } }),
+      db.donGiaCongTac.findMany({
+        where: { congTacId: chon.congTacId, hieuLucTu: { lte: ngay } },
+        select: {
+          id: true,
+          congTacId: true,
+          congTacVatTuId: true,
+          khuVucId: true,
+          donGia: true,
+          hieuLucTu: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+    if (!dong) return { ok: false, error: "Không tìm thấy đầu mục dự toán." };
+    if (!ct) return { ok: false, error: "Công tác này không còn trong thư viện." };
+
+    const khuVucId = project?.khuVucId ?? null;
+    const gia = chonDonGia(ungVien, { congTacId: ct.id, khuVucId, ngay });
+    const unitPrice = gia.donGia ?? dong.unitPrice;
+    const kl = dong.actualQty ?? dong.designQty;
+    await db.estimateItem.update({
+      where: { id: itemId },
+      data: {
+        name: ct.tenNgan?.trim() || ct.ten,
+        unit: ct.donVi,
+        groupCode: ct.nhomChiPhi in ESTIMATE_GROUP_MAP ? ct.nhomChiPhi : dong.groupCode,
+        congTacId: ct.id,
+        donGiaId: gia.donGiaId,
+        khuVucId,
+        unitPrice,
+        amount: kl != null && unitPrice != null ? kl * unitPrice : null,
+      },
+    });
+  }
 
   revalidatePath(`/projects/${projectId}/estimate`);
   revalidatePath(`/projects/${projectId}`);

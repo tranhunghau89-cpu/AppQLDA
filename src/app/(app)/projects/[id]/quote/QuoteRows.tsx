@@ -8,8 +8,8 @@ import { lineCost, lineSell } from "@/lib/quote";
 import { chiSoNhom, gomNhomTheoThuTu, nhanNhomDongBaoGia } from "@/lib/nhomDong";
 import { OSoSua } from "@/components/ui/OSoSua";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
-import { suaOGiaVon } from "./actions";
-import { OCongViec } from "./OCongViec";
+import { suaCongViecDong, suaOGiaVon } from "./actions";
+import { OChonCongTac } from "@/components/ui/OChonCongTac";
 import type { CatalogOption, ItemView, SectionView } from "./types";
 
 /** Các thao tác mà thân bảng cần gọi ngược lên thẻ báo giá. */
@@ -115,7 +115,12 @@ function ItemRows({
                 <Td className={coNhom ? "pl-6 text-slate-900" : "text-slate-900"}>
                   {canEdit ? (
                     <>
-                      <OCongViec chu={chu} it={it} catalog={catalog} />
+                      <OChonCongTac
+                        ten={it.name}
+                        congTacId={it.congTacId}
+                        catalog={catalog}
+                        luu={(chon) => suaCongViecDong(chu, it.id, chon)}
+                      />
                       {(it.bienTheTen || it.spec) && (
                         <div className="px-1.5 text-xs">
                           {it.bienTheTen && <span className="text-slate-500">{it.bienTheTen}</span>}

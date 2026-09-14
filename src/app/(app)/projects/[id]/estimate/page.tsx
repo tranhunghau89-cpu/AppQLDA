@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireProjectView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { nhaCungCapTheoKhuVuc } from "@/lib/thuVien/nhaCungCap";
+import { napCongTacCoGia } from "@/lib/thuVien/napGia";
 import { EstimateEditor, type EstimateRow, type SectionInfo } from "./EstimateEditor";
 import type { TemplateForClient } from "./ApplyTemplate";
 import { DoXuongTuBaoGia, type BaoGiaChonDuoc } from "./DoXuongTuBaoGia";
@@ -18,8 +19,8 @@ export default async function EstimatePage({
   const session = await requireProjectView("estimate", id);
   const canEdit = can(session.role, "estimate", "edit");
 
-  // 5 truy vấn độc lập -> chạy song song (guard phân quyền đã xong ở trên).
-  const [project, suppliers, templateRows, quoteRows, lienKetKhuVuc] = await Promise.all([
+  // 6 truy vấn độc lập -> chạy song song (guard phân quyền đã xong ở trên).
+  const [project, suppliers, templateRows, quoteRows, lienKetKhuVuc, congTacs] = await Promise.all([
     db.project.findUnique({
       where: { id },
       include: {
@@ -56,6 +57,8 @@ export default async function EstimatePage({
     db.nhaCungCapKhuVuc.findMany({
       select: { supplierId: true, khuVucId: true, uuTien: true },
     }),
+    // Công tác thư viện cho ô chọn công việc ngay trên bảng.
+    napCongTacCoGia(),
   ]);
   if (!project) notFound();
 
@@ -118,6 +121,7 @@ export default async function EstimatePage({
     note: it.note,
     sortOrder: it.sortOrder,
     soChiTiet: it._count.chiTiet,
+    congTacId: it.congTacId,
   }));
 
   return (
@@ -157,6 +161,14 @@ export default async function EstimatePage({
         salePrice={project.salePrice}
         area={project.area}
         canEdit={canEdit}
+        catalog={congTacs.map((c) => ({
+          congTacId: c.id,
+          code: c.ma,
+          name: c.ten,
+          tenNgan: c.tenNgan,
+          unit: c.donVi,
+          baseCost: c.donGia,
+        }))}
       />
     </div>
   );

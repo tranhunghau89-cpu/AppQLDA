@@ -13,6 +13,7 @@ export interface CongTacCoGia {
   id: string;
   ma: string;
   ten: string;
+  tenNgan: string | null;
   donVi: string | null;
   /** Đơn giá đang áp dụng hôm nay; null = công tác chưa khai bản giá nào. */
   donGia: number | null;
@@ -31,7 +32,7 @@ export const napCongTacCoGia = cache(async (): Promise<CongTacCoGia[]> => {
     db.congTac.findMany({
       where: { active: true },
       orderBy: [{ nhomMa: "asc" }, { sortOrder: "asc" }, { ma: "asc" }],
-      select: { id: true, ma: true, ten: true, donVi: true },
+      select: { id: true, ma: true, ten: true, tenNgan: true, donVi: true },
     }),
     db.donGiaCongTac.findMany({
       where: { hieuLucTu: { lte: ngay } },
@@ -58,6 +59,7 @@ export const napCongTacCoGia = cache(async (): Promise<CongTacCoGia[]> => {
     id: c.id,
     ma: c.ma,
     ten: c.ten,
+    tenNgan: c.tenNgan,
     donVi: c.donVi,
     donGia: chonDonGia(theoCongTac.get(c.id) ?? [], { congTacId: c.id, ngay }).donGia,
   }));
