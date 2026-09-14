@@ -409,8 +409,9 @@ export async function saveItem(
 }
 
 /**
- * Sửa MỘT ô của một dòng dự toán chào giá — khối lượng hoặc đơn giá vốn — ngay trên
- * bảng "Giá vốn theo hạng mục" của báo giá gửi khách.
+ * Sửa MỘT ô của một dòng dự toán chào giá — khối lượng, đơn giá vốn hoặc đơn giá bán —
+ * ngay trên bảng: bảng "Giá vốn theo hạng mục" của báo giá gửi khách, và chính bảng
+ * dự toán chào giá.
  *
  * Người lập đang ngồi quyết giá bán ở đó; bắt họ mở dự toán ra, tìm dòng, mở hộp thoại,
  * sửa, lưu, rồi quay lại là đủ để họ thôi không sửa nữa và báo giá dựa trên số sai.
@@ -425,11 +426,13 @@ export async function saveItem(
  *   - Sửa khối lượng một dòng NGUỒN thì các dòng dẫn xuất cùng phần tính lại.
  *   - Sửa giá vốn thì đơn giá bán tính lại theo hệ số TL của bản, và `giaSuaTay` bật
  *     khi lệch giá thư viện — để "Cập nhật giá từ thư viện" không đè lên số vừa gõ.
+ *   - Sửa đơn giá bán chỉ ghi đơn giá bán; giá vốn giữ nguyên, như ô "Đơn giá bán"
+ *     của hộp thoại.
  */
 export async function suaOGiaVon(
   chu: ChuBaoGia,
   itemId: string,
-  truong: "qty" | "baseCost",
+  truong: "qty" | "baseCost" | "sellPrice",
   tho: string
 ): Promise<ActionResult> {
   const g = await guard(chu, { itemId });
@@ -463,6 +466,8 @@ export async function suaOGiaVon(
     }
     await db.quoteItem.update({ where: { id: itemId }, data: { qty: giaTri } });
     if (dong.napThamSo) await capNhatDongDanXuat(dong.quoteId);
+  } else if (truong === "sellPrice") {
+    await db.quoteItem.update({ where: { id: itemId }, data: { sellPrice: giaTri } });
   } else {
     const markup = dong.quote.markup ?? 1;
     await db.quoteItem.update({
@@ -479,6 +484,95 @@ export async function suaOGiaVon(
       },
     });
   }
+
+  paths(chu);
+  return { ok: true };
+}
+
+/**
+ * Sửa ô "Nội dung công việc" ngay trên bảng dự toán chào giá: đổi TÊN, hoặc đổi hẳn
+ * sang một CÔNG TÁC khác của thư viện.
+ *
+ * Đổi tên giữ nguyên mọi thứ khác, kể cả liên kết thư viện — y như sửa ô tên trong hộp
+ * thoại: "Thép tổ hợp cột, kèo, dầm, Q345" gõ thêm "mạ kẽm" vẫn là công tác đó.
+ *
+ * Đổi công tác thì dòng mang theo những gì thuộc về CÔNG TÁC: mã, tên đầy đủ, tên gọn,
+ * đơn vị, vật liệu mặc định, và giá thư viện theo khu vực của bản (đơn giá bán tính lại
+ * theo hệ số TL). Còn những gì thuộc về CHỖ ĐỨNG của dòng thì giữ: khối lượng, nhóm,
+ * ghi chú, tham số nạp/lấy. Đổi "Thép tổ hợp" sang "Thép hình" không có lý do gì bắt
+ * người lập gõ lại khối lượng.
+ *
+ * Thư viện chưa có giá cho công tác mới thì giữ giá đang có, thay vì xoá trắng — một ô
+ * giá trống làm thành tiền về 0 mà người đọc lướt dễ không nhận ra.
+ */
+export async function suaCongViecDong(
+  chu: ChuBaoGia,
+  itemId: string,
+  chon: { ten: string } | { congTacId: string }
+): Promise<ActionResult> {
+  const g = await guard(chu, { itemId });
+  if (g) return g;
+
+  if ("ten" in chon) {
+    const ten = chon.ten.trim();
+    if (!ten) return { ok: false, error: "Nội dung công việc không được để trống." };
+    await db.quoteItem.update({ where: { id: itemId }, data: { name: ten } });
+    paths(chu);
+    return { ok: true };
+  }
+
+  const [dong, ct] = await Promise.all([
+    db.quoteItem.findUnique({
+      where: { id: itemId },
+      select: {
+        quoteId: true,
+        baseCost: true,
+        sellPrice: true,
+        quote: { select: { markup: true } },
+      },
+    }),
+    db.congTac.findFirst({
+      where: { id: chon.congTacId, active: true },
+      select: {
+        ma: true,
+        ten: true,
+        tenNgan: true,
+        donVi: true,
+        bienThe: {
+          where: { laMacDinh: true },
+          orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+          take: 1,
+          select: { id: true },
+        },
+      },
+    }),
+  ]);
+  if (!dong) return { ok: false, error: "Không tìm thấy dòng dự toán." };
+  if (!ct) return { ok: false, error: "Công tác này không còn trong thư viện." };
+
+  const chot = await chotGiaThuVien(
+    dong.quoteId,
+    chon.congTacId,
+    ct.bienThe[0]?.id ?? "",
+    null
+  );
+  const coGia = chot.donGiaThuVien != null;
+  await db.quoteItem.update({
+    where: { id: itemId },
+    data: {
+      workCode: ct.ma,
+      name: ct.ten,
+      tenGon: ct.tenNgan,
+      unit: ct.donVi,
+      ...chot,
+      giaSuaTay: false,
+      baseCost: coGia ? chot.donGiaThuVien : dong.baseCost,
+      // Làm tròn như `apGia` của hộp thoại và `suaOGiaVon`.
+      sellPrice: coGia
+        ? Math.round(sellFromBase(chot.donGiaThuVien!, dong.quote.markup ?? 1))
+        : dong.sellPrice,
+    },
+  });
 
   paths(chu);
   return { ok: true };

@@ -6,7 +6,11 @@ import { Tr, Td } from "@/components/ui/table";
 import { formatVND, formatNumber, formatQty } from "@/lib/utils";
 import { lineCost, lineSell } from "@/lib/quote";
 import { chiSoNhom, gomNhomTheoThuTu, nhanNhomDongBaoGia } from "@/lib/nhomDong";
-import type { ItemView, SectionView } from "./types";
+import { OSoSua } from "@/components/ui/OSoSua";
+import type { ChuBaoGia } from "@/lib/quoteOwner";
+import { suaOGiaVon } from "./actions";
+import { OCongViec } from "./OCongViec";
+import type { CatalogOption, ItemView, SectionView } from "./types";
 
 /** Các thao tác mà thân bảng cần gọi ngược lên thẻ báo giá. */
 export interface RowHandlers {
@@ -41,11 +45,15 @@ const phanTram = (x: number | null) => (x == null ? "—" : `${(x * 100).toFixed
  * dưới bảng, nên người đọc tự nhẩm lại được.
  */
 function ItemRows({
+  catalog,
+  chu,
   items,
   canEdit,
   h,
   mauSo,
 }: {
+  chu: ChuBaoGia;
+  catalog: CatalogOption[];
   items: ItemView[];
   canEdit: boolean;
   h: RowHandlers;
@@ -105,27 +113,67 @@ function ItemRows({
               <Tr key={it.id}>
                 <Td className="font-mono text-xs text-slate-500">{it.workCode ?? "—"}</Td>
                 <Td className={coNhom ? "pl-6 text-slate-900" : "text-slate-900"}>
-                  {it.name}
-                  {it.bienTheTen ? (
-                    <span className="text-slate-500"> · {it.bienTheTen}</span>
-                  ) : null}
-                  {it.spec ? <span className="text-slate-400"> · {it.spec}</span> : null}
-                </Td>
-                <Td className="text-slate-600">{it.unit ?? "—"}</Td>
-                <Td className="text-right">
-                  {formatQty(it.qty)}
-                  {/* Dấu tổng: khối lượng này do hệ thống cộng từ các dòng nguồn, không ai gõ. */}
-                  {it.layTuThamSo && (
-                    <span
-                      className="ml-1 text-slate-400"
-                      title={`Tự tính từ các dòng nạp "${it.layTuThamSo}" trong cùng phần`}
-                    >
-                      ∑
-                    </span>
+                  {canEdit ? (
+                    <>
+                      <OCongViec chu={chu} it={it} catalog={catalog} />
+                      {(it.bienTheTen || it.spec) && (
+                        <div className="px-1.5 text-xs">
+                          {it.bienTheTen && <span className="text-slate-500">{it.bienTheTen}</span>}
+                          {it.bienTheTen && it.spec && <span className="text-slate-400"> · </span>}
+                          {it.spec && <span className="text-slate-400">{it.spec}</span>}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {it.name}
+                      {it.bienTheTen ? (
+                        <span className="text-slate-500"> · {it.bienTheTen}</span>
+                      ) : null}
+                      {it.spec ? <span className="text-slate-400"> · {it.spec}</span> : null}
+                    </>
                   )}
                 </Td>
-                <Td className="text-right text-slate-500">
-                  {formatNumber(it.baseCost)}
+                <Td className="text-slate-600">{it.unit ?? "—"}</Td>
+                {/* Ô tên và ba ô số sửa ngay trên bảng — Enter hoặc rời ô là lưu, Esc là thôi.
+                    Hộp thoại (nút bút) vẫn là chỗ sửa tên gọn, nhóm, vật liệu, ghi chú. */}
+                <Td className="text-right">
+                  {canEdit ? (
+                    <OSoSua
+                      nhan={`Khối lượng — ${it.name}`}
+                      giaTri={it.qty}
+                      dinhDang={formatQty}
+                      // Khối lượng do hệ thống cộng từ các dòng nguồn thì khoá, kèm dấu ∑.
+                      khoa={it.layTuThamSo != null}
+                      lyDoKhoa={`Tự tính từ các dòng nạp "${it.layTuThamSo}" trong cùng phần — sửa ở dòng nguồn`}
+                      luu={(tho) => suaOGiaVon(chu, it.id, "qty", tho)}
+                    />
+                  ) : (
+                    <>
+                      {formatQty(it.qty)}
+                      {it.layTuThamSo && (
+                        <span
+                          className="ml-1 text-slate-400"
+                          title={`Tự tính từ các dòng nạp "${it.layTuThamSo}" trong cùng phần`}
+                        >
+                          ∑
+                        </span>
+                      )}
+                    </>
+                  )}
+                </Td>
+                <Td className="whitespace-nowrap text-right text-slate-500">
+                  {canEdit ? (
+                    <OSoSua
+                      nhan={`Giá gốc — ${it.name}`}
+                      giaTri={it.baseCost}
+                      dinhDang={formatNumber}
+                      khoa={false}
+                      luu={(tho) => suaOGiaVon(chu, it.id, "baseCost", tho)}
+                    />
+                  ) : (
+                    formatNumber(it.baseCost)
+                  )}
                   {/*
                     Huy hiệu lệch giá hiện cho CẢ dòng đã sửa tay — người dùng vẫn cần biết
                     thư viện đã đổi. Chỉ có việc "Cập nhật giá" là bỏ qua dòng đó.
@@ -151,7 +199,19 @@ function ItemRows({
                     </span>
                   )}
                 </Td>
-                <Td className="text-right">{formatNumber(it.sellPrice)}</Td>
+                <Td className="text-right">
+                  {canEdit ? (
+                    <OSoSua
+                      nhan={`Đơn giá bán — ${it.name}`}
+                      giaTri={it.sellPrice}
+                      dinhDang={formatNumber}
+                      khoa={false}
+                      luu={(tho) => suaOGiaVon(chu, it.id, "sellPrice", tho)}
+                    />
+                  ) : (
+                    formatNumber(it.sellPrice)
+                  )}
+                </Td>
                 <Td className="text-right font-medium">{formatVND(lineSell(it))}</Td>
                 {canEdit && (
                   <Td className="text-right">
@@ -204,6 +264,8 @@ function AddItemRow({
  * `tienPhan` do thẻ cha tính sẵn (đã gộp cả dòng của mục con).
  */
 export function QuoteRows({
+  catalog,
+  chu,
   sections,
   items,
   canEdit,
@@ -211,6 +273,8 @@ export function QuoteRows({
   tongBan,
   h,
 }: {
+  chu: ChuBaoGia;
+  catalog: CatalogOption[];
   sections: SectionView[];
   items: ItemView[];
   canEdit: boolean;
@@ -288,6 +352,8 @@ export function QuoteRows({
             )}
           </Tr>
           <ItemRows
+            chu={chu}
+            catalog={catalog}
             items={itemsBySection.get(phan.id) ?? []}
             canEdit={canEdit}
             h={h}
@@ -326,6 +392,8 @@ export function QuoteRows({
                 )}
               </Tr>
               <ItemRows
+                chu={chu}
+                catalog={catalog}
                 items={itemsBySection.get(sub.id) ?? []}
                 canEdit={canEdit}
                 h={h}

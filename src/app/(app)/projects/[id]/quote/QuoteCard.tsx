@@ -34,7 +34,7 @@ import {
   xemTruocApBoHangMuc,
   type XemTruocApBo,
 } from "./actions";
-import type { ItemView, QuoteView, SectionView } from "./types";
+import type { CatalogOption, ItemView, QuoteView, SectionView } from "./types";
 
 /**
  * Một thẻ báo giá: đầu thẻ, bảng, tổng cuối thẻ.
@@ -46,6 +46,7 @@ import type { ItemView, QuoteView, SectionView } from "./types";
 export function QuoteCard({
   q,
   chu,
+  catalog,
   canEdit,
   boHangMucs,
   onEditQuote,
@@ -58,6 +59,8 @@ export function QuoteCard({
 }: {
   q: QuoteView;
   chu: ChuBaoGia;
+  /** Công tác thư viện — cho ô chọn công việc ngay trên bảng. */
+  catalog: CatalogOption[];
   canEdit: boolean;
   boHangMucs: {
     id: string;
@@ -290,6 +293,8 @@ export function QuoteCard({
         </THead>
         <tbody>
           <QuoteRows
+            chu={chu}
+            catalog={catalog}
             sections={q.sections}
             items={q.items}
             canEdit={canEdit}

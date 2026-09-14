@@ -112,6 +112,7 @@ export function QuoteEditor({
           key={q.id}
           q={q}
           chu={chu}
+          catalog={catalog}
           canEdit={canEdit}
           onEditQuote={() => setQuoteModal({ editing: q })}
           onGenerateClient={() => setGenFor(q)}
