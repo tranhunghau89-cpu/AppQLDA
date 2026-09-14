@@ -19,6 +19,7 @@ import {
   UserSearch,
   Users,
   Library,
+  BookOpen,
   Wrench,
   X,
   type LucideIcon,
@@ -132,6 +133,8 @@ const NAV: NavGroup[] = [
       },
       { ...mucGop(TAB_DOI_TAC), label: "Chủ đầu tư & NCC", icon: Building2 },
       { ...mucGop(TAB_TIEN_ICH), label: "Tiện ích", icon: Wrench },
+      // Không gắn quyền: ai đăng nhập cũng đọc được sổ tay.
+      { href: "/huong-dan", label: "Sổ tay hướng dẫn", icon: BookOpen },
       { href: "/users", label: "Người dùng", icon: Users, resource: "user" },
     ],
   },
