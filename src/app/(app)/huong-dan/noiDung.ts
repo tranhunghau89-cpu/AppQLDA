@@ -4,7 +4,10 @@
 //
 // Để dạng HTML chứ không phải JSX vì đây là một văn bản dài ~500 dòng: đổi sang JSX chỉ
 // thêm hàng trăm cặp {" "} và className mà không thêm được gì cho người đọc hay người sửa.
-export const NOI_DUNG_SO_TAY = `
+import { soDoVongDoi, themSoDo } from "./soDo";
+
+// Sơ đồ các bước dựng từ soDo.ts, chèn lên trên từng danh sách bước; chữ chi tiết gập lại.
+export const NOI_DUNG_SO_TAY = themSoDo(`
   <aside class="toc">
     <nav aria-label="Mục lục">
       <div>
@@ -151,6 +154,7 @@ export const NOI_DUNG_SO_TAY = `
     <section class="part" id="luong">
       <h2>Vòng đời một công trình</h2>
       <p class="part-lede">Một công trình đi qua app theo thứ tự dưới đây. Mỗi bước có một phòng chịu trách nhiệm; bước sau dùng lại dữ liệu bước trước, không ai phải gõ lại.</p>
+      ${soDoVongDoi()}
       <div class="tbl"><table>
         <thead><tr><th>#</th><th>Việc</th><th>Phòng làm</th><th>Ở đâu</th></tr></thead>
         <tbody>
@@ -541,4 +545,4 @@ export const NOI_DUNG_SO_TAY = `
       Sổ tay viết theo app ở phiên bản ngày 14/09/2026. Gặp chỗ app khác với hướng dẫn, hoặc cần quyền mới, báo Ban giám đốc / Quản lý.
     </footer>
   </main>
-`;
+`);

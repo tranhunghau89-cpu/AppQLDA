@@ -110,6 +110,55 @@
 .goc :global(.shortcuts b) { display: block; margin-bottom: 2px; }
 .goc :global(.shortcuts span) { color: var(--ink-2); font-size: 14px; }
 
+/* ---------- Sơ đồ các bước (dựng ở soDo.ts) ----------
+ * Mỗi bước là một ô, mũi tên → nối sang ô kế; hết hàng thì xuống hàng, điện thoại xếp dọc
+ * với mũi tên ↓. Chữ chi tiết nằm trong <details> ngay dưới. */
+.goc :global(.flow-ten) { margin: 14px 0 0; font-size: 12.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.goc :global(ol.flow) { list-style: none; margin: 14px 0 10px; padding: 0 32px 0 0; display: flex; flex-wrap: wrap; gap: 28px 38px; }
+.goc :global(ol.flow > li.nd) { position: relative; flex: 1 1 170px; max-width: 250px; display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; background: var(--surface); border: 1px solid var(--rule); border-top: 3px solid var(--navy); border-radius: 10px; }
+.goc :global(ol.flow > li.nd:not(:last-child))::after { content: "→"; position: absolute; right: -29px; top: 50%; transform: translateY(-50%); font-size: 20px; line-height: 1; color: var(--sky); }
+.goc :global(ol.flow em) { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 12.5px; font-weight: 600; line-height: 1; color: var(--navy); background: var(--navy-soft); font-variant-numeric: tabular-nums; }
+.goc :global(ol.flow li > div > b) { display: block; font-size: 14.5px; line-height: 1.35; }
+.goc :global(ol.flow li > div > span) { display: block; margin-top: 2px; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.goc :global(ol.flow li.xong) { background: var(--ok-soft); border-color: var(--ok-soft); border-top-color: var(--ok); }
+.goc :global(ol.flow li.xong em) { color: var(--ok); background: #fff; }
+.goc :global(ol.flow li.luu-y) { background: var(--warn-soft); border-color: var(--warn-soft); border-top-color: var(--warn); }
+.goc :global(ol.flow li.luu-y em) { color: var(--warn); background: #fff; }
+/* Rẽ nhánh: các việc chọn một trong nhiều, xếp dọc, ngăn bằng chữ "hoặc". */
+.goc :global(ol.flow .or) { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.goc :global(ol.flow .or i) { align-self: center; font-style: normal; font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--sky); }
+.goc :global(ol.flow .opt) { padding: 6px 9px; border-radius: 7px; background: var(--ground); border: 1px solid var(--rule-soft); }
+.goc :global(ol.flow .opt b) { display: block; font-size: 13.5px; }
+.goc :global(ol.flow .opt span) { display: block; font-size: 12.5px; line-height: 1.4; color: var(--muted); }
+/* Dãy ngắn chỉ có tên (tám mốc tiến độ). */
+.goc :global(ol.flow.gon) { gap: 22px 34px; }
+.goc :global(ol.flow.gon > li.nd) { flex: 0 1 auto; max-width: none; padding: 8px 12px; align-items: center; }
+.goc :global(ol.flow.gon > li.nd:not(:last-child))::after { right: -27px; }
+/* Vòng đời công trình: bốn ô một hàng, màu theo phòng. */
+.goc :global(ol.flow.vong-doi > li.nd) { flex: 0 0 calc(25% - 29px); max-width: none; }
+.goc :global(ol.flow.vong-doi u) { display: inline-block; margin-top: 6px; padding: 0 8px; border-radius: 999px; text-decoration: none; font-size: 11.5px; font-weight: 600; color: var(--c); background: var(--cs); }
+.goc :global(ol.flow li.nd.bgd), .goc :global(.flow-chu-thich .bgd) { --c: #2b3990; --cs: #eef1fb; }
+.goc :global(ol.flow li.nd.kd), .goc :global(.flow-chu-thich .kd) { --c: #1c78ad; --cs: #e7f4fb; }
+.goc :global(ol.flow li.nd.kt), .goc :global(.flow-chu-thich .kt) { --c: #1d7a4a; --cs: #e6f4ec; }
+.goc :global(ol.flow li.nd.vt), .goc :global(.flow-chu-thich .vt) { --c: #9a5b06; --cs: #fdf3e2; }
+.goc :global(ol.flow li.nd.ke), .goc :global(.flow-chu-thich .ke) { --c: #7a3fa0; --cs: #f3eafa; }
+.goc :global(ol.flow li.nd.bgd), .goc :global(ol.flow li.nd.kd), .goc :global(ol.flow li.nd.kt), .goc :global(ol.flow li.nd.vt), .goc :global(ol.flow li.nd.ke) { border-top-color: var(--c); }
+.goc :global(ol.flow li.nd.bgd em), .goc :global(ol.flow li.nd.kd em), .goc :global(ol.flow li.nd.kt em), .goc :global(ol.flow li.nd.vt em), .goc :global(ol.flow li.nd.ke em) { color: var(--c); background: var(--cs); }
+.goc :global(.flow-chu-thich) { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 14px; font-size: 13px; color: var(--ink-2); }
+.goc :global(.flow-chu-thich span) { display: inline-flex; align-items: center; gap: 6px; }
+.goc :global(.flow-chu-thich i) { width: 12px; height: 12px; border-radius: 3px; background: var(--c); }
+@media (max-width: 1023px) { .goc :global(ol.flow.vong-doi > li.nd) { flex-basis: calc(50% - 19px); } }
+@media (max-width: 639px) {
+  .goc :global(ol.flow) { flex-direction: column; flex-wrap: nowrap; gap: 30px; padding-right: 0; }
+  .goc :global(ol.flow > li.nd), .goc :global(ol.flow.vong-doi > li.nd), .goc :global(ol.flow.gon > li.nd) { flex: none; max-width: none; }
+  .goc :global(ol.flow > li.nd:not(:last-child))::after, .goc :global(ol.flow.gon > li.nd:not(:last-child))::after { content: "↓"; right: auto; left: 24px; top: auto; bottom: -26px; transform: none; }
+}
+
+.goc :global(details.chi-tiet) { margin: 4px 0 0; }
+.goc :global(details.chi-tiet > summary) { cursor: pointer; display: inline-block; padding: 3px 0; font-size: 13.5px; font-weight: 600; color: var(--navy); }
+.goc :global(details.chi-tiet > summary:hover) { text-decoration: underline; text-underline-offset: 3px; }
+.goc :global(details.chi-tiet[open] > summary) { margin-bottom: 4px; }
+
 .goc :global(footer) { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--rule); font-size: 13.5px; color: var(--muted); }
 
 /* Lối tắt tới phần của đúng phòng người đang xem — dựng ở page.tsx, nằm trên nội dung. */
@@ -131,4 +180,5 @@
   .goc { grid-template-columns: 1fr; }
   .goc :global(.toc), .phanCuaBan { display: none; }
   .goc :global(.task) { break-inside: avoid; }
+  .goc :global(details.chi-tiet > summary) { display: none; }
 }
