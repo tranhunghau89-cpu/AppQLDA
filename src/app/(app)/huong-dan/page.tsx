@@ -1,38 +1,43 @@
+import Link from "next/link";
 import { requireSession } from "@/lib/auth";
-import { ROLE_LABEL, isValidRole, type Role } from "@/lib/rbac";
-import { NOI_DUNG_SO_TAY } from "./noiDung";
+import { isValidRole } from "@/lib/rbac";
+import { CAC_PHAN, docKhoaPhan, htmlPhan, phanMacDinh } from "./phan";
 import styles from "./soTay.module.css";
-
-/** Phần của từng vai trò trong sổ tay — neo `id` trong noiDung.ts. */
-const PHAN_THEO_VAI_TRO: Record<Role, string> = {
-  ADMIN: "#bgd",
-  SALES: "#kd",
-  ENGINEERING: "#kt",
-  PROCUREMENT: "#vt",
-  ACCOUNTING: "#ke-toan",
-};
 
 /**
  * Sổ tay hướng dẫn sử dụng, đọc ngay trong app.
  *
  * Ai đăng nhập cũng đọc được CẢ sổ tay, không lọc theo quyền: người kinh doanh cần biết
  * vật tư làm gì với dự toán của mình, và bảng "Ai được làm gì" chỉ có ích khi thấy đủ.
- * Chỉ thêm một lối tắt tới đúng phần của phòng người đang xem.
+ * Nhưng mỗi lần chỉ mở MỘT phần (tab "Chung" hoặc một phòng ban, theo `?phong=`) để sổ
+ * tay không dài như một cuốn sách; vào không chọn thì mở sẵn phần của vai trò mình.
  */
-export default async function HuongDanPage() {
+export default async function HuongDanPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const session = await requireSession();
   const vaiTro = isValidRole(session.role) ? session.role : null;
+  const dangMo = docKhoaPhan((await searchParams).phong) ?? phanMacDinh(vaiTro);
 
   return (
     <div className="mx-auto max-w-6xl">
-      {vaiTro && (
-        <p className={styles.phanCuaBan}>
-          <span>Bạn đang đăng nhập với vai trò {ROLE_LABEL[vaiTro]}.</span>
-          <a href={PHAN_THEO_VAI_TRO[vaiTro]}>Tới phần hướng dẫn của bạn →</a>
-        </p>
-      )}
+      <nav className={styles.cacTab} aria-label="Phần của sổ tay">
+        {CAC_PHAN.map((p) => (
+          <Link
+            key={p.khoa}
+            href={`/huong-dan?phong=${p.khoa}`}
+            className={p.khoa === dangMo ? styles.tabMo : undefined}
+            aria-current={p.khoa === dangMo ? "page" : undefined}
+          >
+            {p.ten}
+            {p.vaiTro && p.vaiTro === vaiTro && <span className={styles.cuaBan}>của bạn</span>}
+          </Link>
+        ))}
+      </nav>
       {/* HTML tĩnh do dự án viết (xem noiDung.ts) — không chứa dữ liệu người dùng. */}
-      <div className={styles.goc} dangerouslySetInnerHTML={{ __html: NOI_DUNG_SO_TAY }} />
+      <div className={styles.goc} dangerouslySetInnerHTML={{ __html: htmlPhan(dangMo) }} />
     </div>
   );
 }

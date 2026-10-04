@@ -161,24 +161,35 @@
 
 .goc :global(footer) { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--rule); font-size: 13.5px; color: var(--muted); }
 
-/* Lối tắt tới phần của đúng phòng người đang xem — dựng ở page.tsx, nằm trên nội dung. */
-.phanCuaBan {
+/* Thanh tab chọn phần của sổ tay (Chung / từng phòng ban) — dựng ở page.tsx. */
+.cacTab {
   margin-bottom: 20px;
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 14px;
-  padding: 10px 16px;
-  border-radius: 10px;
-  background: #eef1fb;
-  color: #2b3990;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 12px;
+  background: #eceff6;
   font-size: 14px;
 }
-.phanCuaBan a { font-weight: 600; color: #2b3990; }
+.cacTab a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 9px;
+  color: #414b66;
+  font-weight: 500;
+  text-decoration: none;
+}
+.cacTab a:hover { background: #fff; color: #2b3990; }
+.cacTab a.tabMo { background: #2b3990; color: #fff; font-weight: 600; }
+.cuaBan { font-size: 11.5px; font-weight: 600; padding: 0 7px; border-radius: 999px; background: #e7f4fb; color: #1c78ad; }
+.tabMo .cuaBan { background: rgba(255, 255, 255, .2); color: #fff; }
 
 @media print {
   .goc { grid-template-columns: 1fr; }
-  .goc :global(.toc), .phanCuaBan { display: none; }
+  .goc :global(.toc), .cacTab { display: none; }
   .goc :global(.task) { break-inside: avoid; }
   .goc :global(details.chi-tiet > summary) { display: none; }
 }

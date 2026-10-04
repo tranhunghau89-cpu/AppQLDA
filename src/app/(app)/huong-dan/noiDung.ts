@@ -8,61 +8,11 @@ import { soDoVongDoi, themSoDo } from "./soDo";
 
 // Sơ đồ các bước dựng từ soDo.ts, chèn lên trên từng danh sách bước; chữ chi tiết gập lại.
 export const NOI_DUNG_SO_TAY = themSoDo(`
-  <aside class="toc">
-    <nav aria-label="Mục lục">
-      <div>
-        <h4>Chung cho mọi người</h4>
-        <ul>
-          <li><a href="#bat-dau">Đăng nhập & giao diện</a></li>
-          <li><a href="#thao-tac-chung">Thao tác dùng chung</a></li>
-          <li><a href="#luong">Vòng đời một công trình</a></li>
-          <li><a href="#quyen">Ai được làm gì</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4>Theo phòng ban</h4>
-        <ul>
-          <li class="dept"><a href="#bgd">Ban giám đốc / Quản lý</a></li>
-          <li class="sub"><a href="#bgd-nguoi-dung">Tài khoản người dùng</a></li>
-          <li class="sub"><a href="#bgd-phan-cong">Phân công dự án & khách</a></li>
-          <li class="sub"><a href="#bgd-thu-vien">Thư viện đơn giá</a></li>
-          <li class="sub"><a href="#bgd-bo-hang-muc">Bộ hạng mục chuẩn</a></li>
-          <li class="sub"><a href="#bgd-duyet">Duyệt đề xuất</a></li>
-          <li class="sub"><a href="#bgd-theo-doi">Theo dõi & báo cáo</a></li>
-
-          <li class="dept"><a href="#kd">Phòng Kinh doanh</a></li>
-          <li class="sub"><a href="#kd-khach">Khách hàng & trao đổi</a></li>
-          <li class="sub"><a href="#kd-du-toan">Dự toán chào giá</a></li>
-          <li class="sub"><a href="#kd-bao-gia">Báo giá gửi khách</a></li>
-          <li class="sub"><a href="#kd-tao-du-an">Ký hợp đồng → tạo dự án</a></li>
-          <li class="sub"><a href="#kd-hop-dong">Hợp đồng & hồ sơ</a></li>
-
-          <li class="dept"><a href="#kt">Phòng Kỹ thuật</a></li>
-          <li class="sub"><a href="#kt-du-an">Thông tin dự án</a></li>
-          <li class="sub"><a href="#kt-tien-do">Mốc tiến độ & Gantt</a></li>
-          <li class="sub"><a href="#kt-nhat-ky">Nhật ký & shopdrawing</a></li>
-          <li class="sub"><a href="#kt-tra-cuu">Tra cứu & bóc khối lượng</a></li>
-
-          <li class="dept"><a href="#vt">Phòng Vật tư</a></li>
-          <li class="sub"><a href="#vt-du-toan">Dự toán thi công</a></li>
-          <li class="sub"><a href="#vt-bang-boc">Bảng bóc từ Excel</a></li>
-          <li class="sub"><a href="#vt-don-hang">Đơn hàng</a></li>
-          <li class="sub"><a href="#vt-ncc">Nhà cung cấp</a></li>
-
-          <li class="dept"><a href="#ke-toan">Phòng Kế toán</a></li>
-          <li class="sub"><a href="#kt2-dot">Thu – chi theo đợt</a></li>
-          <li class="sub"><a href="#kt2-cong-no">Công nợ</a></li>
-          <li class="sub"><a href="#kt2-chi-phi">Chi phí & báo cáo kỳ</a></li>
-        </ul>
-      </div>
-    </nav>
-  </aside>
-
   <main>
     <header class="intro">
       <div class="eyebrow">Hướng dẫn sử dụng · bản 09/2026</div>
       <h1>Sổ tay QLDA Kết cấu thép</h1>
-      <p class="lede">Viết theo việc từng người làm mỗi ngày: đọc phần <a href="#bat-dau">chung</a> một lần, rồi nhảy tới phòng ban của mình. Mỗi việc ghi rõ vào đâu trên menu, bấm nút nào, theo thứ tự nào. Tên nút in <span class="ui">như thế này</span>, đường đi trên menu in <span class="path">như thế này</span>.</p>
+      <p class="lede">Viết theo việc từng người làm mỗi ngày: đọc phần <a href="#bat-dau">chung</a> một lần, rồi mở tab phòng ban của mình ở thanh trên. Mỗi việc ghi rõ vào đâu trên menu, bấm nút nào, theo thứ tự nào. Tên nút in <span class="ui">như thế này</span>, đường đi trên menu in <span class="path">như thế này</span>.</p>
       <div class="meta"><span>Thay cho bộ PDF hướng dẫn tháng 07/2026</span><span>Có thêm: CRM, chào giá, thư viện đơn giá, sửa trực tiếp trên bảng</span></div>
     </header>
 
