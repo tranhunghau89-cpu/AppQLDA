@@ -18,11 +18,11 @@ function Dong({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-slate-500">
+      <dt className="min-w-0 text-slate-500">
         {nhan}
         {ghiChu && <span className="ml-1 text-xs text-slate-400">{ghiChu}</span>}
       </dt>
-      <dd className="text-right font-semibold tabular-nums text-slate-900">
+      <dd className="shrink-0 whitespace-nowrap text-right font-semibold tabular-nums text-slate-900">
         {o ?? (giaTri == null ? "—" : formatVND(giaTri))}
       </dd>
     </div>
@@ -32,12 +32,12 @@ function Dong({
 function LoiNhuan({ nhan, giaTri, ghiChu }: { nhan: string; giaTri: number | null; ghiChu?: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-slate-500">
+      <dt className="min-w-0 text-slate-500">
         {nhan}
         {ghiChu && <span className="ml-1 text-xs text-amber-600">{ghiChu}</span>}
       </dt>
       <dd
-        className={`font-bold tabular-nums ${
+        className={`shrink-0 whitespace-nowrap font-bold tabular-nums ${
           giaTri == null ? "text-slate-400" : giaTri >= 0 ? "text-green-600" : "text-red-600"
         }`}
       >
