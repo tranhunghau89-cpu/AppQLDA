@@ -24,15 +24,9 @@ import { useToast } from "@/components/ui/toast";
 import { quyCachBoSung } from "@/lib/text";
 import { luuCongTac, xoaCongTac } from "./actions";
 import { capNhatBangGia } from "./bangGiaActions";
+import { docSoVN as docSo } from "@/lib/thuVien/bangGia";
 import { NhapExcelBangGia, homNay } from "./NhapExcelBangGia";
 
-/** "20.600" / "20600" / "20,5" → số; trống → null. Người dùng gõ theo kiểu Việt. */
-function docSo(s: string): number | null {
-  const t = s.trim().replace(/s/g, "");
-  if (!t) return null;
-  const n = Number(t.replace(/./g, "").replace(",", "."));
-  return Number.isFinite(n) ? n : NaN;
-}
 
 export interface CongTacView {
   id: string;

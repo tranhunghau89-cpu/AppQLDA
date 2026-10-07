@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { soSanhBangGia, type DongBangGia, type GiaDangApDung } from "./bangGia";
+import { docSoVN, soSanhBangGia, type DongBangGia, type GiaDangApDung } from "./bangGia";
 
 const dong = (p: Partial<DongBangGia> & { ma: string }): DongBangGia => ({
   vatTu: null,
@@ -67,5 +67,24 @@ describe("soSanhBangGia", () => {
     );
     expect(kq.thayDoi.map((t) => t.moi.donGia)).toEqual([1]);
     expect(kq.loi).toHaveLength(2);
+  });
+});
+
+describe("docSoVN", () => {
+  it("đọc số gõ kiểu Việt", () => {
+    expect(docSoVN("23500")).toBe(23500);
+    expect(docSoVN("20.600")).toBe(20600);
+    expect(docSoVN("1 250 000")).toBe(1250000);
+    expect(docSoVN("20,5")).toBe(20.5);
+    expect(docSoVN("  ")).toBeNull();
+    expect(docSoVN("abc")).toBeNaN();
+  });
+});
+
+describe("chốt chặn giá 0", () => {
+  it("không nhận đơn giá bằng 0", () => {
+    const kq = soSanhBangGia([dong({ ma: "A", donGia: 0 })], new Map([["A", gia(19008)]]));
+    expect(kq.thayDoi).toEqual([]);
+    expect(kq.loi).toHaveLength(1);
   });
 });

@@ -72,8 +72,8 @@ export function soSanhBangGia(
     if (d.donGia == null && d.vatTu == null && d.nhanCongMay == null) continue;
 
     const donGia = donGiaCuaDong(d);
-    if (!Number.isFinite(donGia) || donGia < 0) {
-      loi.push(`Mã ${ma}: đơn giá không hợp lệ.`);
+    if (!Number.isFinite(donGia) || donGia <= 0) {
+      loi.push(`Mã ${ma}: đơn giá phải lớn hơn 0 — bỏ qua.`);
       continue;
     }
     const moi: GiaDangApDung = {
@@ -96,4 +96,16 @@ export function soSanhBangGia(
     thayDoi.push({ ma, cu, moi });
   }
   return { thayDoi, khongDoi, loi };
+}
+
+/**
+ * Đọc số người dùng gõ kiểu Việt: "20.600" / "20600" / "20,5" / "1 250 000".
+ * Trống → null; không phải số → NaN (để giao diện báo lỗi, KHÔNG lặng lẽ thành 0).
+ */
+export function docSoVN(s: string): number | null {
+  const t = s.trim().replace(/\s/g, "");
+  if (!t) return null;
+  if (!/^-?[\d.]*(,\d+)?$/.test(t)) return NaN;
+  const n = Number(t.replace(/\./g, "").replace(",", "."));
+  return Number.isFinite(n) ? n : NaN;
 }
