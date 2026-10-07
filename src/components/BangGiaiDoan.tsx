@@ -1,17 +1,29 @@
 // Bảng tổng hợp giá trị dự án qua 5 giai đoạn + lợi nhuận dự kiến / thực tế.
+import type { ReactNode } from "react";
 import { formatVND } from "@/lib/utils";
 import { formatPercent } from "@/lib/profit";
 import { loiNhuanGiaiDoan, type GiaTriGiaiDoan } from "@/lib/giaTriGiaiDoan";
 
-function Dong({ nhan, giaTri, ghiChu }: { nhan: string; giaTri: number | null; ghiChu?: string }) {
+function Dong({
+  nhan,
+  giaTri,
+  ghiChu,
+  o,
+}: {
+  nhan: string;
+  giaTri: number | null;
+  ghiChu?: string;
+  /** Thay phần số mặc định (vd. ô sửa giá bán). */
+  o?: ReactNode;
+}) {
   return (
     <div className="flex items-baseline justify-between gap-3">
       <dt className="text-slate-500">
         {nhan}
         {ghiChu && <span className="ml-1 text-xs text-slate-400">{ghiChu}</span>}
       </dt>
-      <dd className="font-semibold tabular-nums text-slate-900">
-        {giaTri == null ? "—" : formatVND(giaTri)}
+      <dd className="text-right font-semibold tabular-nums text-slate-900">
+        {o ?? (giaTri == null ? "—" : formatVND(giaTri))}
       </dd>
     </div>
   );
@@ -35,7 +47,15 @@ function LoiNhuan({ nhan, giaTri, ghiChu }: { nhan: string; giaTri: number | nul
   );
 }
 
-export function BangGiaiDoan({ g }: { g: GiaTriGiaiDoan }) {
+export function BangGiaiDoan({
+  g,
+  oHopDong,
+  chiPhiM2,
+}: {
+  g: GiaTriGiaiDoan;
+  oHopDong?: ReactNode;
+  chiPhiM2?: number | null;
+}) {
   const ln = loiNhuanGiaiDoan(g);
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5">
@@ -49,7 +69,7 @@ export function BangGiaiDoan({ g }: { g: GiaTriGiaiDoan }) {
           giaTri={g.muaHang}
           ghiChu={g.soDong > 0 ? `${g.soDongCoGiaThuc}/${g.soDong} dòng có giá thực` : undefined}
         />
-        <Dong nhan="4. Hợp đồng" giaTri={g.hopDong} />
+        <Dong nhan="4. Hợp đồng" giaTri={g.hopDong} o={oHopDong} />
         <Dong nhan="5. Quyết toán" giaTri={g.quyetToan} />
         <div className="my-2 border-t border-slate-100" />
         <LoiNhuan nhan="Lợi nhuận dự kiến" giaTri={ln.duKien} ghiChu="HĐ − dự toán" />
@@ -62,6 +82,14 @@ export function BangGiaiDoan({ g }: { g: GiaTriGiaiDoan }) {
           <dt className="text-slate-500">Biên thực tế</dt>
           <dd className="font-medium text-slate-700">{formatPercent(ln.bienThucTe)}</dd>
         </div>
+        {chiPhiM2 !== undefined && (
+          <div className="flex justify-between">
+            <dt className="text-slate-500">Chi phí / m²</dt>
+            <dd className="font-medium text-slate-700">
+              {chiPhiM2 != null ? formatVND(chiPhiM2) : "—"}
+            </dd>
+          </div>
+        )}
       </dl>
     </div>
   );

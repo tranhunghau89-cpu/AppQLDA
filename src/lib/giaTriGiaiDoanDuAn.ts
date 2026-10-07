@@ -2,6 +2,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { computeClientQuoteTotals } from "@/lib/clientQuote";
+import { computeQuoteTotals } from "@/lib/quote";
 import { settlementFromContracts } from "@/lib/contract";
 import { computeActualCost, computeProfit } from "@/lib/profit";
 import { baoGiaGiaiDoan, type GiaTriGiaiDoan } from "@/lib/giaTriGiaiDoan";
@@ -29,6 +30,11 @@ export async function docGiaTriGiaiDoan(projectId: string): Promise<GiaTriGiaiDo
           lines: { select: { qty: true, unitPrice: true, amount: true } },
         },
       },
+      quotes: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { items: { select: { qty: true, sellPrice: true, baseCost: true } } },
+      },
       contracts: {
         select: {
           status: true,
@@ -39,14 +45,17 @@ export async function docGiaTriGiaiDoan(projectId: string): Promise<GiaTriGiaiDo
   });
   if (!p) return null;
   const thuc = computeActualCost(p.estimateItems);
+  // Chào giá gửi khách là nguồn chính; dự án cũ chỉ có báo giá chi tiết thì lấy bản mới nhất.
+  const chaoGia = baoGiaGiaiDoan(
+    p.clientQuotes.map((q) => ({
+      status: q.status,
+      createdAt: q.createdAt,
+      beforeVat: computeClientQuoteTotals(q.lines, q.vatPercent).beforeVat,
+    }))
+  );
+  const baoGiaChiTiet = p.quotes[0] ? computeQuoteTotals(p.quotes[0].items).sell : null;
   return {
-    baoGia: baoGiaGiaiDoan(
-      p.clientQuotes.map((q) => ({
-        status: q.status,
-        createdAt: q.createdAt,
-        beforeVat: computeClientQuoteTotals(q.lines, q.vatPercent).beforeVat,
-      }))
-    ),
+    baoGia: chaoGia ?? baoGiaChiTiet,
     duToan: computeProfit(p.estimateItems, null, null).totalCost,
     muaHang: thuc.total,
     soDongCoGiaThuc: thuc.soDongCoGia,

@@ -16,7 +16,6 @@ import {
   computeActualCost,
   computeAmount,
   computeProfit,
-  formatPercent,
 } from "@/lib/profit";
 import { BangGiaiDoan } from "@/components/BangGiaiDoan";
 import type { GiaTriGiaiDoan } from "@/lib/giaTriGiaiDoan";
@@ -296,7 +295,7 @@ export function EstimateEditor({
                 </thead>
               {block.groups.map((grp) => {
                 const subtotal = grp.rows.reduce((s, r) => s + computeAmount(r), 0);
-                const subtotalThuc = computeActualCost(grp.rows).total;
+                const thucNhom = computeActualCost(grp.rows);
                 return (
                   <Fragment key={grp.label}>
                   <tbody>
@@ -308,8 +307,24 @@ export function EstimateEditor({
                         {formatVND(subtotal)}
                       </td>
                       <td colSpan={2} className="border-l border-slate-100" />
-                      <td className="px-3 py-1.5 text-right text-xs font-medium text-amber-700">
-                        {formatVND(subtotalThuc)}
+                      <td
+                        className="px-3 py-1.5 text-right text-xs font-medium text-amber-700"
+                        title={
+                          thucNhom.soDongCoGia < thucNhom.soDong
+                            ? `${thucNhom.soDongCoGia}/${thucNhom.soDong} dòng có giá thực — dòng còn lại tạm theo dự toán`
+                            : undefined
+                        }
+                      >
+                        {thucNhom.soDongCoGia === 0 ? (
+                          <span className="text-slate-300">—</span>
+                        ) : (
+                          <>
+                            {formatVND(thucNhom.total)}
+                            {thucNhom.soDongCoGia < thucNhom.soDong && (
+                              <span className="ml-1 font-normal text-slate-400">*</span>
+                            )}
+                          </>
+                        )}
                       </td>
                       {canEdit && <td />}
                     </tr>
@@ -451,16 +466,11 @@ export function EstimateEditor({
 
       {/* Tổng hợp chi phí / lợi nhuận */}
       <div className="space-y-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <h3 className="mb-3 text-base font-semibold text-slate-900">Chi phí & Lợi nhuận</h3>
-          <dl className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-slate-500">Tổng chi phí</dt>
-              <dd className="font-semibold text-slate-900">{formatVND(summary.totalCost)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-slate-500">Giá bán</dt>
-              <dd className="text-right font-semibold text-slate-900">
+        {giaiDoan && (
+          <BangGiaiDoan
+            g={giaiDoan}
+            chiPhiM2={summary.costPerM2}
+            oHopDong={<>
                 {canEdit ? (
                   <OSoSua
                     nhan="Giá bán (chưa VAT)"
@@ -482,33 +492,9 @@ export function EstimateEditor({
                     Theo HĐ {giaBanTheoHD.join(", ")}
                   </a>
                 )}
-              </dd>
-            </div>
-            <div className="my-2 border-t border-slate-100" />
-            <div className="flex justify-between">
-              <dt className="text-slate-500">Lợi nhuận</dt>
-              <dd
-                className={`font-bold ${
-                  summary.profit >= 0 ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {formatVND(summary.profit)}
-              </dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-slate-500">Biên lợi nhuận</dt>
-              <dd className="font-medium text-slate-700">{formatPercent(summary.margin)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-slate-500">Chi phí / m²</dt>
-              <dd className="font-medium text-slate-700">
-                {summary.costPerM2 != null ? formatVND(summary.costPerM2) : "—"}
-              </dd>
-            </div>
-          </dl>
-        </div>
-
-        {giaiDoan && <BangGiaiDoan g={giaiDoan} />}
+              </>}
+          />
+        )}
 
         {summary.groupSubtotals.length > 0 && (
           <div className="rounded-xl border border-slate-200 bg-white p-5">
