@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { canAccessProject } from "@/lib/scope";
 import { buildEstimateWorkbook, type ExportProject } from "@/lib/estimateExport";
+import { settlementFromContracts } from "@/lib/contract";
 
 export async function GET(
   _req: Request,
@@ -25,6 +26,12 @@ export async function GET(
         orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
       },
       estimateSections: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
+      contracts: {
+        select: {
+          status: true,
+          items: { select: { qty: true, unitPrice: true, amount: true, settleQty: true } },
+        },
+      },
     },
   });
   if (!project) return new Response("Not found", { status: 404 });
@@ -33,6 +40,7 @@ export async function GET(
     code: project.code,
     name: project.name,
     salePrice: project.salePrice,
+    quyetToan: settlementFromContracts(project.contracts),
     area: project.area,
     sections: project.estimateSections.map((s) => ({
       id: s.id,

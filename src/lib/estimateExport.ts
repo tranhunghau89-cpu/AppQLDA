@@ -29,6 +29,8 @@ export interface ExportProject {
   code: string;
   name: string;
   salePrice: number | null;
+  /** Giá trị quyết toán chưa VAT; null = chưa quyết toán. */
+  quyetToan: number | null;
   area: number | null;
   items: ExportItem[];
   sections: ExportSection[];
@@ -168,8 +170,11 @@ export async function buildEstimateWorkbook(
     ]).font = { italic: true, color: { argb: "FF888888" } };
   }
   if (opts.showProfit) {
-    ws.addRow(["", "", "", "", "Giá bán", s.salePrice, "", "Giá bán", s.salePrice]);
-    ws.addRow(["", "", "", "", "Lợi nhuận", s.profit, "", "Lợi nhuận thực", s.salePrice - thuc.total]).font = { bold: true };
+    // Lợi nhuận thực = quyết toán − chi phí thực; chưa quyết toán thì tạm theo giá HĐ.
+    const doanhThu = p.quyetToan ?? s.salePrice;
+    const nhanDoanhThu = p.quyetToan != null ? "Quyết toán" : "Giá bán (tạm, chưa QT)";
+    ws.addRow(["", "", "", "", "Giá bán", s.salePrice, "", nhanDoanhThu, doanhThu]);
+    ws.addRow(["", "", "", "", "Lợi nhuận", s.profit, "", "Lợi nhuận thực", doanhThu - thuc.total]).font = { bold: true };
   }
 
   ws.getColumn(4).numFmt = "#,##0.##";
