@@ -14,6 +14,7 @@ import {
   ShoppingCart,
   Wallet,
   Receipt,
+  ListChecks,
   HandCoins,
   Building2,
   UserSearch,
@@ -92,6 +93,7 @@ const NAV: NavGroup[] = [
   {
     ten: "Bán hàng",
     items: [
+      { href: "/quy-trinh-bao-gia", label: "Quy trình báo giá", icon: ListChecks, resource: "customer" },
       {
         href: "/khach-hang",
         label: "Khách hàng (CRM)",
