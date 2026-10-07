@@ -11,7 +11,7 @@ import { useEffect, useRef, type ReactNode } from "react";
  * các tờ đã cắt, để không phụ thuộc vào Paged.js lúc in thật.
  */
 const CSS_TRANG = `
-@page { size: A4; margin: 15mm; }
+@page { size: A4; margin: 20mm 15mm 20mm 30mm; }
 .trang-in { margin: 0 !important; padding: 0 !important; max-width: none !important;
   min-height: 0 !important; box-shadow: none !important; }
 tr, img, .giu-nguyen-khoi { break-inside: avoid; }

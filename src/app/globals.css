@@ -37,11 +37,11 @@ body {
 }
 
 @media print {
-  /* Khổ A4, lề 15mm. Header/footer của trình duyệt do người dùng tự tắt trong hộp
+  /* Khổ A4, lề theo Nghị định 30/2020/NĐ-CP: trên 20, dưới 20, trái 30, phải 15mm. Header/footer của trình duyệt do người dùng tự tắt trong hộp
      thoại in — không có cách nào tắt từ CSS. */
   @page {
     size: A4;
-    margin: 15mm;
+    margin: 20mm 15mm 20mm 30mm;
   }
 
   html,

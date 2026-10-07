@@ -103,14 +103,14 @@ export function PrintSignatures({
 /**
  * Khung giấy A4: trên màn hình trông như tờ giấy, khi in thì tràn đúng khổ.
  *
- * Lề 15mm trên màn hình cố ý TRÙNG với `@page { margin: 15mm }` trong globals.css,
- * nên bề rộng chữ khi xem trước đúng bằng bề rộng chữ khi in (210 - 2×15 = 180mm).
+ * Lề trên màn hình (trên/dưới 20, trái 30, phải 15mm — Nghị định 30/2020) cố ý TRÙNG với `@page` trong globals.css,
+ * nên bề rộng chữ khi xem trước đúng bằng bề rộng chữ khi in (210 - 30 - 15 = 165mm).
  * Lúc in thì bỏ lề của khối này đi, để lề giấy do @page lo — nếu giữ cả hai thì
  * lề bị cộng đôi thành 30mm.
  */
 export function PrintPage({ children }: { children: ReactNode }) {
   return (
-    <div className="trang-in mx-auto my-6 min-h-[297mm] w-full max-w-[210mm] p-[15mm] shadow-sm print:my-0 print:min-h-0 print:p-0 print:shadow-none">
+    <div className="trang-in mx-auto my-6 min-h-[297mm] w-full max-w-[210mm] pb-[20mm] pl-[30mm] pr-[15mm] pt-[20mm] shadow-sm print:my-0 print:min-h-0 print:p-0 print:shadow-none">
       {children}
     </div>
   );
