@@ -57,7 +57,7 @@ export function ClientQuoteEditor({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       {canEdit && (
         <div className="flex justify-end">
           <Button size="sm" onClick={() => setHeaderModal({ editing: null })}>
