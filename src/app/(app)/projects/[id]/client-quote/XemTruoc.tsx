@@ -50,8 +50,15 @@ export function XemTruoc({
           <Button
             onClick={() => {
               // In nội dung của iframe, không phải trang nền phía sau.
-              khung.current?.contentWindow?.focus();
-              khung.current?.contentWindow?.print();
+              const cua = khung.current?.contentWindow;
+              if (!cua) return;
+              // Tên tệp PDF mặc định lấy theo tiêu đề trang — có trình duyệt lấy của
+              // trang ngoài chứ không phải iframe, nên mượn tạm tên báo giá cho trang ngoài.
+              const tenCu = document.title;
+              document.title = cua.document.title || tenCu;
+              cua.focus();
+              cua.print();
+              document.title = tenCu;
             }}
           >
             <Printer className="h-4 w-4" aria-hidden="true" /> In / Lưu PDF
