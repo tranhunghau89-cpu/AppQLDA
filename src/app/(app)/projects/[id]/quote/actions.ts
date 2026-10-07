@@ -32,6 +32,7 @@ import {
   ropKhoiLuongTheoDienTich,
 } from "@/lib/thuVien/boHangMuc";
 import { tinhKhoiLuongDanXuat } from "@/lib/thuVien/danXuat";
+import { ngayTraGia } from "@/lib/thuVien/gia";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -793,7 +794,7 @@ async function chotGiaThuVien(
     if (!bt || bt.congTacId !== congTacId) bienTheId = null;
   }
 
-  const ngay = new Date();
+  const ngay = ngayTraGia();
   const kq = chonDonGia(await ungVienGia([congTacId], ngay), {
     congTacId,
     congTacVatTuId: bienTheId,
@@ -840,7 +841,7 @@ export async function goiYDonGia(
     where: { id: quoteId },
     select: { khuVucId: true },
   });
-  const ngay = new Date();
+  const ngay = ngayTraGia();
   const kq = chonDonGia(await ungVienGia([congTacId], ngay), {
     congTacId,
     congTacVatTuId,
@@ -922,7 +923,7 @@ export async function capNhatGiaTuThuVien(
   );
   if (congTacCuaDong.size === 0) return { ok: true };
 
-  const ngay = new Date();
+  const ngay = ngayTraGia();
   const ungVien = await ungVienGia([...new Set(congTacCuaDong.values())], ngay);
 
   const capNhat = [];
@@ -1134,7 +1135,7 @@ export async function apBoHangMucVaoDuToan(
   );
 
   const markup = quote.markup ?? 1;
-  const ngay = new Date();
+  const ngay = ngayTraGia();
   const congTacIds = [...new Set(khung.dong.map((d) => d.congTacId).filter((x): x is string => !!x))];
   const ungVien = await ungVienGia(congTacIds, ngay);
 

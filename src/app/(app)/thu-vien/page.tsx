@@ -3,13 +3,13 @@ import { Layers, MapPin, Package } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
 import { can, type Role } from "@/lib/rbac";
-import { chonDonGia, type DongGiaUngVien } from "@/lib/thuVien/gia";
+import { chonDonGia, type DongGiaUngVien, ngayTraGia } from "@/lib/thuVien/gia";
 import { CongTacGrid, type CongTacView } from "./CongTacGrid";
 
 export default async function ThuVienPage() {
   const session = await requireView("thuVien");
   const canEdit = can(session.role as Role, "thuVien", "edit");
-  const ngay = new Date();
+  const ngay = ngayTraGia();
 
   // Một truy vấn cho công tác, một cho toàn bộ bản giá còn hiệu lực tới hôm nay.
   // KHÔNG hỏi giá từng công tác một: 135 công tác là 135 lượt đi về cơ sở dữ liệu

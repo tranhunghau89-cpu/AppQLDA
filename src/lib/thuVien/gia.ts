@@ -184,3 +184,12 @@ export function phatHienTroiGia(
 export function nhanTroiGia(cu: number, moi: number): string {
   return `Đơn giá TV đã đổi: ${formatNumber(cu)} → ${formatNumber(moi)}`;
 }
+
+/**
+ * Mốc "hôm nay" để tra đơn giá. Máy chủ chạy giờ UTC, còn bản giá lưu theo NGÀY Việt
+ * Nam (00:00 của ngày đó). Dùng `new Date()` thì từ 0h tới 7h sáng giờ VN, bản giá
+ * hiệu lực "hôm nay" bị coi là giá tương lai và bị bỏ qua. Dời mốc sang giờ VN.
+ */
+export function ngayTraGia(): Date {
+  return new Date(Date.now() + 7 * 60 * 60 * 1000);
+}

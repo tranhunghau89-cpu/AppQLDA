@@ -9,7 +9,7 @@ import { laCongThuc, tinhBieuThuc } from "@/lib/bieuThuc";
 import { docBangChiTiet, type DongBoc } from "@/lib/import/bocChiTiet";
 import { dienGiaiCach, tongChiTiet } from "@/lib/khoiLuong/tongChiTiet";
 import { ESTIMATE_GROUP_MAP } from "@/lib/constants";
-import { chonDonGia } from "@/lib/thuVien/gia";
+import { chonDonGia, ngayTraGia } from "@/lib/thuVien/gia";
 import { computeTemplateLines, type TemplateLine } from "@/lib/estimateTemplate";
 import {
   doXuongDuToan,
@@ -772,7 +772,7 @@ export async function suaCongViecEstimate(
     if (!ten) return { ok: false, error: "Tên hạng mục không được để trống." };
     await db.estimateItem.update({ where: { id: itemId }, data: { name: ten } });
   } else {
-    const ngay = new Date();
+    const ngay = ngayTraGia();
     const [dong, ct, project, ungVien] = await Promise.all([
       db.estimateItem.findUnique({
         where: { id: itemId },

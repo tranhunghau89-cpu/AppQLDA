@@ -2,6 +2,7 @@ import { getSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { bangGiaChung } from "@/lib/thuVien/bangGiaDb";
 import { taoFileBangGia } from "@/lib/thuVien/bangGiaExcel";
+import { ngayTraGia } from "@/lib/thuVien/gia";
 
 /**
  * Tải bảng giá chung hiện hành ra Excel để sửa rồi nộp lại. Tên cột là khuôn mà
@@ -12,7 +13,7 @@ export async function GET() {
   if (!session) return new Response("Unauthorized", { status: 401 });
   if (!can(session.role, "thuVien", "view")) return new Response("Forbidden", { status: 403 });
 
-  const ngay = new Date();
+  const ngay = ngayTraGia();
   const bang = await bangGiaChung(ngay);
 
   const wb = taoFileBangGia(bang);

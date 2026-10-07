@@ -7,7 +7,7 @@
 import "server-only";
 import { cache } from "react";
 import { db } from "@/lib/db";
-import { chonDonGia, type DongGiaUngVien } from "./gia";
+import { chonDonGia, type DongGiaUngVien, ngayTraGia } from "./gia";
 
 export interface CongTacCoGia {
   id: string;
@@ -27,7 +27,7 @@ export interface CongTacCoGia {
  * Bọc `cache()` vì trang và trình soạn thảo trong cùng một lần tải đều hỏi cái này.
  */
 export const napCongTacCoGia = cache(async (): Promise<CongTacCoGia[]> => {
-  const ngay = new Date();
+  const ngay = ngayTraGia();
   const [congTacs, banGias] = await Promise.all([
     db.congTac.findMany({
       where: { active: true },

@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
 import { can, type Role } from "@/lib/rbac";
 import { ESTIMATE_GROUP_MAP, WORK_GROUP_MAP, labelOf } from "@/lib/constants";
-import { chonDonGia } from "@/lib/thuVien/gia";
+import { chonDonGia, ngayTraGia } from "@/lib/thuVien/gia";
 import { quyCachBoSung } from "@/lib/text";
 import { DonGiaTimeline, type BanGiaView } from "./DonGiaTimeline";
 import { BienTheEditor, type BienTheView } from "./BienTheEditor";
@@ -52,7 +52,7 @@ export default async function Page({
   ]);
   if (!congTac) notFound();
 
-  const ngay = new Date();
+  const ngay = ngayTraGia();
   const hienHanh = chonDonGia(congTac.donGia, { congTacId: congTac.id, ngay });
 
   const banGias: BanGiaView[] = congTac.donGia.map((g) => ({

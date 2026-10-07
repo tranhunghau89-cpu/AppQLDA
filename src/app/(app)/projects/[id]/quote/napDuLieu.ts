@@ -9,7 +9,7 @@ import { nguonCloneBaoGia, type CloneSourceRow } from "@/lib/quoteCloneSources";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
 import { whereCuaChu } from "@/lib/quoteOwner";
 import type { SessionUser } from "@/lib/session";
-import { chonDonGia, phatHienTroiGia, type DongGiaUngVien } from "@/lib/thuVien/gia";
+import { chonDonGia, phatHienTroiGia, type DongGiaUngVien, ngayTraGia } from "@/lib/thuVien/gia";
 import type { CatalogOption, QuoteView } from "./types";
 
 export async function napDuLieuBaoGia(
@@ -22,7 +22,7 @@ export async function napDuLieuBaoGia(
   khuVucs: { id: string; ma: string; ten: string }[];
   boHangMucs: { id: string; ma: string; ten: string; loaiCongTrinh: string | null; soPhan: number; soDong: number }[];
 }> {
-  const ngay = new Date();
+  const ngay = ngayTraGia();
 
   const [rawQuotes, congTacs, banGias, khuVucs, boRows, cloneSources] = await Promise.all([
     db.quote.findMany({
