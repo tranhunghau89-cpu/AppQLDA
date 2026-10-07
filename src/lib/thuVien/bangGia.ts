@@ -72,6 +72,11 @@ export function soSanhBangGia(
     if (d.donGia == null && d.vatTu == null && d.nhanCongMay == null) continue;
 
     const donGia = donGiaCuaDong(d);
+    // Giá 0 sẵn có trong thư viện (dữ liệu cũ) mà người dùng để nguyên: không phải lỗi.
+    if (donGia === 0 && hienTai.get(ma)?.donGia === 0) {
+      khongDoi++;
+      continue;
+    }
     if (!Number.isFinite(donGia) || donGia <= 0) {
       loi.push(`Mã ${ma}: đơn giá phải lớn hơn 0 — bỏ qua.`);
       continue;

@@ -88,3 +88,10 @@ describe("chốt chặn giá 0", () => {
     expect(kq.loi).toHaveLength(1);
   });
 });
+
+describe("giá 0 sẵn có", () => {
+  it("để nguyên giá 0 cũ thì tính là giữ nguyên, không báo lỗi", () => {
+    const kq = soSanhBangGia([dong({ ma: "A", donGia: 0 })], new Map([["A", gia(0)]]));
+    expect(kq).toEqual({ thayDoi: [], khongDoi: 1, loi: [] });
+  });
+});
