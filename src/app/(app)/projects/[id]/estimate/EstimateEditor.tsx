@@ -249,19 +249,43 @@ export function EstimateEditor({
                 </div>
               </div>
 
+              {/* Một bảng cho cả hạng mục, cột cố định độ rộng để các nhóm thẳng hàng nhau. */}
+              <Table className="table-fixed">
+                <colgroup>
+                  <col />
+                  <col className="w-16" />
+                  <col className="w-28" />
+                  <col className="w-28" />
+                  <col className="w-36" />
+                  {canEdit && <col className="w-28" />}
+                </colgroup>
+                <thead>
+                  <tr className="bg-white text-xs font-medium uppercase tracking-wide text-slate-500">
+                    <th className="px-3 py-2 pl-6 text-left">Công việc</th>
+                    <th className="px-3 py-2 text-left">ĐVT</th>
+                    <th className="px-3 py-2 text-right">Khối lượng</th>
+                    <th className="px-3 py-2 text-right">Đơn giá</th>
+                    <th className="px-3 py-2 text-right">Thành tiền</th>
+                    {canEdit && <th className="px-3 py-2" />}
+                  </tr>
+                </thead>
               {block.groups.map((grp) => {
                 const subtotal = grp.rows.reduce((s, r) => s + computeAmount(r), 0);
                 return (
                   <Fragment key={grp.label}>
-                    <div className="flex items-center justify-between border-y border-slate-100 bg-slate-50 px-4 py-1.5">
-                      <span className="text-sm font-semibold text-slate-700">{grp.label}</span>
-                      <span className="text-xs font-medium text-slate-500">{formatVND(subtotal)}</span>
-                    </div>
-                    <Table>
-                      <tbody>
+                  <tbody>
+                    <tr className="border-y border-slate-100 bg-slate-50">
+                      <td colSpan={4} className="px-4 py-1.5 text-sm font-semibold text-slate-700">
+                        {grp.label}
+                      </td>
+                      <td className="px-3 py-1.5 text-right text-xs font-medium text-slate-500">
+                        {formatVND(subtotal)}
+                      </td>
+                      {canEdit && <td />}
+                    </tr>
                         {grp.rows.map((r) => (
                           <Tr key={r.id}>
-                            <Td className="pl-6 text-slate-800">
+                            <Td className="pl-6 text-slate-800 break-words">
                               {canEdit ? (
                                 <>
                                   {/* Gõ để đổi tên, hoặc chọn công tác khác của thư viện. */}
@@ -352,11 +376,11 @@ export function EstimateEditor({
                             )}
                           </Tr>
                         ))}
-                      </tbody>
-                    </Table>
+                  </tbody>
                   </Fragment>
                 );
               })}
+              </Table>
             </div>
           );
         })}
