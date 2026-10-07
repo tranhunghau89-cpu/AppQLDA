@@ -31,6 +31,7 @@ export function ClientQuoteCard({
   canEditCrm,
   onEdit,
   onAddLine,
+  onApBo,
   onEditLine,
   onAddSpec,
   onEditSpec,
@@ -44,6 +45,7 @@ export function ClientQuoteCard({
   canEditCrm: boolean;
   onEdit: () => void;
   onAddLine: () => void;
+  onApBo: () => void;
   onEditLine: (l: LineView) => void;
   onAddSpec: (groupCode: string) => void;
   onEditSpec: (s: SpecView) => void;
@@ -253,9 +255,14 @@ export function ClientQuoteCard({
 
       <div className="flex flex-wrap items-end justify-between gap-4 border-t border-slate-100 p-4">
         {canEdit && (
-          <Button variant="outline" size="sm" onClick={onAddLine}>
-            <Plus className="h-4 w-4" /> Thêm hạng mục
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={onApBo}>
+              <ListChecks className="h-4 w-4" /> Áp bộ hạng mục
+            </Button>
+            <Button variant="outline" size="sm" onClick={onAddLine}>
+              <Plus className="h-4 w-4" /> Thêm hạng mục
+            </Button>
+          </div>
         )}
         <dl className="min-w-[20rem] space-y-1 text-sm">
           <div className="flex justify-between">

@@ -599,6 +599,63 @@ export async function luuOHangMuc(
   return { ok: true };
 }
 
+/**
+ * Áp các phần đã chọn của một bộ hạng mục vào báo giá ĐÃ CÓ — thêm vào cuối, kèm đơn
+ * giá mẫu, khối lượng để trống. Không đụng dòng cũ. Báo giá chưa có bảng vật liệu
+ * (lập không chọn mẫu) thì rót luôn bảng vật liệu của bộ.
+ */
+export async function apBoHangMuc(
+  chu: ChuBaoGia,
+  clientQuoteId: string,
+  templateId: string,
+  phanChon: string[]
+): Promise<ActionResult> {
+  const g = await guard(chu, { clientQuoteId });
+  if (g) return g;
+  if (phanChon.length === 0) return { ok: false, error: "Chưa chọn hạng mục nào." };
+
+  const mau = await napMau(templateId, phanChon);
+  if (!mau) return { ok: false, error: "Không tìm thấy bộ hạng mục." };
+  const k = apDungMau(mau);
+  if (k.lines.length === 0) {
+    return { ok: false, error: "Các phần đã chọn không có mặt gửi khách." };
+  }
+
+  const [max, soSpec] = await Promise.all([
+    db.clientQuoteLine.aggregate({
+      where: { quoteId: clientQuoteId },
+      _max: { sortOrder: true },
+    }),
+    db.clientQuoteSpec.count({ where: { quoteId: clientQuoteId } }),
+  ]);
+  const batDau = (max._max.sortOrder ?? -1) + 1;
+
+  await db.$transaction(async (tx) => {
+    await tx.clientQuoteLine.createMany({
+      data: k.lines.map((l, i) => ({
+        quoteId: clientQuoteId,
+        partCode: l.partCode,
+        partName: l.partName,
+        code: l.code,
+        name: l.name,
+        detail: l.detail,
+        unit: l.unit,
+        note: l.note,
+        unitPrice: l.defaultUnitPrice,
+        tags: l.tags,
+        steelFrameKey: l.steelFrameKey,
+        sortOrder: batDau + i,
+      })),
+    });
+    if (soSpec === 0) {
+      await tx.clientQuoteSpec.createMany({ data: bangConCuaMau(clientQuoteId, k).specs });
+    }
+  });
+
+  paths(chu);
+  return { ok: true };
+}
+
 export async function deleteLine(chu: ChuBaoGia, lineId: string): Promise<ActionResult> {
   const g = await guard(chu, { lineId });
   if (g) return g;

@@ -31,7 +31,9 @@ export async function danhSachMoTaMau(): Promise<MoTaMauView[]> {
     id: r.id,
     noiDung: r.noiDung,
     createdByName: r.createdByName,
-    xoaDuoc: s.role === "ADMIN" || r.createdById === s.userId,
+    xoaDuoc:
+      can(s.role as Role, "quote", "edit") &&
+      (s.role === "ADMIN" || r.createdById === s.userId),
   }));
 }
 
@@ -54,6 +56,9 @@ export async function luuMoTaMau(noiDung: string): Promise<KetQua> {
 
 export async function xoaMoTaMau(id: string): Promise<KetQua> {
   const s = await requireSession();
+  if (!can(s.role as Role, "quote", "edit")) {
+    return { ok: false, error: "Bạn không có quyền xóa mẫu mô tả." };
+  }
   const r = await db.moTaMau.findUnique({ where: { id }, select: { createdById: true } });
   if (!r) return { ok: true };
   if (s.role !== "ADMIN" && r.createdById !== s.userId) {

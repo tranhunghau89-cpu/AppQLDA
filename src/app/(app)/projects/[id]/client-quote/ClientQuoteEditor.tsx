@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ClientQuoteCard } from "./ClientQuoteCard";
 import { HeaderModal, type GoiY } from "./HeaderModal";
 import { LineModal, type LineModalState } from "./LineModal";
+import { ApBoModal } from "./ApBoModal";
 import { SpecModal, type SpecModalState } from "./SpecModal";
 import { TermsModal, type TermsModalState } from "./TermsModal";
 import { XemTruoc } from "./XemTruoc";
@@ -48,7 +49,10 @@ export function ClientQuoteEditor({
   // để nạp lại.
   const [xemTruoc, setXemTruoc] = useState<{ id: string; title: string } | null>(null);
 
+  const [apBo, setApBo] = useState<string | null>(null);
+
   function closeAll() {
+    setApBo(null);
     setHeaderModal(null);
     setLineModal(null);
     setSpecModal(null);
@@ -86,6 +90,7 @@ export function ClientQuoteEditor({
           canEditCrm={canEditCrm}
           onEdit={() => setHeaderModal({ editing: q })}
           onAddLine={() => setLineModal({ quoteId: q.id, editing: null })}
+          onApBo={() => setApBo(q.id)}
           onEditLine={(l: LineView) => setLineModal({ quoteId: q.id, editing: l })}
           onAddSpec={(groupCode) =>
             setSpecModal({ quoteId: q.id, editing: null, defaultGroup: groupCode })
@@ -114,6 +119,17 @@ export function ClientQuoteEditor({
           templates={templates}
           templateGoiY={templateGoiY}
           onClose={() => setHeaderModal(null)}
+          onDone={closeAll}
+        />
+      )}
+
+      {apBo && (
+        <ApBoModal
+          chu={chu}
+          quoteId={apBo}
+          templates={templates}
+          goiY={templateGoiY}
+          onClose={() => setApBo(null)}
           onDone={closeAll}
         />
       )}
