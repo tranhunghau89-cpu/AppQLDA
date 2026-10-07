@@ -73,6 +73,15 @@ function paths(chu: ChuBaoGia) {
   }
 }
 
+/**
+ * Hạng mục người lập tích chọn trong ô mẫu. Ô chọn có dựng (cờ `coChonPhan`) thì tôn
+ * trọng kể cả khi bỏ hết; không dựng thì `null` — theo mặc định của bộ.
+ */
+function phanChonCua(form: FormData): string[] | null {
+  if (form.get("coChonPhan") === null) return null;
+  return form.getAll("phanChon").map(String);
+}
+
 /** Chỉ dự án mới có id dự án để ghi vào nhật ký; báo giá ở cơ hội thì chưa có. */
 const duAnCuaChu = (chu: ChuBaoGia) => (chu.loai === "DU_AN" ? chu.id : null);
 
@@ -299,7 +308,7 @@ export async function saveClientQuote(
   } else {
     // Mẫu chỉ có nghĩa lúc TẠO. Sửa báo giá cũ mà đổi mẫu thì phải ghi đè cả bảng
     // vật liệu và điều khoản người dùng đã chỉnh tay — không làm.
-    id = await taoMoiKemMacDinh(chu, data, s(form, "templateId") || null);
+    id = await taoMoiKemMacDinh(chu, data, s(form, "templateId") || null, phanChonCua(form));
   }
 
   await recordAudit({
@@ -819,7 +828,7 @@ export async function generateFromQuote(
   const boiCanh = await boiCanhChu(chu);
 
   const templateId = s(form, "templateId") || null;
-  const k = apDungMau(await napMau(templateId));
+  const k = apDungMau(await napMau(templateId, phanChonCua(form)));
 
   // Mẫu có khai hạng mục thì dùng khuôn của mẫu (giữ được thứ tự, nhãn vật tư, mô
   // tả riêng đã soạn). Không có mẫu — hoặc mẫu để trống phần hạng mục — thì khuôn

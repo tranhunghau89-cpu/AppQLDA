@@ -6,6 +6,17 @@ export interface TemplateOption {
   id: string;
   name: string;
   buildingType: string | null;
+  /** Các phần của bộ — người lập tích chọn phần nào thành hạng mục báo giá. */
+  phan?: PhanChon[];
+}
+
+export interface PhanChon {
+  ma: string;
+  ten: string;
+  donVi: string | null;
+  donGia: number | null;
+  /** Tích sẵn khi mở — cờ "in cho khách" của bộ. */
+  macDinh: boolean;
 }
 
 export interface TemplateChoices {
@@ -30,18 +41,35 @@ export async function templateChoices(
   const bos = await db.boHangMuc.findMany({
     where: { active: true },
     orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
-    select: { id: true, ten: true, loaiCongTrinh: true, sortOrder: true },
+    select: {
+      id: true,
+      ten: true,
+      loaiCongTrinh: true,
+      sortOrder: true,
+      phan: {
+        where: { parentId: null },
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+        select: { ma: true, ten: true, tenKhachHang: true, donViKhach: true, donGiaKhach: true, inChoKhach: true },
+      },
+    },
   });
   const rows = bos.map((b) => ({
     id: b.id,
     name: b.ten,
     buildingType: b.loaiCongTrinh,
     sortOrder: b.sortOrder,
+    phan: b.phan.map((p) => ({
+      ma: p.ma,
+      ten: p.tenKhachHang ?? p.ten,
+      donVi: p.donViKhach,
+      donGia: p.donGiaKhach,
+      macDinh: p.inChoKhach,
+    })),
   }));
 
   const hop = matchTemplate(rows, buildingType);
   return {
-    options: rows.map(({ id, name, buildingType: bt }) => ({ id, name, buildingType: bt })),
+    options: rows.map(({ id, name, buildingType: bt, phan }) => ({ id, name, buildingType: bt, phan })),
     goiY: hop?.id ?? null,
   };
 }

@@ -243,9 +243,13 @@ export function dungKhungDuToan(
  * `sourceSectionCode` chính là mã phần nội bộ: đó là cách bản gửi khách suy đơn giá m²
  * từ đúng phần giá vốn tương ứng.
  */
-export function dungKhuonGuiKhach(phanNguon: readonly PhanKhung[]): LineSeed[] {
+export function dungKhuonGuiKhach(
+  phanNguon: readonly PhanKhung[],
+  /** Mã phần người lập đã tích chọn. `null` = theo mặc định `inChoKhach` của bộ. */
+  chon: readonly string[] | null = null
+): LineSeed[] {
   return [...phanNguon]
-    .filter((p) => p.inChoKhach)
+    .filter((p) => (chon ? chon.includes(p.ma) : p.inChoKhach))
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((p) => ({
       partCode: p.partCode,

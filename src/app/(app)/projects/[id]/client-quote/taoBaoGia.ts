@@ -20,7 +20,11 @@ import { laVatTuChinh } from "@/lib/clientQuoteSpecs";
  * Bộ đã bị xóa (hoặc id bịa) trả null — báo giá vẫn lập được bằng giá trị mặc định,
  * chứ không báo lỗi chặn người dùng lại.
  */
-export async function napMau(templateId: string | null): Promise<MauNguon | null> {
+export async function napMau(
+  templateId: string | null,
+  /** Mã phần được chọn làm hạng mục; `null` = theo mặc định của bộ. */
+  phanChon: string[] | null = null
+): Promise<MauNguon | null> {
   if (!templateId) return null;
   const t = await db.boHangMuc.findUnique({
     where: { id: templateId },
@@ -47,7 +51,7 @@ export async function napMau(templateId: string | null): Promise<MauNguon | null
     colorNote: t.colorNote,
     volumeNote: t.volumeNote,
     excludeNote: t.excludeNote,
-    lines: dungKhuonGuiKhach(t.phan),
+    lines: dungKhuonGuiKhach(t.phan, phanChon),
     // Bảng TSKT giờ lấy chữ từ vật tư trong thư viện: sửa quy cách tôn một chỗ là
     // mọi bộ dùng nó cùng đổi, thay vì phải sửa từng mẫu như trước.
     specs: t.vatLieu.map((r) => ({
@@ -89,9 +93,10 @@ export function bangConCuaMau(quoteId: string, k: KhuonBaoGia) {
 export async function taoMoiKemMacDinh(
   chu: ChuBaoGia,
   data: Record<string, unknown>,
-  templateId: string | null
+  templateId: string | null,
+  phanChon: string[] | null = null
 ): Promise<string> {
-  const k = apDungMau(await napMau(templateId));
+  const k = apDungMau(await napMau(templateId, phanChon));
 
   return db.$transaction(async (tx) => {
     const q = await tx.clientQuote.create({
