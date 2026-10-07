@@ -23,8 +23,7 @@ export function PrintToolbar({ quayVe, nhan }: { quayVe: string; nhan: string })
         </Link>
         <div className="flex items-center gap-3">
           <span className="hidden text-xs text-slate-500 sm:inline">
-            Trong hộp thoại in, chọn <strong>Lưu thành PDF</strong> và tắt phần đầu/chân
-            trang của trình duyệt.
+            Trong hộp thoại in, chọn <strong>Lưu thành PDF</strong>.
           </span>
           <button
             type="button"

@@ -37,11 +37,19 @@ body {
 }
 
 @media print {
-  /* Khổ A4, lề theo Nghị định 30/2020/NĐ-CP: trên 20, dưới 20, trái 30, phải 15mm. Header/footer của trình duyệt do người dùng tự tắt trong hộp
-     thoại in — không có cách nào tắt từ CSS. */
+  /* Khổ A4, lề theo Nghị định 30/2020/NĐ-CP: trên 20, dưới 20, trái 30, phải 15mm. */
   @page {
     size: A4;
     margin: 20mm 15mm 20mm 30mm;
+
+    /* Có khai báo ô lề trang thì Chrome/Edge (từ bản 131) tự bỏ phần đầu/chân trang của
+       trình duyệt — giờ in, tiêu đề tab, đường dẫn. Chỉ giữ số trang ở góc dưới phải. */
+    @top-left { content: ""; }
+    @bottom-right {
+      content: counter(page) "/" counter(pages);
+      font-size: 9pt;
+      color: #64748b;
+    }
   }
 
   html,

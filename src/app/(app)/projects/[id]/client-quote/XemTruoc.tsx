@@ -75,7 +75,7 @@ export function XemTruoc({
       </div>
       <p className="mt-2 text-xs text-slate-400">
         Đây đúng là trang sẽ in ra. Trong hộp thoại in, chọn <strong>Lưu thành PDF</strong>{" "}
-        và tắt phần đầu/chân trang của trình duyệt.
+        (Chrome/Edge tự bỏ ngày giờ và đường dẫn ở đầu/chân trang).
       </p>
     </Modal>
   );
