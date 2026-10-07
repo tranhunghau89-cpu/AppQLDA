@@ -71,7 +71,13 @@ export default async function BuocQuyTrinhPage({
         },
       }),
       db.quote.count({ where: { coHoiId, items: { some: {} } } }),
-      db.clientQuote.count({ where: { coHoiId, lines: { some: {} } } }),
+      // Báo giá m² tạo từ mẫu có sẵn dòng nhưng chưa khối lượng — chưa tính là xong.
+      db.clientQuote.count({
+        where: {
+          coHoiId,
+          lines: { some: {}, none: { qty: null, amount: null } },
+        },
+      }),
       db.clientQuote.count({
         where: { coHoiId, status: { in: BAO_GIA_DA_GUI } },
       }),
@@ -136,7 +142,9 @@ export default async function BuocQuyTrinhPage({
         khuVucMacDinh={null}
       />
     );
-  } else if (b.loai === "BAO_GIA") {
+  } else {
+    // Cả bước báo giá lẫn bước gửi khách đều hiện bảng hạng mục để sửa khối lượng,
+    // đơn giá — phát hiện sai lúc xem bản in thì sửa ngay tại chỗ, khỏi lùi bước.
     const canViewCrm = can(session.role as Role, "customer", "view");
     const canEditCrm = can(session.role as Role, "customer", "edit");
     const [duLieu, mau, nguoiLap] = await Promise.all([
@@ -144,52 +152,49 @@ export default async function BuocQuyTrinhPage({
       templateChoices(coHoi.buildingType),
       thongTinNguoiLap(session),
     ]);
+    const banGui =
+      b.loai === "GUI_KHACH" ? (
+        <GuiKhach
+          coHoiId={coHoi.id}
+          canEdit={canEdit}
+          baoGia={duLieu.quotes
+            .filter((q) => q.lines.length > 0)
+            .map((q) => ({
+              id: q.id,
+              quoteNo: q.quoteNo,
+              title: q.title,
+              status: q.status,
+              sentDate: q.sentDate ?? null,
+            }))}
+        />
+      ) : null;
     noiDung = (
-      <ClientQuoteEditor
-        chu={chu}
-        quotes={duLieu.quotes}
-        customers={duLieu.customers}
-        canEdit={canEdit}
-        canViewCrm={canViewCrm}
-        canEditCrm={canEditCrm}
-        templates={mau.options}
-        templateGoiY={mau.goiY}
-        goiY={{
-          customerId: coHoi.khachHang.customerId,
-          recipient: coHoi.khachHang.tenCty,
-          customerPhone: coHoi.khachHang.phone,
-          location: coHoi.diaDiem,
-          ...nguoiLap,
-        }}
-      />
-    );
-  } else {
-    const baoGia = await db.clientQuote.findMany({
-      where: { coHoiId, lines: { some: {} } },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        quoteNo: true,
-        title: true,
-        status: true,
-        sentDate: true,
-      },
-    });
-    noiDung = (
-      <GuiKhach
-        coHoiId={coHoi.id}
-        canEdit={canEdit}
-        baoGia={baoGia.map((q) => ({
-          ...q,
-          sentDate: q.sentDate?.toISOString() ?? null,
-        }))}
-      />
+      <>
+        {banGui}
+        <ClientQuoteEditor
+          chu={chu}
+          quotes={duLieu.quotes}
+          customers={duLieu.customers}
+          canEdit={canEdit}
+          canViewCrm={canViewCrm}
+          canEditCrm={canEditCrm}
+          templates={mau.options}
+          templateGoiY={mau.goiY}
+          goiY={{
+            customerId: coHoi.khachHang.customerId,
+            recipient: coHoi.khachHang.tenCty,
+            customerPhone: coHoi.khachHang.phone,
+            location: coHoi.diaDiem,
+            ...nguoiLap,
+          }}
+        />
+      </>
     );
   }
 
   const lyDoChuaXong: Record<string, string> = {
     DU_TOAN: "Cần ít nhất một bản dự toán có dòng công tác.",
-    BAO_GIA: "Cần ít nhất một báo giá có hạng mục.",
+    BAO_GIA: "Cần một báo giá mà mọi hạng mục đã có khối lượng.",
     GUI_KHACH: "Cần đánh dấu ít nhất một báo giá đã gửi.",
   };
 

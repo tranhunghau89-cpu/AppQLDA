@@ -51,7 +51,7 @@ const B_BAO_GIA: BuocQuyTrinh = {
   loai: "BAO_GIA",
   ten: "Báo giá gửi khách",
   huongDan:
-    "Lập báo giá gửi khách (từ mẫu, hoặc sinh từ dự toán ở bước trước), điền hạng mục, điều khoản và tiến độ thanh toán. Cần ít nhất một báo giá có hạng mục.",
+    "Lập báo giá gửi khách (từ mẫu, hoặc sinh từ dự toán ở bước trước), rồi sửa ngay trên bảng hạng mục: bấm vào ô Khối lượng, Đơn giá để điền / chỉnh, gõ vào dòng trắng cuối phần để thêm hạng mục. Kiểm điều khoản và tiến độ thanh toán. Cần mọi hạng mục có khối lượng mới đi tiếp được.",
 };
 const B_GUI: BuocQuyTrinh = {
   loai: "GUI_KHACH",
