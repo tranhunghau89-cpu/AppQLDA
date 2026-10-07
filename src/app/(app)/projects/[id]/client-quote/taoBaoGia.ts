@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { apDungMau, type KhuonBaoGia, type MauNguon } from "@/lib/quoteTemplate";
 import { dungKhuonGuiKhach } from "@/lib/thuVien/boHangMuc";
 import { duLieuChu, type ChuBaoGia } from "@/lib/quoteOwner";
+import { laVatTuChinh } from "@/lib/clientQuoteSpecs";
 
 /**
  * Nạp một BỘ HẠNG MỤC về dạng thuần để `apDungMau` nấu.
@@ -70,7 +71,7 @@ export async function napMau(templateId: string | null): Promise<MauNguon | null
 /** Ba bảng con giống hệt nhau ở mọi đường tạo báo giá — viết một lần. */
 export function bangConCuaMau(quoteId: string, k: KhuonBaoGia) {
   return {
-    specs: k.specs.map((sp, i) => ({ quoteId, ...sp, sortOrder: i })),
+    specs: k.specs.map((sp, i) => ({ quoteId, ...sp, an: !laVatTuChinh(sp.name), sortOrder: i })),
     stages: k.stages.map((st, i) => ({ quoteId, ...st, sortOrder: i })),
     payments: k.payments.map((p, i) => ({ quoteId, ...p, sortOrder: i })),
   };

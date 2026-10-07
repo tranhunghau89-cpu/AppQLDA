@@ -93,7 +93,7 @@ const NAV: NavGroup[] = [
   {
     ten: "Bán hàng",
     items: [
-      { href: "/quy-trinh-bao-gia", label: "Quy trình báo giá", icon: ListChecks, resource: "customer" },
+      { href: "/quy-trinh-bao-gia", label: "Quy trình kinh doanh", icon: ListChecks, resource: "customer" },
       {
         href: "/khach-hang",
         label: "Khách hàng (CRM)",

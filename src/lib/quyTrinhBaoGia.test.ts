@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buocDaXong, buocToiDa, chonBuoc, timQuyTrinh } from "./quyTrinhBaoGia";
+import { buocDaXong, buocToiDa, chonBuoc, dauNgayVN, timQuyTrinh } from "./quyTrinhBaoGia";
 
 const chiTiet = timQuyTrinh("chi-tiet")!;
 const nhanh = timQuyTrinh("nhanh")!;
@@ -32,5 +32,21 @@ describe("quy trình báo giá", () => {
     expect(chonBuoc(chiTiet, trong, "4")).toBe(2);
     expect(chonBuoc(chiTiet, trong, "abc")).toBe(2);
     expect(chonBuoc(chiTiet, trong, "0")).toBe(2);
+  });
+
+  it("trao đổi chỉ xong khi có ghi chép hôm nay", () => {
+    const td = timQuyTrinh("trao-doi")!;
+    expect(buocToiDa(td, {})).toBe(2);
+    expect(buocDaXong("TRAO_DOI", { soTraoDoiHomNay: 1 })).toBe(true);
+  });
+
+  it("đầu ngày theo giờ Việt Nam", () => {
+    // 23h UTC ngày 6 = 6h sáng ngày 7 giờ VN -> đầu ngày 7 VN = 17h UTC ngày 6
+    expect(dauNgayVN(new Date("2026-10-06T23:00:00Z")).toISOString()).toBe(
+      "2026-10-06T17:00:00.000Z"
+    );
+    expect(dauNgayVN(new Date("2026-10-06T16:00:00Z")).toISOString()).toBe(
+      "2026-10-05T17:00:00.000Z"
+    );
   });
 });

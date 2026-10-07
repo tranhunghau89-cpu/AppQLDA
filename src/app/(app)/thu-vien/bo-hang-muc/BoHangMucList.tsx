@@ -48,6 +48,8 @@ export interface PhanView {
   inChoKhach: boolean;
   maKhach: string | null;
   tenKhachHang: string | null;
+  donViKhach: string | null;
+  donGiaKhach: number | null;
   partCode: string;
   partName: string;
   dong: DongView[];
@@ -368,6 +370,19 @@ export function BoHangMucList({
                   name="tenKhachHang"
                   defaultValue={editingPhan.tenKhachHang ?? ""}
                   placeholder="Khung thép và tôn phần mái"
+                />
+              </Field>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Field label="Đơn vị">
+                <Input name="donViKhach" defaultValue={editingPhan.donViKhach ?? "m2"} />
+              </Field>
+              <Field label="Đơn giá mẫu (đ) — báo giá m² điền sẵn" className="sm:col-span-2">
+                <Input
+                  name="donGiaKhach"
+                  inputMode="decimal"
+                  defaultValue={editingPhan.donGiaKhach ?? ""}
+                  placeholder="695000 — trống = suy từ dự toán / nhập tay"
                 />
               </Field>
             </div>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireCoHoiView } from "@/lib/coHoiAccess";
 import { can, type Role } from "@/lib/rbac";
@@ -22,6 +22,8 @@ import { napDuLieuBaoGia } from "../../../projects/[id]/quote/napDuLieu";
 import { ClientQuoteEditor } from "../../../projects/[id]/client-quote/ClientQuoteEditor";
 import { napDuLieuBaoGiaKhach } from "../../../projects/[id]/client-quote/napDuLieu";
 import { ThanhBuoc } from "../../ThanhBuoc";
+import { DieuHuong } from "../../DieuHuong";
+import { BuocKhach } from "./BuocKhach";
 import { GuiKhach } from "./GuiKhach";
 
 /**
@@ -39,29 +41,41 @@ export default async function BuocQuyTrinhPage({
   const [{ ma, coHoiId }, { buoc }] = await Promise.all([params, searchParams]);
   const qt = timQuyTrinh(ma);
   if (!qt) notFound();
+  // Quy trình chỉ trên khách: đoạn đường dẫn này là id KHÁCH chứ không phải cơ hội.
+  if (qt.doiTuong === "KHACH")
+    return <BuocKhach qt={qt} khachHangId={coHoiId} buoc={buoc} />;
 
   const session = await requireCoHoiView("quote", coHoiId);
   const canEdit = can(session.role as Role, "quote", "edit");
 
-  const [coHoi, soDuToanCoDong, soBaoGiaCoDong, soBaoGiaDaGui] = await Promise.all([
-    db.coHoi.findUnique({
-      where: { id: coHoiId },
-      select: {
-        id: true,
-        tenCongTrinh: true,
-        diaDiem: true,
-        area: true,
-        buildingType: true,
-        trangThai: true,
-        khachHang: {
-          select: { id: true, tenCty: true, phone: true, nguoiLienHe: true, customerId: true },
+  const [coHoi, soDuToanCoDong, soBaoGiaCoDong, soBaoGiaDaGui] =
+    await Promise.all([
+      db.coHoi.findUnique({
+        where: { id: coHoiId },
+        select: {
+          id: true,
+          tenCongTrinh: true,
+          diaDiem: true,
+          area: true,
+          buildingType: true,
+          trangThai: true,
+          khachHang: {
+            select: {
+              id: true,
+              tenCty: true,
+              phone: true,
+              nguoiLienHe: true,
+              customerId: true,
+            },
+          },
         },
-      },
-    }),
-    db.quote.count({ where: { coHoiId, items: { some: {} } } }),
-    db.clientQuote.count({ where: { coHoiId, lines: { some: {} } } }),
-    db.clientQuote.count({ where: { coHoiId, status: { in: BAO_GIA_DA_GUI } } }),
-  ]);
+      }),
+      db.quote.count({ where: { coHoiId, items: { some: {} } } }),
+      db.clientQuote.count({ where: { coHoiId, lines: { some: {} } } }),
+      db.clientQuote.count({
+        where: { coHoiId, status: { in: BAO_GIA_DA_GUI } },
+      }),
+    ]);
   if (!coHoi) notFound();
 
   const tienDo: TienDoCoHoi = { soDuToanCoDong, soBaoGiaCoDong, soBaoGiaDaGui };
@@ -153,13 +167,22 @@ export default async function BuocQuyTrinhPage({
     const baoGia = await db.clientQuote.findMany({
       where: { coHoiId, lines: { some: {} } },
       orderBy: { createdAt: "desc" },
-      select: { id: true, quoteNo: true, title: true, status: true, sentDate: true },
+      select: {
+        id: true,
+        quoteNo: true,
+        title: true,
+        status: true,
+        sentDate: true,
+      },
     });
     noiDung = (
       <GuiKhach
         coHoiId={coHoi.id}
         canEdit={canEdit}
-        baoGia={baoGia.map((q) => ({ ...q, sentDate: q.sentDate?.toISOString() ?? null }))}
+        baoGia={baoGia.map((q) => ({
+          ...q,
+          sentDate: q.sentDate?.toISOString() ?? null,
+        }))}
       />
     );
   }
@@ -181,8 +204,12 @@ export default async function BuocQuyTrinhPage({
         </Link>
         <div className="flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold text-slate-900">{coHoi.tenCongTrinh}</h1>
-            <Badge tone={tt?.tone ?? "slate"}>{tt?.label ?? coHoi.trangThai}</Badge>
+            <h1 className="text-2xl font-semibold text-slate-900">
+              {coHoi.tenCongTrinh}
+            </h1>
+            <Badge tone={tt?.tone ?? "slate"}>
+              {tt?.label ?? coHoi.trangThai}
+            </Badge>
           </div>
           <p className="text-sm text-slate-500">
             {qt.ten} · {coHoi.khachHang.tenCty}
@@ -190,7 +217,12 @@ export default async function BuocQuyTrinhPage({
         </div>
       </div>
 
-      <ThanhBuoc qt={qt} hienTai={hienTai} toiDa={toiDa} hrefBuoc={(n) => `${base}?buoc=${n}`} />
+      <ThanhBuoc
+        qt={qt}
+        hienTai={hienTai}
+        toiDa={toiDa}
+        hrefBuoc={(n) => `${base}?buoc=${n}`}
+      />
 
       <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
         <span className="font-semibold">
@@ -202,7 +234,9 @@ export default async function BuocQuyTrinhPage({
       {noiDung}
 
       <DieuHuong
-        truoc={hienTai > 1 ? `${base}?buoc=${hienTai - 1}` : "/quy-trinh-bao-gia"}
+        truoc={
+          hienTai > 1 ? `${base}?buoc=${hienTai - 1}` : "/quy-trinh-bao-gia"
+        }
         tiep={xong && !laCuoi ? `${base}?buoc=${hienTai + 1}` : null}
         laCuoi={laCuoi}
         xong={xong}
@@ -217,53 +251,6 @@ function ThongTin({ nhan, giaTri }: { nhan: string; giaTri: string | null }) {
     <div className="flex gap-2">
       <dt className="w-32 shrink-0 text-slate-500">{nhan}</dt>
       <dd className="text-slate-900">{giaTri || "—"}</dd>
-    </div>
-  );
-}
-
-function DieuHuong({
-  truoc,
-  tiep,
-  laCuoi,
-  xong,
-  lyDo,
-}: {
-  truoc: string;
-  tiep: string | null;
-  laCuoi: boolean;
-  xong: boolean;
-  lyDo?: string;
-}) {
-  return (
-    <div className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-slate-200 bg-white/95 py-3 backdrop-blur">
-      <Link
-        href={truoc}
-        className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
-      >
-        <ArrowLeft className="h-4 w-4" /> Quay lại
-      </Link>
-      <div className="flex items-center gap-3">
-        {!xong && lyDo && <span className="text-sm text-amber-700">{lyDo}</span>}
-        {laCuoi && xong ? (
-          <Link
-            href="/quy-trinh-bao-gia"
-            className="inline-flex h-10 items-center gap-2 rounded-md bg-green-600 px-4 text-sm font-medium text-white hover:bg-green-700"
-          >
-            Hoàn tất
-          </Link>
-        ) : tiep ? (
-          <Link
-            href={tiep}
-            className="inline-flex h-10 items-center gap-2 rounded-md bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            Tiếp <ArrowRight className="h-4 w-4" />
-          </Link>
-        ) : (
-          <span className="inline-flex h-10 cursor-not-allowed items-center gap-2 rounded-md bg-blue-600 px-4 text-sm font-medium text-white opacity-50">
-            Tiếp <ArrowRight className="h-4 w-4" />
-          </span>
-        )}
-      </div>
     </div>
   );
 }

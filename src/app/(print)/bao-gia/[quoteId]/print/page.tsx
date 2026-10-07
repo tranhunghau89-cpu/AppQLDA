@@ -129,8 +129,9 @@ export default async function ClientQuotePrintPage({
   // Số thứ tự tự đánh, chạy liên tục qua các phần — đúng như báo giá mẫu (01…05).
   let stt = 0;
 
-  const nhomA = specs.filter((s) => s.groupCode === "A");
-  const nhomB = specs.filter((s) => s.groupCode === "B");
+  // Dòng bị ẩn vẫn góp vào mô tả hạng mục, chỉ không in trong bảng vật liệu.
+  const nhomA = specs.filter((s) => s.groupCode === "A" && !s.an);
+  const nhomB = specs.filter((s) => s.groupCode === "B" && !s.an);
 
   const trang = (
       <PrintPage>
@@ -271,7 +272,7 @@ export default async function ClientQuotePrintPage({
             <tbody>
               <NhomVatLieu ma="A" ten="Vật liệu kết cấu thép" rows={nhomA} />
               <NhomVatLieu ma="B" ten="Vật liệu tôn lợp và bao che" rows={nhomB} />
-              {specs.length === 0 && (
+              {nhomA.length + nhomB.length === 0 && (
                 <tr>
                   <Td colSpan={4} className="py-4 text-center italic text-slate-500">
                     Chưa có dòng vật liệu nào.

@@ -71,7 +71,11 @@ const num = z
 function paths(chu: ChuBaoGia) {
   revalidatePath(duongDanChu(chu));
   revalidatePath("/quotes");
-  if (chu.loai === "CO_HOI") revalidatePath("/khach-hang");
+  if (chu.loai === "CO_HOI") {
+    revalidatePath("/khach-hang");
+    // Cùng màn hình này còn được nhúng trong quy trình kinh doanh, dưới đường dẫn khác.
+    revalidatePath("/quy-trinh-bao-gia", "layout");
+  }
 }
 
 /** Chỉ dự án mới có id dự án để ghi vào nhật ký; dự toán ở cơ hội thì chưa có. */

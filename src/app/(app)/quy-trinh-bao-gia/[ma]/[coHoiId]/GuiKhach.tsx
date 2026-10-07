@@ -33,14 +33,20 @@ export function GuiKhach({
 
   function danhDauDaGui(id: string) {
     start(async () => {
-      const res = await setClientQuoteStatus({ loai: "CO_HOI", id: coHoiId }, id, "DA_GUI");
+      const res = await setClientQuoteStatus(
+        { loai: "CO_HOI", id: coHoiId },
+        id,
+        "DA_GUI",
+      );
       if (!res.ok) toast.error(res.error);
       else router.refresh();
     });
   }
 
   if (baoGia.length === 0) {
-    return <p className="text-sm text-slate-500">Chưa có báo giá nào có hạng mục.</p>;
+    return (
+      <p className="text-sm text-slate-500">Chưa có báo giá nào có hạng mục.</p>
+    );
   }
 
   return (
@@ -48,14 +54,19 @@ export function GuiKhach({
       {baoGia.map((q) => {
         const st = CLIENT_QUOTE_STATUS_MAP[q.status];
         return (
-          <li key={q.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+          <li
+            key={q.id}
+            className="flex flex-wrap items-center gap-3 px-5 py-3"
+          >
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="font-medium text-slate-900">
                   {q.quoteNo ? `${q.quoteNo} — ` : ""}
                   {q.title}
                 </span>
-                <Badge tone={st?.tone ?? "slate"}>{st?.label ?? q.status}</Badge>
+                <Badge tone={st?.tone ?? "slate"}>
+                  {st?.label ?? q.status}
+                </Badge>
               </div>
               {q.sentDate && (
                 <p className="text-xs text-slate-500">
@@ -72,7 +83,11 @@ export function GuiKhach({
               <Printer className="h-4 w-4" /> Xem bản in / PDF
             </a>
             {canEdit && q.status === "NHAP" && (
-              <Button size="sm" disabled={pending} onClick={() => danhDauDaGui(q.id)}>
+              <Button
+                size="sm"
+                disabled={pending}
+                onClick={() => danhDauDaGui(q.id)}
+              >
                 <Send className="h-4 w-4" /> Đánh dấu đã gửi
               </Button>
             )}

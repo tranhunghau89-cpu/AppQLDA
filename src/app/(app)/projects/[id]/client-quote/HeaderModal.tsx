@@ -5,6 +5,7 @@ import { Input, Select, Textarea, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { useActionForm } from "@/components/ui/useActionForm";
 import { ModalActions } from "../quote/ModalActions";
+import { DEFAULT_VAT_PERCENT } from "@/lib/clientQuoteDefaults";
 import { saveClientQuote } from "./actions";
 import { TemplatePicker } from "./TemplatePicker";
 import type { TemplateOption } from "@/lib/quoteTemplatePick";
@@ -87,7 +88,7 @@ export function HeaderModal({
 
   // Bốn số này hiện ngay trên nhãn khối gập, nên phải là state — để nhãn không nói
   // một đằng còn ô bên trong một nẻo sau khi người dùng sửa rồi gập lại.
-  const [vat, setVat] = useState(String(editing?.vatPercent ?? 10));
+  const [vat, setVat] = useState(String(editing?.vatPercent ?? DEFAULT_VAT_PERCENT));
   const [hieuLuc, setHieuLuc] = useState(String(editing?.validDays ?? 7));
   const [baoHanh, setBaoHanh] = useState(String(editing?.warrantyMonths ?? 12));
   const [baoTri, setBaoTri] = useState(String(editing?.maintenanceMonths ?? 120));

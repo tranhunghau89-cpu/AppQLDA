@@ -813,7 +813,7 @@ model ClientQuote {
   expiryDate DateTime? // = quoteDate + validDays; chốt cứng khi bấm "Đã gửi"
 
   // --- Thuế & điều khoản có cấu trúc ---
-  vatPercent        Float? @default(10)
+  vatPercent        Float? @default(8)
   warrantyMonths    Int?   @default(12) // bảo hành
   maintenanceMonths Int?   @default(120) // bảo trì phần kết cấu thép
   loadRoof          Float? // hoạt tải mái (kg/m2)
@@ -901,6 +901,9 @@ model ClientQuoteSpec {
   // bảng vật liệu ở mục 2 đã kể đủ, nhắc lại tất cả thì hạng mục mái phải gánh 7
   // gạch đầu dòng trong khi báo giá thật chỉ nêu đúng loại tôn.
   inDescription Boolean     @default(false)
+  // Ẩn khỏi bản in. Mặc định chỉ hiện vật tư chính (thép, xà gồ, tôn, vật tư phụ) —
+  // xem `laVatTuChinh`; người lập bật lại từng dòng nếu cần.
+  an            Boolean     @default(false)
   sortOrder     Int         @default(0)
 
   @@index([quoteId])
@@ -950,7 +953,7 @@ model QuoteTemplate {
   sortOrder    Int     @default(0)
 
   // --- giá trị mặc định rót vào báo giá mới ---
-  vatPercent        Float? @default(10)
+  vatPercent        Float? @default(8)
   validDays         Int?   @default(7)
   warrantyMonths    Int?   @default(12)
   maintenanceMonths Int?   @default(120)
@@ -1293,7 +1296,7 @@ model BoHangMuc {
   sortOrder     Int     @default(0)
 
   // --- mặc định cho VĂN BẢN gửi khách (nguyên bộ cột của QuoteTemplate) ---
-  vatPercent        Float?  @default(10)
+  vatPercent        Float?  @default(8)
   validDays         Int?    @default(7)
   warrantyMonths    Int?    @default(12)
   maintenanceMonths Int?    @default(120)

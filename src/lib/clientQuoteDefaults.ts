@@ -83,7 +83,7 @@ export const DEFAULT_PAYMENTS: PaymentSeed[] = [
 /** Tải trọng tính toán (ghi chú 1) — kg/m2. */
 export const DEFAULT_LOADS = { roof: 10, hanging: 30, floor: 150 };
 
-export const DEFAULT_VAT_PERCENT = 10;
+export const DEFAULT_VAT_PERCENT = 8;
 export const DEFAULT_VALID_DAYS = 7;
 export const DEFAULT_WARRANTY_MONTHS = 12;
 export const DEFAULT_MAINTENANCE_MONTHS = 120;

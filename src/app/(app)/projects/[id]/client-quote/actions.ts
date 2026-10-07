@@ -66,7 +66,11 @@ function paths(chu: ChuBaoGia) {
   revalidatePath(duongDanChu(chu).replace("/quote", "/client-quote"));
   revalidatePath("/client-quotes");
   if (chu.loai === "DU_AN") revalidatePath(`/projects/${chu.id}`);
-  else revalidatePath("/khach-hang");
+  else {
+    revalidatePath("/khach-hang");
+    // Cùng màn hình này còn được nhúng trong quy trình kinh doanh, dưới đường dẫn khác.
+    revalidatePath("/quy-trinh-bao-gia", "layout");
+  }
 }
 
 /** Chỉ dự án mới có id dự án để ghi vào nhật ký; báo giá ở cơ hội thì chưa có. */
@@ -662,6 +666,19 @@ export async function saveSpec(
     });
   }
 
+  paths(chu);
+  return { ok: true };
+}
+
+/** Ẩn / hiện một dòng quy cách trên bản in. */
+export async function anHienSpec(
+  chu: ChuBaoGia,
+  specId: string,
+  an: boolean
+): Promise<ActionResult> {
+  const g = await guard(chu, { specId });
+  if (g) return g;
+  await db.clientQuoteSpec.update({ where: { id: specId }, data: { an } });
   paths(chu);
   return { ok: true };
 }

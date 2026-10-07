@@ -15,7 +15,10 @@ export default async function QuyTrinhBaoGiaPage() {
   const session = await requireView("customer");
 
   const dangDo = await db.coHoi.findMany({
-    where: { ...whereCoHoiTrongPhamVi(session), trangThai: { in: CO_HOI_DANG_MO } },
+    where: {
+      ...whereCoHoiTrongPhamVi(session),
+      trangThai: { in: CO_HOI_DANG_MO },
+    },
     orderBy: { updatedAt: "desc" },
     take: 30,
     select: {
@@ -30,10 +33,12 @@ export default async function QuyTrinhBaoGiaPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Quy trình báo giá</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">
+          Quy trình kinh doanh
+        </h1>
         <p className="text-sm text-slate-500">
-          Chọn quy trình rồi làm lần lượt từng bước — xong bước nào bấm “Tiếp” để sang bước
-          sau.
+          Chọn quy trình rồi làm lần lượt từng bước — xong bước nào bấm “Tiếp”
+          để sang bước sau.
         </p>
       </div>
 
@@ -63,28 +68,41 @@ export default async function QuyTrinhBaoGiaPage() {
 
       <div className="rounded-xl border border-slate-200 bg-white">
         <div className="border-b border-slate-100 px-5 py-3">
-          <h2 className="font-semibold text-slate-900">Công trình đang chào giá</h2>
+          <h2 className="font-semibold text-slate-900">
+            Công trình đang chào giá
+          </h2>
           <p className="text-xs text-slate-500">Tiếp tục từ bước còn dở.</p>
         </div>
         {dangDo.length === 0 ? (
-          <p className="px-5 py-6 text-sm text-slate-400">Chưa có công trình nào đang chào.</p>
+          <p className="px-5 py-6 text-sm text-slate-400">
+            Chưa có công trình nào đang chào.
+          </p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {dangDo.map((c) => {
               const tt = CO_HOI_TRANG_THAI_MAP[c.trangThai];
               return (
-                <li key={c.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+                <li
+                  key={c.id}
+                  className="flex flex-wrap items-center gap-3 px-5 py-3"
+                >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-slate-900">{c.tenCongTrinh}</span>
-                      <Badge tone={tt?.tone ?? "slate"}>{tt?.label ?? c.trangThai}</Badge>
+                      <span className="font-medium text-slate-900">
+                        {c.tenCongTrinh}
+                      </span>
+                      <Badge tone={tt?.tone ?? "slate"}>
+                        {tt?.label ?? c.trangThai}
+                      </Badge>
                     </div>
                     <p className="text-xs text-slate-500">
                       {c.khachHang.tenCty} · {c._count.quotes} dự toán ·{" "}
                       {c._count.clientQuotes} báo giá
                     </p>
                   </div>
-                  {QUY_TRINH_BAO_GIA.map((qt) => (
+                  {QUY_TRINH_BAO_GIA.filter(
+                    (qt) => qt.doiTuong === "CO_HOI",
+                  ).map((qt) => (
                     <Link
                       key={qt.ma}
                       href={`/quy-trinh-bao-gia/${qt.ma}/${c.id}`}

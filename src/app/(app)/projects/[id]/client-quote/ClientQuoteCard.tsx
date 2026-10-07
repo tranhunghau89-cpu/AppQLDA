@@ -3,7 +3,7 @@
 import { useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, Printer, Eye, FileText, ListChecks, RefreshCw } from "lucide-react";
+import { Plus, Pencil, Trash2, Printer, Eye, EyeOff, FileText, ListChecks, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
@@ -19,7 +19,7 @@ import { StatusBar } from "./StatusBar";
 import { ThongTinIn } from "./ThongTinIn";
 import { DongHangMuc, DongMoi } from "./DongHangMuc";
 import { GiaVonPanel } from "./GiaVonPanel";
-import { clearPriceOverride, deleteClientQuote, deleteLine, deleteSpec, recomputePrices } from "./actions";
+import { clearPriceOverride, deleteClientQuote, deleteLine, anHienSpec, deleteSpec, recomputePrices } from "./actions";
 import type { ClientQuoteView, LineView, SpecView } from "./types";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
 
@@ -313,13 +313,25 @@ export function ClientQuoteCard({
                     </Tr>
                   )}
                   {nhom.rows.map((s) => (
-                    <Tr key={s.id}>
-                      <Td className="text-slate-900">{s.name}</Td>
+                    <Tr key={s.id} className={s.an ? "opacity-40" : undefined}>
+                      <Td className="text-slate-900">
+                        {s.name}
+                        {s.an && <span className="ml-1 text-xs text-slate-500">(ẩn khi in)</span>}
+                      </Td>
                       <Td className="italic text-slate-600">{s.spec ?? "—"}</Td>
                       <Td className="italic text-slate-600">{s.origin ?? "—"}</Td>
                       {canEdit && (
                         <Td className="text-right">
                           <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={s.an ? "Hiện khi in" : "Ẩn khi in"}
+                              title={s.an ? "Hiện khi in" : "Ẩn khi in"}
+                              onClick={() => run(() => anHienSpec(chu, s.id, !s.an))}
+                            >
+                              {s.an ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                            </Button>
                             <Button
                               variant="ghost"
                               size="icon"

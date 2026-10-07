@@ -19,7 +19,16 @@ interface KhachChon {
  * Bước 1: khách + công trình. Dùng lại đúng hai server action của trang Khách hàng,
  * chỉ khác là cần id trả về để chuyển sang bước 2 — nên không dùng `useActionForm`.
  */
-export function BuocKhachHang({ ma, khach }: { ma: string; khach: KhachChon[] }) {
+export function BuocKhachHang({
+  ma,
+  khach,
+  chiKhach = false,
+}: {
+  ma: string;
+  khach: KhachChon[];
+  /** Quy trình chỉ trên khách: không khai công trình, đi tiếp bằng id khách. */
+  chiKhach?: boolean;
+}) {
   const router = useRouter();
   const [khachId, setKhachId] = useState(khach[0]?.id ?? "");
   const [moi, setMoi] = useState(khach.length === 0);
@@ -27,7 +36,8 @@ export function BuocKhachHang({ ma, khach }: { ma: string; khach: KhachChon[] })
   const [pending, start] = useTransition();
 
   const dangChon = khach.find((k) => k.id === khachId);
-  const sangBuoc2 = (coHoiId: string) => router.push(`/quy-trinh-bao-gia/${ma}/${coHoiId}`);
+  const sangBuoc2 = (coHoiId: string) =>
+    router.push(`/quy-trinh-bao-gia/${ma}/${coHoiId}`);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -41,6 +51,7 @@ export function BuocKhachHang({ ma, khach }: { ma: string; khach: KhachChon[] })
         id = r.id;
       }
       if (!id) return setError("Chọn một khách hàng.");
+      if (chiKhach) return sangBuoc2(id);
       const r = await saveCoHoi(id, null, form);
       if (!r.ok) return setError(r.error);
       sangBuoc2(r.id);
@@ -98,7 +109,10 @@ export function BuocKhachHang({ ma, khach }: { ma: string; khach: KhachChon[] })
         ) : (
           <>
             <Field label="Chọn khách">
-              <Select value={khachId} onChange={(e) => setKhachId(e.target.value)}>
+              <Select
+                value={khachId}
+                onChange={(e) => setKhachId(e.target.value)}
+              >
                 {khach.map((k) => (
                   <option key={k.id} value={k.id}>
                     {k.tenCty}
@@ -106,10 +120,11 @@ export function BuocKhachHang({ ma, khach }: { ma: string; khach: KhachChon[] })
                 ))}
               </Select>
             </Field>
-            {dangChon && dangChon.coHoi.length > 0 && (
+            {!chiKhach && dangChon && dangChon.coHoi.length > 0 && (
               <div className="rounded-md bg-slate-50 p-3 text-sm">
                 <p className="mb-2 text-slate-500">
-                  Khách này đang có công trình chào giá — làm tiếp công trình cũ:
+                  Khách này đang có công trình chào giá — làm tiếp công trình
+                  cũ:
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {dangChon.coHoi.map((c) => (
@@ -130,36 +145,44 @@ export function BuocKhachHang({ ma, khach }: { ma: string; khach: KhachChon[] })
         )}
       </section>
 
-      <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-slate-900">Công trình mới</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="sm:col-span-2">
-            <Field label="Tên công trình *">
-              <Input name="tenCongTrinh" required placeholder="Nhà xưởng Hồng Ngự" />
+      {!chiKhach && (
+        <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
+          <h2 className="text-sm font-semibold text-slate-900">
+            Công trình mới
+          </h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="sm:col-span-2">
+              <Field label="Tên công trình *">
+                <Input
+                  name="tenCongTrinh"
+                  required
+                  placeholder="Nhà xưởng Hồng Ngự"
+                />
+              </Field>
+            </div>
+            <Field label="Loại công trình">
+              <Input name="buildingType" placeholder="Nhà xưởng" />
             </Field>
           </div>
-          <Field label="Loại công trình">
-            <Input name="buildingType" placeholder="Nhà xưởng" />
-          </Field>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-          <div className="col-span-2">
-            <Field label="Địa điểm">
-              <Input name="diaDiem" />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <div className="col-span-2">
+              <Field label="Địa điểm">
+                <Input name="diaDiem" />
+              </Field>
+            </div>
+            <Field label="Diện tích (m²)">
+              <Input name="area" type="number" step="any" />
+            </Field>
+            <Field label="Bước khung K">
+              <Input name="kK" type="number" step="any" />
+            </Field>
+            <Field label="Chiều dài L">
+              <Input name="kL" type="number" step="any" />
             </Field>
           </div>
-          <Field label="Diện tích (m²)">
-            <Input name="area" type="number" step="any" />
-          </Field>
-          <Field label="Bước khung K">
-            <Input name="kK" type="number" step="any" />
-          </Field>
-          <Field label="Chiều dài L">
-            <Input name="kL" type="number" step="any" />
-          </Field>
-        </div>
-        <input type="hidden" name="trangThai" value="DANG_CHAO" />
-      </section>
+          <input type="hidden" name="trangThai" value="DANG_CHAO" />
+        </section>
+      )}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex justify-end">

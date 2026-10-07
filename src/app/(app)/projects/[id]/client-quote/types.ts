@@ -64,6 +64,8 @@ export interface SpecView {
   origin: string | null;
   /** Có nhắc lại dòng này trong mô tả dưới tên hạng mục không. */
   inDescription: boolean;
+  /** Ẩn khỏi bản in. */
+  an: boolean;
 }
 
 export interface StageView {

@@ -31,14 +31,20 @@ export function ThanhBuoc({
             className={cn(
               "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm",
               dangO && "border-blue-600 bg-blue-600 text-white",
-              !dangO && n <= toiDa && "border-slate-300 bg-white text-slate-700",
-              n > toiDa && "border-slate-200 bg-slate-50 text-slate-400"
+              !dangO &&
+                n <= toiDa &&
+                "border-slate-300 bg-white text-slate-700",
+              n > toiDa && "border-slate-200 bg-slate-50 text-slate-400",
             )}
           >
             <span
               className={cn(
                 "flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold",
-                dangO ? "bg-white text-blue-600" : xong ? "bg-green-600 text-white" : "bg-slate-200"
+                dangO
+                  ? "bg-white text-blue-600"
+                  : xong
+                    ? "bg-green-600 text-white"
+                    : "bg-slate-200",
               )}
             >
               {xong && !dangO ? <Check className="h-3 w-3" /> : n}

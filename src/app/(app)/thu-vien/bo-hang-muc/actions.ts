@@ -7,6 +7,7 @@ import { requirePermission, requireSession } from "@/lib/auth";
 import { diffFields, recordAudit } from "@/lib/audit";
 import { rutSuatKhoiLuong } from "@/lib/thuVien/boHangMuc";
 import { quyDoiRaKg } from "@/lib/thuVien/quyDoiKg";
+import { docSoVN } from "@/lib/thuVien/bangGia";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -152,6 +153,10 @@ export async function luuPhanBoHangMuc(
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
+  const donGiaKhach = docSoVN(String(form.get("donGiaKhach") ?? ""));
+  if (donGiaKhach !== null && (Number.isNaN(donGiaKhach) || donGiaKhach <= 0)) {
+    return { ok: false, error: "Đơn giá mẫu không hợp lệ." };
+  }
 
   const trung = await db.boHangMucPhan.findFirst({
     where: { boHangMucId: phan.boHangMucId, ma: d.ma, NOT: { id: phanId } },
@@ -166,6 +171,8 @@ export async function luuPhanBoHangMuc(
       inChoKhach: form.get("inChoKhach") !== null,
       tenKhachHang: d.tenKhachHang || null,
       maKhach: d.maKhach || null,
+      donViKhach: String(form.get("donViKhach") ?? "").trim() || "m2",
+      donGiaKhach,
       partCode: d.partCode || "I",
       partName: d.partName || "Phần kết cấu thép",
     },

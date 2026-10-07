@@ -53,9 +53,15 @@ export default async function BatDauQuyTrinhPage({
         {qt.buoc[0].huongDan}
       </p>
       {canEdit ? (
-        <BuocKhachHang ma={qt.ma} khach={khach} />
+        <BuocKhachHang
+          ma={qt.ma}
+          khach={khach}
+          chiKhach={qt.doiTuong === "KHACH"}
+        />
       ) : (
-        <p className="text-sm text-red-600">Bạn không có quyền thêm khách hàng / công trình.</p>
+        <p className="text-sm text-red-600">
+          Bạn không có quyền thêm khách hàng / công trình.
+        </p>
       )}
     </div>
   );

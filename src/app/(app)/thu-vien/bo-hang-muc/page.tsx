@@ -57,6 +57,8 @@ export default async function BoHangMucPage() {
       inChoKhach: p.inChoKhach,
       maKhach: p.maKhach,
       tenKhachHang: p.tenKhachHang,
+      donViKhach: p.donViKhach,
+      donGiaKhach: p.donGiaKhach,
       partCode: p.partCode,
       partName: p.partName,
       dong: p.dong.map((d) => ({

@@ -1,3 +1,4 @@
+import { norm } from "./text";
 // Sợi dây nối hạng mục (mục 1) với bảng vật liệu & thông số kỹ thuật (mục 2).
 //
 // Quy tắc: mỗi dòng vật liệu mang một NHÃN loại vật tư; mỗi hạng mục khai nó dùng
@@ -127,4 +128,15 @@ export function moTaHangMuc(
   for (const sp of specsNhacLai(specs, tags ?? null)) phan.push(dongVatTu(sp));
 
   return phan.length > 0 ? phan.join("\n") : null;
+}
+
+/**
+ * Vật tư CHÍNH được in sẵn trong bảng quy cách: thép, xà gồ, tôn và vật tư phụ (phụ
+ * kiện, keo, vít). Các dòng còn lại (bu lông, que hàn, sơn, máng, ống nước…) tạo ra ở
+ * trạng thái ẩn — báo giá thật chỉ nêu phần chính, người lập bật lại dòng nào cần.
+ */
+export function laVatTuChinh(ten: string): boolean {
+  const t = norm(ten);
+  if (/^(thep|xago|ton)/.test(t)) return true;
+  return ["phukien", "vattuphu", "keo", "vit"].some((k) => t.includes(k));
 }
