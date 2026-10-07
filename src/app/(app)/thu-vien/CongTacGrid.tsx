@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, Search, History } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, History, Download, Upload, Table2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Field, Select } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
@@ -23,6 +23,16 @@ import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
 import { quyCachBoSung } from "@/lib/text";
 import { luuCongTac, xoaCongTac } from "./actions";
+import { capNhatBangGia } from "./bangGiaActions";
+import { NhapExcelBangGia, homNay } from "./NhapExcelBangGia";
+
+/** "20.600" / "20600" / "20,5" → số; trống → null. Người dùng gõ theo kiểu Việt. */
+function docSo(s: string): number | null {
+  const t = s.trim().replace(/s/g, "");
+  if (!t) return null;
+  const n = Number(t.replace(/./g, "").replace(",", "."));
+  return Number.isFinite(n) ? n : NaN;
+}
 
 export interface CongTacView {
   id: string;
@@ -64,6 +74,51 @@ export function CongTacGrid({
 
   const toast = useToast();
   const confirm = useConfirm();
+
+  // Sửa cả bảng: mỗi ô đơn giá thành ô nhập, bấm "Cập nhật" ghi một phiên bản giá
+  // chung một ngày hiệu lực cho mọi mã đã đổi.
+  const [suaBang, setSuaBang] = useState(false);
+  const [giaNhap, setGiaNhap] = useState<Record<string, string>>({});
+  const [ngayBang, setNgayBang] = useState(homNay);
+  const [ghiChuBang, setGhiChuBang] = useState("");
+  const [moExcel, setMoExcel] = useState(false);
+
+  const daDoi = useMemo(
+    () =>
+      items.filter((it) => {
+        const v = giaNhap[it.id];
+        if (v === undefined) return false;
+        const n = docSo(v);
+        return n !== null && (Number.isNaN(n) || it.donGiaHienHanh === null || Math.abs(n - it.donGiaHienHanh) >= 0.5);
+      }),
+    [items, giaNhap]
+  );
+
+  function batSuaBang() {
+    setGiaNhap({});
+    setNgayBang(homNay());
+    setGhiChuBang("");
+    setSuaBang(true);
+  }
+
+  async function luuBang() {
+    if (daDoi.some((it) => Number.isNaN(docSo(giaNhap[it.id]))))
+      return toast.error("Có ô đơn giá không phải số.");
+    if (!(await confirm(`Tạo phiên bản giá mới hiệu lực từ ${formatDate(ngayBang)} cho ${daDoi.length} mã?`)))
+      return;
+    setPending(true);
+    const res = await capNhatBangGia({
+      dong: daDoi.map((it) => ({ ma: it.ma, vatTu: null, nhanCongMay: null, heSo: null, donGia: docSo(giaNhap[it.id]) })),
+      hieuLucTu: ngayBang,
+      ghiChu: ghiChuBang,
+      nguon: "NHAP_TAY",
+    });
+    setPending(false);
+    if (!res.ok) return toast.error(res.error);
+    toast.success(`Đã cập nhật giá cho ${res.soMa} mã.`);
+    setSuaBang(false);
+    router.refresh();
+  }
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -153,12 +208,54 @@ export function CongTacGrid({
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
-        {canEdit && (
-          <Button size="sm" onClick={moThem}>
-            <Plus className="h-4 w-4" /> Thêm công tác
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <a
+            href="/api/thu-vien/bang-gia"
+            className="inline-flex h-8 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <Download className="h-4 w-4" /> Tải Excel
+          </a>
+          {canEdit && !suaBang && (
+            <>
+              <Button size="sm" variant="outline" onClick={() => setMoExcel(true)}>
+                <Upload className="h-4 w-4" /> Nhập Excel
+              </Button>
+              <Button size="sm" variant="outline" onClick={batSuaBang}>
+                <Table2 className="h-4 w-4" /> Sửa cả bảng giá
+              </Button>
+              <Button size="sm" onClick={moThem}>
+                <Plus className="h-4 w-4" /> Thêm công tác
+              </Button>
+            </>
+          )}
+        </div>
       </div>
+
+      {suaBang && (
+        <div className="sticky top-0 z-20 flex flex-wrap items-end gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
+          <div className="text-sm text-amber-800">
+            <b>Đang sửa cả bảng giá</b> — gõ đơn giá mới vào cột Đơn giá.
+            <br />
+            <span className="text-xs">Mã đã đổi: <b>{daDoi.length}</b>. Giá cũ vẫn giữ trong lịch sử.</span>
+          </div>
+          <label className="text-xs text-slate-600">
+            Hiệu lực từ
+            <Input type="date" className="mt-1 w-40" value={ngayBang} onChange={(e) => setNgayBang(e.target.value)} />
+          </label>
+          <label className="flex-1 text-xs text-slate-600">
+            Ghi chú phiên bản
+            <Input className="mt-1" placeholder="VD: Giá tháng 10/2026" value={ghiChuBang} onChange={(e) => setGhiChuBang(e.target.value)} />
+          </label>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setSuaBang(false)}>
+              Hủy
+            </Button>
+            <Button size="sm" onClick={luuBang} disabled={pending || daDoi.length === 0}>
+              Cập nhật {daDoi.length} mã
+            </Button>
+          </div>
+        </div>
+      )}
 
       {groups.length === 0 && (
         <div className="rounded-xl border border-dashed border-slate-300 py-12 text-center text-slate-400">
@@ -204,7 +301,17 @@ export function CongTacGrid({
                     {labelOf(ESTIMATE_GROUP_MAP, it.nhomChiPhi)}
                   </Td>
                   <Td className="text-right font-medium text-blue-700">
-                    {it.donGiaHienHanh === null ? (
+                    {suaBang ? (
+                      <input
+                        inputMode="decimal"
+                        className={`w-full rounded border px-2 py-1 text-right tabular-nums outline-none focus:ring-2 focus:ring-blue-400 ${
+                          daDoi.includes(it) ? "border-amber-400 bg-amber-50" : "border-slate-200"
+                        }`}
+                        placeholder="Chưa có giá"
+                        value={giaNhap[it.id] ?? (it.donGiaHienHanh === null ? "" : formatNumber(it.donGiaHienHanh))}
+                        onChange={(e) => setGiaNhap((g) => ({ ...g, [it.id]: e.target.value }))}
+                      />
+                    ) : it.donGiaHienHanh === null ? (
                       <span className="text-amber-600">Chưa có giá</span>
                     ) : (
                       formatNumber(it.donGiaHienHanh)
@@ -254,6 +361,8 @@ export function CongTacGrid({
           </Table>
         </div>
       ))}
+
+      <NhapExcelBangGia open={moExcel} onClose={() => setMoExcel(false)} />
 
       <Modal
         open={open}
