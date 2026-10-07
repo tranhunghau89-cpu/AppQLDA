@@ -23,6 +23,7 @@ import { ApplyTemplate, type TemplateForClient } from "./ApplyTemplate";
 import { BangBocModal } from "./BangBocModal";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
+import { updateSalePrice } from "../../actions";
 
 export interface EstimateRow {
   id: string;
@@ -70,6 +71,7 @@ export function EstimateEditor({
   trongKhuVuc,
   khuVucTen,
   salePrice,
+  giaBanTheoHD,
   area,
   canEdit,
   catalog,
@@ -83,6 +85,8 @@ export function EstimateEditor({
   trongKhuVuc: string[];
   khuVucTen: string | null;
   salePrice: number | null;
+  /** Có HĐ ký: giá bán khoá theo HĐ, ghi các số HĐ để hiện nguồn. Null = sửa tay được. */
+  giaBanTheoHD: string[] | null;
   area: number | null;
   canEdit: boolean;
   /** Công tác thư viện — cho ô chọn công việc ngay trên bảng. */
@@ -369,7 +373,29 @@ export function EstimateEditor({
             </div>
             <div className="flex justify-between">
               <dt className="text-slate-500">Giá bán</dt>
-              <dd className="font-semibold text-slate-900">{formatVND(summary.salePrice)}</dd>
+              <dd className="text-right font-semibold text-slate-900">
+                {canEdit ? (
+                  <OSoSua
+                    nhan="Giá bán (chưa VAT)"
+                    giaTri={salePrice}
+                    dinhDang={formatVND}
+                    khoa={giaBanTheoHD != null}
+                    dauKhoa="HĐ"
+                    lyDoKhoa="Giá bán lấy theo hợp đồng đã ký — muốn đổi thì sửa hợp đồng"
+                    luu={(tho) => updateSalePrice(projectId, tho)}
+                  />
+                ) : (
+                  formatVND(summary.salePrice)
+                )}
+                {giaBanTheoHD != null && (
+                  <a
+                    href={`/projects/${projectId}/contract`}
+                    className="block text-xs font-normal text-blue-600 hover:underline"
+                  >
+                    Theo HĐ {giaBanTheoHD.join(", ")}
+                  </a>
+                )}
+              </dd>
             </div>
             <div className="my-2 border-t border-slate-100" />
             <div className="flex justify-between">

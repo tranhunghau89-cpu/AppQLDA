@@ -7,6 +7,7 @@ import { denyProject, requireSession } from "@/lib/auth";
 import { diffFields, recordAudit } from "@/lib/audit";
 import { CONTRACT_STATUS_MAP } from "@/lib/constants";
 import { lineAmount } from "@/lib/contract";
+import { syncSalePriceFromContracts } from "@/lib/contractSalePrice";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -140,6 +141,7 @@ export async function saveContract(
     action: contractId ? "UPDATE" : "CREATE",
     changes: diffFields(truoc, data, CONTRACT_AUDIT_FIELDS),
   });
+  await syncSalePriceFromContracts(projectId, await requireSession());
   revalidatePath(`/projects/${projectId}/contract`);
   revalidatePath("/contracts");
   return { ok: true };
@@ -165,6 +167,7 @@ export async function deleteContract(
     action: "DELETE",
     changes: diffFields(truoc, null, CONTRACT_AUDIT_FIELDS),
   });
+  await syncSalePriceFromContracts(projectId, await requireSession());
   revalidatePath(`/projects/${projectId}/contract`);
   revalidatePath("/contracts");
   return { ok: true };
@@ -218,6 +221,7 @@ export async function saveContractItem(
     action: itemId ? "UPDATE" : "CREATE",
     changes: diffFields(truocItem, data, ITEM_AUDIT_FIELDS),
   });
+  await syncSalePriceFromContracts(projectId, await requireSession());
   revalidatePath(`/projects/${projectId}/contract`);
   revalidatePath("/contracts");
   return { ok: true };
@@ -245,6 +249,7 @@ export async function deleteContractItem(
     changes: diffFields(truocItem, null, ITEM_AUDIT_FIELDS),
   });
   await recompute(contractId);
+  await syncSalePriceFromContracts(projectId, await requireSession());
   revalidatePath(`/projects/${projectId}/contract`);
   revalidatePath("/contracts");
   return { ok: true };

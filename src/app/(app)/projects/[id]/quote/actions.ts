@@ -1,5 +1,6 @@
 "use server";
 
+import { projectHasContract } from "@/lib/contractSalePrice";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
@@ -691,6 +692,13 @@ export async function pushSalePrice(
     await requirePermission("project", "edit");
   } catch {
     return { ok: false, error: "Bạn không có quyền sửa giá bán dự án." };
+  }
+  // Đã có hợp đồng thì giá bán chạy theo HĐ — báo giá không được ghi đè.
+  if (await projectHasContract(projectId)) {
+    return {
+      ok: false,
+      error: "Dự án đã có hợp đồng — giá bán tự lấy theo hợp đồng, không đẩy từ báo giá nữa.",
+    };
   }
   const quote = await db.quote.findUnique({
     where: { id: quoteId },

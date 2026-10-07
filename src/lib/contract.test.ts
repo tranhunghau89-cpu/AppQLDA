@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeContractTotals, lineAmount } from "./contract";
+import { computeContractTotals, lineAmount, salePriceFromContracts } from "./contract";
 
 describe("lineAmount", () => {
   it("ưu tiên amount đã nhập", () => {
@@ -50,5 +50,34 @@ describe("computeContractTotals", () => {
     const t = computeContractTotals([{ amount: 1_000_000 }], 10);
     expect(t.vat).toBe(100_000);
     expect(t.withVat).toBe(1_100_000);
+  });
+});
+
+describe("salePriceFromContracts", () => {
+  it("không có HĐ → không đụng giá bán", () => {
+    expect(salePriceFromContracts([])).toEqual({ salePrice: null, locked: false });
+  });
+  it("chỉ có HĐ nháp → cộng nháp, không khoá", () => {
+    expect(
+      salePriceFromContracts([
+        { status: "QUOTE", valueBeforeVat: 100 },
+        { status: "QUOTE", valueBeforeVat: 50 },
+      ])
+    ).toEqual({ salePrice: 150, locked: false });
+  });
+  it("có HĐ ký → chỉ cộng HĐ ký + thanh lý, bỏ nháp, khoá", () => {
+    expect(
+      salePriceFromContracts([
+        { status: "SIGNED", valueBeforeVat: 573 },
+        { status: "LIQUIDATED", valueBeforeVat: 27 },
+        { status: "QUOTE", valueBeforeVat: 999 },
+      ])
+    ).toEqual({ salePrice: 600, locked: true });
+  });
+  it("giá trị null tính là 0", () => {
+    expect(salePriceFromContracts([{ status: "SIGNED", valueBeforeVat: null }])).toEqual({
+      salePrice: 0,
+      locked: true,
+    });
   });
 });

@@ -4,6 +4,7 @@ import { ArrowLeft, Download } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireProjectView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
+import { SIGNED_CONTRACT_STATUSES } from "@/lib/contract";
 import { nhaCungCapTheoKhuVuc } from "@/lib/thuVien/nhaCungCap";
 import { napCongTacCoGia } from "@/lib/thuVien/napGia";
 import { EstimateEditor, type EstimateRow, type SectionInfo } from "./EstimateEditor";
@@ -18,6 +19,11 @@ export default async function EstimatePage({
   const { id } = await params;
   const session = await requireProjectView("estimate", id);
   const canEdit = can(session.role, "estimate", "edit");
+  const hdKy = await db.contract.findMany({
+    where: { projectId: id, status: { in: SIGNED_CONTRACT_STATUSES } },
+    select: { contractNo: true },
+    orderBy: { createdAt: "asc" },
+  });
 
   // 6 truy vấn độc lập -> chạy song song (guard phân quyền đã xong ở trên).
   const [project, suppliers, templateRows, quoteRows, lienKetKhuVuc, congTacs] = await Promise.all([
@@ -159,6 +165,7 @@ export default async function EstimatePage({
         trongKhuVuc={trongKhuVuc}
         khuVucTen={project.khuVuc?.ten ?? null}
         salePrice={project.salePrice}
+        giaBanTheoHD={hdKy.length > 0 ? hdKy.map((c) => c.contractNo ?? "(chưa có số)") : null}
         area={project.area}
         canEdit={canEdit}
         catalog={congTacs.map((c) => ({

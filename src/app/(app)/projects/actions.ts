@@ -9,6 +9,8 @@ import { projectNoteDb, noteImageDb } from "@/lib/project-notes";
 import { uploadFile, isStorageConfigured } from "@/lib/storage";
 import { docVersionDb } from "@/lib/doc-versions";
 import { paymentDb } from "@/lib/payments";
+import { tinhBieuThuc } from "@/lib/bieuThuc";
+import { contractSalePriceOf } from "@/lib/contractSalePrice";
 import {
   PROJECT_STATUS_MAP,
   PROJECT_COMPONENT_MAP,
@@ -143,6 +145,12 @@ export async function saveProject(
     note: d.note || null,
   };
 
+  // Đã có HĐ ký thì giá bán khoá theo HĐ — bỏ qua giá trị gửi từ form.
+  if (id) {
+    const hd = await contractSalePriceOf(id);
+    if (hd.locked) data.salePrice = hd.salePrice;
+  }
+
   // Chụp lại trạng thái trước khi sửa để so ra đúng những trường thực sự đổi.
   const truoc = id
     ? await db.project.findUnique({ where: { id }, select: PROJECT_AUDIT_SELECT })
@@ -191,6 +199,51 @@ export async function saveProject(
   revalidatePath("/projects");
   revalidatePath(`/projects/${id}`);
   return { ok: true, id: id! };
+}
+
+/** Sửa riêng giá bán (màn Dự toán). Bị chặn khi dự án đã có HĐ ký. */
+export async function updateSalePrice(
+  projectId: string,
+  tho: string
+): Promise<ActionResult> {
+  const denied = await denyProject(
+    "project",
+    "edit",
+    projectId,
+    "Bạn không có quyền sửa giá bán dự án."
+  );
+  if (denied) return denied;
+  const value = tinhBieuThuc(tho);
+  if ((value == null && tho.trim() !== "") || (value != null && value < 0)) {
+    return { ok: false, error: "Giá bán không hợp lệ." };
+  }
+  const hd = await contractSalePriceOf(projectId);
+  if (hd.locked) {
+    return {
+      ok: false,
+      error: "Dự án đã có hợp đồng ký — muốn đổi giá bán thì sửa hợp đồng.",
+    };
+  }
+  const truoc = await db.project.findUnique({
+    where: { id: projectId },
+    select: { code: true, salePrice: true },
+  });
+  if (!truoc) return { ok: false, error: "Không tìm thấy dự án." };
+  await db.project.update({ where: { id: projectId }, data: { salePrice: value } });
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "Project",
+    entityId: projectId,
+    entityLabel: truoc.code,
+    projectId,
+    action: "UPDATE",
+    changes: diffFields(truoc, { salePrice: value }, ["salePrice"]),
+  });
+  revalidatePath(`/projects/${projectId}/estimate`);
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/projects");
+  revalidatePath("/estimates");
+  return { ok: true };
 }
 
 export async function deleteProject(id: string): Promise<ActionResult> {
