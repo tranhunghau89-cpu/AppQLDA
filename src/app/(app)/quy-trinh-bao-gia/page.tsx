@@ -6,6 +6,8 @@ import { whereCoHoiTrongPhamVi } from "@/lib/crmScope";
 import { CO_HOI_DANG_MO, CO_HOI_TRANG_THAI_MAP } from "@/lib/constants";
 import { QUY_TRINH_BAO_GIA } from "@/lib/quyTrinhBaoGia";
 import { Badge } from "@/components/ui/badge";
+import { can, type Role } from "@/lib/rbac";
+import { NutXoaCoHoi } from "./NutXoaCoHoi";
 
 /**
  * Cửa vào quy trình báo giá: chọn một quy trình để bắt đầu công trình mới, hoặc tiếp
@@ -13,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
  */
 export default async function QuyTrinhBaoGiaPage() {
   const session = await requireView("customer");
+  const canEdit = can(session.role as Role, "customer", "edit");
 
   const dangDo = await db.coHoi.findMany({
     where: {
@@ -111,6 +114,14 @@ export default async function QuyTrinhBaoGiaPage() {
                       {qt.ten}
                     </Link>
                   ))}
+                  {canEdit && (
+                    <NutXoaCoHoi
+                      id={c.id}
+                      ten={c.tenCongTrinh}
+                      soDuToan={c._count.quotes}
+                      soBaoGia={c._count.clientQuotes}
+                    />
+                  )}
                 </li>
               );
             })}
