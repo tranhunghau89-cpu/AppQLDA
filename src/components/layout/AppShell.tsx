@@ -84,7 +84,7 @@ function AppFrame({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar name={name} role={role} onOpenMenu={() => setOpen(true)} />
-        <main className="flex-1 p-4 sm:p-6"><div className="mx-auto max-w-7xl">{children}</div></main>
+        <main className="flex-1 p-4 sm:p-6"><div className="mx-auto max-w-7xl has-[.trang-rong]:max-w-none">{children}</div></main>
       </div>
     </div>
   );

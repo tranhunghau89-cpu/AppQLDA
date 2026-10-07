@@ -71,7 +71,7 @@ export default async function GanttPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="trang-rong space-y-6">
       <TabTrang tabs={TAB_TIEN_DO} hienTai="/gantt" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Kế hoạch (Gantt)</h1>

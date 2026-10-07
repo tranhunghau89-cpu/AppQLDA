@@ -192,7 +192,7 @@ export default async function ProgressPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="trang-rong space-y-6">
       <TabTrang tabs={TAB_TIEN_DO} hienTai="/weekly" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Tiến độ</h1>
