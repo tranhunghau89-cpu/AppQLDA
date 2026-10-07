@@ -58,7 +58,9 @@ export async function generateMetadata({
     select: { title: true, projectId: true, coHoiId: true },
   });
   if (!quote || !(await duocXem(chuCuaQuote(quote)))) return {};
-  return { title: quote.title };
+  // Tên lúc sinh báo giá có tiền tố "Báo giá gửi khách — " (xem GenerateClientQuoteModal)
+  // — thừa trong tên tệp, bỏ đi để còn đúng tên báo giá.
+  return { title: quote.title.replace(/^Báo giá gửi khách\s*[—-]\s*/, "") || quote.title };
 }
 
 export default async function ClientQuotePrintPage({
