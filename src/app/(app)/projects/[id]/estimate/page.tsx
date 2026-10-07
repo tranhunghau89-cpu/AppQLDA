@@ -134,7 +134,7 @@ export default async function EstimatePage({
   }));
 
   return (
-    <div className="space-y-6">
+    <div className="trang-rong space-y-6">
       <div className="flex items-center gap-3">
         <Link
           href={`/projects/${project.id}`}

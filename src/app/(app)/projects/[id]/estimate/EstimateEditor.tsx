@@ -215,9 +215,9 @@ export function EstimateEditor({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-4 2xl:grid-cols-[minmax(0,1fr)_minmax(0,80rem)_minmax(18rem,1fr)]">
       {/* Bảng dự toán */}
-      <div className="space-y-4 xl:col-span-3">
+      <div className="space-y-4 xl:col-span-3 2xl:col-span-1 2xl:col-start-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold text-slate-900">Bảng dự toán</h2>
           {canEdit && (
@@ -465,7 +465,7 @@ export function EstimateEditor({
       </div>
 
       {/* Tổng hợp chi phí / lợi nhuận */}
-      <div className="space-y-4">
+      <div className="space-y-4 2xl:max-w-sm">
         {giaiDoan && (
           <BangGiaiDoan
             g={giaiDoan}
