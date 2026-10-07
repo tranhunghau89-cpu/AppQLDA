@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Input, Textarea, Field } from "@/components/ui/form";
+import { Input, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { Chip } from "@/components/ui/chip";
 import { useActionForm } from "@/components/ui/useActionForm";
@@ -11,6 +11,7 @@ import { formatNumber, formatQty, formatVND } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { ModalActions } from "../quote/ModalActions";
 import { saveLine } from "./actions";
+import { MoTaRieng } from "./MoTaRieng";
 import type { LineView } from "./types";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
 
@@ -262,15 +263,7 @@ export function LineModal({
           }
           moSan={Boolean(editing?.detail)}
         >
-          <Textarea
-            name="detail"
-            rows={3}
-            defaultValue={editing?.detail ?? ""}
-            placeholder={
-              "- Gia công sản xuất theo bản vẽ thiết kế.\n" +
-              "- Tôn mái là tôn Đông Á dày 0,45 mm mạ màu, 5 sóng công nghiệp."
-            }
-          />
+          <MoTaRieng defaultValue={editing?.detail ?? ""} />
           <p className="text-xs text-slate-400">
             Mỗi dòng là một gạch đầu dòng. Điền vào đây là ĐÈ LÊN mô tả chung của báo
             giá, không phải thêm vào.

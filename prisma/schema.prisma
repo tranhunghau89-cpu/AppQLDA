@@ -1505,3 +1505,16 @@ model ChiTietKhoiLuong {
 
   @@index([estimateItemId, sortOrder])
 }
+
+// Mẫu "mô tả riêng" của dòng hạng mục báo giá gửi khách — nhân viên kinh doanh lưu
+// lại đoạn gạch đầu dòng hay dùng để lần sau chọn nhanh. Dùng chung cả công ty.
+// Người tạo là tham chiếu MỀM, cùng lý lẽ với AuditLog.
+model MoTaMau {
+  id            String   @id @default(cuid())
+  noiDung       String
+  createdById   String?
+  createdByName String?
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+}
