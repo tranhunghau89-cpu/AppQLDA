@@ -1,6 +1,7 @@
 // Tính tổng giá trị hợp đồng từ các dòng hạng mục.
 export interface ContractLine {
   qty?: number | null;
+  settleQty?: number | null;
   unitPrice?: number | null;
   amount?: number | null;
 }
@@ -50,4 +51,34 @@ export function salePriceFromContracts(contracts: ContractForSalePrice[]): Contr
   const nguon = signed.length > 0 ? signed : contracts;
   const salePrice = nguon.reduce((s, c) => s + (c.valueBeforeVat ?? 0), 0);
   return { salePrice, locked: signed.length > 0 };
+}
+
+// ----- Quyết toán -----
+/** Thành tiền quyết toán 1 dòng = KL quyết toán × đơn giá HĐ. Null = dòng chưa quyết toán. */
+export function settleAmount(l: ContractLine): number | null {
+  if (l.settleQty == null) return null;
+  return l.settleQty * (l.unitPrice ?? 0);
+}
+
+export interface ContractForSettlement {
+  status: string;
+  items: ContractLine[];
+}
+
+/**
+ * Giá trị quyết toán dự án (chưa VAT) trên các HĐ đã ký/thanh lý. Dòng chưa quyết toán giữ
+ * giá trị HĐ. Null khi chưa có dòng nào nhập KL quyết toán.
+ */
+export function settlementFromContracts(contracts: ContractForSettlement[]): number | null {
+  const signed = contracts.filter((c) => SIGNED_CONTRACT_STATUSES.includes(c.status));
+  let coQT = false;
+  let total = 0;
+  for (const c of signed) {
+    for (const l of c.items) {
+      const qt = settleAmount(l);
+      if (qt != null) coQT = true;
+      total += qt ?? lineAmount(l);
+    }
+  }
+  return coQT ? total : null;
 }

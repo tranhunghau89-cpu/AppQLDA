@@ -589,10 +589,10 @@ export async function luuBangBoc(
    * đổi khối lượng mà không đụng `amount` thì bảng hiện khối lượng mới bên cạnh số tiền
    * cũ — sai mà nhìn vẫn thấy hợp lý, loại sai tệ nhất.
    *
-   * Dùng khối lượng THỰC TẾ nếu đã có, đúng thứ tự ưu tiên của `computeAmount`. Thiếu
+   * Dùng khối lượng thiết kế (tổng bảng bóc), đúng như `computeAmount`. Thiếu
    * đơn giá thì để trống chứ không ghi 0: 0 đồng là một khẳng định, còn trống là chưa biết.
    */
-  const klTinhTien = dauMuc.actualQty ?? tong.tong;
+  const klTinhTien = tong.tong;
   const thanhTien =
     klTinhTien != null && dauMuc.unitPrice != null ? klTinhTien * dauMuc.unitPrice : null;
 
@@ -682,7 +682,7 @@ export async function xoaBangBoc(
 export async function suaOEstimate(
   projectId: string,
   itemId: string,
-  truong: "qty" | "unitPrice",
+  truong: "qty" | "unitPrice" | "actualQty" | "actualUnitPrice",
   tho: string
 ): Promise<ActionResult> {
   const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa dự toán.", itemId);
@@ -701,35 +701,39 @@ export async function suaOEstimate(
       designQty: true,
       actualQty: true,
       unitPrice: true,
+      actualUnitPrice: true,
       _count: { select: { chiTiet: true } },
     },
   });
   if (!dong) return { ok: false, error: "Không tìm thấy đầu mục dự toán." };
 
-  let { designQty, actualQty, unitPrice } = dong;
+  let { designQty, actualQty, unitPrice, actualUnitPrice } = dong;
   if (truong === "qty") {
-    if (actualQty != null) {
-      actualQty = giaTri;
-    } else {
-      if (dong._count.chiTiet > 0) {
-        return {
-          ok: false,
-          error: `Khối lượng "${dong.name}" bằng tổng bảng bóc ${dong._count.chiTiet} dòng — sửa bảng bóc.`,
-        };
-      }
-      designQty = giaTri;
+    // KL dự toán = KL thiết kế. Có bảng bóc thì nó là tổng bảng bóc — sửa ở đó.
+    if (dong._count.chiTiet > 0) {
+      return {
+        ok: false,
+        error: `Khối lượng "${dong.name}" bằng tổng bảng bóc ${dong._count.chiTiet} dòng — sửa bảng bóc.`,
+      };
     }
-  } else {
+    designQty = giaTri;
+  } else if (truong === "unitPrice") {
     unitPrice = giaTri;
+  } else if (truong === "actualQty") {
+    actualQty = giaTri;
+  } else {
+    actualUnitPrice = giaTri;
   }
 
-  const kl = actualQty ?? designQty;
+  // Thành tiền lưu sẵn là của DỰ TOÁN; phần thực tính lúc hiển thị.
+  const kl = designQty;
   await db.estimateItem.update({
     where: { id: itemId },
     data: {
       designQty,
       actualQty,
       unitPrice,
+      actualUnitPrice,
       // Thiếu một vế thì để trống chứ không ghi 0: 0 đồng là một khẳng định.
       amount: kl != null && unitPrice != null ? kl * unitPrice : null,
     },
@@ -798,7 +802,7 @@ export async function suaCongViecEstimate(
     const khuVucId = project?.khuVucId ?? null;
     const gia = chonDonGia(ungVien, { congTacId: ct.id, khuVucId, ngay });
     const unitPrice = gia.donGia ?? dong.unitPrice;
-    const kl = dong.actualQty ?? dong.designQty;
+    const kl = dong.designQty;
     await db.estimateItem.update({
       where: { id: itemId },
       data: {

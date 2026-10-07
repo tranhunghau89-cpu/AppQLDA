@@ -20,6 +20,8 @@ import { projectNoteDb, noteImageDb } from "@/lib/project-notes";
 import { signedUrl } from "@/lib/storage";
 import { computeProfit, formatPercent } from "@/lib/profit";
 import { computeContractTotals } from "@/lib/contract";
+import { docGiaTriGiaiDoan } from "@/lib/giaTriGiaiDoanDuAn";
+import { BangGiaiDoan } from "@/components/BangGiaiDoan";
 import { Badge } from "@/components/ui/badge";
 import { CONTRACT_STATUS_MAP, PO_CATEGORY_MAP, PO_STATUS_MAP } from "@/lib/constants";
 import { Calculator, FileSignature, ShoppingCart, Wallet } from "lucide-react";
@@ -109,6 +111,7 @@ export default async function ProjectDetailPage({
   const canViewPurchase = can(session.role, "purchase", "view");
   const canViewCost = can(session.role, "cost", "view");
   const profit = computeProfit(project.estimateItems, project.salePrice, project.area);
+  const giaiDoan = await docGiaTriGiaiDoan(project.id);
   const milestoneMap: Record<string, MilestoneValue> = {};
   for (const m of project.milestones) {
     milestoneMap[m.type] = {
@@ -311,6 +314,11 @@ export default async function ProjectDetailPage({
               />
             )}
           </div>
+          {canViewProfit && giaiDoan && (
+            <div className="mt-4 max-w-xl">
+              <BangGiaiDoan g={giaiDoan} />
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -338,6 +338,7 @@ model ContractItem {
   qty        Float? // khối lượng / diện tích
   unitPrice  Float? // đơn giá bán
   amount     Float? // thành tiền
+  settleQty  Float? // KL quyết toán — null = chưa quyết toán dòng này
   sortOrder  Int      @default(0)
   createdAt  DateTime @default(now())
 
@@ -494,7 +495,8 @@ model EstimateItem {
   name           String
   unit           String?
   designQty      Float?
-  actualQty      Float?
+  actualQty      Float? // KL thực (mua hàng/thi công thực)
+  actualUnitPrice Float? // đơn giá thực mua — null = chưa có giá thực
   unitPrice      Float?
   amount         Float?
   supplierId     String?

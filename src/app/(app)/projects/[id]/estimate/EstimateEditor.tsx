@@ -11,7 +11,15 @@ import { ESTIMATE_GROUP, ESTIMATE_GROUP_MAP } from "@/lib/constants";
 import { formatVND, formatNumber, formatQty } from "@/lib/utils";
 import { OSoSua } from "@/components/ui/OSoSua";
 import { OChonCongTac, type CongTacChon } from "@/components/ui/OChonCongTac";
-import { computeAmount, computeProfit, formatPercent } from "@/lib/profit";
+import {
+  computeActualAmount,
+  computeActualCost,
+  computeAmount,
+  computeProfit,
+  formatPercent,
+} from "@/lib/profit";
+import { BangGiaiDoan } from "@/components/BangGiaiDoan";
+import type { GiaTriGiaiDoan } from "@/lib/giaTriGiaiDoan";
 import {
   saveEstimateItem,
   deleteEstimateItem,
@@ -35,6 +43,7 @@ export interface EstimateRow {
   designQty: number | null;
   actualQty: number | null;
   unitPrice: number | null;
+  actualUnitPrice: number | null;
   amount: number | null;
   supplierId: string | null;
   supplierName: string | null;
@@ -72,6 +81,7 @@ export function EstimateEditor({
   khuVucTen,
   salePrice,
   giaBanTheoHD,
+  giaiDoan,
   area,
   canEdit,
   catalog,
@@ -87,6 +97,7 @@ export function EstimateEditor({
   salePrice: number | null;
   /** Có HĐ ký: giá bán khoá theo HĐ, ghi các số HĐ để hiện nguồn. Null = sửa tay được. */
   giaBanTheoHD: string[] | null;
+  giaiDoan: GiaTriGiaiDoan | null;
   area: number | null;
   canEdit: boolean;
   /** Công tác thư viện — cho ô chọn công việc ngay trên bảng. */
@@ -205,9 +216,9 @@ export function EstimateEditor({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">
       {/* Bảng dự toán */}
-      <div className="space-y-4 lg:col-span-2">
+      <div className="space-y-4 xl:col-span-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold text-slate-900">Bảng dự toán</h2>
           {canEdit && (
@@ -253,24 +264,39 @@ export function EstimateEditor({
               <Table className="table-fixed">
                 <colgroup>
                   <col />
-                  <col className="w-16" />
-                  <col className="w-28" />
-                  <col className="w-28" />
-                  <col className="w-36" />
+                  <col className="w-14" />
+                  <col className="w-24" />
+                  <col className="w-24" />
+                  <col className="w-32" />
+                  <col className="w-24" />
+                  <col className="w-24" />
+                  <col className="w-32" />
                   {canEdit && <col className="w-28" />}
                 </colgroup>
-                <thead>
-                  <tr className="bg-white text-xs font-medium uppercase tracking-wide text-slate-500">
-                    <th className="px-3 py-2 pl-6 text-left">Công việc</th>
-                    <th className="px-3 py-2 text-left">ĐVT</th>
-                    <th className="px-3 py-2 text-right">Khối lượng</th>
-                    <th className="px-3 py-2 text-right">Đơn giá</th>
-                    <th className="px-3 py-2 text-right">Thành tiền</th>
-                    {canEdit && <th className="px-3 py-2" />}
+                <thead className="bg-white text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th rowSpan={2} className="px-3 py-1 pl-6 text-left align-bottom">Công việc</th>
+                    <th rowSpan={2} className="px-3 py-1 text-left align-bottom">ĐVT</th>
+                    <th colSpan={3} className="border-b border-slate-200 px-3 pt-2 pb-1 text-center text-slate-600">
+                      Dự toán
+                    </th>
+                    <th colSpan={3} className="border-b border-l border-slate-200 bg-amber-50/60 px-3 pt-2 pb-1 text-center text-amber-700">
+                      Thực tế (mua hàng)
+                    </th>
+                    {canEdit && <th rowSpan={2} />}
+                  </tr>
+                  <tr>
+                    <th className="px-3 py-1 text-right">KL</th>
+                    <th className="px-3 py-1 text-right">Đơn giá</th>
+                    <th className="px-3 py-1 text-right">Thành tiền</th>
+                    <th className="border-l border-slate-200 bg-amber-50/60 px-3 py-1 text-right">KL</th>
+                    <th className="bg-amber-50/60 px-3 py-1 text-right">Đơn giá</th>
+                    <th className="bg-amber-50/60 px-3 py-1 text-right">Thành tiền</th>
                   </tr>
                 </thead>
               {block.groups.map((grp) => {
                 const subtotal = grp.rows.reduce((s, r) => s + computeAmount(r), 0);
+                const subtotalThuc = computeActualCost(grp.rows).total;
                 return (
                   <Fragment key={grp.label}>
                   <tbody>
@@ -280,6 +306,10 @@ export function EstimateEditor({
                       </td>
                       <td className="px-3 py-1.5 text-right text-xs font-medium text-slate-500">
                         {formatVND(subtotal)}
+                      </td>
+                      <td colSpan={2} className="border-l border-slate-100" />
+                      <td className="px-3 py-1.5 text-right text-xs font-medium text-amber-700">
+                        {formatVND(subtotalThuc)}
                       </td>
                       {canEdit && <td />}
                     </tr>
@@ -313,16 +343,16 @@ export function EstimateEditor({
                                 // kế. KL thiết kế đã có bảng bóc thì khoá — đổi bảng bóc.
                                 <OSoSua
                                   nhan={`Khối lượng — ${r.name}`}
-                                  giaTri={r.actualQty ?? r.designQty}
+                                  giaTri={r.designQty}
                                   dinhDang={formatQty}
-                                  khoa={r.actualQty == null && r.soChiTiet > 0}
+                                  khoa={r.soChiTiet > 0}
                                   dauKhoa="▤"
                                   lyDoKhoa={`Bằng tổng bảng bóc ${r.soChiTiet} dòng — sửa bằng nút bảng bóc`}
                                   luu={(tho) => suaOEstimate(projectId, r.id, "qty", tho)}
                                 />
                               ) : (
                                 <>
-                                  {formatNumber(r.actualQty ?? r.designQty)}
+                                  {formatNumber(r.designQty)}
                                   {/* Dấu bảng: khối lượng thiết kế đến từ bảng bóc chi tiết. */}
                                   {r.soChiTiet > 0 && (
                                     <span
@@ -349,6 +379,39 @@ export function EstimateEditor({
                               )}
                             </Td>
                             <Td className="text-right font-medium">{formatVND(computeAmount(r))}</Td>
+                            <Td className="border-l border-slate-100 bg-amber-50/30 text-right">
+                              {canEdit ? (
+                                <OSoSua
+                                  nhan={`KL thực — ${r.name}`}
+                                  giaTri={r.actualQty}
+                                  dinhDang={formatQty}
+                                  khoa={false}
+                                  luu={(tho) => suaOEstimate(projectId, r.id, "actualQty", tho)}
+                                />
+                              ) : (
+                                formatNumber(r.actualQty)
+                              )}
+                            </Td>
+                            <Td className="bg-amber-50/30 text-right">
+                              {canEdit ? (
+                                <OSoSua
+                                  nhan={`Đơn giá thực — ${r.name}`}
+                                  giaTri={r.actualUnitPrice}
+                                  dinhDang={formatNumber}
+                                  khoa={false}
+                                  luu={(tho) => suaOEstimate(projectId, r.id, "actualUnitPrice", tho)}
+                                />
+                              ) : (
+                                formatNumber(r.actualUnitPrice)
+                              )}
+                            </Td>
+                            <Td className="bg-amber-50/30 text-right font-medium text-amber-800">
+                              {computeActualAmount(r) == null ? (
+                                <span className="text-slate-300">—</span>
+                              ) : (
+                                formatVND(computeActualAmount(r))
+                              )}
+                            </Td>
                             {canEdit && (
                               <Td className="text-right">
                                 <div className="flex justify-end gap-1">
@@ -444,6 +507,8 @@ export function EstimateEditor({
             </div>
           </dl>
         </div>
+
+        {giaiDoan && <BangGiaiDoan g={giaiDoan} />}
 
         {summary.groupSubtotals.length > 0 && (
           <div className="rounded-xl border border-slate-200 bg-white p-5">

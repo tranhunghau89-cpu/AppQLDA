@@ -6,12 +6,16 @@ export interface EstimateLine {
   actualQty: number | null;
   unitPrice: number | null;
   amount: number | null;
+  actualUnitPrice?: number | null;
 }
 
-/** Thành tiền 1 dòng: ưu tiên amount nhập sẵn, nếu trống tính từ KL × đơn giá. */
+/**
+ * Thành tiền DỰ TOÁN 1 dòng: ưu tiên amount nhập sẵn, nếu trống tính KL thiết kế × đơn giá.
+ * KL thực không tham gia — nó thuộc phần chi phí thực (computeActualAmount).
+ */
 export function computeAmount(item: EstimateLine): number {
   if (item.amount != null && item.amount !== 0) return item.amount;
-  const qty = item.actualQty ?? item.designQty ?? 0;
+  const qty = item.designQty ?? 0;
   const price = item.unitPrice ?? 0;
   return qty * price;
 }
@@ -59,4 +63,28 @@ export function computeProfit(
 export function formatPercent(v: number | null): string {
   if (v == null || Number.isNaN(v)) return "—";
   return `${(v * 100).toFixed(1)}%`;
+}
+
+/** Thành tiền THỰC 1 dòng = (KL thực, trống thì KL dự toán) × đơn giá thực. Null = chưa có giá thực. */
+export function computeActualAmount(item: EstimateLine): number | null {
+  if (item.actualUnitPrice == null) return null;
+  return (item.actualQty ?? item.designQty ?? 0) * item.actualUnitPrice;
+}
+
+export interface ActualCost {
+  /** Tổng chi phí thực; dòng chưa có giá thực tạm lấy số dự toán. */
+  total: number;
+  soDongCoGia: number;
+  soDong: number;
+}
+
+export function computeActualCost(items: EstimateLine[]): ActualCost {
+  let total = 0;
+  let soDongCoGia = 0;
+  for (const it of items) {
+    const thuc = computeActualAmount(it);
+    if (thuc != null) soDongCoGia++;
+    total += thuc ?? computeAmount(it);
+  }
+  return { total, soDongCoGia, soDong: items.length };
 }

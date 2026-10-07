@@ -10,8 +10,9 @@ import { Modal } from "@/components/ui/modal";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { CONTRACT_STATUS, CONTRACT_STATUS_MAP } from "@/lib/constants";
-import { formatVND, formatNumber, formatDate } from "@/lib/utils";
-import { computeContractTotals, lineAmount } from "@/lib/contract";
+import { formatVND, formatNumber, formatDate, formatQty } from "@/lib/utils";
+import { computeContractTotals, lineAmount, settleAmount } from "@/lib/contract";
+import { OSoSua } from "@/components/ui/OSoSua";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -19,6 +20,7 @@ import {
   deleteContract,
   saveContractItem,
   deleteContractItem,
+  suaKLQuyetToan,
 } from "./actions";
 
 export interface ContractItemView {
@@ -28,6 +30,7 @@ export interface ContractItemView {
   qty: number | null;
   unitPrice: number | null;
   amount: number | null;
+  settleQty: number | null;
 }
 export interface ContractView {
   id: string;
@@ -213,6 +216,8 @@ export function ContractEditor({
                   <Th className="text-right">Khối lượng</Th>
                   <Th className="text-right">Đơn giá</Th>
                   <Th className="text-right">Thành tiền</Th>
+                  <Th className="bg-emerald-50 text-right text-emerald-800">KL quyết toán</Th>
+                  <Th className="bg-emerald-50 text-right text-emerald-800">Thành tiền QT</Th>
                   {canEdit && <Th></Th>}
                 </tr>
               </THead>
@@ -226,6 +231,26 @@ export function ContractEditor({
                     <Td className="text-right">{formatNumber(r.qty)}</Td>
                     <Td className="text-right">{formatNumber(r.unitPrice)}</Td>
                     <Td className="text-right font-medium">{formatVND(lineAmount(r))}</Td>
+                    <Td className="bg-emerald-50/40 text-right">
+                      {canEdit ? (
+                        <OSoSua
+                          nhan={`KL quyết toán — ${r.name}`}
+                          giaTri={r.settleQty}
+                          dinhDang={formatQty}
+                          khoa={false}
+                          luu={(tho) => suaKLQuyetToan(projectId, c.id, r.id, tho)}
+                        />
+                      ) : (
+                        formatNumber(r.settleQty)
+                      )}
+                    </Td>
+                    <Td className="bg-emerald-50/40 text-right font-medium text-emerald-800">
+                      {settleAmount(r) == null ? (
+                        <span className="text-slate-300">—</span>
+                      ) : (
+                        formatVND(settleAmount(r))
+                      )}
+                    </Td>
                     {canEdit && (
                       <Td className="text-right">
                         <div className="flex justify-end gap-1">
@@ -293,6 +318,16 @@ export function ContractEditor({
                   <dt className="font-medium text-slate-700">Tổng (gồm VAT)</dt>
                   <dd className="font-bold text-green-600">{formatVND(totals.withVat)}</dd>
                 </div>
+                {c.items.some((r) => r.settleQty != null) && (
+                  <div className="flex justify-between border-t border-slate-100 pt-1">
+                    <dt className="font-medium text-emerald-800">Quyết toán chưa VAT</dt>
+                    <dd className="font-bold text-emerald-700">
+                      {formatVND(
+                        c.items.reduce((s, r) => s + (settleAmount(r) ?? lineAmount(r)), 0)
+                      )}
+                    </dd>
+                  </div>
+                )}
               </dl>
             </div>
           </div>

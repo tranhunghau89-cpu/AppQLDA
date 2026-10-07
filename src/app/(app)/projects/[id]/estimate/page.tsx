@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireProjectView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { SIGNED_CONTRACT_STATUSES } from "@/lib/contract";
+import { docGiaTriGiaiDoan } from "@/lib/giaTriGiaiDoanDuAn";
 import { nhaCungCapTheoKhuVuc } from "@/lib/thuVien/nhaCungCap";
 import { napCongTacCoGia } from "@/lib/thuVien/napGia";
 import { EstimateEditor, type EstimateRow, type SectionInfo } from "./EstimateEditor";
@@ -19,6 +20,7 @@ export default async function EstimatePage({
   const { id } = await params;
   const session = await requireProjectView("estimate", id);
   const canEdit = can(session.role, "estimate", "edit");
+  const giaiDoan = await docGiaTriGiaiDoan(id);
   const hdKy = await db.contract.findMany({
     where: { projectId: id, status: { in: SIGNED_CONTRACT_STATUSES } },
     select: { contractNo: true },
@@ -118,6 +120,7 @@ export default async function EstimatePage({
     unit: it.unit,
     designQty: it.designQty,
     actualQty: it.actualQty,
+    actualUnitPrice: it.actualUnitPrice,
     unitPrice: it.unitPrice,
     amount: it.amount,
     supplierId: it.supplierId,
@@ -165,6 +168,7 @@ export default async function EstimatePage({
         trongKhuVuc={trongKhuVuc}
         khuVucTen={project.khuVuc?.ten ?? null}
         salePrice={project.salePrice}
+        giaiDoan={giaiDoan}
         giaBanTheoHD={hdKy.length > 0 ? hdKy.map((c) => c.contractNo ?? "(chưa có số)") : null}
         area={project.area}
         canEdit={canEdit}

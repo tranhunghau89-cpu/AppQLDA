@@ -122,7 +122,7 @@ export async function buildEstimateWorkbook(
           "",
           `    ${it.name}`,
           it.unit ?? "",
-          it.actualQty ?? it.designQty ?? "",
+          it.designQty ?? "",
           it.unitPrice ?? "",
           computeAmount(it),
           it.supplierName ?? "",

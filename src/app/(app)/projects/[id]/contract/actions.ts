@@ -7,6 +7,7 @@ import { denyProject, requireSession } from "@/lib/auth";
 import { diffFields, recordAudit } from "@/lib/audit";
 import { CONTRACT_STATUS_MAP } from "@/lib/constants";
 import { lineAmount } from "@/lib/contract";
+import { laCongThuc, tinhBieuThuc } from "@/lib/bieuThuc";
 import { syncSalePriceFromContracts } from "@/lib/contractSalePrice";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -252,5 +253,42 @@ export async function deleteContractItem(
   await syncSalePriceFromContracts(projectId, await requireSession());
   revalidatePath(`/projects/${projectId}/contract`);
   revalidatePath("/contracts");
+  return { ok: true };
+}
+
+/** Sửa KL quyết toán của một hạng mục HĐ ngay trên bảng. Trống = chưa quyết toán dòng này. */
+export async function suaKLQuyetToan(
+  projectId: string,
+  contractId: string,
+  itemId: string,
+  tho: string
+): Promise<ActionResult> {
+  const denied = await guard(projectId, "Bạn không có quyền sửa quyết toán.", contractId);
+  if (denied) return denied;
+  const giaTri = tho.trim() === "" ? null : tinhBieuThuc(tho);
+  if (tho.trim() !== "" && giaTri == null) {
+    return { ok: false, error: laCongThuc(tho) ? "Công thức không hợp lệ." : "Không phải là số." };
+  }
+  if (giaTri != null && giaTri < 0) return { ok: false, error: "Không được là số âm." };
+  const truoc = await db.contractItem.findUnique({
+    where: { id: itemId },
+    select: { contractId: true, name: true, settleQty: true },
+  });
+  if (!truoc || truoc.contractId !== contractId) {
+    return { ok: false, error: "Hạng mục không thuộc hợp đồng này." };
+  }
+  await db.contractItem.update({ where: { id: itemId }, data: { settleQty: giaTri } });
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "ContractItem",
+    entityId: itemId,
+    entityLabel: truoc.name,
+    projectId,
+    action: "UPDATE",
+    changes: diffFields(truoc, { settleQty: giaTri }, ["settleQty"]),
+  });
+  revalidatePath(`/projects/${projectId}/contract`);
+  revalidatePath(`/projects/${projectId}/estimate`);
+  revalidatePath(`/projects/${projectId}`);
   return { ok: true };
 }

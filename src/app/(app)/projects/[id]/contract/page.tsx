@@ -45,6 +45,7 @@ export default async function ContractPage({
       qty: i.qty,
       unitPrice: i.unitPrice,
       amount: i.amount,
+      settleQty: i.settleQty,
     })),
   }));
 

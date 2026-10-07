@@ -24,14 +24,10 @@ describe("computeAmount", () => {
     expect(computeAmount(line({ amount: 0, designQty: 10, unitPrice: 20_000 }))).toBe(200_000);
   });
 
-  it("dùng KL thực tế thay cho KL thiết kế khi có", () => {
+  it("thành tiền dự toán chỉ dùng KL thiết kế — KL thực thuộc chi phí thực", () => {
     expect(
       computeAmount(line({ designQty: 10, actualQty: 12, unitPrice: 1_000 }))
-    ).toBe(12_000);
-  });
-
-  it("KL thực tế = 0 vẫn được tôn trọng (không rơi về KL thiết kế)", () => {
-    expect(computeAmount(line({ designQty: 10, actualQty: 0, unitPrice: 1_000 }))).toBe(0);
+    ).toBe(10_000);
   });
 
   it("thiếu dữ liệu trả về 0", () => {
