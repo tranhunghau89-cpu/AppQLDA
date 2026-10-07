@@ -262,6 +262,7 @@ export function EstimateEditor({
               {/* Một bảng cho cả hạng mục, cột cố định độ rộng để các nhóm thẳng hàng nhau. */}
               <Table className="table-fixed">
                 <colgroup>
+                  <col className="w-12" />
                   <col />
                   <col className="w-14" />
                   <col className="w-24" />
@@ -274,7 +275,8 @@ export function EstimateEditor({
                 </colgroup>
                 <thead className="bg-white text-xs font-medium uppercase tracking-wide text-slate-500">
                   <tr>
-                    <th rowSpan={2} className="px-3 py-1 pl-6 text-left align-bottom">Công việc</th>
+                    <th rowSpan={2} className="px-2 py-1 text-center align-bottom">STT</th>
+                    <th rowSpan={2} className="px-3 py-1 text-left align-bottom">Công việc</th>
                     <th rowSpan={2} className="px-3 py-1 text-left align-bottom">ĐVT</th>
                     <th colSpan={3} className="border-b border-slate-200 px-3 pt-2 pb-1 text-center text-slate-600">
                       Dự toán
@@ -293,13 +295,14 @@ export function EstimateEditor({
                     <th className="bg-amber-50/60 px-3 py-1 text-right">Thành tiền</th>
                   </tr>
                 </thead>
-              {block.groups.map((grp) => {
+              {block.groups.map((grp, gi) => {
                 const subtotal = grp.rows.reduce((s, r) => s + computeAmount(r), 0);
                 const thucNhom = computeActualCost(grp.rows);
                 return (
                   <Fragment key={grp.label}>
                   <tbody>
                     <tr className="border-y border-slate-100 bg-slate-50">
+                      <td className="px-2 py-1.5 text-center text-sm font-semibold text-slate-700">{gi + 1}</td>
                       <td colSpan={4} className="px-4 py-1.5 text-sm font-semibold text-slate-700">
                         {grp.label}
                       </td>
@@ -328,8 +331,9 @@ export function EstimateEditor({
                       </td>
                       {canEdit && <td />}
                     </tr>
-                        {grp.rows.map((r) => (
+                        {grp.rows.map((r, ri) => (
                           <Tr key={r.id}>
+                            <Td className="px-2 text-center text-slate-400">{gi + 1}.{ri + 1}</Td>
                             <Td className="pl-6 text-slate-800 break-words">
                               {canEdit ? (
                                 <>
