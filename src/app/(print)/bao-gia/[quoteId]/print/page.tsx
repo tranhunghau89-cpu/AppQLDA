@@ -17,6 +17,7 @@ import { docTienVietNam } from "@/lib/money-words";
 import { formatNumber, formatQty } from "@/lib/utils";
 import { PrintToolbar } from "@/components/print/PrintToolbar";
 import { PrintHeader, PrintPage, dongNgayThang } from "@/components/print/PrintFrame";
+import { PhanTrangXemTruoc } from "@/components/print/PhanTrangXemTruoc";
 
 /**
  * Trang in báo giá gửi khách — một địa chỉ duy nhất, không nằm dưới /projects.
@@ -104,12 +105,9 @@ export default async function ClientQuotePrintPage({
   const nhomA = specs.filter((s) => s.groupCode === "A");
   const nhomB = specs.filter((s) => s.groupCode === "B");
 
-  return (
-    <>
-      {!trongKhungXem && <PrintToolbar quayVe={quayVe} nhan="Quay lại báo giá" />}
-
+  const trang = (
       <PrintPage>
-        {/* ===================== TRANG 1 ===================== */}
+        {/* ===================== PHẦN 1 ===================== */}
         <PrintHeader />
 
         <div className="giu-nguyen-khoi text-center">
@@ -225,8 +223,8 @@ export default async function ClientQuotePrintPage({
           {docTienVietNam(tong.withVat)}
         </div>
 
-        {/* ===================== TRANG 2 ===================== */}
-        <div className="sang-trang-moi">
+        {/* ===================== PHẦN 2 ===================== */}
+        <div className="mt-6">
           <MucTieuDe so="2" ten="Vật liệu áp dụng và thông số kỹ thuật của vật liệu" />
           <table className="mt-2 w-full table-fixed border-collapse text-[10.5px]">
             <colgroup>
@@ -257,8 +255,8 @@ export default async function ClientQuotePrintPage({
           </table>
         </div>
 
-        {/* ===================== TRANG 3 ===================== */}
-        <div className="sang-trang-moi">
+        {/* ===================== PHẦN 3 ===================== */}
+        <div className="mt-6">
           <div className="text-[11.5px] font-bold">Ghi chú:</div>
           <table className="mt-2 w-full border-collapse text-[10.5px]">
             <tbody>
@@ -321,6 +319,13 @@ export default async function ClientQuotePrintPage({
           </div>
         </div>
       </PrintPage>
+  );
+
+  return (
+    <>
+      {!trongKhungXem && <PrintToolbar quayVe={quayVe} nhan="Quay lại báo giá" />}
+
+      {trongKhungXem ? <PhanTrangXemTruoc>{trang}</PhanTrangXemTruoc> : trang}
     </>
   );
 }

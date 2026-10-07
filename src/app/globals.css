@@ -166,3 +166,18 @@ body {
 html[data-dang-tai] {
   cursor: progress;
 }
+
+/* Xem trước có phân trang (Paged.js): mỗi tờ A4 một khối trắng tách rời nhau. */
+@media screen {
+  .xem-truoc-phan-trang .pagedjs_pages {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 0;
+  }
+  .xem-truoc-phan-trang .pagedjs_page {
+    background: #fff;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.15);
+  }
+}
