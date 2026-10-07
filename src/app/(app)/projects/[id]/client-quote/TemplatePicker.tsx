@@ -22,11 +22,21 @@ export function TemplatePicker({
   templates: TemplateOption[];
   goiY: string | null;
 }) {
+  const macDinhCua = (id: string) =>
+    (templates.find((t) => t.id === id)?.phan ?? []).filter((p) => p.macDinh).map((p) => p.ma);
   const [templateId, setTemplateId] = useState(goiY ?? "");
+  // Giữ lựa chọn bằng state và gửi qua MỘT ô ẩn — không trông vào việc FormData nhặt
+  // các ô tích (đã có lần lựa chọn rơi mất, báo giá lập ra không có hạng mục nào).
+  const [chon, setChon] = useState<string[]>(() => macDinhCua(goiY ?? ""));
   if (templates.length === 0) return null;
 
   const mau = templates.find((t) => t.id === templateId);
   const phan = mau?.phan ?? [];
+
+  function doiMau(id: string) {
+    setTemplateId(id);
+    setChon(macDinhCua(id));
+  }
 
   return (
     <div className="space-y-3">
@@ -34,7 +44,7 @@ export function TemplatePicker({
         <Select
           name="templateId"
           value={templateId}
-          onChange={(e) => setTemplateId(e.target.value)}
+          onChange={(e) => doiMau(e.target.value)}
         >
           <option value="">— Không dùng mẫu (giá trị mặc định) —</option>
           {templates.map((t) => (
@@ -51,20 +61,23 @@ export function TemplatePicker({
       </Field>
 
       {phan.length > 0 && (
-        // `key` theo mẫu: đổi mẫu thì các ô tích dựng lại theo mặc định của mẫu mới.
-        <fieldset key={templateId} className="rounded-md border border-slate-200 p-3">
+        <fieldset className="rounded-md border border-slate-200 p-3">
           <legend className="px-1 text-sm font-medium text-slate-700">
             Hạng mục đưa vào báo giá
           </legend>
           <input type="hidden" name="coChonPhan" value="1" />
+          <input type="hidden" name="phanChonCsv" value={chon.join(",")} />
           <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
             {phan.map((p) => (
               <label key={p.ma} className="flex items-center gap-2 text-sm text-slate-700">
                 <input
                   type="checkbox"
-                  name="phanChon"
-                  value={p.ma}
-                  defaultChecked={p.macDinh}
+                  checked={chon.includes(p.ma)}
+                  onChange={(e) =>
+                    setChon((c) =>
+                      e.target.checked ? [...c, p.ma] : c.filter((x) => x !== p.ma)
+                    )
+                  }
                   className="h-4 w-4 rounded border-slate-300 text-blue-600"
                 />
                 <span className="flex-1">{p.ten}</span>

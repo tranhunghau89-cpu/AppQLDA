@@ -79,7 +79,10 @@ function paths(chu: ChuBaoGia) {
  */
 function phanChonCua(form: FormData): string[] | null {
   if (form.get("coChonPhan") === null) return null;
-  return form.getAll("phanChon").map(String);
+  return String(form.get("phanChonCsv") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 /** Chỉ dự án mới có id dự án để ghi vào nhật ký; báo giá ở cơ hội thì chưa có. */
@@ -608,13 +611,21 @@ export async function apBoHangMuc(
   chu: ChuBaoGia,
   clientQuoteId: string,
   templateId: string,
-  phanChon: string[]
+  chon: { ma: string; qty: number | null; unitPrice: number | null }[]
 ): Promise<ActionResult> {
   const g = await guard(chu, { clientQuoteId });
   if (g) return g;
-  if (phanChon.length === 0) return { ok: false, error: "Chưa chọn hạng mục nào." };
+  if (!Array.isArray(chon) || chon.length === 0) {
+    return { ok: false, error: "Chưa chọn hạng mục nào." };
+  }
+  const soHopLe = (v: unknown) =>
+    v === null || (typeof v === "number" && Number.isFinite(v) && v >= 0);
+  if (chon.some((c) => typeof c?.ma !== "string" || !soHopLe(c.qty) || !soHopLe(c.unitPrice))) {
+    return { ok: false, error: "Khối lượng hoặc đơn giá không hợp lệ." };
+  }
+  const theoMa = new Map(chon.map((c) => [c.ma, c]));
 
-  const mau = await napMau(templateId, phanChon);
+  const mau = await napMau(templateId, [...theoMa.keys()]);
   if (!mau) return { ok: false, error: "Không tìm thấy bộ hạng mục." };
   const k = apDungMau(mau);
   if (k.lines.length === 0) {
@@ -641,7 +652,9 @@ export async function apBoHangMuc(
         detail: l.detail,
         unit: l.unit,
         note: l.note,
-        unitPrice: l.defaultUnitPrice,
+        qty: theoMa.get(l.sourceSectionCode ?? "")?.qty ?? null,
+        // Ô đơn giá để trống thì lùi về giá mẫu của bộ.
+        unitPrice: theoMa.get(l.sourceSectionCode ?? "")?.unitPrice ?? l.defaultUnitPrice,
         tags: l.tags,
         steelFrameKey: l.steelFrameKey,
         sortOrder: batDau + i,
