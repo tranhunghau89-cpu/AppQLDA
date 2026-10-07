@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Select, Field, Input } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { useActionForm } from "@/components/ui/useActionForm";
-import { docSoVN } from "@/lib/thuVien/bangGia";
+import { laCongThuc, tinhBieuThuc } from "@/lib/bieuThuc";
 import { formatVND } from "@/lib/utils";
 import { ModalActions } from "../quote/ModalActions";
 import { apBoHangMuc } from "./actions";
@@ -15,6 +15,55 @@ interface Dong {
   chon: boolean;
   qty: string;
   donGia: string;
+}
+
+/** 1250000 -> "1.250.000" — chấm phân nhóm nghìn cho dễ đọc. */
+function dinhDang(n: number): string {
+  return n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
+}
+
+/** Đọc một ô: trống -> null; công thức "=20*50" hoặc số kiểu Việt; sai -> NaN. */
+function docO(s: string): number | null {
+  if (!s.trim()) return null;
+  return tinhBieuThuc(s) ?? NaN;
+}
+
+/**
+ * Ô số: nhận số có chấm nghìn hoặc công thức bắt đầu bằng "=". Rời ô thì số thường
+ * được chấm lại cho dễ đọc; công thức giữ nguyên và hiện kết quả ngay bên dưới.
+ */
+function OSo({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  const ct = laCongThuc(value);
+  const kq = value.trim() ? tinhBieuThuc(value) : null;
+  return (
+    <div>
+      <Input
+        inputMode="decimal"
+        className="h-8 text-right"
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={() => {
+          if (!ct && kq != null) onChange(dinhDang(kq));
+        }}
+      />
+      {ct && (
+        <span
+          className={`block text-right text-xs ${kq == null ? "text-red-600" : "text-slate-500"}`}
+        >
+          {kq == null ? "công thức sai" : `= ${dinhDang(kq)}`}
+        </span>
+      )}
+    </div>
+  );
 }
 
 /** Mẫu mặc định: mẫu gợi ý nếu nó có hạng mục, không thì mẫu đầu tiên có hạng mục. */
@@ -31,7 +80,7 @@ function dongMoi(t: TemplateOption | undefined): Record<string, Dong> {
     r[p.ma] = {
       chon: p.macDinh,
       qty: "",
-      donGia: p.donGia != null ? String(p.donGia) : "",
+      donGia: p.donGia != null ? dinhDang(p.donGia) : "",
     };
   }
   return r;
@@ -86,8 +135,8 @@ export function ApBoModal({
       for (const p of mau?.phan ?? []) {
         const d = dong[p.ma];
         if (!d?.chon) continue;
-        const qty = docSoVN(d.qty);
-        const unitPrice = docSoVN(d.donGia);
+        const qty = docO(d.qty);
+        const unitPrice = docO(d.donGia);
         if (Number.isNaN(qty) || Number.isNaN(unitPrice)) {
           return { ok: false, error: `Số không hợp lệ ở hạng mục "${p.ten}".` };
         }
@@ -127,6 +176,7 @@ export function ApBoModal({
               <thead className="bg-slate-50 text-xs text-slate-500">
                 <tr>
                   <th className="w-8 px-2 py-2" />
+                  <th className="w-10 px-2 py-2 text-left font-medium">STT</th>
                   <th className="px-2 py-2 text-left font-medium">Hạng mục</th>
                   <th className="w-14 px-2 py-2 text-left font-medium">ĐVT</th>
                   <th className="w-28 px-2 py-2 text-right font-medium">
@@ -138,7 +188,7 @@ export function ApBoModal({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {phan.map((p) => {
+                {phan.map((p, i) => {
                   const d = dong[p.ma] ?? { chon: false, qty: "", donGia: "" };
                   return (
                     <tr key={p.ma} className={d.chon ? "" : "text-slate-400"}>
@@ -152,6 +202,9 @@ export function ApBoModal({
                           className="h-4 w-4 rounded border-slate-300 text-blue-600"
                           aria-label={`Chọn ${p.ten}`}
                         />
+                      </td>
+                      <td className="px-2 py-1.5 tabular-nums">
+                        {String(i + 1).padStart(2, "0")}
                       </td>
                       <td className="px-2 py-1.5">
                         <button
@@ -168,29 +221,23 @@ export function ApBoModal({
                         )}
                       </td>
                       <td className="px-2 py-1.5">{p.donVi ?? "m2"}</td>
-                      <td className="px-2 py-1.5">
-                        <Input
-                          inputMode="decimal"
-                          className="h-8 text-right"
+                      <td className="px-2 py-1.5 align-top">
+                        <OSo
                           value={d.qty}
                           placeholder="0"
-                          onChange={(e) =>
+                          onChange={(v) =>
                             sua(p.ma, {
-                              qty: e.target.value,
-                              chon: d.chon || e.target.value.trim() !== "",
+                              qty: v,
+                              chon: d.chon || v.trim() !== "",
                             })
                           }
                         />
                       </td>
-                      <td className="px-2 py-1.5">
-                        <Input
-                          inputMode="decimal"
-                          className="h-8 text-right"
+                      <td className="px-2 py-1.5 align-top">
+                        <OSo
                           value={d.donGia}
                           placeholder="nhập tay"
-                          onChange={(e) =>
-                            sua(p.ma, { donGia: e.target.value })
-                          }
+                          onChange={(v) => sua(p.ma, { donGia: v })}
                         />
                       </td>
                     </tr>
@@ -208,9 +255,9 @@ export function ApBoModal({
         )}
 
         <p className="text-xs text-slate-500">
-          Gõ khối lượng là dòng tự được chọn. Khối lượng để trống thì điền sau
-          trên bảng. Các hạng mục được thêm vào cuối bảng, giữ nguyên những dòng
-          đang có.
+          Gõ khối lượng là dòng tự được chọn; nhập được công thức, vd “=20*50”.
+          Khối lượng để trống thì điền sau trên bảng. Các hạng mục được thêm vào
+          cuối bảng, giữ nguyên những dòng đang có.
         </p>
         <ModalActions error={error} pending={pending} onCancel={onClose} />
       </form>
