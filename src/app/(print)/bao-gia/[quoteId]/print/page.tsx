@@ -18,6 +18,7 @@ import { formatNumber, formatQty } from "@/lib/utils";
 import { PrintToolbar } from "@/components/print/PrintToolbar";
 import { PrintHeader, PrintPage, dongNgayThang } from "@/components/print/PrintFrame";
 import { PhanTrangXemTruoc } from "@/components/print/PhanTrangXemTruoc";
+import { DatTieuDe } from "@/components/print/DatTieuDe";
 
 /**
  * Trang in báo giá gửi khách — một địa chỉ duy nhất, không nằm dưới /projects.
@@ -323,10 +324,8 @@ export default async function ClientQuotePrintPage({
 
   return (
     <>
-      {/* Trình duyệt lấy <title> làm tên tệp mặc định khi Lưu thành PDF. Đặt ở đây, sau
-          bước kiểm quyền, chứ không qua generateMetadata — để người không có quyền không
-          đọc được tên báo giá từ thẻ <head>. */}
-      <title>{quote.title}</title>
+      {/* Tên tệp PDF mặc định = tên báo giá. Đặt sau bước kiểm quyền. */}
+      <DatTieuDe ten={quote.title} />
       {!trongKhungXem && <PrintToolbar quayVe={quayVe} nhan="Quay lại báo giá" />}
 
       {trongKhungXem ? <PhanTrangXemTruoc>{trang}</PhanTrangXemTruoc> : trang}
