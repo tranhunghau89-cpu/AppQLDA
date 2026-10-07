@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
@@ -18,7 +19,6 @@ import { formatNumber, formatQty } from "@/lib/utils";
 import { PrintToolbar } from "@/components/print/PrintToolbar";
 import { PrintHeader, PrintPage, dongNgayThang } from "@/components/print/PrintFrame";
 import { PhanTrangXemTruoc } from "@/components/print/PhanTrangXemTruoc";
-import { DatTieuDe } from "@/components/print/DatTieuDe";
 
 /**
  * Trang in báo giá gửi khách — một địa chỉ duy nhất, không nằm dưới /projects.
@@ -29,6 +29,38 @@ import { DatTieuDe } from "@/components/print/DatTieuDe";
  * cơ hội thành dự án (Phase 8.5) bản báo giá đổi chủ, mà đường dẫn này thì không — link
  * đã gửi đi vẫn mở được.
  */
+/** Quyền XEM báo giá của chủ sở hữu (dự án hoặc cơ hội) — dùng chung cho trang và tiêu đề. */
+async function duocXem(chu: ReturnType<typeof chuCuaQuote>): Promise<boolean> {
+  const session = await getSession();
+  return (
+    session != null &&
+    can(session.role as Role, "quote", "view") &&
+    (chu?.loai === "DU_AN"
+      ? await canAccessProject(session, chu.id)
+      : chu?.loai === "CO_HOI"
+        ? await canAccessCoHoi(session, chu.id)
+        : false)
+  );
+}
+
+/**
+ * Tiêu đề trang = tên báo giá: trình duyệt lấy nó làm tên tệp mặc định khi Lưu thành
+ * PDF. Kiểm quyền trước, để người không có quyền không đọc được tên từ thẻ <title>.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ quoteId: string }>;
+}): Promise<Metadata> {
+  const { quoteId } = await params;
+  const quote = await db.clientQuote.findUnique({
+    where: { id: quoteId },
+    select: { title: true, projectId: true, coHoiId: true },
+  });
+  if (!quote || !(await duocXem(chuCuaQuote(quote)))) return {};
+  return { title: quote.title };
+}
+
 export default async function ClientQuotePrintPage({
   params,
   searchParams,
@@ -55,16 +87,8 @@ export default async function ClientQuotePrintPage({
   if (!quote) notFound();
 
   // In được thì ai xem được cũng nên in được — quyền XEM, không phải quyền sửa.
-  const session = await getSession();
   const chu = chuCuaQuote(quote);
-  const vaoDuoc =
-    session != null &&
-    can(session.role as Role, "quote", "view") &&
-    (chu?.loai === "DU_AN"
-      ? await canAccessProject(session, chu.id)
-      : chu?.loai === "CO_HOI"
-        ? await canAccessCoHoi(session, chu.id)
-        : false);
+  const vaoDuoc = await duocXem(chu);
   if (!chu || !vaoDuoc) notFound();
 
   // Dòng "Dự án" trên trang 1: mã dự án nếu đã ký, tên công trình nếu còn đang chào.
@@ -324,8 +348,6 @@ export default async function ClientQuotePrintPage({
 
   return (
     <>
-      {/* Tên tệp PDF mặc định = tên báo giá. Đặt sau bước kiểm quyền. */}
-      <DatTieuDe ten={quote.title} />
       {!trongKhungXem && <PrintToolbar quayVe={quayVe} nhan="Quay lại báo giá" />}
 
       {trongKhungXem ? <PhanTrangXemTruoc>{trang}</PhanTrangXemTruoc> : trang}
