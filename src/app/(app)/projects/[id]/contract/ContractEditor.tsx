@@ -212,6 +212,7 @@ export function ContractEditor({
             <Table>
               <THead>
                 <tr>
+                  <Th className="w-12 text-center">STT</Th>
                   <Th>Hạng mục</Th>
                   <Th className="text-right">Khối lượng</Th>
                   <Th className="text-right">Đơn giá</Th>
@@ -222,8 +223,9 @@ export function ContractEditor({
                 </tr>
               </THead>
               <tbody>
-                {c.items.map((r) => (
+                {c.items.map((r, i) => (
                   <Tr key={r.id}>
+                    <Td className="w-12 text-center text-slate-400">{i + 1}</Td>
                     <Td className="font-medium text-slate-900">
                       {r.name}
                       {r.unit ? <span className="text-slate-400"> ({r.unit})</span> : null}

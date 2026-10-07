@@ -105,6 +105,7 @@ export default async function CostPage({ params }: { params: Promise<{ id: strin
               <Table>
                 <THead>
                   <tr>
+                    <Th className="w-12 text-center">STT</Th>
                     <Th>Hạng mục</Th>
                     <Th>NCC</Th>
                     <Th className="text-right">Giá trị</Th>
@@ -113,8 +114,9 @@ export default async function CostPage({ params }: { params: Promise<{ id: strin
                   </tr>
                 </THead>
                 <tbody>
-                  {cs.categories.map((c) => (
+                  {cs.categories.map((c, i) => (
                     <Tr key={c.id}>
+                      <Td className="w-12 text-center text-slate-400">{i + 1}</Td>
                       <Td className="font-medium text-slate-900">
                         <span className="mr-1 font-mono text-slate-400">{c.code}</span>
                         {c.name}
@@ -130,7 +132,7 @@ export default async function CostPage({ params }: { params: Promise<{ id: strin
                     </Tr>
                   ))}
                   <Tr className="bg-slate-50 font-semibold">
-                    <Td className="text-slate-900" {...{ colSpan: 2 }}>
+                    <Td className="text-slate-900" {...{ colSpan: 3 }}>
                       Tổng chi phí
                     </Td>
                     <Td className="text-right">
@@ -162,6 +164,7 @@ export default async function CostPage({ params }: { params: Promise<{ id: strin
                   <Table className="table-fixed">
                     <THead>
                       <tr>
+                        <Th className="w-12 text-center">STT</Th>
                         <Th>Hạng mục</Th>
                         <Th className="w-28 text-right">Khối lượng</Th>
                         <Th className="w-28 text-right">Đơn giá</Th>
@@ -170,8 +173,9 @@ export default async function CostPage({ params }: { params: Promise<{ id: strin
                       </tr>
                     </THead>
                     <tbody>
-                      {c.items.map((it) => (
+                      {c.items.map((it, i) => (
                         <Tr key={it.id}>
+                          <Td className="w-12 text-center text-slate-400">{i + 1}</Td>
                           <Td className="font-medium text-slate-900">{it.name}</Td>
                           <Td className="text-right">{formatNumber(it.qty)}</Td>
                           <Td className="text-right">{formatNumber(it.unitPrice)}</Td>

@@ -457,6 +457,7 @@ function ItemsTable({
     <Table>
       <THead>
         <tr>
+          <Th className="w-12 text-center">STT</Th>
           {showGroupCol && <Th>{groupColLabel}</Th>}
           <SortHead field="name" label="Tên hàng, quy cách" sort={sort} onToggle={onToggleSort} />
           <Th className="text-center">Biên dạng</Th>
@@ -469,8 +470,9 @@ function ItemsTable({
         </tr>
       </THead>
       <tbody>
-        {rows.map((r) => (
+        {rows.map((r, i) => (
           <Tr key={r.id}>
+            <Td className="w-12 text-center text-slate-400">{i + 1}</Td>
             {showGroupCol && (
               <Td className="text-slate-500">
                 {(groupBy === "category" ? r.category : r.groupName) || "—"}
@@ -668,6 +670,7 @@ function OrderCard({
                 <Table>
                   <THead>
                     <tr>
+                      <Th className="w-12 text-center">STT</Th>
                       <Th>{groupColLabel}</Th>
                       <Th className="text-right">Số dòng</Th>
                       <Th className="text-right">Khối lượng (kg)</Th>
@@ -675,8 +678,9 @@ function OrderCard({
                     </tr>
                   </THead>
                   <tbody>
-                    {summary.map((s) => (
+                    {summary.map((s, i) => (
                       <Tr key={s.key}>
+                        <Td className="w-12 text-center text-slate-400">{i + 1}</Td>
                         <Td className="font-medium text-slate-900">{s.key}</Td>
                         <Td className="text-right">{s.count}</Td>
                         <Td className="text-right">{formatNumber(s.weight)}</Td>
