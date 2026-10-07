@@ -295,13 +295,13 @@ export function ClientQuoteCard({
                   </Button>
                 )}
               </div>
-              <Table>
+              <Table className="table-fixed">
                 <THead>
                   <tr>
-                    <Th>Nội dung</Th>
+                    <Th className="w-1/4">Nội dung</Th>
                     <Th>Thông số kỹ thuật</Th>
-                    <Th>Ghi chú và xuất xứ</Th>
-                    {canEdit && <Th></Th>}
+                    <Th className="w-1/4">Ghi chú và xuất xứ</Th>
+                    {canEdit && <Th className="w-24"></Th>}
                   </tr>
                 </THead>
                 <tbody>

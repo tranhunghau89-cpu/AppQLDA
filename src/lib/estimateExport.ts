@@ -1,6 +1,6 @@
 import ExcelJS from "exceljs";
 import { ESTIMATE_GROUP_MAP } from "./constants";
-import { computeAmount, computeProfit } from "./profit";
+import { computeActualAmount, computeActualCost, computeAmount, computeProfit } from "./profit";
 
 export interface ExportItem {
   sectionId: string | null;
@@ -11,6 +11,7 @@ export interface ExportItem {
   designQty: number | null;
   actualQty: number | null;
   unitPrice: number | null;
+  actualUnitPrice: number | null;
   amount: number | null;
   note: string | null;
   sortOrder: number;
@@ -35,6 +36,7 @@ export interface ExportProject {
 
 const GREY = "FFE9EDF2";
 const DARK = "FF33415C";
+const AMBER = "FFFDF3E1";
 
 function groupByLabel(rows: ExportItem[]) {
   const sorted = [...rows].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -49,6 +51,12 @@ function groupByLabel(rows: ExportItem[]) {
     map.get(label)!.push(r);
   }
   return order.map((label) => ({ label, rows: map.get(label)! }));
+}
+
+/** Tổng thực của một nhóm dòng: rỗng khi chưa dòng nào có giá thực (giống màn hình). */
+function tongThuc(rows: ExportItem[]): number | "" {
+  const t = computeActualCost(rows);
+  return t.soDongCoGia === 0 ? "" : t.total;
 }
 
 /** Gom item theo Hạng mục (Section) → giữ thứ tự; item chưa phân → cuối. */
@@ -76,17 +84,28 @@ export async function buildEstimateWorkbook(
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet(`Dự toán ${p.code}`);
 
-  ws.mergeCells("A1:H1");
+  ws.mergeCells("A1:K1");
   ws.getCell("A1").value = `DỰ TOÁN — ${p.code} ${p.name}`;
   ws.getCell("A1").font = { bold: true, size: 14 };
   ws.addRow([]);
 
-  const header = ws.addRow(["STT", "Hạng mục", "Đơn vị", "Khối lượng", "Đơn giá", "Thành tiền", "NCC", "Ghi chú"]);
-  header.font = { bold: true };
-  header.eachCell((c) => {
-    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: GREY } };
-    c.alignment = { horizontal: "center" };
-  });
+  // Hai tầng tiêu đề: nhóm Dự toán / Thực tế, rồi tên cột.
+  const tren = ws.addRow(["STT", "Hạng mục", "Đơn vị", "DỰ TOÁN", "", "", "THỰC TẾ (MUA HÀNG)", "", "", "NCC", "Ghi chú"]);
+  const header = ws.addRow(["", "", "", "Khối lượng", "Đơn giá", "Thành tiền", "KL thực", "Đơn giá thực", "Thành tiền thực", "", ""]);
+  const r1 = tren.number;
+  const r2 = header.number;
+  ws.mergeCells(r1, 4, r1, 6);
+  ws.mergeCells(r1, 7, r1, 9);
+  for (const col of [1, 2, 3, 10, 11]) ws.mergeCells(r1, col, r2, col);
+  for (const row of [tren, header]) {
+    row.font = { bold: true };
+    for (let col = 1; col <= 11; col++) {
+      const c = row.getCell(col);
+      const thuc = col >= 7 && col <= 9;
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: thuc ? AMBER : GREY } };
+      c.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    }
+  }
 
   const fillRow = (row: ExcelJS.Row, argb: string, fontColor?: string) => {
     row.eachCell((c) => {
@@ -106,13 +125,16 @@ export async function buildEstimateWorkbook(
       sectionTotal,
       "",
       "",
+      tongThuc(block.rows),
+      "",
+      "",
     ]);
     fillRow(secRow, DARK, "FFFFFFFF");
 
     let n = 1;
     for (const grp of groupByLabel(block.rows)) {
       const subtotal = grp.rows.reduce((a, r) => a + computeAmount(r), 0);
-      const grpRow = ws.addRow([n, grp.label, "", "", "", subtotal, "", ""]);
+      const grpRow = ws.addRow([n, grp.label, "", "", "", subtotal, "", "", tongThuc(grp.rows), "", ""]);
       grpRow.font = { bold: true };
       fillRow(grpRow, GREY);
       n += 1;
@@ -125,6 +147,9 @@ export async function buildEstimateWorkbook(
           it.designQty ?? "",
           it.unitPrice ?? "",
           computeAmount(it),
+          it.actualQty ?? "",
+          it.actualUnitPrice ?? "",
+          computeActualAmount(it) ?? "",
           it.supplierName ?? "",
           it.note ?? "",
         ]);
@@ -134,15 +159,25 @@ export async function buildEstimateWorkbook(
 
   const s = computeProfit(p.items, p.salePrice, p.area);
   ws.addRow([]);
-  ws.addRow(["", "", "", "", "TỔNG CHI PHÍ", s.totalCost]).font = { bold: true };
+  const thuc = computeActualCost(p.items);
+  ws.addRow(["", "", "", "", "TỔNG CHI PHÍ", s.totalCost, "", "Tổng thực", thuc.total]).font = { bold: true };
+  if (thuc.soDongCoGia < thuc.soDong) {
+    ws.addRow([
+      "", "", "", "", "", "", "", "",
+      `${thuc.soDongCoGia}/${thuc.soDong} dòng có giá thực — còn lại tạm theo dự toán`,
+    ]).font = { italic: true, color: { argb: "FF888888" } };
+  }
   if (opts.showProfit) {
-    ws.addRow(["", "", "", "", "Giá bán", s.salePrice]);
-    ws.addRow(["", "", "", "", "Lợi nhuận", s.profit]).font = { bold: true };
+    ws.addRow(["", "", "", "", "Giá bán", s.salePrice, "", "Giá bán", s.salePrice]);
+    ws.addRow(["", "", "", "", "Lợi nhuận", s.profit, "", "Lợi nhuận thực", s.salePrice - thuc.total]).font = { bold: true };
   }
 
   ws.getColumn(4).numFmt = "#,##0.##";
   ws.getColumn(5).numFmt = "#,##0";
   ws.getColumn(6).numFmt = "#,##0";
+  ws.getColumn(7).numFmt = "#,##0.##";
+  ws.getColumn(8).numFmt = "#,##0";
+  ws.getColumn(9).numFmt = "#,##0";
   ws.columns.forEach((c) => {
     c.width = 15;
   });

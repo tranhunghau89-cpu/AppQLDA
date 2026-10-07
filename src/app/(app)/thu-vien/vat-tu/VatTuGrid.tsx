@@ -216,17 +216,18 @@ export function VatTuGrid({
             </span>
             <span className="text-xs text-slate-400">{g.rows.length} vật tư</span>
           </div>
-          <Table>
+          {/* Độ rộng cố định: mọi nhóm là bảng riêng, phải cùng khuôn cột mới thẳng hàng. */}
+          <Table className="table-fixed">
             <THead>
               <tr>
-                <Th className="w-8"></Th>
-                <Th>Mã</Th>
+                <Th className="w-10"></Th>
+                <Th className="w-28">Mã</Th>
                 <Th>Tên &amp; quy cách</Th>
-                <Th className="hidden md:table-cell">Hãng</Th>
-                <Th className="hidden lg:table-cell">Nhãn</Th>
-                <Th className="text-right">Giá mua tốt nhất</Th>
-                <Th className="hidden sm:table-cell text-right">Biến thể</Th>
-                {canEdit && <Th></Th>}
+                <Th className="hidden w-32 md:table-cell">Hãng</Th>
+                <Th className="hidden w-32 lg:table-cell">Nhãn</Th>
+                <Th className="w-40 text-right">Giá mua tốt nhất</Th>
+                <Th className="hidden w-24 sm:table-cell text-right">Biến thể</Th>
+                {canEdit && <Th className="w-24"></Th>}
               </tr>
             </THead>
             <tbody>

@@ -48,6 +48,7 @@ export async function GET(
       unit: it.unit,
       designQty: it.designQty,
       actualQty: it.actualQty,
+      actualUnitPrice: it.actualUnitPrice,
       unitPrice: it.unitPrice,
       amount: it.amount,
       note: it.note,

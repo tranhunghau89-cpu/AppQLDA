@@ -159,14 +159,14 @@ export default async function CostPage({ params }: { params: Promise<{ id: strin
                     <span className="mr-1 font-mono text-slate-400">{c.code}</span>
                     {c.name}
                   </div>
-                  <Table>
+                  <Table className="table-fixed">
                     <THead>
                       <tr>
                         <Th>Hạng mục</Th>
-                        <Th className="text-right">Khối lượng</Th>
-                        <Th className="text-right">Đơn giá</Th>
-                        <Th className="text-right">Thành tiền</Th>
-                        <Th>Ghi chú</Th>
+                        <Th className="w-28 text-right">Khối lượng</Th>
+                        <Th className="w-28 text-right">Đơn giá</Th>
+                        <Th className="w-40 text-right">Thành tiền</Th>
+                        <Th className="w-1/4">Ghi chú</Th>
                       </tr>
                     </THead>
                     <tbody>

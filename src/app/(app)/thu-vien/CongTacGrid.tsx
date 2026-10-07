@@ -174,16 +174,17 @@ export function CongTacGrid({
             </span>
             <span className="text-xs text-slate-400">{g.rows.length} công tác</span>
           </div>
-          <Table>
+          {/* Độ rộng cố định: mọi nhóm là bảng riêng, phải cùng khuôn cột mới thẳng hàng. */}
+          <Table className="table-fixed">
             <THead>
               <tr>
-                <Th>Mã</Th>
+                <Th className="w-24">Mã</Th>
                 <Th>Nội dung</Th>
-                <Th className="hidden sm:table-cell">ĐVT</Th>
-                <Th className="hidden lg:table-cell">Nhóm chi phí</Th>
-                <Th className="text-right">Đơn giá hiện hành</Th>
-                <Th className="hidden md:table-cell">Hiệu lực từ</Th>
-                <Th></Th>
+                <Th className="hidden w-20 sm:table-cell">ĐVT</Th>
+                <Th className="hidden w-40 lg:table-cell">Nhóm chi phí</Th>
+                <Th className="w-40 text-right">Đơn giá hiện hành</Th>
+                <Th className="hidden w-32 md:table-cell">Hiệu lực từ</Th>
+                <Th className="w-28"></Th>
               </tr>
             </THead>
             <tbody>
