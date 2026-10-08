@@ -126,10 +126,14 @@ const phanSchema = z.object({
   partName: z.string().trim().optional(),
 });
 
-/** Sửa một phần — chủ yếu để bật/tắt mặt gửi khách và đặt tên in cho khách. */
+/**
+ * Thêm (phanId = null, kèm boHangMucId) hoặc sửa một phần — chủ yếu để bật/tắt mặt
+ * gửi khách và đặt tên in cho khách.
+ */
 export async function luuPhanBoHangMuc(
-  phanId: string,
-  form: FormData
+  phanId: string | null,
+  form: FormData,
+  boHangMucId?: string
 ): Promise<ActionResult> {
   try {
     await requirePermission("thuVien", "edit");
@@ -137,11 +141,20 @@ export async function luuPhanBoHangMuc(
     return { ok: false, error: KHONG_CO_QUYEN };
   }
 
-  const phan = await db.boHangMucPhan.findUnique({
-    where: { id: phanId },
-    select: { boHangMucId: true, ma: true },
-  });
-  if (!phan) return { ok: false, error: "Không tìm thấy phần." };
+  let phan: { boHangMucId: string } | null;
+  if (phanId) {
+    phan = await db.boHangMucPhan.findUnique({
+      where: { id: phanId },
+      select: { boHangMucId: true },
+    });
+    if (!phan) return { ok: false, error: "Không tìm thấy phần." };
+  } else {
+    const bo = boHangMucId
+      ? await db.boHangMuc.findUnique({ where: { id: boHangMucId }, select: { id: true } })
+      : null;
+    if (!bo) return { ok: false, error: "Không tìm thấy bộ hạng mục." };
+    phan = { boHangMucId: bo.id };
+  }
 
   const parsed = phanSchema.safeParse({
     ma: String(form.get("ma") ?? ""),
@@ -159,13 +172,11 @@ export async function luuPhanBoHangMuc(
   }
 
   const trung = await db.boHangMucPhan.findFirst({
-    where: { boHangMucId: phan.boHangMucId, ma: d.ma, NOT: { id: phanId } },
+    where: { boHangMucId: phan.boHangMucId, ma: d.ma, ...(phanId ? { NOT: { id: phanId } } : {}) },
   });
   if (trung) return { ok: false, error: `Bộ này đã có phần mã "${d.ma}".` };
 
-  await db.boHangMucPhan.update({
-    where: { id: phanId },
-    data: {
+  const data = {
       ma: d.ma,
       ten: d.ten,
       inChoKhach: form.get("inChoKhach") !== null,
@@ -175,9 +186,41 @@ export async function luuPhanBoHangMuc(
       donGiaKhach,
       partCode: d.partCode || "I",
       partName: d.partName || "Phần kết cấu thép",
-    },
-  });
+  };
+  if (phanId) {
+    await db.boHangMucPhan.update({ where: { id: phanId }, data });
+  } else {
+    // Phần mới xếp cuối bộ.
+    const cuoi = await db.boHangMucPhan.aggregate({
+      where: { boHangMucId: phan.boHangMucId },
+      _max: { sortOrder: true },
+    });
+    await db.boHangMucPhan.create({
+      data: { ...data, boHangMucId: phan.boHangMucId, sortOrder: (cuoi._max.sortOrder ?? 0) + 1 },
+    });
+  }
 
+  revalidatePath("/thu-vien/bo-hang-muc");
+  revalidatePath(`/thu-vien/bo-hang-muc/${phan.boHangMucId}`);
+  return { ok: true };
+}
+
+/** Xóa một phần — chỉ phần chưa có dòng công tác, để không bỏ rơi dòng nào. */
+export async function xoaPhanBoHangMuc(phanId: string): Promise<ActionResult> {
+  try {
+    await requirePermission("thuVien", "edit");
+  } catch {
+    return { ok: false, error: KHONG_CO_QUYEN };
+  }
+  const phan = await db.boHangMucPhan.findUnique({
+    where: { id: phanId },
+    select: { boHangMucId: true, _count: { select: { dong: true } } },
+  });
+  if (!phan) return { ok: false, error: "Không tìm thấy phần." };
+  if (phan._count.dong > 0) {
+    return { ok: false, error: `Phần còn ${phan._count.dong} dòng công tác — không xóa được.` };
+  }
+  await db.boHangMucPhan.delete({ where: { id: phanId } });
   revalidatePath("/thu-vien/bo-hang-muc");
   revalidatePath(`/thu-vien/bo-hang-muc/${phan.boHangMucId}`);
   return { ok: true };

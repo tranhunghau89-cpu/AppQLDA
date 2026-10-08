@@ -8,7 +8,7 @@ import { Input, Field, Textarea } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
-import { luuBoHangMuc, luuPhanBoHangMuc, xoaBoHangMuc } from "./actions";
+import { luuBoHangMuc, luuPhanBoHangMuc, xoaBoHangMuc, xoaPhanBoHangMuc } from "./actions";
 import { BangSuat } from "./BangSuat";
 import { LaySuatModal } from "./LaySuatModal";
 
@@ -83,6 +83,8 @@ export function BoHangMucList({
   const [openBo, setOpenBo] = useState(false);
   const [editingBo, setEditingBo] = useState<BoView | null>(null);
   const [editingPhan, setEditingPhan] = useState<PhanView | null>(null);
+  // id bộ đang thêm phần mới (modal phần mở ở chế độ thêm).
+  const [themPhanCho, setThemPhanCho] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [moSuat, setMoSuat] = useState<string | null>(null);
@@ -109,20 +111,34 @@ export function BoHangMucList({
 
   function onLuuPhan(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!editingPhan) return;
+    if (!editingPhan && !themPhanCho) return;
     const form = new FormData(e.currentTarget);
-    const id = editingPhan.id;
+    const id = editingPhan?.id ?? null;
+    const boId = themPhanCho ?? undefined;
     setError(null);
     setPending(true);
     start(async () => {
-      const res = await luuPhanBoHangMuc(id, form);
+      const res = await luuPhanBoHangMuc(id, form, boId);
       setPending(false);
       if (!res.ok) setError(res.error);
       else {
         setEditingPhan(null);
+        setThemPhanCho(null);
         router.refresh();
       }
     });
+  }
+
+  function dongModalPhan() {
+    setEditingPhan(null);
+    setThemPhanCho(null);
+  }
+
+  async function onXoaPhan(p: PhanView) {
+    if (!(await confirm(`Xóa phần "${p.ma} — ${p.ten}"?`))) return;
+    const res = await xoaPhanBoHangMuc(p.id);
+    if (!res.ok) toast.error(res.error);
+    else router.refresh();
   }
 
   async function onXoaBo(b: BoView) {
@@ -261,6 +277,11 @@ export function BoHangMucList({
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                     )}
+                    {canEdit && p.soDong === 0 && (
+                      <Button variant="ghost" size="icon" onClick={() => onXoaPhan(p)} title="Xóa phần">
+                        <Trash2 className="h-3.5 w-3.5 text-red-600" />
+                      </Button>
+                    )}
                   </div>
                 </div>
                 {moSuat === p.id && (
@@ -269,6 +290,21 @@ export function BoHangMucList({
                 </li>
               ))}
             </ul>
+          )}
+          {canEdit && (
+            <div className="border-t border-slate-100 px-4 py-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setEditingPhan(null);
+                  setThemPhanCho(b.id);
+                  setError(null);
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" /> Thêm phần
+              </Button>
+            </div>
           )}
         </div>
       ))}
@@ -336,18 +372,18 @@ export function BoHangMucList({
 
       {/* ----- Sửa phần ----- */}
       <Modal
-        open={editingPhan !== null}
-        onClose={() => setEditingPhan(null)}
-        title={editingPhan ? `Phần ${editingPhan.ma} — ${editingPhan.ten}` : "Sửa phần"}
+        open={editingPhan !== null || themPhanCho !== null}
+        onClose={dongModalPhan}
+        title={editingPhan ? `Phần ${editingPhan?.ma} — ${editingPhan?.ten}` : "Thêm phần"}
       >
-        {editingPhan && (
+        {(editingPhan || themPhanCho) && (
           <form onSubmit={onLuuPhan} className="space-y-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Field label="Mã phần *">
-                <Input name="ma" defaultValue={editingPhan.ma} required />
+                <Input name="ma" defaultValue={editingPhan?.ma ?? ""} required />
               </Field>
               <Field label="Tên (nội bộ) *" className="sm:col-span-2">
-                <Input name="ten" defaultValue={editingPhan.ten} required />
+                <Input name="ten" defaultValue={editingPhan?.ten ?? ""} required />
               </Field>
             </div>
 
@@ -355,7 +391,7 @@ export function BoHangMucList({
               <input
                 type="checkbox"
                 name="inChoKhach"
-                defaultChecked={editingPhan.inChoKhach}
+                defaultChecked={editingPhan?.inChoKhach ?? true}
                 className="h-4 w-4 rounded border-slate-300 text-blue-600"
               />
               In thành một hạng mục trên bản báo giá gửi khách
@@ -363,35 +399,35 @@ export function BoHangMucList({
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Field label="Mã hạng mục (khách)">
-                <Input name="maKhach" defaultValue={editingPhan.maKhach ?? ""} placeholder="01" />
+                <Input name="maKhach" defaultValue={editingPhan?.maKhach ?? ""} placeholder="01" />
               </Field>
               <Field label="Tên in cho khách (trống = dùng tên nội bộ)" className="sm:col-span-2">
                 <Input
                   name="tenKhachHang"
-                  defaultValue={editingPhan.tenKhachHang ?? ""}
+                  defaultValue={editingPhan?.tenKhachHang ?? ""}
                   placeholder="Khung thép và tôn phần mái"
                 />
               </Field>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Field label="Đơn vị">
-                <Input name="donViKhach" defaultValue={editingPhan.donViKhach ?? "m2"} />
+                <Input name="donViKhach" defaultValue={editingPhan?.donViKhach ?? "m2"} />
               </Field>
               <Field label="Đơn giá mẫu (đ) — báo giá m² điền sẵn" className="sm:col-span-2">
                 <Input
                   name="donGiaKhach"
                   inputMode="decimal"
-                  defaultValue={editingPhan.donGiaKhach ?? ""}
+                  defaultValue={editingPhan?.donGiaKhach ?? ""}
                   placeholder="695000 — trống = suy từ dự toán / nhập tay"
                 />
               </Field>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Field label="Mã nhóm (I, II…)">
-                <Input name="partCode" defaultValue={editingPhan.partCode} />
+                <Input name="partCode" defaultValue={editingPhan?.partCode ?? "I"} />
               </Field>
               <Field label="Tên nhóm trên bản in" className="sm:col-span-2">
-                <Input name="partName" defaultValue={editingPhan.partName} />
+                <Input name="partName" defaultValue={editingPhan?.partName ?? "Phần kết cấu thép"} />
               </Field>
             </div>
 
@@ -404,7 +440,7 @@ export function BoHangMucList({
               <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
             )}
             <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setEditingPhan(null)}>
+              <Button type="button" variant="outline" onClick={dongModalPhan}>
                 Hủy
               </Button>
               <Button type="submit" disabled={pending}>
