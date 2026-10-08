@@ -296,7 +296,7 @@ export function HeaderModal({
 
         <Khoi
           nhan="Đoạn chữ in ra"
-          tomTat="mô tả hạng mục, lời chào, 3 ghi chú, lời kết"
+          tomTat="mô tả chung của hạng mục"
           moSan={Boolean(editing)}
         >
           <Field label="Mô tả chung của hạng mục (in dưới tên mọi đầu việc)">
@@ -314,28 +314,10 @@ export function HeaderModal({
               dòng đó để đè lên.
             </p>
           </Field>
-          <Field label="Lời mở đầu">
-            <Textarea name="greeting" rows={3} defaultValue={editing?.greeting ?? ""} />
-          </Field>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Field label="Ghi chú màu sắc">
-              <Textarea name="colorNote" rows={3} defaultValue={editing?.colorNote ?? ""} />
-            </Field>
-            <Field label="Ghi chú khối lượng tạm tính">
-              <Textarea name="volumeNote" rows={3} defaultValue={editing?.volumeNote ?? ""} />
-            </Field>
-            <Field label="Ghi chú loại trừ">
-              <Textarea name="excludeNote" rows={3} defaultValue={editing?.excludeNote ?? ""} />
-            </Field>
-          </div>
-          <Field label="Lời kết">
-            <Textarea name="closing" rows={2} defaultValue={editing?.closing ?? ""} />
-          </Field>
-          {!editing && (
-            <p className="text-xs text-slate-400">
-              Để trống hết cũng được — mẫu đã chọn ở trên sẽ rót sẵn.
-            </p>
-          )}
+          <p className="text-xs text-slate-400">
+            Lời mở đầu, các ghi chú và lời kết sửa thẳng trên báo giá, đúng chỗ chúng nằm
+            trên bản in{editing ? "" : " — lúc tạo thì lấy theo mẫu đã chọn"}.
+          </p>
         </Khoi>
 
         <Field label="Ghi chú nội bộ (không in ra)">

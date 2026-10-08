@@ -220,11 +220,6 @@ const quoteSchema = z.object({
   loadHanging: num,
   loadFloor: num,
   lineDetail: z.string().optional(),
-  greeting: z.string().optional(),
-  closing: z.string().optional(),
-  colorNote: z.string().optional(),
-  volumeNote: z.string().optional(),
-  excludeNote: z.string().optional(),
   note: z.string().optional(),
 });
 
@@ -249,11 +244,6 @@ function quoteFields(form: FormData) {
     loadHanging: s(form, "loadHanging"),
     loadFloor: s(form, "loadFloor"),
     lineDetail: s(form, "lineDetail"),
-    greeting: s(form, "greeting"),
-    closing: s(form, "closing"),
-    colorNote: s(form, "colorNote"),
-    volumeNote: s(form, "volumeNote"),
-    excludeNote: s(form, "excludeNote"),
     note: s(form, "note"),
   };
 }
@@ -290,11 +280,9 @@ export async function saveClientQuote(
     loadHanging: d.loadHanging,
     loadFloor: d.loadFloor,
     lineDetail: d.lineDetail || null,
-    greeting: d.greeting || null,
-    closing: d.closing || null,
-    colorNote: d.colorNote || null,
-    volumeNote: d.volumeNote || null,
-    excludeNote: d.excludeNote || null,
+    // Lời mở đầu, ba ghi chú, lời kết KHÔNG còn ở hộp thoại này — sửa thẳng trên báo
+    // giá (`luuDoanChu`). Không đưa vào đây để lưu hộp thoại không xóa trắng chúng;
+    // lúc tạo mới thì `taoMoiKemMacDinh` rót từ mẫu.
     note: d.note || null,
   };
 

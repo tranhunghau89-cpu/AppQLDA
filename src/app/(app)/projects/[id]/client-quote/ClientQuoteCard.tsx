@@ -473,7 +473,7 @@ export function ClientQuoteCard({
       </details>
 
       {/* ---- Ghi chú và lời kết — đúng thứ tự trên bản in ---- */}
-      <div className="grid grid-cols-1 gap-3 border-t border-slate-100 p-4 md:grid-cols-3">
+      <div className="space-y-3 border-t border-slate-100 p-4">
         <DoanChuSua
           chu={chu}
           quoteId={q.id}
@@ -505,7 +505,6 @@ export function ClientQuoteCard({
           nhan="Lời kết"
           giaTri={q.closing}
           canEdit={canEdit}
-          className="md:col-span-3"
         />
       </div>
 
