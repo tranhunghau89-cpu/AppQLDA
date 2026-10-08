@@ -118,7 +118,7 @@ export function ThongTinIn({
           Thông tin in trên bản báo giá
         </span>
         {thieu > 0 ? (
-          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+          <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
             còn {thieu} ô chưa điền
           </span>
         ) : (
@@ -168,7 +168,7 @@ export function ThongTinIn({
               <span
                 className={
                   "block truncate text-[11px] uppercase tracking-wide " +
-                  (trong && o.batBuoc ? "text-amber-600" : "text-slate-400")
+                  (trong && o.batBuoc ? "text-red-600" : "text-slate-400")
                 }
               >
                 {o.nhan}
@@ -191,7 +191,7 @@ export function ThongTinIn({
               ) : (
                 <span className="block truncate py-1 text-sm text-slate-800">
                   {gia[o.ten].trim() || (
-                    <span className="text-amber-600">chưa điền</span>
+                    <span className="text-red-600">chưa điền</span>
                   )}
                 </span>
               )}

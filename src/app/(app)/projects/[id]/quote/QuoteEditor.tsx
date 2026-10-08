@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ChuThichO } from "@/components/ui/kieuO";
 import { QuoteCard } from "./QuoteCard";
 import { QuoteHeaderModal } from "./QuoteHeaderModal";
 import { SectionModal, type SectionModalState } from "./SectionModal";
@@ -12,7 +13,13 @@ import { CloneModal } from "./CloneModal";
 import { GenerateClientQuoteModal } from "./GenerateClientQuoteModal";
 import type { TemplateOption } from "@/lib/quoteTemplatePick";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
-import type { CatalogOption, CloneSource, ItemView, QuoteView, SectionView } from "./types";
+import type {
+  CatalogOption,
+  CloneSource,
+  ItemView,
+  QuoteView,
+  SectionView,
+} from "./types";
 
 /**
  * Điều phối: giữ đúng một việc — hộp thoại nào đang mở và mở với bản ghi nào.
@@ -48,11 +55,22 @@ export function QuoteEditor({
   /** Khu vực của dự án; chọn sẵn khi tạo bản dự toán mới. */
   khuVucMacDinh: string | null;
   /** Bộ hạng mục áp được vào một bản dự toán còn rỗng. */
-  boHangMucs: { id: string; ma: string; ten: string; loaiCongTrinh: string | null; soPhan: number; soDong: number }[];
+  boHangMucs: {
+    id: string;
+    ma: string;
+    ten: string;
+    loaiCongTrinh: string | null;
+    soPhan: number;
+    soDong: number;
+  }[];
 }) {
   const router = useRouter();
-  const [quoteModal, setQuoteModal] = useState<{ editing: QuoteView | null } | null>(null);
-  const [sectionModal, setSectionModal] = useState<SectionModalState | null>(null);
+  const [quoteModal, setQuoteModal] = useState<{
+    editing: QuoteView | null;
+  } | null>(null);
+  const [sectionModal, setSectionModal] = useState<SectionModalState | null>(
+    null,
+  );
   const [itemModal, setItemModal] = useState<ItemModalState | null>(null);
   const [cloneOpen, setCloneOpen] = useState(false);
   const [genFor, setGenFor] = useState<QuoteView | null>(null);
@@ -72,27 +90,46 @@ export function QuoteEditor({
     q: QuoteView,
     editing: SectionView | null,
     defaultKind: "PHAN" | "SUB",
-    defaultParent: string
+    defaultParent: string,
   ) {
-    setSectionModal({ quoteId: q.id, phanOptions: phanOf(q), editing, defaultKind, defaultParent });
+    setSectionModal({
+      quoteId: q.id,
+      phanOptions: phanOf(q),
+      editing,
+      defaultKind,
+      defaultParent,
+    });
   }
 
-  function openItem(q: QuoteView, defaultSectionId: string, editing: ItemView | null) {
+  function openItem(
+    q: QuoteView,
+    defaultSectionId: string,
+    editing: ItemView | null,
+  ) {
     setItemModal({
       quoteId: q.id,
       markup: q.markup ?? 1,
       sections: q.sections,
       editing,
       defaultSectionId,
-      nhomDaDung: [...new Set(q.items.map((i) => i.groupLabel).filter((x): x is string => !!x))],
+      nhomDaDung: [
+        ...new Set(
+          q.items.map((i) => i.groupLabel).filter((x): x is string => !!x),
+        ),
+      ],
     });
   }
 
   return (
     <div className="space-y-6">
       {canEdit && (
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={() => setCloneOpen(true)}>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <ChuThichO className="mr-auto" />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCloneOpen(true)}
+          >
             <Copy className="h-4 w-4" /> Tạo từ dự án khác
           </Button>
           <Button size="sm" onClick={() => setQuoteModal({ editing: null })}>

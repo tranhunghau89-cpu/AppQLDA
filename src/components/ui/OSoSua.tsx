@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 import { laCongThuc, tinhBieuThuc } from "@/lib/bieuThuc";
+import { O_CO_DINH, mauO } from "@/components/ui/kieuO";
 
 /**
  * Một ô số sửa được ngay trong ô bảng — dùng chung cho bảng giá vốn của báo giá gửi khách
@@ -25,7 +26,10 @@ export function OSoSua({
   dauKhoa = "∑",
   nhan,
   luu,
+  batBuoc = false,
 }: {
+  /** Ô bắt buộc: còn trống thì tô đỏ "phải điền" (xem `kieuO`). */
+  batBuoc?: boolean;
   giaTri: number | null;
   dinhDang: (v: number | null) => string;
   khoa: boolean;
@@ -45,7 +49,10 @@ export function OSoSua({
 
   if (khoa) {
     return (
-      <span className="tabular-nums text-slate-500" title={lyDoKhoa}>
+      <span
+        className={`inline-block rounded border px-1.5 py-0.5 tabular-nums ${O_CO_DINH}`}
+        title={lyDoKhoa}
+      >
         {giaTri == null ? "—" : dinhDang(giaTri)}
         <span className="ml-1 text-slate-400">{dauKhoa}</span>
       </span>
@@ -101,7 +108,10 @@ export function OSoSua({
         // thật, size=9 cho ô 114px trong khi "10.218,2" chỉ cần 39px. Giữ `size` làm dự
         // phòng cho trình duyệt chưa hỗ trợ field-sizing — rộng hơn nhưng không vỡ.
         size={Math.max(4, (nhap ?? hienThi).length + 1)}
-        className="field-sizing-content min-w-[4ch] rounded border border-transparent bg-transparent px-1.5 py-0.5 text-right tabular-nums text-slate-700 hover:border-slate-300 focus:border-blue-500 focus:bg-white focus:outline-none disabled:opacity-50"
+        className={
+          "field-sizing-content min-w-[4ch] rounded border px-1.5 py-0.5 text-right tabular-nums focus:border-blue-500 focus:outline-none disabled:opacity-50 " +
+          mauO(nhap ?? hienThi, batBuoc)
+        }
       />
       {xemTruoc != null && (
         <span className="absolute right-1 top-full z-10 mt-0.5 whitespace-nowrap rounded bg-slate-800 px-1.5 py-0.5 text-[11px] text-white">

@@ -5,8 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Tr, Td } from "@/components/ui/table";
 import { formatVND, formatNumber, formatQty } from "@/lib/utils";
 import { lineCost, lineSell } from "@/lib/quote";
-import { chiSoNhom, gomNhomTheoThuTu, nhanNhomDongBaoGia } from "@/lib/nhomDong";
+import {
+  chiSoNhom,
+  gomNhomTheoThuTu,
+  nhanNhomDongBaoGia,
+} from "@/lib/nhomDong";
 import { OSoSua } from "@/components/ui/OSoSua";
+import { O_CO_DINH } from "@/components/ui/kieuO";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
 import { suaCongViecDong, suaOGiaVon } from "./actions";
 import { OChonCongTac } from "@/components/ui/OChonCongTac";
@@ -31,7 +36,8 @@ interface HangMucMauSo {
   dienTich: number | null;
 }
 
-const phanTram = (x: number | null) => (x == null ? "—" : `${(x * 100).toFixed(1)}%`);
+const phanTram = (x: number | null) =>
+  x == null ? "—" : `${(x * 100).toFixed(1)}%`;
 
 /**
  * Dòng của một phần (hoặc mục con), chia NHÓM theo kiểu dự toán thi công.
@@ -60,7 +66,11 @@ function ItemRows({
   mauSo: HangMucMauSo;
 }) {
   const nhoms = gomNhomTheoThuTu(items, (it) =>
-    nhanNhomDongBaoGia({ groupLabel: it.groupLabel, tenMucCon: null, nhomChiPhi: it.nhomChiPhi })
+    nhanNhomDongBaoGia({
+      groupLabel: it.groupLabel,
+      tenMucCon: null,
+      nhomChiPhi: it.nhomChiPhi,
+    }),
   );
   return (
     <>
@@ -105,14 +115,20 @@ function ItemRows({
                 >
                   {cs.moiM2 != null ? `${formatNumber(cs.moiM2)}/m²` : "—"}
                 </Td>
-                <Td className="text-right font-medium text-slate-600">{formatVND(ban)}</Td>
+                <Td className="text-right font-medium text-slate-600">
+                  {formatVND(ban)}
+                </Td>
                 {canEdit && <Td />}
               </Tr>
             )}
             {nhom.dong.map((it) => (
               <Tr key={it.id}>
-                <Td className="font-mono text-xs text-slate-500">{it.workCode ?? "—"}</Td>
-                <Td className={coNhom ? "pl-6 text-slate-900" : "text-slate-900"}>
+                <Td className="font-mono text-xs text-slate-500">
+                  {it.workCode ?? "—"}
+                </Td>
+                <Td
+                  className={coNhom ? "pl-6 text-slate-900" : "text-slate-900"}
+                >
                   {canEdit ? (
                     <>
                       <OChonCongTac
@@ -123,9 +139,17 @@ function ItemRows({
                       />
                       {(it.bienTheTen || it.spec) && (
                         <div className="px-1.5 text-xs">
-                          {it.bienTheTen && <span className="text-slate-500">{it.bienTheTen}</span>}
-                          {it.bienTheTen && it.spec && <span className="text-slate-400"> · </span>}
-                          {it.spec && <span className="text-slate-400">{it.spec}</span>}
+                          {it.bienTheTen && (
+                            <span className="text-slate-500">
+                              {it.bienTheTen}
+                            </span>
+                          )}
+                          {it.bienTheTen && it.spec && (
+                            <span className="text-slate-400"> · </span>
+                          )}
+                          {it.spec && (
+                            <span className="text-slate-400">{it.spec}</span>
+                          )}
                         </div>
                       )}
                     </>
@@ -133,9 +157,14 @@ function ItemRows({
                     <>
                       {it.name}
                       {it.bienTheTen ? (
-                        <span className="text-slate-500"> · {it.bienTheTen}</span>
+                        <span className="text-slate-500">
+                          {" "}
+                          · {it.bienTheTen}
+                        </span>
                       ) : null}
-                      {it.spec ? <span className="text-slate-400"> · {it.spec}</span> : null}
+                      {it.spec ? (
+                        <span className="text-slate-400"> · {it.spec}</span>
+                      ) : null}
                     </>
                   )}
                 </Td>
@@ -152,6 +181,7 @@ function ItemRows({
                       khoa={it.layTuThamSo != null}
                       lyDoKhoa={`Tự tính từ các dòng nạp "${it.layTuThamSo}" trong cùng phần — sửa ở dòng nguồn`}
                       luu={(tho) => suaOGiaVon(chu, it.id, "qty", tho)}
+                      batBuoc
                     />
                   ) : (
                     <>
@@ -175,6 +205,7 @@ function ItemRows({
                       dinhDang={formatNumber}
                       khoa={false}
                       luu={(tho) => suaOGiaVon(chu, it.id, "baseCost", tho)}
+                      batBuoc
                     />
                   ) : (
                     formatNumber(it.baseCost)
@@ -212,16 +243,27 @@ function ItemRows({
                       dinhDang={formatNumber}
                       khoa={false}
                       luu={(tho) => suaOGiaVon(chu, it.id, "sellPrice", tho)}
+                      batBuoc
                     />
                   ) : (
                     formatNumber(it.sellPrice)
                   )}
                 </Td>
-                <Td className="text-right font-medium">{formatVND(lineSell(it))}</Td>
+                <Td className="text-right font-medium">
+                  <span
+                    className={`inline-block rounded border px-1.5 py-0.5 tabular-nums ${O_CO_DINH}`}
+                  >
+                    {formatVND(lineSell(it))}
+                  </span>
+                </Td>
                 {canEdit && (
                   <Td className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => h.onEditItem(it)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => h.onEditItem(it)}
+                      >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Button
@@ -256,7 +298,10 @@ function AddItemRow({
   return (
     <Tr>
       <Td colSpan={colSpan} className="py-1">
-        <button className="text-xs text-blue-600 hover:underline" onClick={onClick}>
+        <button
+          className="text-xs text-blue-600 hover:underline"
+          onClick={onClick}
+        >
           + Thêm dòng vào {label}
         </button>
       </Td>
@@ -295,7 +340,8 @@ export function QuoteRows({
     itemsBySection.get(it.sectionId)!.push(it);
   }
   const phans = sections.filter((s) => !s.parentId);
-  const subsOf = (phanId: string) => sections.filter((s) => s.parentId === phanId);
+  const subsOf = (phanId: string) =>
+    sections.filter((s) => s.parentId === phanId);
   // Mẫu số của từng hạng mục: thành tiền gộp cả dòng trong mục con (chính con số trên
   // hàng hạng mục), diện tích của phần gốc.
   const mauSoCua = (phan: SectionView): HangMucMauSo => ({
@@ -323,7 +369,10 @@ export function QuoteRows({
             <Td className="font-semibold text-slate-800" colSpan={5}>
               {phan.name}
               {phan.area ? (
-                <span className="text-slate-400"> · {formatNumber(phan.area)} m²</span>
+                <span className="text-slate-400">
+                  {" "}
+                  · {formatNumber(phan.area)} m²
+                </span>
               ) : null}
             </Td>
             <Td className="text-right font-semibold text-blue-700">
@@ -341,7 +390,11 @@ export function QuoteRows({
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => h.onEditSection(phan)}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => h.onEditSection(phan)}
+                  >
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
                   <Button
@@ -381,7 +434,11 @@ export function QuoteRows({
                 {canEdit && (
                   <Td className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => h.onEditSection(sub)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => h.onEditSection(sub)}
+                      >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Button
