@@ -2,8 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { formatVND } from "@/lib/utils";
+import { computeClientQuoteTotals } from "@/lib/clientQuote";
+import { CLIENT_QUOTE_STATUS_MAP } from "@/lib/constants";
 import { ClientQuoteCard } from "./ClientQuoteCard";
 import { HeaderModal, type GoiY } from "./HeaderModal";
 import { LineModal, type LineModalState } from "./LineModal";
@@ -61,6 +65,16 @@ export function ClientQuoteEditor({
   } | null>(null);
 
   const [apBo, setApBo] = useState<string | null>(null);
+  // Nhiều báo giá bày hết ra thì dễ sửa nhầm bản: chỉ mở một bản, mặc định bản đầu.
+  // null = đóng hết. Báo giá vừa lập (chưa từng thấy) tự mở.
+  const [moId, setMoId] = useState<string | null>(quotes[0]?.id ?? null);
+  const [daThay, setDaThay] = useState(() => new Set(quotes.map((q) => q.id)));
+  const moi = quotes.find((q) => !daThay.has(q.id));
+  if (moi) {
+    setDaThay(new Set(quotes.map((q) => q.id)));
+    setMoId(moi.id);
+  }
+  const nhieuBan = quotes.length > 1;
 
   function closeAll() {
     setApBo(null);
@@ -93,7 +107,10 @@ export function ClientQuoteEditor({
         </div>
       )}
 
-      {quotes.map((q) => (
+      {quotes.map((q) =>
+        nhieuBan && moId !== q.id ? (
+          <DongThuGon key={q.id} q={q} onMo={() => setMoId(q.id)} />
+        ) : (
         <ClientQuoteCard
           key={q.id}
           q={q}
@@ -130,8 +147,10 @@ export function ClientQuoteEditor({
             })
           }
           onPreview={() => setXemTruoc({ id: q.id, title: q.title })}
+          onThuGon={nhieuBan ? () => setMoId(null) : undefined}
         />
-      ))}
+        ),
+      )}
 
       {headerModal && (
         <HeaderModal
@@ -192,5 +211,26 @@ export function ClientQuoteEditor({
         />
       )}
     </div>
+  );
+}
+
+/** Một báo giá đang thu gọn: chỉ một hàng tiêu đề, bấm vào để mở (các bản khác tự gọn). */
+function DongThuGon({ q, onMo }: { q: ClientQuoteView; onMo: () => void }) {
+  const trangThai = CLIENT_QUOTE_STATUS_MAP[q.status];
+  const tong = computeClientQuoteTotals(q.lines, q.vatPercent);
+  return (
+    <button
+      type="button"
+      onClick={onMo}
+      className="flex w-full flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left hover:border-blue-300 hover:bg-blue-50/40"
+    >
+      <ChevronRight className="h-4 w-4 text-slate-400" />
+      {q.quoteNo && <span className="font-mono text-sm text-slate-500">{q.quoteNo}</span>}
+      <span className="font-semibold text-slate-900">{q.title}</span>
+      <Badge tone={trangThai?.tone ?? "slate"}>{trangThai?.label ?? q.status}</Badge>
+      <span className="ml-auto text-sm text-slate-500">
+        {q.lines.length} hạng mục · <span className="font-medium text-slate-700">{formatVND(tong.withVat)}</span>
+      </span>
+    </button>
   );
 }
