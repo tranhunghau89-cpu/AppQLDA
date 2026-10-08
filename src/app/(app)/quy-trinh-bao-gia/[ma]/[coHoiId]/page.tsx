@@ -165,6 +165,9 @@ export default async function BuocQuyTrinhPage({
               title: q.title,
               status: q.status,
               sentDate: q.sentDate ?? null,
+              createdAt: q.createdAt,
+              // Đánh số theo thứ tự lập: bản cũ nhất là #1 (danh sách xếp mới nhất trước).
+              so: duLieu.quotes.length - duLieu.quotes.indexOf(q),
             }))}
         />
       ) : null;

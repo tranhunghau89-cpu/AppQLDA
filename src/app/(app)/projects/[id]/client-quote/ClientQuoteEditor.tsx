@@ -109,7 +109,7 @@ export function ClientQuoteEditor({
 
       {quotes.map((q) =>
         nhieuBan && moId !== q.id ? (
-          <DongThuGon key={q.id} q={q} onMo={() => setMoId(q.id)} />
+          <DongThuGon key={q.id} q={q} so={quotes.length - quotes.indexOf(q)} onMo={() => setMoId(q.id)} />
         ) : (
         <ClientQuoteCard
           key={q.id}
@@ -215,7 +215,7 @@ export function ClientQuoteEditor({
 }
 
 /** Một báo giá đang thu gọn: chỉ một hàng tiêu đề, bấm vào để mở (các bản khác tự gọn). */
-function DongThuGon({ q, onMo }: { q: ClientQuoteView; onMo: () => void }) {
+function DongThuGon({ q, so, onMo }: { q: ClientQuoteView; so: number; onMo: () => void }) {
   const trangThai = CLIENT_QUOTE_STATUS_MAP[q.status];
   const tong = computeClientQuoteTotals(q.lines, q.vatPercent);
   return (
@@ -225,11 +225,12 @@ function DongThuGon({ q, onMo }: { q: ClientQuoteView; onMo: () => void }) {
       className="flex w-full flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left hover:border-blue-300 hover:bg-blue-50/40"
     >
       <ChevronRight className="h-4 w-4 text-slate-400" />
+      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-600">#{so}</span>
       {q.quoteNo && <span className="font-mono text-sm text-slate-500">{q.quoteNo}</span>}
       <span className="font-semibold text-slate-900">{q.title}</span>
       <Badge tone={trangThai?.tone ?? "slate"}>{trangThai?.label ?? q.status}</Badge>
       <span className="ml-auto text-sm text-slate-500">
-        {q.lines.length} hạng mục · <span className="font-medium text-slate-700">{formatVND(tong.withVat)}</span>
+        lập {new Date(q.createdAt).toLocaleDateString("vi-VN")} · {q.lines.length} hạng mục · <span className="font-medium text-slate-700">{formatVND(tong.withVat)}</span>
       </span>
     </button>
   );

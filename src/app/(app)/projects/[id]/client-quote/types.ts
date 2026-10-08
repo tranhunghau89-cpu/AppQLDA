@@ -87,6 +87,7 @@ export interface ClientQuoteView {
   quoteNo: string | null;
   title: string;
   quoteDate: string | null;
+  createdAt: string;
   customerId: string | null;
   recipient: string | null;
   customerPhone: string | null;

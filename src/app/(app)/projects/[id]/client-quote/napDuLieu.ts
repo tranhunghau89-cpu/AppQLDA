@@ -187,6 +187,7 @@ export async function napDuLieuBaoGiaKhach(
     quoteNo: q.quoteNo,
     title: q.title,
     quoteDate: iso(q.quoteDate),
+    createdAt: q.createdAt.toISOString(),
     customerId: q.customerId,
     recipient: q.recipient,
     customerPhone: q.customerPhone,

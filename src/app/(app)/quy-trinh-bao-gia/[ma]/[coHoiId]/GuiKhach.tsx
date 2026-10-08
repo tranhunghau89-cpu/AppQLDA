@@ -15,6 +15,8 @@ interface BaoGiaGui {
   title: string;
   status: string;
   sentDate: string | null;
+  createdAt: string;
+  so: number;
 }
 
 /** Bước cuối: in từng báo giá ra PDF rồi đánh dấu đã gửi. */
@@ -60,6 +62,9 @@ export function GuiKhach({
           >
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-600">
+                  #{q.so}
+                </span>
                 <span className="font-medium text-slate-900">
                   {q.quoteNo ? `${q.quoteNo} — ` : ""}
                   {q.title}
@@ -68,11 +73,11 @@ export function GuiKhach({
                   {st?.label ?? q.status}
                 </Badge>
               </div>
-              {q.sentDate && (
-                <p className="text-xs text-slate-500">
-                  Gửi ngày {new Date(q.sentDate).toLocaleDateString("vi-VN")}
-                </p>
-              )}
+              <p className="text-xs text-slate-500">
+                Lập ngày {new Date(q.createdAt).toLocaleDateString("vi-VN")}
+                {q.sentDate &&
+                  ` · gửi ngày ${new Date(q.sentDate).toLocaleDateString("vi-VN")}`}
+              </p>
             </div>
             <a
               href={`/bao-gia/${q.id}/print`}
