@@ -7,6 +7,7 @@ import { useActionForm } from "@/components/ui/useActionForm";
 import { laCongThuc, tinhBieuThuc } from "@/lib/bieuThuc";
 import { formatVND } from "@/lib/utils";
 import { ModalActions } from "../quote/ModalActions";
+import { ChuThichO, mauO } from "@/components/ui/kieuO";
 import { apBoHangMuc } from "./actions";
 import type { TemplateOption } from "@/lib/quoteTemplatePick";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
@@ -53,10 +54,13 @@ function OSo({
   value,
   onChange,
   placeholder,
+  batBuoc = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  /** Dòng đã chọn mà ô còn trống -> tô vàng "phải điền". */
+  batBuoc?: boolean;
 }) {
   const ct = laCongThuc(value);
   const { so, loi } = docChiTiet(value);
@@ -64,7 +68,7 @@ function OSo({
     <div>
       <Input
         inputMode="decimal"
-        className={`h-8 text-right ${loi ? "border-red-400" : ""}`}
+        className={`h-8 text-right ${mauO(value, batBuoc, Boolean(loi))}`}
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
@@ -177,6 +181,7 @@ export function ApBoModal({
   return (
     <Modal open onClose={onClose} size="lg" title="Áp bộ hạng mục">
       <form onSubmit={onSubmit} className="space-y-4">
+        <ChuThichO />
         {templates.length === 0 ? (
           <p className="text-sm text-slate-500">
             Chưa có bộ hạng mục nào — tạo trong Thư viện đơn giá → Bộ hạng mục.
@@ -249,6 +254,7 @@ export function ApBoModal({
                         <OSo
                           value={d.qty}
                           placeholder="0"
+                          batBuoc={d.chon}
                           onChange={(v) =>
                             sua(p.ma, {
                               qty: v,
@@ -261,6 +267,7 @@ export function ApBoModal({
                         <OSo
                           value={d.donGia}
                           placeholder="nhập tay"
+                          batBuoc={d.chon}
                           onChange={(v) => sua(p.ma, { donGia: v })}
                         />
                       </td>

@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/toast";
 import { demOTrong } from "@/lib/clientQuoteInfo";
 import { formatDate } from "@/lib/utils";
 import { luuThongTinIn } from "./actions";
+import { mauO } from "@/components/ui/kieuO";
 import type { ClientQuoteView } from "./types";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
 
@@ -20,10 +21,20 @@ import type { ChuBaoGia } from "@/lib/quoteOwner";
  * thêm và làm huy hiệu "còn N ô chưa điền" kêu vì những thứ không ai cần sửa.
  */
 const O = [
-  { ten: "recipient", nhan: "Kính gửi", goiY: "Công ty CP ABC" },
-  { ten: "customerPhone", nhan: "SĐT khách", goiY: "0901234567" },
-  { ten: "location", nhan: "Địa điểm", goiY: "Hà Nội" },
-  { ten: "scope", nhan: "Hạng mục", goiY: "Kết cấu thép và bao che" },
+  { ten: "recipient", nhan: "Kính gửi", goiY: "Công ty CP ABC", batBuoc: true },
+  {
+    ten: "customerPhone",
+    nhan: "SĐT khách",
+    goiY: "0901234567",
+    batBuoc: true,
+  },
+  { ten: "location", nhan: "Địa điểm", goiY: "Hà Nội", batBuoc: true },
+  {
+    ten: "scope",
+    nhan: "Hạng mục",
+    goiY: "Kết cấu thép và bao che",
+    batBuoc: false,
+  },
 ] as const;
 
 type Ten = (typeof O)[number]["ten"];
@@ -74,7 +85,7 @@ export function ThongTinIn({
   const daLuu = useRef<Gia | null>(null);
   const [xong, setXong] = useState(false);
 
-  const thieu = demOTrong(O.map((o) => gia[o.ten]));
+  const thieu = demOTrong(O.filter((o) => o.batBuoc).map((o) => gia[o.ten]));
 
   function roiO() {
     if (!canEdit) return;
@@ -116,7 +127,8 @@ export function ThongTinIn({
 
         {dangLuu && (
           <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-            <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" /> Đang lưu…
+            <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" /> Đang
+            lưu…
           </span>
         )}
         {!dangLuu && xong && (
@@ -139,7 +151,9 @@ export function ThongTinIn({
       {/* Những gì đã lùi vào "Mục khác…" — hiện ra để nhìn là biết bản in sẽ ra gì,
           nhưng không còn là một ô bắt phải điền. */}
       <p className="mb-2 text-xs text-slate-400">
-        {q.quoteDate ? `Ngày báo giá ${formatDate(q.quoteDate)}` : "Chưa đặt ngày báo giá"}
+        {q.quoteDate
+          ? `Ngày báo giá ${formatDate(q.quoteDate)}`
+          : "Chưa đặt ngày báo giá"}
         {q.validDays != null && ` · hiệu lực ${q.validDays} ngày`}
         {q.salesName && ` · phụ trách: ${q.salesName}`}
         {q.salesPhone && ` · ${q.salesPhone}`}
@@ -154,27 +168,31 @@ export function ThongTinIn({
               <span
                 className={
                   "block truncate text-[11px] uppercase tracking-wide " +
-                  (trong ? "text-amber-600" : "text-slate-400")
+                  (trong && o.batBuoc ? "text-amber-600" : "text-slate-400")
                 }
               >
                 {o.nhan}
+                {o.batBuoc && " *"}
               </span>
               {canEdit ? (
                 <input
                   name={o.ten}
                   value={gia[o.ten]}
                   placeholder={o.goiY || "chưa điền"}
-                  onChange={(e) => setNhap((p) => ({ ...p, [o.ten]: e.target.value }))}
+                  onChange={(e) =>
+                    setNhap((p) => ({ ...p, [o.ten]: e.target.value }))
+                  }
                   onBlur={roiO}
                   className={
-                    "w-full rounded-md border bg-white/60 px-1.5 py-1 text-sm text-slate-900 " +
-                    "placeholder:text-slate-300 focus:border-blue-500 focus:bg-white focus:outline-none " +
-                    (trong ? "border-amber-200" : "border-slate-200")
+                    "w-full rounded-md border px-1.5 py-1 text-sm focus:border-blue-500 focus:outline-none " +
+                    mauO(gia[o.ten], o.batBuoc)
                   }
                 />
               ) : (
                 <span className="block truncate py-1 text-sm text-slate-800">
-                  {gia[o.ten].trim() || <span className="text-amber-600">chưa điền</span>}
+                  {gia[o.ten].trim() || (
+                    <span className="text-amber-600">chưa điền</span>
+                  )}
                 </span>
               )}
             </label>
@@ -183,7 +201,9 @@ export function ThongTinIn({
       </div>
 
       {hetHan && (
-        <p className="mt-1.5 text-xs text-slate-400">Hết hiệu lực ngày {hetHan}.</p>
+        <p className="mt-1.5 text-xs text-slate-400">
+          Hết hiệu lực ngày {hetHan}.
+        </p>
       )}
     </div>
   );

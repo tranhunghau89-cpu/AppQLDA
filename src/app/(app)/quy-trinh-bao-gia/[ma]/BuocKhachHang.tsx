@@ -6,6 +6,7 @@ import { ArrowRight } from "lucide-react";
 import { Input, Select, Field } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { KHACH_NGUON } from "@/lib/constants";
+import { ChuThichO, mauO } from "@/components/ui/kieuO";
 import { saveKhachHang } from "../../khach-hang/actions";
 import { saveCoHoi } from "../../khach-hang/coHoiActions";
 
@@ -32,6 +33,8 @@ export function BuocKhachHang({
   const router = useRouter();
   const [khachId, setKhachId] = useState(khach[0]?.id ?? "");
   const [moi, setMoi] = useState(khach.length === 0);
+  const [tenCty, setTenCty] = useState("");
+  const [tenCongTrinh, setTenCongTrinh] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -60,6 +63,7 @@ export function BuocKhachHang({
 
   return (
     <form onSubmit={onSubmit} className="space-y-5">
+      <ChuThichO />
       <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
         <div className="flex items-center gap-4 text-sm">
           <h2 className="font-semibold text-slate-900">Khách hàng</h2>
@@ -81,7 +85,13 @@ export function BuocKhachHang({
         {moi ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Tên khách / công ty *">
-              <Input name="tenCty" required />
+              <Input
+                name="tenCty"
+                required
+                value={tenCty}
+                onChange={(e) => setTenCty(e.target.value)}
+                className={mauO(tenCty, true)}
+              />
             </Field>
             <Field label="Người liên hệ">
               <Input name="nguoiLienHe" />
@@ -155,6 +165,9 @@ export function BuocKhachHang({
               <Field label="Tên công trình *">
                 <Input
                   name="tenCongTrinh"
+                  value={tenCongTrinh}
+                  onChange={(e) => setTenCongTrinh(e.target.value)}
+                  className={mauO(tenCongTrinh, true)}
                   required
                   placeholder="Nhà xưởng Hồng Ngự"
                 />

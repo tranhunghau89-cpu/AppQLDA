@@ -8,11 +8,17 @@ import { ClientQuoteCard } from "./ClientQuoteCard";
 import { HeaderModal, type GoiY } from "./HeaderModal";
 import { LineModal, type LineModalState } from "./LineModal";
 import { ApBoModal } from "./ApBoModal";
+import { ChuThichO } from "@/components/ui/kieuO";
 import { SpecModal, type SpecModalState } from "./SpecModal";
 import { TermsModal, type TermsModalState } from "./TermsModal";
 import { XemTruoc } from "./XemTruoc";
 import type { TemplateOption } from "@/lib/quoteTemplatePick";
-import type { ClientQuoteView, CustomerOption, LineView, SpecView } from "./types";
+import type {
+  ClientQuoteView,
+  CustomerOption,
+  LineView,
+  SpecView,
+} from "./types";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
 
 /**
@@ -41,13 +47,18 @@ export function ClientQuoteEditor({
   templateGoiY: string | null;
 }) {
   const router = useRouter();
-  const [headerModal, setHeaderModal] = useState<{ editing: ClientQuoteView | null } | null>(null);
+  const [headerModal, setHeaderModal] = useState<{
+    editing: ClientQuoteView | null;
+  } | null>(null);
   const [lineModal, setLineModal] = useState<LineModalState | null>(null);
   const [specModal, setSpecModal] = useState<SpecModalState | null>(null);
   const [termsModal, setTermsModal] = useState<TermsModalState | null>(null);
   // Xem trước không phải form nên không đi qua closeAll — đóng lại thì chẳng có gì
   // để nạp lại.
-  const [xemTruoc, setXemTruoc] = useState<{ id: string; title: string } | null>(null);
+  const [xemTruoc, setXemTruoc] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
 
   const [apBo, setApBo] = useState<string | null>(null);
 
@@ -63,7 +74,8 @@ export function ClientQuoteEditor({
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       {canEdit && (
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <ChuThichO />
           <Button size="sm" onClick={() => setHeaderModal({ editing: null })}>
             <Plus className="h-4 w-4" /> Lập báo giá
           </Button>
@@ -75,7 +87,8 @@ export function ClientQuoteEditor({
           Chưa có báo giá gửi khách nào — bấm “Lập báo giá”.
           <br />
           <span className="text-xs">
-            Bảng vật liệu, tiến độ thi công và tiến độ thanh toán sẽ được điền sẵn theo mẫu.
+            Bảng vật liệu, tiến độ thi công và tiến độ thanh toán sẽ được điền
+            sẵn theo mẫu.
           </span>
         </div>
       )}
@@ -91,12 +104,22 @@ export function ClientQuoteEditor({
           onEdit={() => setHeaderModal({ editing: q })}
           onAddLine={() => setLineModal({ quoteId: q.id, editing: null })}
           onApBo={() => setApBo(q.id)}
-          onEditLine={(l: LineView) => setLineModal({ quoteId: q.id, editing: l })}
+          onEditLine={(l: LineView) =>
+            setLineModal({ quoteId: q.id, editing: l })
+          }
           onAddSpec={(groupCode) =>
-            setSpecModal({ quoteId: q.id, editing: null, defaultGroup: groupCode })
+            setSpecModal({
+              quoteId: q.id,
+              editing: null,
+              defaultGroup: groupCode,
+            })
           }
           onEditSpec={(s: SpecView) =>
-            setSpecModal({ quoteId: q.id, editing: s, defaultGroup: s.groupCode })
+            setSpecModal({
+              quoteId: q.id,
+              editing: s,
+              defaultGroup: s.groupCode,
+            })
           }
           onEditTerms={(tongSauThue) =>
             setTermsModal({

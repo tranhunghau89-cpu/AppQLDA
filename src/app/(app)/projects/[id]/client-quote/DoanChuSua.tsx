@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 import { luuDoanChu, type DoanChu } from "./actions";
+import { O_CO_SAN } from "@/components/ui/kieuO";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
 
 /**
@@ -78,7 +79,10 @@ export function DoanChuSua({
         onChange={(e) => setNoiDung(e.target.value)}
         onBlur={luu}
         placeholder="Để trống = không in"
-        className="w-full resize-y rounded-md border border-transparent bg-transparent px-2 py-1 text-sm text-slate-700 hover:border-slate-200 focus:border-blue-400 focus:bg-white focus:outline-none"
+        className={
+          "w-full resize-y rounded-md border px-2 py-1 text-sm focus:border-blue-400 focus:outline-none " +
+          O_CO_SAN
+        }
       />
     </div>
   );
