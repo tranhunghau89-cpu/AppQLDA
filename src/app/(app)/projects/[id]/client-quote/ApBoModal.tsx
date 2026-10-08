@@ -22,10 +22,27 @@ function dinhDang(n: number): string {
   return n.toLocaleString("vi-VN", { maximumFractionDigits: 3 });
 }
 
-/** Đọc một ô: trống -> null; công thức "=20*50" hoặc số kiểu Việt; sai -> NaN. */
+// Số thường phải đúng khuôn Việt: chấm chỉ để chia nhóm 3 chữ số, phẩy là thập phân.
+// "1.5" không khớp — chặn lại thay vì lặng lẽ đọc thành 15.
+const SO_VN = /^(\d{1,3}(\.\d{3})+|\d+)(,\d+)?$/;
+
+/** Kết quả đọc một ô: số đọc được, hoặc lý do không đọc được. */
+function docChiTiet(s: string): { so: number | null; loi: string | null } {
+  const t = s.trim().replace(/\s/g, "");
+  if (!t) return { so: null, loi: null };
+  if (!laCongThuc(t) && !SO_VN.test(t)) {
+    return { so: null, loi: "số sai — thập phân dùng dấu phẩy, vd 1,5" };
+  }
+  const so = tinhBieuThuc(t);
+  if (so == null) return { so: null, loi: "công thức sai" };
+  if (so < 0) return { so: null, loi: "không được âm" };
+  return { so, loi: null };
+}
+
+/** Đọc một ô: trống -> null; sai -> NaN. */
 function docO(s: string): number | null {
-  if (!s.trim()) return null;
-  return tinhBieuThuc(s) ?? NaN;
+  const { so, loi } = docChiTiet(s);
+  return loi ? NaN : so;
 }
 
 /**
@@ -42,25 +59,32 @@ function OSo({
   placeholder?: string;
 }) {
   const ct = laCongThuc(value);
-  const kq = value.trim() ? tinhBieuThuc(value) : null;
+  const { so, loi } = docChiTiet(value);
   return (
     <div>
       <Input
         inputMode="decimal"
-        className="h-8 text-right"
+        className={`h-8 text-right ${loi ? "border-red-400" : ""}`}
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         onBlur={() => {
-          if (!ct && kq != null) onChange(dinhDang(kq));
+          // Chỉ chấm lại khi đọc ngược ra ĐÚNG số cũ — không bao giờ làm tròn hay đổi
+          // giá trị sau lưng người gõ.
+          if (ct || so == null) return;
+          const moi = dinhDang(so);
+          if (docChiTiet(moi).so === so) onChange(moi);
         }}
       />
-      {ct && (
-        <span
-          className={`block text-right text-xs ${kq == null ? "text-red-600" : "text-slate-500"}`}
-        >
-          {kq == null ? "công thức sai" : `= ${dinhDang(kq)}`}
-        </span>
+      {loi ? (
+        <span className="block text-right text-xs text-red-600">{loi}</span>
+      ) : (
+        ct &&
+        so != null && (
+          <span className="block text-right text-xs text-slate-500">
+            = {dinhDang(so)}
+          </span>
+        )
       )}
     </div>
   );
