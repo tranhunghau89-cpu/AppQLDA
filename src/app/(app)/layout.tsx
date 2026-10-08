@@ -18,7 +18,8 @@ export default async function AppLayout({
   ]);
 
   const allowed: QuickType[] = [];
-  if (can(session.role, "project", "edit")) allowed.push("note");
+  // Nhật ký công trường là việc của Kỹ thuật (progress.edit) — KD sửa được dự án nhưng không ghi tiến độ.
+  if (can(session.role, "progress", "edit") && can(session.role, "project", "edit")) allowed.push("note");
   if (can(session.role, "purchase", "edit")) allowed.push("purchase");
   if (can(session.role, "cost", "edit")) allowed.push("payment");
   if (can(session.role, "estimate", "edit")) allowed.push("estimate");
@@ -26,7 +27,7 @@ export default async function AppLayout({
   return (
     <AppShell role={session.role} name={session.name}>
       {children}
-      <QuickAdd projects={projects} allowed={allowed} suppliers={suppliers} />
+      <QuickAdd projects={projects} allowed={allowed} role={session.role} suppliers={suppliers} />
     </AppShell>
   );
 }

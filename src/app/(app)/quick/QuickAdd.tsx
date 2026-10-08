@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Plus, Camera, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Select, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { ESTIMATE_GROUP, PO_CATEGORY } from "@/lib/constants";
 import { parseViNumber } from "@/lib/utils";
+import type { Role } from "@/lib/rbac";
 import {
   quickNote,
   quickPayment,
@@ -43,6 +44,26 @@ const TYPE_LABEL: Record<QuickType, string> = {
   estimate: "Dự toán / khối lượng",
 };
 
+// Workflow từng bộ phận: thứ tự tab (tab đầu = mặc định), nhãn nút và nhãn tab theo ngôn ngữ bộ phận.
+const ROLE_FLOW: Record<Role, { order: QuickType[]; button: string; label?: Partial<Record<QuickType, string>> }> = {
+  ADMIN: {
+    order: ["note", "payment", "purchase", "estimate"],
+    button: "Nhập nhanh",
+    label: { note: "Kỹ thuật · Tiến độ", payment: "Kế toán · Thu / chi", purchase: "Vật tư · Đơn hàng", estimate: "Vật tư · Dự toán" },
+  },
+  // Kinh doanh làm việc trong Quy trình kinh doanh — không có loại nhập nhanh.
+  SALES: { order: [], button: "Nhập nhanh" },
+  ENGINEERING: { order: ["note"], button: "Báo tiến độ", label: { note: "Nhật ký công trường" } },
+  PROCUREMENT: {
+    order: ["purchase", "estimate"],
+    button: "Nhập vật tư",
+    label: { purchase: "Đơn mua vật tư", estimate: "Khối lượng dự toán" },
+  },
+  ACCOUNTING: { order: ["payment"], button: "Ghi thu / chi", label: { payment: "Thu khách / Chi NCC" } },
+};
+
+const LAST_KEY = "quickAdd.lastType";
+
 const PUR_COLS: PasteColumn[] = [
   { key: "name", label: "Tên vật tư", kind: "text" },
   { key: "unit", label: "ĐV", kind: "text" },
@@ -69,14 +90,21 @@ const PAY_COLS: PasteColumn[] = [
 
 export function QuickAdd({
   projects,
-  allowed,
+  allowed: allowedRaw,
+  role,
   suppliers,
 }: {
   projects: QuickProject[];
   allowed: QuickType[];
+  role: Role;
   suppliers: QuickSupplier[];
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const flow = ROLE_FLOW[role];
+  // Chỉ giữ loại vừa có quyền vừa thuộc workflow bộ phận, theo thứ tự của bộ phận.
+  const allowed = useMemo(() => flow.order.filter((t) => allowedRaw.includes(t)), [flow, allowedRaw]);
+  const labelOf = (t: QuickType) => flow.label?.[t] ?? TYPE_LABEL[t];
   const [open, setOpen] = useState(false);
   const [projectId, setProjectId] = useState(projects.length === 1 ? projects[0].id : "");
   const [type, setType] = useState<QuickType>(allowed[0] ?? "note");
@@ -94,7 +122,33 @@ export function QuickAdd({
     return () => mq.removeEventListener("change", update);
   }, []);
 
-  const canOpen = projects.length > 0 && allowed.length > 0;
+  // Đang đứng trong trang dự án → tự chọn dự án đó.
+  const currentProjectId = useMemo(() => {
+    const m = pathname?.match(/^\/projects\/([^/]+)/);
+    return m && projects.some((p) => p.id === m[1]) ? m[1] : null;
+  }, [pathname, projects]);
+
+  function openModal() {
+    setError(null);
+    if (currentProjectId) setProjectId(currentProjectId);
+    try {
+      const last = localStorage.getItem(LAST_KEY) as QuickType | null;
+      if (last && allowed.includes(last)) setType(last);
+    } catch {}
+    setOpen(true);
+  }
+
+  function pickType(t: QuickType) {
+    setType(t);
+    setError(null);
+    try {
+      localStorage.setItem(LAST_KEY, t);
+    } catch {}
+  }
+
+  // Quy trình kinh doanh có luồng bước riêng — nút nổi chỉ gây rối và đè nút "Tiếp".
+  const inSalesFlow = pathname?.startsWith("/quy-trinh-bao-gia") ?? false;
+  const canOpen = projects.length > 0 && allowed.length > 0 && !inSalesFlow;
   const pasteMode = mode === "paste" && type !== "note" && isDesktop;
 
   function run(build: () => FormData, action: (pid: string, f: FormData) => Promise<{ ok: boolean; error?: string }>, reset: () => void) {
@@ -121,17 +175,14 @@ export function QuickAdd({
     <>
       <button
         type="button"
-        onClick={() => {
-          setError(null);
-          setOpen(true);
-        }}
+        onClick={openModal}
         className="fixed bottom-5 right-5 z-30 flex h-14 items-center gap-2 rounded-full bg-blue-600 px-5 text-white shadow-lg hover:bg-blue-700 sm:bottom-6 sm:right-6"
       >
         <Plus className="h-5 w-5" />
-        <span className="font-medium">Nhập nhanh</span>
+        <span className="font-medium">{flow.button}</span>
       </button>
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Nhập nhanh">
+      <Modal open={open} onClose={() => setOpen(false)} title={flow.button}>
         <div className="space-y-4">
           {projects.length > 1 && (
             <Field label="Dự án *">
@@ -146,23 +197,22 @@ export function QuickAdd({
             </Field>
           )}
 
-          <div className="flex flex-wrap gap-2">
-            {allowed.map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => {
-                  setType(t);
-                  setError(null);
-                }}
-                className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-                  type === t ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                {TYPE_LABEL[t]}
-              </button>
-            ))}
-          </div>
+          {allowed.length > 1 && (
+            <div className="flex flex-wrap gap-2">
+              {allowed.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => pickType(t)}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium ${
+                    type === t ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {labelOf(t)}
+                </button>
+              ))}
+            </div>
+          )}
 
           {type !== "note" && isDesktop && (
             <div className="inline-flex rounded-lg bg-slate-100 p-0.5 text-sm">
