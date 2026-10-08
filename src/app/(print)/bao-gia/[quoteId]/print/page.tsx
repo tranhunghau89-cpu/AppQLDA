@@ -204,7 +204,7 @@ export default async function ClientQuotePrintPage({
                   <tr key={l.id}>
                     {/* STT tự đánh liên tục 01, 02… cho cả bảng; chỉ nhường chỗ khi
                         người lập cố ý nhập số riêng. */}
-                    <Td className="text-center">{l.code ?? hai(++stt)}</Td>
+                    <Td className="text-center">{hai(++stt)}</Td>
                     {/* Ô nội dung dài nhiều dòng nên bám mép trên; các ô còn lại căn
                         giữa theo chiều cao hàng cho thẳng hàng với tên đầu việc. */}
                     <Td className="align-top">

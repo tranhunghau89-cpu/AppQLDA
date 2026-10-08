@@ -149,6 +149,10 @@ export function ClientQuoteCard({
     }
     p.lines.push(l);
   }
+  // Số thứ tự tự đánh, chạy liên tục qua các phần — khớp bản in, không theo mã lưu
+  // trên dòng (áp bộ hai lần hay bỏ một hạng mục thì mã lưu sẽ trùng/nhảy cóc).
+  const sttCua = new Map<string, string>();
+  for (const p of phans) for (const l of p.lines) sttCua.set(l.id, String(sttCua.size + 1).padStart(2, "0"));
 
   // Giống hệt bản in: chỉ hiện vật liệu có nhãn thuộc một hạng mục đang có.
   const specs = specsHienThi(q.specs, tagsDangDung(q.lines));
@@ -299,6 +303,7 @@ export function ClientQuoteCard({
                   chu={chu}
                   quoteId={q.id}
                   l={l}
+                  stt={sttCua.get(l.id) ?? ""}
                   moTa={
                     moTaHangMuc(l.detail, q.lineDetail, specs, l.tags) ?? ""
                   }

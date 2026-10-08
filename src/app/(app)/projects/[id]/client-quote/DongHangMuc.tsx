@@ -115,6 +115,7 @@ export function DongHangMuc({
   chu,
   quoteId,
   l,
+  stt,
   moTa,
   giaVonM2,
   canEdit,
@@ -125,6 +126,8 @@ export function DongHangMuc({
   chu: ChuBaoGia;
   quoteId: string;
   l: LineView;
+  /** Số thứ tự tự đánh theo vị trí trong bảng. */
+  stt: string;
   /** Mô tả ghép sẵn từ câu chung + vật tư đã gắn; chỉ để hiện, sửa ở hộp thoại. */
   moTa: string;
   /** Đơn giá vốn trên m² của phần đã sinh ra dòng này; null = chưa suy được. */
@@ -205,11 +208,11 @@ export function DongHangMuc({
     />
   );
 
-  if (!canEdit) return <DongChiDoc l={l} moTa={moTa} thanhTien={thanhTien} />;
+  if (!canEdit) return <DongChiDoc l={l} stt={stt} moTa={moTa} thanhTien={thanhTien} />;
 
   return (
     <Tr onBlur={roiHang}>
-      <Td className="text-slate-500">{l.code ?? "—"}</Td>
+      <Td className="text-slate-500">{stt}</Td>
 
       <Td className="text-slate-900">
         <div className="flex items-center gap-2">
@@ -350,16 +353,18 @@ export function DongHangMuc({
 /** Bản chỉ đọc cho người không có quyền sửa — cùng bố cục, không có ô nhập. */
 function DongChiDoc({
   l,
+  stt,
   moTa,
   thanhTien,
 }: {
   l: LineView;
+  stt: string;
   moTa: string;
   thanhTien: number;
 }) {
   return (
     <Tr>
-      <Td className="text-slate-500">{l.code ?? "—"}</Td>
+      <Td className="text-slate-500">{stt}</Td>
       <Td className="text-slate-900">
         <span>{l.name}</span>
         {moTa && (
