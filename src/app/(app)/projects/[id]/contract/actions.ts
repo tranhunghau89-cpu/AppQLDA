@@ -52,10 +52,10 @@ async function recompute(contractId: string) {
 }
 
 const contractSchema = z.object({
-  contractNo: z.string().trim().optional(),
+  contractNo: z.string().trim().min(1, "Chưa nhập số hợp đồng"),
   signDate: z.string().trim().optional(),
-  subject: z.string().trim().optional(),
-  partyAName: z.string().trim().optional(),
+  subject: z.string().trim().min(1, "Chưa nhập trích yếu (V/v)"),
+  partyAName: z.string().trim().min(1, "Chưa nhập chủ đầu tư (Bên A)"),
   partyAInfo: z.string().trim().optional(),
   status: z.string().refine((v) => v in CONTRACT_STATUS_MAP, "Trạng thái không hợp lệ"),
   vatPercent: num,
@@ -199,6 +199,12 @@ export async function saveContractItem(
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
+  // Dòng khoán (có thành tiền chốt cứng) thì không cần khối lượng / đơn giá; còn lại
+  // thiếu một trong hai là thành tiền ra 0 — chặn lại.
+  if (d.amount == null) {
+    if (d.qty == null) return { ok: false, error: "Chưa nhập khối lượng" };
+    if (d.unitPrice == null) return { ok: false, error: "Chưa nhập đơn giá" };
+  }
   const data = {
     name: d.name,
     unit: d.unit || null,

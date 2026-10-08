@@ -407,6 +407,7 @@ export function ContractEditor({
             <Field label="Số hợp đồng *">
               <Input
                 name="contractNo"
+                required
                 placeholder=" "
                 className={mauOTuDo(true)}
                 defaultValue={cEditing?.contractNo ?? ""}
@@ -426,6 +427,7 @@ export function ContractEditor({
           <Field label="Trích yếu (V/v) *">
             <Input
               name="subject"
+              required
               placeholder=" "
               className={mauOTuDo(true)}
               defaultValue={cEditing?.subject ?? ""}
@@ -435,6 +437,7 @@ export function ContractEditor({
             <Field label="Chủ đầu tư (Bên A) *">
               <Input
                 name="partyAName"
+                required
                 placeholder=" "
                 className={mauOTuDo(true)}
                 defaultValue={cEditing?.partyAName ?? ""}
@@ -525,7 +528,7 @@ export function ContractEditor({
                 placeholder="m², bộ…"
               />
             </Field>
-            <Field label="Khối lượng *">
+            <Field label="Khối lượng * (trừ dòng khoán)">
               <Input
                 name="qty"
                 type="number"
