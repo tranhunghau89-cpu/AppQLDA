@@ -205,6 +205,7 @@ function ItemRows({
                       dinhDang={formatNumber}
                       khoa={false}
                       luu={(tho) => suaOGiaVon(chu, it.id, "baseCost", tho)}
+                      thuCong={false}
                       batBuoc
                     />
                   ) : (
@@ -243,6 +244,7 @@ function ItemRows({
                       dinhDang={formatNumber}
                       khoa={false}
                       luu={(tho) => suaOGiaVon(chu, it.id, "sellPrice", tho)}
+                      thuCong={false}
                       batBuoc
                     />
                   ) : (

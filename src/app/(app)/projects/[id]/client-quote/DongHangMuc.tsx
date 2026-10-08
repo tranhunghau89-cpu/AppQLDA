@@ -79,8 +79,12 @@ const O_NHAP = O_KHUNG + " " + O_CO_SAN;
  * Ô số: gõ sai thì đỏ ngay tại chỗ; bắt buộc mà trống (khối lượng) thì vàng "phải
  * điền"; còn lại là ô có sẵn.
  */
-const oNhapSo = (gia: string, hong: boolean, batBuoc = false) =>
-  O_KHUNG + " text-right tabular-nums " + mauO(gia, batBuoc, hong);
+const oNhapSo = (
+  gia: string,
+  hong: boolean,
+  batBuoc = false,
+  thuCong = batBuoc,
+) => O_KHUNG + " text-right tabular-nums " + mauO(gia, batBuoc, hong, thuCong);
 
 /**
  * FormData gửi lên: ô số đi dạng SỐ THÔ, không mang dấu chấm phân cách.
@@ -192,7 +196,12 @@ export function DongHangMuc({
       inputMode="decimal"
       value={v[k]}
       onChange={(e) => setNhap((p) => ({ ...p, [k]: e.target.value }))}
-      className={oNhapSo(v[k], v[k].trim() !== "" && so(v[k]) == null, !khoan)}
+      className={oNhapSo(
+        v[k],
+        v[k].trim() !== "" && so(v[k]) == null,
+        !khoan,
+        k === "qty" && !khoan,
+      )}
     />
   );
 

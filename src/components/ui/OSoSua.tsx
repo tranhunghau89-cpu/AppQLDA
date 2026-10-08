@@ -27,9 +27,12 @@ export function OSoSua({
   nhan,
   luu,
   batBuoc = false,
+  thuCong = batBuoc,
 }: {
   /** Ô bắt buộc: còn trống thì tô đỏ "phải điền" (xem `kieuO`). */
   batBuoc?: boolean;
+  /** Ô người lập tự gõ (khối lượng) — đã điền vẫn giữ tông đỏ nhạt; false = giá có sẵn. */
+  thuCong?: boolean;
   giaTri: number | null;
   dinhDang: (v: number | null) => string;
   khoa: boolean;
@@ -110,7 +113,7 @@ export function OSoSua({
         size={Math.max(4, (nhap ?? hienThi).length + 1)}
         className={
           "field-sizing-content min-w-[4ch] rounded border px-1.5 py-0.5 text-right tabular-nums focus:border-blue-500 focus:outline-none disabled:opacity-50 " +
-          mauO(nhap ?? hienThi, batBuoc)
+          mauO(nhap ?? hienThi, batBuoc, false, thuCong)
         }
       />
       {xemTruoc != null && (

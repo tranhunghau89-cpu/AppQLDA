@@ -3,7 +3,14 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, FileText, FileSignature, Printer } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  FileText,
+  FileSignature,
+  Printer,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
@@ -11,8 +18,19 @@ import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { CONTRACT_STATUS, CONTRACT_STATUS_MAP } from "@/lib/constants";
 import { formatVND, formatNumber, formatDate, formatQty } from "@/lib/utils";
-import { computeContractTotals, lineAmount, settleAmount } from "@/lib/contract";
+import {
+  computeContractTotals,
+  lineAmount,
+  settleAmount,
+} from "@/lib/contract";
 import { OSoSua } from "@/components/ui/OSoSua";
+import {
+  ChuThichO,
+  O_CO_DINH,
+  O_CO_SAN,
+  O_DIEN_TAY,
+  mauOTuDo,
+} from "@/components/ui/kieuO";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -94,7 +112,12 @@ export function ContractEditor({
     setError(null);
     setPending(true);
     start(async () => {
-      const res = await saveContractItem(projectId, iContractId, iEditing?.id ?? null, form);
+      const res = await saveContractItem(
+        projectId,
+        iContractId,
+        iEditing?.id ?? null,
+        form,
+      );
       setPending(false);
       if (!res.ok) setError(res.error);
       else {
@@ -104,7 +127,8 @@ export function ContractEditor({
     });
   }
   async function onDeleteContract(c: ContractView) {
-    if (!(await confirm(`Xóa hợp đồng "${c.contractNo ?? c.subject ?? ""}"?`))) return;
+    if (!(await confirm(`Xóa hợp đồng "${c.contractNo ?? c.subject ?? ""}"?`)))
+      return;
     start(async () => {
       const res = await deleteContract(projectId, c.id);
       if (!res.ok) toast.error(res.error);
@@ -123,7 +147,8 @@ export function ContractEditor({
   return (
     <div className="space-y-6">
       {canEdit && (
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <ChuThichO className="mr-auto" />
           <Button
             size="sm"
             onClick={() => {
@@ -147,7 +172,10 @@ export function ContractEditor({
         const totals = computeContractTotals(c.items, c.vatPercent);
         const st = CONTRACT_STATUS_MAP[c.status];
         return (
-          <div key={c.id} className="rounded-xl border border-slate-200 bg-white">
+          <div
+            key={c.id}
+            className="rounded-xl border border-slate-200 bg-white"
+          >
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 p-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -155,14 +183,20 @@ export function ContractEditor({
                   <span className="font-semibold text-slate-900">
                     {c.contractNo ?? "(Chưa có số HĐ)"}
                   </span>
-                  <Badge tone={st?.tone ?? "slate"}>{st?.label ?? c.status}</Badge>
+                  <Badge tone={st?.tone ?? "slate"}>
+                    {st?.label ?? c.status}
+                  </Badge>
                 </div>
-                {c.subject && <p className="text-sm text-slate-600">{c.subject}</p>}
+                {c.subject && (
+                  <p className="text-sm text-slate-600">{c.subject}</p>
+                )}
                 <div className="text-sm text-slate-500">
                   {c.partyAName && <span>CĐT: {c.partyAName} · </span>}
                   Ngày ký: {c.signDate ? formatDate(c.signDate) : "—"}
                 </div>
-                {c.partyAInfo && <p className="text-xs text-slate-400">{c.partyAInfo}</p>}
+                {c.partyAInfo && (
+                  <p className="text-xs text-slate-400">{c.partyAInfo}</p>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Link
@@ -217,8 +251,12 @@ export function ContractEditor({
                   <Th className="text-right">Khối lượng</Th>
                   <Th className="text-right">Đơn giá</Th>
                   <Th className="text-right">Thành tiền</Th>
-                  <Th className="bg-emerald-50 text-right text-emerald-800">KL quyết toán</Th>
-                  <Th className="bg-emerald-50 text-right text-emerald-800">Thành tiền QT</Th>
+                  <Th className="bg-emerald-50 text-right text-emerald-800">
+                    KL quyết toán
+                  </Th>
+                  <Th className="bg-emerald-50 text-right text-emerald-800">
+                    Thành tiền QT
+                  </Th>
                   {canEdit && <Th></Th>}
                 </tr>
               </THead>
@@ -228,11 +266,19 @@ export function ContractEditor({
                     <Td className="w-12 text-center text-slate-400">{i + 1}</Td>
                     <Td className="font-medium text-slate-900">
                       {r.name}
-                      {r.unit ? <span className="text-slate-400"> ({r.unit})</span> : null}
+                      {r.unit ? (
+                        <span className="text-slate-400"> ({r.unit})</span>
+                      ) : null}
                     </Td>
                     <Td className="text-right">{formatNumber(r.qty)}</Td>
                     <Td className="text-right">{formatNumber(r.unitPrice)}</Td>
-                    <Td className="text-right font-medium">{formatVND(lineAmount(r))}</Td>
+                    <Td className="text-right font-medium">
+                      <span
+                        className={`inline-block rounded border px-1.5 py-0.5 tabular-nums ${O_CO_DINH}`}
+                      >
+                        {formatVND(lineAmount(r))}
+                      </span>
+                    </Td>
                     <Td className="bg-emerald-50/40 text-right">
                       {canEdit ? (
                         <OSoSua
@@ -240,7 +286,10 @@ export function ContractEditor({
                           giaTri={r.settleQty}
                           dinhDang={formatQty}
                           khoa={false}
-                          luu={(tho) => suaKLQuyetToan(projectId, c.id, r.id, tho)}
+                          luu={(tho) =>
+                            suaKLQuyetToan(projectId, c.id, r.id, tho)
+                          }
+                          thuCong
                         />
                       ) : (
                         formatNumber(r.settleQty)
@@ -302,7 +351,9 @@ export function ContractEditor({
                 )}
                 {c.paymentTerms && (
                   <p className="max-w-xl pt-2 text-xs text-slate-500">
-                    <span className="font-medium text-slate-600">Thanh toán: </span>
+                    <span className="font-medium text-slate-600">
+                      Thanh toán:{" "}
+                    </span>
                     {c.paymentTerms}
                   </p>
                 )}
@@ -310,7 +361,9 @@ export function ContractEditor({
               <dl className="min-w-[16rem] space-y-1 text-sm">
                 <div className="flex justify-between">
                   <dt className="text-slate-500">Giá trị chưa VAT</dt>
-                  <dd className="font-medium text-slate-900">{formatVND(totals.beforeVat)}</dd>
+                  <dd className="font-medium text-slate-900">
+                    {formatVND(totals.beforeVat)}
+                  </dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-slate-500">VAT ({c.vatPercent ?? 0}%)</dt>
@@ -318,14 +371,21 @@ export function ContractEditor({
                 </div>
                 <div className="flex justify-between border-t border-slate-100 pt-1">
                   <dt className="font-medium text-slate-700">Tổng (gồm VAT)</dt>
-                  <dd className="font-bold text-green-600">{formatVND(totals.withVat)}</dd>
+                  <dd className="font-bold text-green-600">
+                    {formatVND(totals.withVat)}
+                  </dd>
                 </div>
                 {c.items.some((r) => r.settleQty != null) && (
                   <div className="flex justify-between border-t border-slate-100 pt-1">
-                    <dt className="font-medium text-emerald-800">Quyết toán chưa VAT</dt>
+                    <dt className="font-medium text-emerald-800">
+                      Quyết toán chưa VAT
+                    </dt>
                     <dd className="font-bold text-emerald-700">
                       {formatVND(
-                        c.items.reduce((s, r) => s + (settleAmount(r) ?? lineAmount(r)), 0)
+                        c.items.reduce(
+                          (s, r) => s + (settleAmount(r) ?? lineAmount(r)),
+                          0,
+                        ),
                       )}
                     </dd>
                   </div>
@@ -344,26 +404,48 @@ export function ContractEditor({
       >
         <form onSubmit={onContractSubmit} className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Số hợp đồng">
-              <Input name="contractNo" defaultValue={cEditing?.contractNo ?? ""} />
+            <Field label="Số hợp đồng *">
+              <Input
+                name="contractNo"
+                placeholder=" "
+                className={mauOTuDo(true)}
+                defaultValue={cEditing?.contractNo ?? ""}
+              />
             </Field>
             <Field label="Ngày ký">
               <Input
                 name="signDate"
                 type="date"
-                defaultValue={cEditing?.signDate ? cEditing.signDate.slice(0, 10) : ""}
+                className={O_DIEN_TAY}
+                defaultValue={
+                  cEditing?.signDate ? cEditing.signDate.slice(0, 10) : ""
+                }
               />
             </Field>
           </div>
-          <Field label="Trích yếu (V/v)">
-            <Input name="subject" defaultValue={cEditing?.subject ?? ""} />
+          <Field label="Trích yếu (V/v) *">
+            <Input
+              name="subject"
+              placeholder=" "
+              className={mauOTuDo(true)}
+              defaultValue={cEditing?.subject ?? ""}
+            />
           </Field>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Chủ đầu tư (Bên A)">
-              <Input name="partyAName" defaultValue={cEditing?.partyAName ?? ""} />
+            <Field label="Chủ đầu tư (Bên A) *">
+              <Input
+                name="partyAName"
+                placeholder=" "
+                className={mauOTuDo(true)}
+                defaultValue={cEditing?.partyAName ?? ""}
+              />
             </Field>
             <Field label="Trạng thái *">
-              <Select name="status" defaultValue={cEditing?.status ?? "QUOTE"}>
+              <Select
+                name="status"
+                className={O_CO_SAN}
+                defaultValue={cEditing?.status ?? "QUOTE"}
+              >
                 {CONTRACT_STATUS.map((s) => (
                   <option key={s.value} value={s.value}>
                     {s.label}
@@ -373,18 +455,25 @@ export function ContractEditor({
             </Field>
           </div>
           <Field label="Thông tin Bên A (địa chỉ, MST, người đại diện)">
-            <Textarea name="partyAInfo" defaultValue={cEditing?.partyAInfo ?? ""} />
+            <Textarea
+              name="partyAInfo"
+              defaultValue={cEditing?.partyAInfo ?? ""}
+            />
           </Field>
           <Field label="VAT (%)">
             <Input
               name="vatPercent"
               type="number"
               step="any"
+              className={O_CO_SAN}
               defaultValue={cEditing?.vatPercent ?? 8}
             />
           </Field>
           <Field label="Điều khoản thanh toán">
-            <Textarea name="paymentTerms" defaultValue={cEditing?.paymentTerms ?? ""} />
+            <Textarea
+              name="paymentTerms"
+              defaultValue={cEditing?.paymentTerms ?? ""}
+            />
           </Field>
           <Field label="Đường dẫn file HĐ (.pdf/.docx trên ổ đĩa)">
             <Input name="filePath" defaultValue={cEditing?.filePath ?? ""} />
@@ -393,10 +482,16 @@ export function ContractEditor({
             <Textarea name="note" defaultValue={cEditing?.note ?? ""} />
           </Field>
           {error && (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
+              {error}
+            </p>
           )}
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setCOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCOpen(false)}
+            >
               Hủy
             </Button>
             <Button type="submit" disabled={pending}>
@@ -414,32 +509,62 @@ export function ContractEditor({
       >
         <form onSubmit={onItemSubmit} className="space-y-3">
           <Field label="Tên hạng mục *">
-            <Input name="name" defaultValue={iEditing?.name ?? ""} required />
+            <Input
+              name="name"
+              placeholder=" "
+              className={mauOTuDo(true)}
+              defaultValue={iEditing?.name ?? ""}
+              required
+            />
           </Field>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Field label="Đơn vị">
-              <Input name="unit" defaultValue={iEditing?.unit ?? ""} placeholder="m², bộ…" />
+              <Input
+                name="unit"
+                defaultValue={iEditing?.unit ?? ""}
+                placeholder="m², bộ…"
+              />
             </Field>
-            <Field label="Khối lượng">
-              <Input name="qty" type="number" step="any" defaultValue={iEditing?.qty ?? ""} />
+            <Field label="Khối lượng *">
+              <Input
+                name="qty"
+                type="number"
+                step="any"
+                placeholder=" "
+                className={mauOTuDo(true)}
+                defaultValue={iEditing?.qty ?? ""}
+              />
             </Field>
-            <Field label="Đơn giá">
+            <Field label="Đơn giá *">
               <Input
                 name="unitPrice"
                 type="number"
                 step="any"
+                placeholder=" "
+                className={mauOTuDo(true)}
                 defaultValue={iEditing?.unitPrice ?? ""}
               />
             </Field>
           </div>
           <Field label="Thành tiền (để trống = KL × đơn giá)">
-            <Input name="amount" type="number" step="any" defaultValue={iEditing?.amount ?? ""} />
+            <Input
+              name="amount"
+              type="number"
+              step="any"
+              defaultValue={iEditing?.amount ?? ""}
+            />
           </Field>
           {error && (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
+              {error}
+            </p>
           )}
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setIOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIOpen(false)}
+            >
               Hủy
             </Button>
             <Button type="submit" disabled={pending}>

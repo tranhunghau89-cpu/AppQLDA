@@ -55,12 +55,15 @@ function OSo({
   onChange,
   placeholder,
   batBuoc = false,
+  thuCong = batBuoc,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   /** Dòng đã chọn mà ô còn trống -> tô vàng "phải điền". */
   batBuoc?: boolean;
+  /** Ô người lập tự gõ — đã điền vẫn giữ tông đỏ nhạt; false = giá mẫu, xanh. */
+  thuCong?: boolean;
 }) {
   const ct = laCongThuc(value);
   const { so, loi } = docChiTiet(value);
@@ -68,7 +71,7 @@ function OSo({
     <div>
       <Input
         inputMode="decimal"
-        className={`h-8 text-right ${mauO(value, batBuoc, Boolean(loi))}`}
+        className={`h-8 text-right ${mauO(value, batBuoc, Boolean(loi), thuCong)}`}
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
@@ -268,6 +271,7 @@ export function ApBoModal({
                           value={d.donGia}
                           placeholder="nhập tay"
                           batBuoc={d.chon}
+                          thuCong={false}
                           onChange={(v) => sua(p.ma, { donGia: v })}
                         />
                       </td>
