@@ -154,17 +154,6 @@ export default async function ClientQuotePrintPage({
           <Dong nhan="Hạng mục" giaTri={quote.scope} dam />
         </dl>
 
-        {(quote.salesName || quote.salesPhone || quote.salesEmail) && (
-          <div className="giu-nguyen-khoi mt-4 text-[11.5px]">
-            <div className="italic">- Mọi thông tin xin vui lòng liên hệ:</div>
-            <dl className="mt-1 space-y-0.5 pl-16">
-              <Dong nhan="Họ và tên" giaTri={quote.salesName} dam />
-              <Dong nhan="SĐT" giaTri={quote.salesPhone} dam />
-              <Dong nhan="Email" giaTri={quote.salesEmail} dam />
-            </dl>
-          </div>
-        )}
-
         {quote.greeting && (
           <p className="mt-4 whitespace-pre-line text-[11.5px] leading-relaxed">
             {quote.greeting}
@@ -340,6 +329,19 @@ export default async function ClientQuotePrintPage({
             <p className="giu-nguyen-khoi mt-6 text-center text-[11.5px] font-bold">
               {quote.closing}
             </p>
+          )}
+
+          {/* Khối liên hệ để cuối: người đọc xem xong giá và điều khoản mới cần biết
+              hỏi ai. */}
+          {(quote.salesName || quote.salesPhone || quote.salesEmail) && (
+            <div className="giu-nguyen-khoi mt-6 text-[11.5px]">
+              <div className="italic">- Mọi thông tin xin vui lòng liên hệ:</div>
+              <dl className="mt-1 space-y-0.5 pl-16">
+                <Dong nhan="Họ và tên" giaTri={quote.salesName} dam />
+                <Dong nhan="SĐT" giaTri={quote.salesPhone} dam />
+                <Dong nhan="Email" giaTri={quote.salesEmail} dam />
+              </dl>
+            </div>
           )}
 
           <div className="giu-nguyen-khoi mt-10 text-center text-[10px] italic text-slate-400">
