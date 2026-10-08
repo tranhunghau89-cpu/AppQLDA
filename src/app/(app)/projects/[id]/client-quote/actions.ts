@@ -359,6 +359,46 @@ const O_THONG_TIN_IN = [
  * vỏn vẹn chín ô là xóa sạch VAT, bảo hành, tải trọng và các đoạn chữ. Hàm này chỉ
  * chạm đúng chín cột nó nhận.
  */
+const DOAN_CHU = ["greeting", "colorNote", "volumeNote", "excludeNote", "closing"] as const;
+export type DoanChu = (typeof DOAN_CHU)[number];
+
+/**
+ * Lưu MỘT đoạn chữ in ra (lời mở đầu, ba ghi chú, lời kết) sửa thẳng trên báo giá.
+ * Chỉ chạm đúng cột đó — cùng lý do với `luuThongTinIn` bên dưới.
+ */
+export async function luuDoanChu(
+  chu: ChuBaoGia,
+  clientQuoteId: string,
+  truong: DoanChu,
+  giaTri: string
+): Promise<ActionResult> {
+  const g = await guard(chu, { clientQuoteId });
+  if (g) return g;
+  if (!DOAN_CHU.includes(truong)) return { ok: false, error: "Ô không hợp lệ." };
+  if (typeof giaTri !== "string" || giaTri.length > 5000) {
+    return { ok: false, error: "Đoạn chữ quá dài." };
+  }
+  const data = { [truong]: giaTri.trim() || null };
+
+  const truoc = await db.clientQuote.findUnique({
+    where: { id: clientQuoteId },
+    select: CQ_AUDIT_SELECT,
+  });
+  await db.clientQuote.update({ where: { id: clientQuoteId }, data });
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "ClientQuote",
+    entityId: clientQuoteId,
+    entityLabel: truoc?.quoteNo ? `${truoc.quoteNo} — ${truoc.title}` : (truoc?.title ?? ""),
+    projectId: duAnCuaChu(chu),
+    action: "UPDATE",
+    changes: diffFields(truoc, data, CQ_AUDIT_FIELDS),
+  });
+
+  paths(chu);
+  return { ok: true };
+}
+
 export async function luuThongTinIn(
   chu: ChuBaoGia,
   clientQuoteId: string,

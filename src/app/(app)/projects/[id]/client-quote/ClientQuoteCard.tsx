@@ -3,23 +3,49 @@
 import { useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, Printer, Eye, EyeOff, FileText, ListChecks, RefreshCw } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Printer,
+  Eye,
+  EyeOff,
+  FileText,
+  ListChecks,
+  RefreshCw,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
 import { formatVND } from "@/lib/utils";
-import { computeClientQuoteTotals, partTotals, sumStageDays } from "@/lib/clientQuote";
+import {
+  computeClientQuoteTotals,
+  partTotals,
+  sumStageDays,
+} from "@/lib/clientQuote";
 import { docTienVietNam } from "@/lib/money-words";
 import { CLIENT_QUOTE_STATUS_MAP, QUOTE_SPEC_GROUP_MAP } from "@/lib/constants";
-import { moTaHangMuc, specsHienThi, tagsDangDung } from "@/lib/clientQuoteSpecs";
+import {
+  moTaHangMuc,
+  specsHienThi,
+  tagsDangDung,
+} from "@/lib/clientQuoteSpecs";
 import { InteractionLog } from "@/components/crm/InteractionLog";
 import { StatusBar } from "./StatusBar";
 import { ThongTinIn } from "./ThongTinIn";
 import { DongHangMuc, DongMoi } from "./DongHangMuc";
 import { GiaVonPanel } from "./GiaVonPanel";
-import { clearPriceOverride, deleteClientQuote, deleteLine, anHienSpec, deleteSpec, recomputePrices } from "./actions";
+import { DoanChuSua } from "./DoanChuSua";
+import {
+  clearPriceOverride,
+  deleteClientQuote,
+  deleteLine,
+  anHienSpec,
+  deleteSpec,
+  recomputePrices,
+} from "./actions";
 import type { ClientQuoteView, LineView, SpecView } from "./types";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
 
@@ -59,13 +85,13 @@ export function ClientQuoteCard({
 
   const tong = useMemo(
     () => computeClientQuoteTotals(q.lines, q.vatPercent),
-    [q.lines, q.vatPercent]
+    [q.lines, q.vatPercent],
   );
   const tienPhan = useMemo(() => partTotals(q.lines), [q.lines]);
   // Tra nhanh giá vốn/m² theo phần nguồn, để mỗi dòng đeo được huy hiệu lãi.
   const giaVonM2Cua = useMemo(
     () => new Map(q.giaVon.map((p) => [p.sectionId, p.giaVonM2])),
-    [q.giaVon]
+    [q.giaVon],
   );
   const trangThai = CLIENT_QUOTE_STATUS_MAP[q.status];
 
@@ -78,7 +104,12 @@ export function ClientQuoteCard({
   }
 
   async function onDelete() {
-    if (!(await confirm(`Xóa báo giá "${q.title}"? (kèm toàn bộ hạng mục & điều khoản)`))) return;
+    if (
+      !(await confirm(
+        `Xóa báo giá "${q.title}"? (kèm toàn bộ hạng mục & điều khoản)`,
+      ))
+    )
+      return;
     run(() => deleteClientQuote(chu, q.id));
   }
   async function onDeleteLine(l: LineView) {
@@ -88,7 +119,7 @@ export function ClientQuoteCard({
   async function onRecompute() {
     if (
       !(await confirm(
-        "Tính lại đơn giá m² từ báo giá chi tiết? Các dòng đã sửa đơn giá bằng tay sẽ được giữ nguyên."
+        "Tính lại đơn giá m² từ báo giá chi tiết? Các dòng đã sửa đơn giá bằng tay sẽ được giữ nguyên.",
       ))
     )
       return;
@@ -136,13 +167,20 @@ export function ClientQuoteCard({
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <FileText className="h-4 w-4 text-slate-400" />
-            {q.quoteNo && <span className="font-mono text-sm text-slate-500">{q.quoteNo}</span>}
+            {q.quoteNo && (
+              <span className="font-mono text-sm text-slate-500">
+                {q.quoteNo}
+              </span>
+            )}
             <span className="font-semibold text-slate-900">{q.title}</span>
-            <Badge tone={trangThai?.tone ?? "slate"}>{trangThai?.label ?? q.status}</Badge>
+            <Badge tone={trangThai?.tone ?? "slate"}>
+              {trangThai?.label ?? q.status}
+            </Badge>
           </div>
           {(q.derivedFromTitle || q.clonedFromTitle) && (
             <p className="text-xs text-slate-400">
-              {q.derivedFromTitle && `Sinh từ báo giá chi tiết: ${q.derivedFromTitle}`}
+              {q.derivedFromTitle &&
+                `Sinh từ báo giá chi tiết: ${q.derivedFromTitle}`}
               {q.clonedFromTitle && `Tạo từ: ${q.clonedFromTitle}`}
             </p>
           )}
@@ -168,10 +206,19 @@ export function ClientQuoteCard({
                   <RefreshCw className="h-3.5 w-3.5" /> Tính lại đơn giá
                 </Button>
               )}
-              <Button variant="outline" size="sm" onClick={() => onEditTerms(tong.withVat)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onEditTerms(tong.withVat)}
+              >
                 <ListChecks className="h-3.5 w-3.5" /> Điều khoản
               </Button>
-              <Button variant="ghost" size="icon" onClick={onEdit} aria-label="Sửa báo giá">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onEdit}
+                aria-label="Sửa báo giá"
+              >
                 <Pencil className="h-4 w-4" />
               </Button>
               <Button
@@ -189,6 +236,16 @@ export function ClientQuoteCard({
       </div>
 
       <ThongTinIn q={q} chu={chu} canEdit={canEdit} onEdit={onEdit} />
+
+      <DoanChuSua
+        chu={chu}
+        quoteId={q.id}
+        truong="greeting"
+        nhan="Lời mở đầu"
+        giaTri={q.greeting}
+        canEdit={canEdit}
+        className="border-t border-slate-100 px-4 py-3"
+      />
 
       {/* ---- Bảng báo giá theo hạng mục ---- */}
       <Table>
@@ -208,10 +265,18 @@ export function ClientQuoteCard({
             (canEdit ? (
               // Báo giá trắng thì chưa có phần nào để gắn hàng trắng vào — dựng sẵn
               // phần mặc định, đúng cái mà hộp thoại cũng điền sẵn.
-              <DongMoi chu={chu} quoteId={q.id} partCode="I" partName="Phần kết cấu thép" />
+              <DongMoi
+                chu={chu}
+                quoteId={q.id}
+                partCode="I"
+                partName="Phần kết cấu thép"
+              />
             ) : (
               <Tr>
-                <Td colSpan={colSpan} className="py-6 text-center text-slate-400">
+                <Td
+                  colSpan={colSpan}
+                  className="py-6 text-center text-slate-400"
+                >
                   Chưa có hạng mục nào.
                 </Td>
               </Tr>
@@ -234,8 +299,14 @@ export function ClientQuoteCard({
                   chu={chu}
                   quoteId={q.id}
                   l={l}
-                  moTa={moTaHangMuc(l.detail, q.lineDetail, specs, l.tags) ?? ""}
-                  giaVonM2={l.sourceSectionId ? (giaVonM2Cua.get(l.sourceSectionId) ?? null) : null}
+                  moTa={
+                    moTaHangMuc(l.detail, q.lineDetail, specs, l.tags) ?? ""
+                  }
+                  giaVonM2={
+                    l.sourceSectionId
+                      ? (giaVonM2Cua.get(l.sourceSectionId) ?? null)
+                      : null
+                  }
                   canEdit={canEdit}
                   onSua={() => onEditLine(l)}
                   onXoa={() => onDeleteLine(l)}
@@ -244,14 +315,24 @@ export function ClientQuoteCard({
               ))}
               {/* Hàng trắng thường trực: gõ vào là thành hạng mục mới của ĐÚNG phần này. */}
               {canEdit && (
-                <DongMoi chu={chu} quoteId={q.id} partCode={phan.code} partName={phan.name} />
+                <DongMoi
+                  chu={chu}
+                  quoteId={q.id}
+                  partCode={phan.code}
+                  partName={phan.name}
+                />
               )}
             </PhanGroup>
           ))}
         </tbody>
       </Table>
 
-      <GiaVonPanel chu={chu} canEdit={canEdit} giaVon={q.giaVon} lines={q.lines} />
+      <GiaVonPanel
+        chu={chu}
+        canEdit={canEdit}
+        giaVon={q.giaVon}
+        lines={q.lines}
+      />
 
       <div className="flex flex-wrap items-end justify-between gap-4 border-t border-slate-100 p-4">
         {canEdit && (
@@ -274,8 +355,12 @@ export function ClientQuoteCard({
             <dd className="text-slate-700">{formatVND(tong.vat)}</dd>
           </div>
           <div className="flex justify-between border-t border-slate-100 pt-1">
-            <dt className="font-medium text-slate-700">Tổng giá trị sau thuế</dt>
-            <dd className="font-bold text-blue-700">{formatVND(tong.withVat)}</dd>
+            <dt className="font-medium text-slate-700">
+              Tổng giá trị sau thuế
+            </dt>
+            <dd className="font-bold text-blue-700">
+              {formatVND(tong.withVat)}
+            </dd>
           </div>
           <p className="pt-1 text-right text-xs italic text-slate-500">
             {docTienVietNam(tong.withVat)}
@@ -297,7 +382,11 @@ export function ClientQuoteCard({
                   {nhom.code}. {nhom.label}
                 </h4>
                 {canEdit && (
-                  <Button variant="ghost" size="sm" onClick={() => onAddSpec(nhom.code)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onAddSpec(nhom.code)}
+                  >
                     <Plus className="h-3.5 w-3.5" /> Thêm
                   </Button>
                 )}
@@ -314,7 +403,10 @@ export function ClientQuoteCard({
                 <tbody>
                   {nhom.rows.length === 0 && (
                     <Tr>
-                      <Td colSpan={canEdit ? 4 : 3} className="py-4 text-center text-slate-400">
+                      <Td
+                        colSpan={canEdit ? 4 : 3}
+                        className="py-4 text-center text-slate-400"
+                      >
                         Chưa có dòng nào.
                       </Td>
                     </Tr>
@@ -323,10 +415,16 @@ export function ClientQuoteCard({
                     <Tr key={s.id} className={s.an ? "opacity-40" : undefined}>
                       <Td className="text-slate-900">
                         {s.name}
-                        {s.an && <span className="ml-1 text-xs text-slate-500">(ẩn khi in)</span>}
+                        {s.an && (
+                          <span className="ml-1 text-xs text-slate-500">
+                            (ẩn khi in)
+                          </span>
+                        )}
                       </Td>
                       <Td className="italic text-slate-600">{s.spec ?? "—"}</Td>
-                      <Td className="italic text-slate-600">{s.origin ?? "—"}</Td>
+                      <Td className="italic text-slate-600">
+                        {s.origin ?? "—"}
+                      </Td>
                       {canEdit && (
                         <Td className="text-right">
                           <div className="flex justify-end gap-1">
@@ -335,9 +433,15 @@ export function ClientQuoteCard({
                               size="icon"
                               aria-label={s.an ? "Hiện khi in" : "Ẩn khi in"}
                               title={s.an ? "Hiện khi in" : "Ẩn khi in"}
-                              onClick={() => run(() => anHienSpec(chu, s.id, !s.an))}
+                              onClick={() =>
+                                run(() => anHienSpec(chu, s.id, !s.an))
+                              }
                             >
-                              {s.an ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                              {s.an ? (
+                                <EyeOff className="h-3.5 w-3.5" />
+                              ) : (
+                                <Eye className="h-3.5 w-3.5" />
+                              )}
                             </Button>
                             <Button
                               variant="ghost"
@@ -368,14 +472,52 @@ export function ClientQuoteCard({
         </div>
       </details>
 
+      {/* ---- Ghi chú và lời kết — đúng thứ tự trên bản in ---- */}
+      <div className="grid grid-cols-1 gap-3 border-t border-slate-100 p-4 md:grid-cols-3">
+        <DoanChuSua
+          chu={chu}
+          quoteId={q.id}
+          truong="colorNote"
+          nhan="Ghi chú màu sắc"
+          giaTri={q.colorNote}
+          canEdit={canEdit}
+        />
+        <DoanChuSua
+          chu={chu}
+          quoteId={q.id}
+          truong="volumeNote"
+          nhan="Ghi chú khối lượng tạm tính"
+          giaTri={q.volumeNote}
+          canEdit={canEdit}
+        />
+        <DoanChuSua
+          chu={chu}
+          quoteId={q.id}
+          truong="excludeNote"
+          nhan="Ghi chú loại trừ"
+          giaTri={q.excludeNote}
+          canEdit={canEdit}
+        />
+        <DoanChuSua
+          chu={chu}
+          quoteId={q.id}
+          truong="closing"
+          nhan="Lời kết"
+          giaTri={q.closing}
+          canEdit={canEdit}
+          className="md:col-span-3"
+        />
+      </div>
+
       <StatusBar q={q} chu={chu} canEdit={canEdit} tongSauThue={tong.withVat} />
 
       {/* ---- Điều khoản tóm tắt ---- */}
       <div className="border-t border-slate-100 p-4 text-sm text-slate-600">
         <span className="font-medium text-slate-700">Điều khoản: </span>
-        thi công {sumStageDays(q.stages)} ngày ({q.stages.length} chặng) · bảo hành{" "}
-        {q.warrantyMonths ?? "—"} tháng · bảo trì {q.maintenanceMonths ?? "—"} tháng · hiệu lực{" "}
-        {q.validDays ?? "—"} ngày · thanh toán {q.payments.length} đợt
+        thi công {sumStageDays(q.stages)} ngày ({q.stages.length} chặng) · bảo
+        hành {q.warrantyMonths ?? "—"} tháng · bảo trì{" "}
+        {q.maintenanceMonths ?? "—"} tháng · hiệu lực {q.validDays ?? "—"} ngày
+        · thanh toán {q.payments.length} đợt
       </div>
 
       {canViewCrm && (
