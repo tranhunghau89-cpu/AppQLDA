@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThanhTaiTrang } from "@/components/layout/ThanhTaiTrang";
+import { PhimThapPhan } from "@/components/PhimThapPhan";
 
 const inter = Inter({
   subsets: ["latin", "vietnamese"],
@@ -23,6 +24,7 @@ export default function RootLayout({
     <html lang="vi" className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full">
         <ThanhTaiTrang />
+        <PhimThapPhan />
         {children}
       </body>
     </html>
