@@ -7,6 +7,7 @@ import { Chip } from "@/components/ui/chip";
 import { useActionForm } from "@/components/ui/useActionForm";
 import { VAT_TU_TAG } from "@/lib/constants";
 import { lineAmount } from "@/lib/clientQuote";
+import { laCongThuc, tinhBieuThuc } from "@/lib/bieuThuc";
 import { formatNumber, formatQty, formatVND } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { ModalActions } from "../quote/ModalActions";
@@ -20,11 +21,15 @@ export interface LineModalState {
   editing: LineView | null;
 }
 
-/** Chuỗi trong ô số -> số, hoặc null khi để trống / gõ dở. */
+/**
+ * Chuỗi trong ô số -> số, hoặc null khi để trống / gõ dở. Bắt đầu bằng "=" là công
+ * thức ("=12*45+3,5*2"), còn lại đọc như số thường.
+ */
 function so(v: string): number | null {
   const s = v.trim();
   if (!s) return null;
-  const n = Number(s);
+  const n = laCongThuc(s) ? tinhBieuThuc(s) : Number(s);
+  if (n == null) return null;
   return Number.isFinite(n) ? n : null;
 }
 
@@ -153,8 +158,8 @@ export function LineModal({
             <Field label="Khối lượng">
               <Input
                 name="qty"
-                type="number"
-                step="any"
+                inputMode="decimal"
+                placeholder="số hoặc =công thức"
                 value={qty}
                 onChange={(e) => setQty(e.target.value)}
               />
@@ -162,8 +167,8 @@ export function LineModal({
             <Field label="Đơn giá">
               <Input
                 name="unitPrice"
-                type="number"
-                step="any"
+                inputMode="decimal"
+                placeholder="số hoặc =công thức"
                 value={donGia}
                 onChange={(e) => setDonGia(e.target.value)}
               />
@@ -215,8 +220,8 @@ export function LineModal({
             <Field label="Thành tiền (VND)">
               <Input
                 name="amount"
-                type="number"
-                step="any"
+                inputMode="decimal"
+                placeholder="số hoặc =công thức"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 autoFocus

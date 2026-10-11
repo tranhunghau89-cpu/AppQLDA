@@ -18,12 +18,25 @@ import type { TemplateOption } from "@/lib/quoteTemplatePick";
 export function TemplatePicker({
   templates,
   goiY,
+  maTrongDuToan,
+  onDoiMau,
 }: {
   templates: TemplateOption[];
   goiY: string | null;
+  /**
+   * Mã các phần đang có trong dự toán chi tiết nguồn. Có thì tick sẵn đúng những hạng
+   * mục này (dự toán đã nói công trình gồm gì), thay cho cờ "in cho khách" của bộ.
+   */
+  maTrongDuToan?: string[];
+  onDoiMau?: (id: string) => void;
 }) {
-  const macDinhCua = (id: string) =>
-    (templates.find((t) => t.id === id)?.phan ?? []).filter((p) => p.macDinh).map((p) => p.ma);
+  const macDinhCua = (id: string) => {
+    const ds = templates.find((t) => t.id === id)?.phan ?? [];
+    const theoDuToan = ds.filter((p) => maTrongDuToan?.includes(p.ma));
+    // Mã phần của mẫu không khớp phần nào của dự toán (mẫu soạn khác bộ) thì quay về
+    // cờ của mẫu — tick rỗng hết chỉ làm báo giá ra không có hạng mục.
+    return (theoDuToan.length > 0 ? theoDuToan : ds.filter((p) => p.macDinh)).map((p) => p.ma);
+  };
   const [templateId, setTemplateId] = useState(goiY ?? "");
   // Giữ lựa chọn bằng state và gửi qua MỘT ô ẩn — không trông vào việc FormData nhặt
   // các ô tích (đã có lần lựa chọn rơi mất, báo giá lập ra không có hạng mục nào).
@@ -36,6 +49,7 @@ export function TemplatePicker({
   function doiMau(id: string) {
     setTemplateId(id);
     setChon(macDinhCua(id));
+    onDoiMau?.(id);
   }
 
   return (

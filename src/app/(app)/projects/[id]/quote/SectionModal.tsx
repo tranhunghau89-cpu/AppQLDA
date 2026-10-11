@@ -72,7 +72,7 @@ export function SectionModal({
             <Input name="code" defaultValue={editing?.code ?? ""} required />
           </Field>
           <Field label="Diện tích (m²)">
-            <Input name="area" type="number" step="any" defaultValue={editing?.area ?? ""} />
+            <Input name="area" inputMode="decimal" placeholder="số hoặc =công thức" defaultValue={editing?.area ?? ""} />
           </Field>
         </div>
         <Field label="Tên phần/mục *">

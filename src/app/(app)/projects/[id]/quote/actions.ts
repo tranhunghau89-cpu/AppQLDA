@@ -1008,6 +1008,8 @@ function dienTichCua(bang: Record<string, number | null>, ma: string): number | 
 export interface PhanSeThem {
   ma: string;
   ten: string;
+  /** Mã phần cha — null là phần gốc (hạng mục). */
+  maCha: string | null;
   soDong: number;
   /** Số dòng có suất khối lượng — nhập diện tích là chúng tự điền khối lượng. */
   soDongCoSuat: number;
@@ -1097,6 +1099,7 @@ export async function xemTruocApBoHangMuc(
       phanSeThem: n.khung.phan.map((p) => ({
         ma: p.ma,
         ten: p.ten,
+        maCha: p.maCha,
         soDong: soDongTheoPhan.get(p.ma) ?? 0,
         soDongCoSuat: soSuatTheoPhan.get(p.ma) ?? 0,
       })),
@@ -1115,14 +1118,34 @@ export async function apBoHangMucVaoDuToan(
    * khách — mái, vách và canopy mỗi thứ một diện tích khác nhau, nên hỏi ngay lúc áp
    * bộ rẻ hơn nhiều so với mở lại từng phần sau đó.
    */
-  dienTich: Record<string, number | null> = {}
+  dienTich: Record<string, number | null> = {},
+  /**
+   * Mã các phần người lập tick chọn; bỏ trống = dựng cả bộ. Mục con chỉ được dựng khi
+   * phần cha cũng được chọn — không thì nó mồ côi.
+   */
+  chonPhan?: string[]
 ): Promise<{ ok: true; soPhan: number; soDong: number; canhBao: string[] } | { ok: false; error: string }> {
   const g = await guard(chu, { quoteId });
   if (g) return g;
 
   const n = await khungConThieu(quoteId, boHangMucId);
   if (!n.ok) return { ok: false, error: n.error };
-  const { quote, bo, khung } = n;
+  const { quote, bo } = n;
+  let khung = n.khung;
+  if (chonPhan) {
+    const chon = new Set(chonPhan);
+    const giu = new Set(
+      khung.phan
+        .filter((p) => chon.has(p.ma) && (!p.maCha || chon.has(p.maCha)))
+        .map((p) => p.ma)
+    );
+    if (giu.size === 0) return { ok: false, error: "Chọn ít nhất một hạng mục để dựng." };
+    khung = {
+      ...khung,
+      phan: khung.phan.filter((p) => giu.has(p.ma)),
+      dong: khung.dong.filter((d) => giu.has(d.phanMa)),
+    };
+  }
 
   // Phần mới xếp SAU phần đang có, để áp bộ vào bản đã có nội dung không xáo trộn
   // thứ tự người lập đã dựng.

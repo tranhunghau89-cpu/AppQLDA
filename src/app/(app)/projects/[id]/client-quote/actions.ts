@@ -2,6 +2,7 @@
 
 import { projectHasContract } from "@/lib/contractSalePrice";
 import { z } from "zod";
+import { laCongThuc, tinhBieuThuc } from "@/lib/bieuThuc";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { denyProject, requirePermission, requireSession } from "@/lib/auth";
@@ -51,10 +52,15 @@ const CQ_AUDIT_SELECT = Object.fromEntries(
   CQ_AUDIT_FIELDS.map((f) => [f, true])
 ) as Record<(typeof CQ_AUDIT_FIELDS)[number], true>;
 
+// Ô số nhận cả công thức ("=12*45+3"), giống ô khối lượng của dự toán chi tiết.
 const num = z
   .union([z.string(), z.number()])
-  .transform((v) => (v === "" || v == null ? null : Number(v)))
-  .refine((v) => v === null || !Number.isNaN(v), "Số không hợp lệ")
+  .transform((v) => {
+    if (v === "" || v == null) return null;
+    if (typeof v === "string" && laCongThuc(v)) return tinhBieuThuc(v) ?? Number.NaN;
+    return Number(v);
+  })
+  .refine((v) => v === null || !Number.isNaN(v), "Số hoặc công thức không hợp lệ")
   .nullable();
 
 const int = num.refine(
@@ -928,6 +934,21 @@ export async function generateFromQuote(
   const templateId = s(form, "templateId") || null;
   const k = apDungMau(await napMau(templateId, phanChonCua(form)));
 
+  // Không theo hạng mục mẫu thì người lập tick thẳng các phần của dự toán.
+  const nguonChon =
+    k.lines.length === 0 && form.get("coChonNguon") !== null
+      ? new Set(
+          String(form.get("phanNguonCsv") ?? "")
+            .split(",")
+            .map((x) => x.trim())
+            .filter(Boolean)
+        )
+      : null;
+  const gocDung = nguonChon ? nguon.goc.filter((sec) => nguonChon.has(sec.code)) : nguon.goc;
+  if (gocDung.length === 0) {
+    return { ok: false, error: "Chọn ít nhất một hạng mục để đưa vào báo giá." };
+  }
+
   // Mẫu có khai hạng mục thì dùng khuôn của mẫu (giữ được thứ tự, nhãn vật tư, mô
   // tả riêng đã soạn). Không có mẫu — hoặc mẫu để trống phần hạng mục — thì khuôn
   // lấy thẳng từ các phần của báo giá chi tiết: luôn khớp dữ liệu thật, không phải
@@ -947,7 +968,7 @@ export async function generateFromQuote(
           tags: l.tags,
           steelFrameKey: l.steelFrameKey,
         }))
-      : nguon.goc.map((sec, i) => ({
+      : gocDung.map((sec, i) => ({
           partCode: "I",
           partName: "Phần kết cấu thép",
           code: String(i + 1).padStart(2, "0"),

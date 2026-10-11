@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
@@ -42,6 +43,24 @@ export function GenerateClientQuoteModal({
   const phans = quote.sections.filter((s) => !s.parentId);
   // Phần không khai diện tích sẽ rơi về diện tích dự án; không có cả hai thì dòng đó
   // để trống đơn giá — báo trước ở đây thay vì để người dùng ngạc nhiên sau khi sinh.
+  const [templateId, setTemplateId] = useState(templateGoiY ?? "");
+  // Mẫu có khai hạng mục thì chọn hạng mục ở ô mẫu; không thì chọn thẳng các phần của
+  // dự toán — mặc định tick phần nào đã có dòng công tác.
+  const mauCoPhan = (templates.find((t) => t.id === templateId)?.phan?.length ?? 0) > 0;
+  const [phanNguon, setPhanNguon] = useState<Set<string>>(
+    () =>
+      new Set(
+        phans
+          .filter((p) =>
+            quote.items.some(
+              (it) =>
+                it.sectionId === p.id ||
+                quote.sections.some((c) => c.parentId === p.id && c.id === it.sectionId),
+            ),
+          )
+          .map((p) => p.code),
+      ),
+  );
   const thieuDienTich = phans.filter((s) => s.area == null && projectArea == null);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -69,19 +88,52 @@ export function GenerateClientQuoteModal({
           <Input name="title" defaultValue={`Báo giá gửi khách — ${quote.title}`} />
         </Field>
 
-        <TemplatePicker templates={templates} goiY={templateGoiY} />
+        <TemplatePicker
+          templates={templates}
+          goiY={templateGoiY}
+          maTrongDuToan={[...phanNguon]}
+          onDoiMau={setTemplateId}
+        />
+
+        {!mauCoPhan && (
+          <>
+            <input type="hidden" name="coChonNguon" value="1" />
+            <input type="hidden" name="phanNguonCsv" value={[...phanNguon].join(",")} />
+          </>
+        )}
 
         <div className="rounded-lg border border-slate-200">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-xs text-slate-500">
               <tr>
-                <th className="px-3 py-2 text-left">Phần</th>
+                {!mauCoPhan && <th className="w-8 px-3 py-2"></th>}
+                <th className="px-3 py-2 text-left">
+                  {mauCoPhan ? "Phần" : "Hạng mục đưa vào báo giá"}
+                </th>
                 <th className="px-3 py-2 text-right">Diện tích (m²)</th>
               </tr>
             </thead>
             <tbody>
               {phans.map((s) => (
                 <tr key={s.id} className="border-t border-slate-100">
+                  {!mauCoPhan && (
+                    <td className="px-3 py-1.5">
+                      <input
+                        type="checkbox"
+                        aria-label={`Chọn ${s.name}`}
+                        checked={phanNguon.has(s.code)}
+                        onChange={(e) =>
+                          setPhanNguon((cu) => {
+                            const moi = new Set(cu);
+                            if (e.target.checked) moi.add(s.code);
+                            else moi.delete(s.code);
+                            return moi;
+                          })
+                        }
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                      />
+                    </td>
+                  )}
                   <td className="px-3 py-1.5 text-slate-700">
                     {s.code} — {s.name}
                   </td>
@@ -100,7 +152,7 @@ export function GenerateClientQuoteModal({
               ))}
               {phans.length === 0 && (
                 <tr>
-                  <td colSpan={2} className="px-3 py-4 text-center text-slate-400">
+                  <td colSpan={3}className="px-3 py-4 text-center text-slate-400">
                     Dự toán chào giá chưa có phần nào.
                   </td>
                 </tr>

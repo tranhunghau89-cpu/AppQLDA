@@ -18,7 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Field, Select } from "@/components/ui/form";
 import { Table, THead, Th } from "@/components/ui/table";
-import { formatVND, formatDate, parseViNumber } from "@/lib/utils";
+import { formatVND, formatDate } from "@/lib/utils";
+import { tinhBieuThuc } from "@/lib/bieuThuc";
 import { computeQuoteTotals, sectionSubtotals } from "@/lib/quote";
 import { duongDanIn, type ChuBaoGia } from "@/lib/quoteOwner";
 import { useConfirm } from "@/components/ui/confirm";
@@ -86,6 +87,21 @@ export function QuoteCard({
   const [boChon, setBoChon] = useState("");
   const [loiApBo, setLoiApBo] = useState<string | null>(null);
   const [xemTruocBo, setXemTruocBo] = useState<XemTruocApBo | null>(null);
+  // Mã các phần được tick để dựng — mặc định tick hết khi vừa chọn bộ.
+  const [phanChon, setPhanChon] = useState<Set<string>>(new Set());
+  function doiPhan(ma: string) {
+    setPhanChon((cu) => {
+      const moi = new Set(cu);
+      const bat = !moi.has(ma);
+      // Tick/bỏ một phần gốc kéo theo các mục con của nó.
+      const con = xemTruocBo?.phanSeThem.filter((p) => p.maCha === ma).map((p) => p.ma) ?? [];
+      for (const m of [ma, ...con]) {
+        if (bat) moi.add(m);
+        else moi.delete(m);
+      }
+      return moi;
+    });
+  }
   // Diện tích từng phần, gõ thô theo kiểu Việt ("1.250,5") rồi mới gạn thành số.
   const [dienTich, setDienTich] = useState<Record<string, string>>({});
 
@@ -151,7 +167,10 @@ export function QuoteCard({
     start(async () => {
       const res = await xemTruocApBoHangMuc(chu, q.id, id);
       if (!res.ok) setLoiApBo(res.error);
-      else setXemTruocBo(res.data);
+      else {
+        setXemTruocBo(res.data);
+        setPhanChon(new Set(res.data.phanSeThem.map((p) => p.ma)));
+      }
     });
   }
 
@@ -163,9 +182,9 @@ export function QuoteCard({
     // Diện tích gõ vào là chuỗi; gạn thành số ở đây rồi mới gửi, để server nhận đúng
     // một kiểu dữ liệu chứ không phải vừa chuỗi vừa số tùy lúc.
     const soDienTich: Record<string, number | null> = {};
-    for (const [ma, v] of Object.entries(dienTich)) soDienTich[ma] = parseViNumber(v);
+    for (const [ma, v] of Object.entries(dienTich)) soDienTich[ma] = tinhBieuThuc(v);
     start(async () => {
-      const res = await apBoHangMucVaoDuToan(chu, q.id, boChon, soDienTich);
+      const res = await apBoHangMucVaoDuToan(chu, q.id, boChon, soDienTich, [...phanChon]);
       if (!res.ok) {
         setLoiApBo(res.error);
         return;
@@ -354,15 +373,38 @@ export function QuoteCard({
                 <table className="w-full text-sm">
                   <thead className="border-b border-slate-100 bg-slate-50 text-xs uppercase text-slate-500">
                     <tr>
-                      <th className="px-3 py-2 text-left font-medium">Phần sẽ dựng</th>
+                      <th className="w-8 px-3 py-2">
+                        <input
+                          type="checkbox"
+                          aria-label="Chọn tất cả"
+                          checked={phanChon.size === xemTruocBo.phanSeThem.length}
+                          onChange={(e) =>
+                            setPhanChon(
+                              e.target.checked
+                                ? new Set(xemTruocBo.phanSeThem.map((p) => p.ma))
+                                : new Set(),
+                            )
+                          }
+                        />
+                      </th>
+                      <th className="px-3 py-2 text-left font-medium">Hạng mục sẽ dựng</th>
                       <th className="px-3 py-2 text-right font-medium">Dòng</th>
                       <th className="px-3 py-2 text-right font-medium">Diện tích (m²)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {xemTruocBo.phanSeThem.map((p) => (
-                      <tr key={p.ma}>
-                        <td className="px-3 py-1.5 text-slate-800">
+                      <tr key={p.ma} className={phanChon.has(p.ma) ? "" : "opacity-50"}>
+                        <td className="px-3 py-1.5">
+                          <input
+                            type="checkbox"
+                            aria-label={`Chọn ${p.ten}`}
+                            checked={phanChon.has(p.ma)}
+                            disabled={!!p.maCha && !phanChon.has(p.maCha)}
+                            onChange={() => doiPhan(p.ma)}
+                          />
+                        </td>
+                        <td className={`px-3 py-1.5 text-slate-800 ${p.maCha ? "pl-7" : ""}`}>
                           <span className="mr-1.5 font-mono text-slate-400">{p.ma}</span>
                           {p.ten}
                         </td>
@@ -384,7 +426,7 @@ export function QuoteCard({
                               setDienTich((cu) => ({ ...cu, [p.ma]: e.target.value }))
                             }
                             inputMode="decimal"
-                            placeholder="—"
+                            placeholder="số / =công thức"
                             className="w-28 rounded border border-slate-200 px-1.5 py-1 text-right text-sm focus:border-blue-500 focus:outline-none"
                           />
                         </td>
@@ -423,8 +465,12 @@ export function QuoteCard({
             <Button type="button" variant="outline" onClick={() => setMoApBo(false)}>
               Hủy
             </Button>
-            <Button type="button" onClick={onApBo} disabled={!boChon || !xemTruocBo}>
-              Áp bộ hạng mục
+            <Button
+              type="button"
+              onClick={onApBo}
+              disabled={!boChon || !xemTruocBo || phanChon.size === 0}
+            >
+              Dựng {phanChon.size} hạng mục đã chọn
             </Button>
           </div>
         </div>
