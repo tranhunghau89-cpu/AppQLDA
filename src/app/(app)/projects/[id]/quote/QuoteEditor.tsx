@@ -10,6 +10,7 @@ import { QuoteHeaderModal } from "./QuoteHeaderModal";
 import { SectionModal, type SectionModalState } from "./SectionModal";
 import { ItemModal, type ItemModalState } from "./ItemModal";
 import { CloneModal } from "./CloneModal";
+import { saveQuote } from "./actions";
 import { GenerateClientQuoteModal } from "./GenerateClientQuoteModal";
 import type { TemplateOption } from "@/lib/quoteTemplatePick";
 import type { ChuBaoGia } from "@/lib/quoteOwner";
@@ -84,7 +85,24 @@ export function QuoteEditor({
     router.refresh();
   }
 
-  const phanOf = (q: QuoteView) => q.sections.filter((s) => !s.parentId);
+  const [dangTao, setDangTao] = useState(false);
+  const [loiTao, setLoiTao] = useState<string | null>(null);
+
+  /** Tạo ngay một bản dự toán mặc định để người dùng vào thẳng phần nhập hạng mục. */
+  async function batDauNhanh() {
+    setDangTao(true);
+    setLoiTao(null);
+    const form = new FormData();
+    form.set("title", "Dự toán chi tiết");
+    form.set("markup", "1");
+    form.set("khuVucId", khuVucMacDinh ?? "");
+    const r = await saveQuote(chu, null, form);
+    setDangTao(false);
+    if (!r.ok) setLoiTao(r.error);
+    else router.refresh();
+  }
+
+  const phanOf =(q: QuoteView) => q.sections.filter((s) => !s.parentId);
 
   function openSection(
     q: QuoteView,
@@ -139,8 +157,21 @@ export function QuoteEditor({
       )}
 
       {quotes.length === 0 && (
-        <div className="rounded-xl border border-dashed border-slate-300 py-12 text-center text-slate-400">
-          Chưa có báo giá nào — bấm “Thêm báo giá” hoặc “Tạo từ dự án khác”.
+        <div className="rounded-xl border border-dashed border-slate-300 py-12 text-center text-slate-400 space-y-3">
+          <div>Chưa có bản dự toán nào.</div>
+          {canEdit && (
+            <div className="flex flex-col items-center gap-1">
+              <Button onClick={batDauNhanh} disabled={dangTao}>
+                <Plus className="h-4 w-4" />
+                {dangTao ? "Đang tạo…" : "Bắt đầu dự toán ngay"}
+              </Button>
+              <span className="text-xs">
+                Tạo sẵn bản dự toán theo khu vực của công trình — thêm hạng mục,
+                dòng công tác và xem tổng tiền liền. Thông tin báo giá sửa sau.
+              </span>
+              {loiTao && <span className="text-xs text-red-600">{loiTao}</span>}
+            </div>
+          )}
         </div>
       )}
 
