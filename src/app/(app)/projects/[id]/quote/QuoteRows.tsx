@@ -1,6 +1,7 @@
 "use client";
 
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tr, Td } from "@/components/ui/table";
 import { formatVND, formatNumber, formatQty } from "@/lib/utils";
@@ -336,6 +337,15 @@ export function QuoteRows({
   h: RowHandlers;
 }) {
   const colSpan = canEdit ? 8 : 7;
+  // Hạng mục đang thu gọn — chỉ còn hàng tiêu đề với tổng tiền và đơn giá /m².
+  const [thuGon, setThuGon] = useState<Set<string>>(new Set());
+  const doiThuGon = (id: string) =>
+    setThuGon((cu) => {
+      const moi = new Set(cu);
+      if (moi.has(id)) moi.delete(id);
+      else moi.add(id);
+      return moi;
+    });
   const itemsBySection = new Map<string, ItemView[]>();
   for (const it of items) {
     if (!itemsBySection.has(it.sectionId)) itemsBySection.set(it.sectionId, []);
@@ -362,20 +372,77 @@ export function QuoteRows({
     );
   }
 
+  const tatCaGon = phans.length > 0 && phans.every((p) => thuGon.has(p.id));
+
   return (
     <>
-      {phans.map((phan) => (
+      {phans.length > 1 && (
+        <Tr>
+          <Td colSpan={colSpan} className="py-1">
+            <button
+              type="button"
+              className="text-xs font-medium text-blue-600 hover:underline"
+              onClick={() =>
+                setThuGon(tatCaGon ? new Set() : new Set(phans.map((p) => p.id)))
+              }
+            >
+              {tatCaGon ? "Mở tất cả hạng mục" : "Thu gọn tất cả hạng mục"}
+            </button>
+          </Td>
+        </Tr>
+      )}
+      {phans.map((phan) => {
+        const gon = thuGon.has(phan.id);
+        // Giá vốn cả hạng mục, gộp cả dòng trong mục con — để ra giá gốc /m².
+        const idTrong = new Set([phan.id, ...subsOf(phan.id).map((s) => s.id)]);
+        const vonPhan = items
+          .filter((it) => idTrong.has(it.sectionId))
+          .reduce((t, it) => t + lineCost(it), 0);
+        const banPhan = tienPhan(phan.id);
+        const dt = phan.area && phan.area > 0 ? phan.area : null;
+        return (
         <PhanGroup key={phan.id}>
           <Tr className="bg-slate-100/80">
-            <Td className="font-semibold text-slate-800">{phan.code}</Td>
-            <Td className="font-semibold text-slate-800" colSpan={5}>
+            <Td className="font-semibold text-slate-800">
+              <button
+                type="button"
+                onClick={() => doiThuGon(phan.id)}
+                className="inline-flex items-center gap-1 hover:text-blue-700"
+                title={gon ? "Mở hạng mục" : "Thu gọn hạng mục"}
+                aria-expanded={!gon}
+              >
+                {gon ? (
+                  <ChevronRight className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5" />
+                )}
+                {phan.code}
+              </button>
+            </Td>
+            <Td className="font-semibold text-slate-800" colSpan={3}>
               {phan.name}
               {phan.area ? (
                 <span className="text-slate-400">
                   {" "}
                   · {formatNumber(phan.area)} m²
                 </span>
-              ) : null}
+              ) : (
+                <span className="ml-1 text-xs font-normal text-amber-600">
+                  · chưa có diện tích
+                </span>
+              )}
+            </Td>
+            <Td
+              className="text-right text-xs font-semibold text-slate-600"
+              title="Giá gốc cả hạng mục ÷ diện tích hạng mục"
+            >
+              {dt ? `${formatNumber(Math.round(vonPhan / dt))}/m²` : "—"}
+            </Td>
+            <Td
+              className="text-right text-sm font-semibold text-blue-700"
+              title="Giá bán cả hạng mục ÷ diện tích hạng mục"
+            >
+              {dt ? `${formatNumber(Math.round(banPhan / dt))}/m²` : "—"}
             </Td>
             <Td className="text-right font-semibold text-blue-700">
               {formatVND(tienPhan(phan.id))}
@@ -411,6 +478,8 @@ export function QuoteRows({
               </Td>
             )}
           </Tr>
+          {!gon && (
+          <>
           <ItemRows
             chu={chu}
             catalog={catalog}
@@ -472,8 +541,11 @@ export function QuoteRows({
               )}
             </PhanGroup>
           ))}
+          </>
+          )}
         </PhanGroup>
-      ))}
+        );
+      })}
     </>
   );
 }
