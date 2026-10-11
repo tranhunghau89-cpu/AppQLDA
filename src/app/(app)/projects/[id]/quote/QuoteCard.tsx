@@ -25,6 +25,7 @@ import { duongDanIn, type ChuBaoGia } from "@/lib/quoteOwner";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
 import { QuoteRows } from "./QuoteRows";
+import { BangGop } from "./BangGop";
 import {
   apBoHangMucVaoDuToan,
   capNhatGiaTuThuVien,
@@ -84,6 +85,7 @@ export function QuoteCard({
   const confirm = useConfirm();
   const toast = useToast();
   const [moApBo, setMoApBo] = useState(false);
+  const [cheDo, setCheDo] = useState<"chiTiet" | "gop">("chiTiet");
   const [boChon, setBoChon] = useState("");
   const [loiApBo, setLoiApBo] = useState<string | null>(null);
   const [xemTruocBo, setXemTruocBo] = useState<XemTruocApBo | null>(null);
@@ -297,6 +299,30 @@ export function QuoteCard({
         </div>
       </div>
 
+      <div className="flex items-center gap-1 border-b border-slate-100 px-4 py-2 text-sm">
+        <span className="mr-1 text-slate-500">Hiển thị:</span>
+        {(
+          [
+            ["chiTiet", "Chi tiết theo hạng mục"],
+            ["gop", "Gộp khối lượng các hạng mục"],
+          ] as const
+        ).map(([v, nhan]) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setCheDo(v)}
+            className={`rounded-md px-2.5 py-1 ${
+              cheDo === v ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            {nhan}
+          </button>
+        ))}
+      </div>
+
+      {cheDo === "gop" ? (
+        <BangGop sections={q.sections} items={q.items} />
+      ) : (
       <Table>
         <THead>
           <tr>
@@ -323,6 +349,7 @@ export function QuoteCard({
           />
         </tbody>
       </Table>
+      )}
 
       <div className="flex flex-wrap items-end justify-between gap-4 border-t border-slate-100 p-4">
         {canEdit && (
