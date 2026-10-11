@@ -20,6 +20,7 @@ export function GenerateClientQuoteModal({
   templates,
   templateGoiY,
   onClose,
+  sauKhiTao,
 }: {
   chu: ChuBaoGia;
   quote: QuoteView;
@@ -27,12 +28,15 @@ export function GenerateClientQuoteModal({
   templates: TemplateOption[];
   templateGoiY: string | null;
   onClose: () => void;
+  /** Trang mở sau khi sinh xong — quy trình báo giá chuyển sang bước báo giá gửi khách. */
+  sauKhiTao?: string;
 }) {
   const router = useRouter();
   const toast = useToast();
   const { error, pending, run } = useActionForm(() => {
     onClose();
-    router.push(duongDanChu(chu).replace("/quote", "/client-quote"));
+    router.push(sauKhiTao ?? duongDanChu(chu).replace("/quote", "/client-quote"));
+    router.refresh();
   });
 
   const phans = quote.sections.filter((s) => !s.parentId);

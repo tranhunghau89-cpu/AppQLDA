@@ -88,8 +88,10 @@ export default async function BuocQuyTrinhPage({
   const toiDa = buocToiDa(qt, tienDo);
   const hienTai = chonBuoc(qt, tienDo, buoc);
   const base = `/quy-trinh-bao-gia/${qt.ma}/${coHoi.id}`;
-  // Gõ tay ?buoc= vượt quá chỗ được phép -> đưa về bước còn dở, URL nói đúng sự thật.
-  if (buoc && String(hienTai) !== buoc) redirect(`${base}?buoc=${hienTai}`);
+  // Luôn ghim bước vào URL: không có ?buoc= thì lần làm mới sau khi thêm dòng sẽ
+  // tự nhảy sang bước xa nhất, người dùng chưa kịp xem lại dự toán. Gõ tay ?buoc=
+  // vượt quá chỗ được phép cũng đưa về bước còn dở.
+  if (String(hienTai) !== buoc) redirect(`${base}?buoc=${hienTai}`);
 
   const b = qt.buoc[hienTai - 1];
   const xong = buocDaXong(b.loai, tienDo);
@@ -140,6 +142,7 @@ export default async function BuocQuyTrinhPage({
         khuVucs={duLieu.khuVucs}
         boHangMucs={duLieu.boHangMucs}
         khuVucMacDinh={null}
+        sauKhiTaoBaoGia={`${base}?buoc=${hienTai + 1}`}
       />
     );
   } else {
@@ -147,10 +150,11 @@ export default async function BuocQuyTrinhPage({
     // đơn giá — phát hiện sai lúc xem bản in thì sửa ngay tại chỗ, khỏi lùi bước.
     const canViewCrm = can(session.role as Role, "customer", "view");
     const canEditCrm = can(session.role as Role, "customer", "edit");
-    const [duLieu, mau, nguoiLap] = await Promise.all([
+    const [duLieu, mau, nguoiLap, duToan] = await Promise.all([
       napDuLieuBaoGiaKhach(chu, canViewCrm),
       templateChoices(coHoi.buildingType),
       thongTinNguoiLap(session),
+      napDuLieuBaoGia(session, chu),
     ]);
     const banGui =
       b.loai === "GUI_KHACH" ? (
@@ -183,6 +187,8 @@ export default async function BuocQuyTrinhPage({
           canEditCrm={canEditCrm}
           templates={mau.options}
           templateGoiY={mau.goiY}
+          duToans={duToan.quotes.filter((q) => q.items.length > 0)}
+          projectArea={coHoi.area}
           goiY={{
             customerId: coHoi.khachHang.customerId,
             recipient: coHoi.khachHang.tenCty,

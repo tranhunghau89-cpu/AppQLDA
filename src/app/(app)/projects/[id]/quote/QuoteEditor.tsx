@@ -39,7 +39,10 @@ export function QuoteEditor({
   khuVucs,
   khuVucMacDinh,
   boHangMucs,
+  sauKhiTaoBaoGia,
 }: {
+  /** Trang mở sau khi sinh báo giá gửi khách; bỏ trống = trang báo giá gửi khách của chủ. */
+  sauKhiTaoBaoGia?: string;
   /** Dự toán này thuộc dự án hay cơ hội chào giá — quyết định action ghi vào đâu. */
   chu: ChuBaoGia;
   quotes: QuoteView[];
@@ -232,6 +235,7 @@ export function QuoteEditor({
           projectArea={projectArea}
           templates={templates}
           templateGoiY={templateGoiY}
+          sauKhiTao={sauKhiTaoBaoGia}
           onClose={() => setGenFor(null)}
         />
       )}

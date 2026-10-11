@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { ChevronRight, Plus } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ChevronRight, FileOutput, Plus } from "lucide-react";
+import { GenerateClientQuoteModal } from "../quote/GenerateClientQuoteModal";
+import type { QuoteView } from "../quote/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatVND } from "@/lib/utils";
@@ -39,7 +41,12 @@ export function ClientQuoteEditor({
   goiY,
   templates,
   templateGoiY,
+  duToans = [],
+  projectArea = null,
 }: {
+  /** Bản dự toán chi tiết đã có dòng — báo giá gửi khách nên sinh từ đây. */
+  duToans?: QuoteView[];
+  projectArea?: number | null;
   chu: ChuBaoGia;
   quotes: ClientQuoteView[];
   customers: CustomerOption[];
@@ -65,6 +72,9 @@ export function ClientQuoteEditor({
   } | null>(null);
 
   const [apBo, setApBo] = useState<string | null>(null);
+  const [sinhTu, setSinhTu] = useState<QuoteView | null>(null);
+  const pathname = usePathname();
+  const search = useSearchParams();
   // Nhiều báo giá bày hết ra thì dễ sửa nhầm bản: chỉ mở một bản, mặc định bản đầu.
   // null = đóng hết. Báo giá vừa lập (chưa từng thấy) tự mở.
   const [moId, setMoId] = useState<string | null>(quotes[0]?.id ?? null);
@@ -90,15 +100,29 @@ export function ClientQuoteEditor({
       {canEdit && (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <ChuThichO />
-          <Button size="sm" onClick={() => setHeaderModal({ editing: null })}>
-            <Plus className="h-4 w-4" /> Lập báo giá
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {duToans.map((d) => (
+              <Button key={d.id} size="sm" onClick={() => setSinhTu(d)}>
+                <FileOutput className="h-4 w-4" /> Tạo từ dự toán “{d.title}”
+              </Button>
+            ))}
+            <Button
+              size="sm"
+              variant={duToans.length > 0 ? "outline" : undefined}
+              onClick={() => setHeaderModal({ editing: null })}
+            >
+              <Plus className="h-4 w-4" />
+              {duToans.length > 0 ? "Lập báo giá trống" : "Lập báo giá"}
+            </Button>
+          </div>
         </div>
       )}
 
       {quotes.length === 0 && (
         <div className="rounded-xl border border-dashed border-slate-300 py-12 text-center text-slate-400">
-          Chưa có báo giá gửi khách nào — bấm “Lập báo giá”.
+          {duToans.length > 0
+            ? "Chưa có báo giá gửi khách nào — bấm “Tạo từ dự toán” để sinh từ dự toán chi tiết ở bước trước."
+            : "Chưa có báo giá gửi khách nào — bấm “Lập báo giá”."}
           <br />
           <span className="text-xs">
             Bảng vật liệu, tiến độ thi công và tiến độ thanh toán sẽ được điền
@@ -199,6 +223,18 @@ export function ClientQuoteEditor({
           quoteId={xemTruoc.id}
           tieuDe={xemTruoc.title}
           onClose={() => setXemTruoc(null)}
+        />
+      )}
+
+      {sinhTu && (
+        <GenerateClientQuoteModal
+          chu={chu}
+          quote={sinhTu}
+          projectArea={projectArea}
+          templates={templates}
+          templateGoiY={templateGoiY}
+          sauKhiTao={pathname + (search.toString() ? `?${search}` : "")}
+          onClose={() => setSinhTu(null)}
         />
       )}
 
