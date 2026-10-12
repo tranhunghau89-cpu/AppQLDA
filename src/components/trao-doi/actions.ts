@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { duocXemViec } from "@/lib/traoDoi";
+import { can, type Role } from "@/lib/rbac";
 
 export type DoiTuongTraoDoi = "CLIENT_QUOTE" | "QUOTE";
 export type LoaiTraoDoi = "GHI_CHU" | "XIN_DUYET" | "CAN_SUA" | "DONG_Y";
@@ -160,6 +161,10 @@ export async function guiTraoDoi(
   }
 
   if (loai === "DONG_Y" || loai === "CAN_SUA") {
+    // Duyệt là quyết định về báo giá — vai chỉ được xem (Kế toán, Vật tư…) không duyệt được.
+    if (!can(g.session.role as Role, "quote", "edit")) {
+      return { ok: false, error: "Bạn không có quyền duyệt báo giá." };
+    }
     const xin = await db.traoDoi.findFirst({
       where: { doiTuong, doiTuongId: id, loai: "XIN_DUYET" },
       orderBy: { createdAt: "desc" },
