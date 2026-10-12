@@ -29,6 +29,9 @@ import { tinhChiSo, tinhCo } from "@/lib/projectHealth";
 import { HealthBanner } from "./HealthBanner";
 import { ProjectContacts } from "./ProjectContacts";
 import { MaterialInfo } from "./MaterialInfo";
+import { QcPanel, type QcMucView } from "./QcPanel";
+import type { SoSanhData } from "./QcSoSanhVatTu";
+import { isStorageConfigured } from "@/lib/storage";
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -140,6 +143,90 @@ export default async function ProjectDetailPage({
       actualDate: m.actualDate?.toISOString() ?? null,
       done: m.done,
       note: m.note,
+    };
+  }
+
+  // ----- QC theo giai đoạn -----
+  const qcRows = await db.qcMuc.findMany({
+    where: { projectId: id },
+    orderBy: [{ giaiDoan: "asc" }, { thuTu: "asc" }],
+    include: { lanKiem: { orderBy: { createdAt: "desc" }, include: { tep: true } } },
+  });
+  const qcTepKeys = qcRows.flatMap((m) => m.lanKiem.flatMap((l) => l.tep.map((t) => t.key)));
+  const qcTepUrls = new Map(
+    await Promise.all(qcTepKeys.map(async (k) => [k, await signedUrl(k)] as const))
+  );
+  const qcMuc: QcMucView[] = qcRows.map((m) => ({
+    id: m.id,
+    giaiDoan: m.giaiDoan,
+    noiDung: m.noiDung,
+    boPhan: m.boPhan,
+    loai: m.loai,
+    ketQua: m.ketQua,
+    nguoiKiem: m.nguoiKiem,
+    ngayKiem: m.ngayKiem?.toISOString() ?? null,
+    ghiChu: m.ghiChu,
+    lanKiem: m.lanKiem.map((l) => ({
+      id: l.id,
+      ketQua: l.ketQua,
+      ghiChu: l.ghiChu,
+      nguoiTen: l.nguoiTen,
+      createdAt: l.createdAt.toISOString(),
+      tep: l.tep.map((t) => ({ ten: t.ten, url: qcTepUrls.get(t.key) ?? null })),
+    })),
+  }));
+  // Bảng so sánh chỉ cần khi có mục đối chiếu vật tư. Không lấy đơn giá/thành tiền.
+  let soSanh: SoSanhData | null = null;
+  if (qcRows.some((m) => m.loai === "DOI_CHIEU_VAT_TU")) {
+    const poItems = await db.purchaseOrderItem.findMany({
+      where: { order: { projectId: id } },
+      orderBy: [{ orderId: "asc" }, { sortOrder: "asc" }],
+      select: {
+        orderId: true,
+        name: true,
+        groupName: true,
+        unit: true,
+        qty: true,
+        weight: true,
+        note: true,
+        order: { select: { orderNo: true, category: true, supplier: { select: { name: true } } } },
+      },
+    });
+    const orders = new Map<string, SoSanhData["orders"][number]>();
+    for (const it of poItems) {
+      let o = orders.get(it.orderId);
+      if (!o) {
+        o = {
+          id: it.orderId,
+          tieuDe: [
+            PO_CATEGORY_MAP[it.order.category]?.label ?? it.order.category,
+            it.order.orderNo,
+            it.order.supplier?.name,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          rows: [],
+        };
+        orders.set(it.orderId, o);
+      }
+      o.rows.push({
+        name: it.name,
+        groupName: it.groupName,
+        unit: it.unit,
+        qty: it.qty,
+        weight: it.weight,
+        note: it.note,
+      });
+    }
+    soSanh = {
+      info: {
+        mauSon: project.mauSon,
+        mauTonMai: project.mauTonMai,
+        mauTonVach: project.mauTonVach,
+        ghiChuVatTu: project.ghiChuVatTu,
+      },
+      specs: project.materialSpecs.map(({ tag, name, spec, origin }) => ({ tag, name, spec, origin })),
+      orders: [...orders.values()],
     };
   }
 
@@ -557,6 +644,24 @@ export default async function ProjectDetailPage({
           />
         </CardContent>
       </Card>
+
+      <section id="qc" className="scroll-mt-20">
+        <Card>
+          <CardHeader>
+            <CardTitle>QC theo giai đoạn</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <QcPanel
+              projectId={project.id}
+              muc={qcMuc}
+              role={session.role}
+              canEdit={canEdit}
+              coKho={isStorageConfigured()}
+              soSanh={soSanh}
+            />
+          </CardContent>
+        </Card>
+      </section>
 
       {canViewPayment && (
         <Card>
