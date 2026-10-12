@@ -88,13 +88,13 @@ describe("tinhCo", () => {
     expect(r).toEqual({ muc: null, lyDo: [] });
   });
 
-  it("anTien → lý do thu tiền không chứa số tiền", () => {
+  it("anTien → không có lý do thu tiền (vai không xem tiền không biết tình hình thu)", () => {
     const r = tinhCo(
       input({ payments: [{ direction: "THU", name: "Đợt 2", amount: 120_000_000, paidAmount: 0, dueDate: vn("2026-10-01") }] }),
       NOW,
       { anTien: true }
     );
-    expect(r.lyDo[0].text).toBe("Quá hạn thu Đợt 2 11 ngày");
+    expect(r).toEqual({ muc: null, lyDo: [] });
   });
 
   it("đơn mua trễ giao chưa nhận → ĐỎ; đã nhận → không", () => {

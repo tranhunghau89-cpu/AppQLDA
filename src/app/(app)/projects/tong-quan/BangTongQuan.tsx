@@ -100,7 +100,7 @@ export function BangTongQuan({
               <th className="px-3 py-2">CĐT</th>
               <th className="px-3 py-2">Giai đoạn</th>
               <th className="px-3 py-2">Tiến độ</th>
-              <th className="px-3 py-2">Đã thu</th>
+              {hienTien && <th className="px-3 py-2">Đã thu</th>}
               {hienTien && <th className="px-3 py-2 text-right">Giá trị HĐ</th>}
               {hienTien && (
                 <th className="px-3 py-2 text-right">Còn phải thu</th>
@@ -112,7 +112,7 @@ export function BangTongQuan({
             {hien.length === 0 && (
               <tr>
                 <td
-                  colSpan={hienTien ? 9 : 7}
+                  colSpan={hienTien ? 9 : 6}
                   className="px-3 py-6 text-center text-slate-400"
                 >
                   Không có dự án nào khớp bộ lọc
@@ -159,7 +159,7 @@ export function BangTongQuan({
                       {pct(r.tienDo)}
                     </div>,
                   )}
-                  {cell(pct(r.daThu))}
+                  {hienTien && cell(pct(r.daThu))}
                   {hienTien &&
                     cell(
                       r.giaTriHD != null ? formatVND(r.giaTriHD) : "—",

@@ -56,7 +56,7 @@ export default async function TongQuanDuAnPage() {
         muc: co.muc,
         lyDo: co.lyDo.map((l) => l.text),
         tienDo: cs.tienDo,
-        daThu: cs.daThu,
+        daThu: hienTien ? cs.daThu : null,
         giaTriHD: hienTien ? cs.giaTriHD : null,
         conPhaiThu: hienTien ? cs.conPhaiThu : 0,
       };

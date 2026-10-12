@@ -20,9 +20,14 @@ export function HealthBanner(p: {
       : p.muc === "VANG"
         ? "border-amber-200 bg-amber-50"
         : "border-green-200 bg-green-50";
-  const Icon = p.muc === "DO" ? AlertTriangle : p.muc === "VANG" ? Clock : CheckCircle2;
+  const Icon =
+    p.muc === "DO" ? AlertTriangle : p.muc === "VANG" ? Clock : CheckCircle2;
   const iconCls =
-    p.muc === "DO" ? "text-red-600" : p.muc === "VANG" ? "text-amber-600" : "text-green-600";
+    p.muc === "DO"
+      ? "text-red-600"
+      : p.muc === "VANG"
+        ? "text-amber-600"
+        : "text-green-600";
 
   return (
     <div className={`rounded-xl border p-4 ${style}`}>
@@ -36,7 +41,10 @@ export function HealthBanner(p: {
           ) : (
             <ul className="space-y-0.5 text-sm">
               {p.lyDo.map((l, i) => (
-                <li key={i} className={l.muc === "DO" ? "text-red-800" : "text-amber-800"}>
+                <li
+                  key={i}
+                  className={l.muc === "DO" ? "text-red-800" : "text-amber-800"}
+                >
                   {l.text}
                 </li>
               ))}
@@ -48,12 +56,12 @@ export function HealthBanner(p: {
             <dt className="text-slate-500">Tiến độ</dt>
             <dd className="font-semibold text-slate-900">{pct(p.tienDo)}</dd>
           </div>
-          <div>
-            <dt className="text-slate-500">Đã thu</dt>
-            <dd className="font-semibold text-slate-900">{pct(p.daThu)}</dd>
-          </div>
           {p.hienTien && (
             <>
+              <div>
+                <dt className="text-slate-500">Đã thu</dt>
+                <dd className="font-semibold text-slate-900">{pct(p.daThu)}</dd>
+              </div>
               <div>
                 <dt className="text-slate-500">Giá trị HĐ</dt>
                 <dd className="font-semibold text-slate-900">
@@ -62,7 +70,9 @@ export function HealthBanner(p: {
               </div>
               <div>
                 <dt className="text-slate-500">Còn phải thu</dt>
-                <dd className="font-semibold text-slate-900">{formatVND(p.conPhaiThu)}</dd>
+                <dd className="font-semibold text-slate-900">
+                  {formatVND(p.conPhaiThu)}
+                </dd>
               </div>
             </>
           )}

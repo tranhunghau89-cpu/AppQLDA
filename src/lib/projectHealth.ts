@@ -2,8 +2,15 @@
 //
 // Hàm thuần — không chạm DB, không đọc đồng hồ. Server component truyền `serverNow()` vào.
 // Cờ tính lúc tải trang, không lưu: dữ liệu nguồn (mốc, đợt thu, đơn mua) đổi là cờ đổi theo.
-import { MILESTONE_TYPE, MILESTONE_TYPE_MAP, PO_CATEGORY_MAP } from "@/lib/constants";
-import { pickContractValue, type ContractValueInput } from "@/lib/contractValue";
+import {
+  MILESTONE_TYPE,
+  MILESTONE_TYPE_MAP,
+  PO_CATEGORY_MAP,
+} from "@/lib/constants";
+import {
+  pickContractValue,
+  type ContractValueInput,
+} from "@/lib/contractValue";
 import { formatVND } from "@/lib/utils";
 
 export const NGUONG_SAP_DEN_HAN = 7;
@@ -30,7 +37,11 @@ export interface HealthInput {
     paidAmount: number | null;
     dueDate: Date | null;
   }[];
-  purchaseOrders: { category: string; status: string; expectedDate: Date | null }[];
+  purchaseOrders: {
+    category: string;
+    status: string;
+    expectedDate: Date | null;
+  }[];
   contracts: ContractValueInput[];
   salePrice: number | null;
 }
@@ -45,7 +56,10 @@ export function soNgay(tu: number, den: number): number {
   return Math.round((dauNgayVN(den) - dauNgayVN(tu)) / NGAY);
 }
 
-function phanLoaiHan(han: Date, nowMs: number): { muc: "DO" | "VANG"; n: number } | null {
+function phanLoaiHan(
+  han: Date,
+  nowMs: number,
+): { muc: "DO" | "VANG"; n: number } | null {
   const d = soNgay(nowMs, han.getTime());
   if (d < 0) return { muc: "DO", n: -d };
   if (d <= NGUONG_SAP_DEN_HAN) return { muc: "VANG", n: d };
@@ -54,7 +68,7 @@ function phanLoaiHan(han: Date, nowMs: number): { muc: "DO" | "VANG"; n: number 
 
 export function trangThaiMoc(
   m: { planDate: Date | null; done: boolean },
-  nowMs: number
+  nowMs: number,
 ): TrangThaiMoc {
   if (m.done) return "XONG";
   if (!m.planDate) return "CHUA_CO";
@@ -66,7 +80,7 @@ export function trangThaiMoc(
 export function tinhCo(
   d: HealthInput,
   nowMs: number,
-  opts: { anTien?: boolean } = {}
+  opts: { anTien?: boolean } = {},
 ): { muc: MucCo; lyDo: LyDo[] } {
   const lyDo: LyDo[] = [];
 
@@ -79,18 +93,21 @@ export function tinhCo(
       muc: p.muc,
       loai: "TIEN_DO",
       soNgay: p.n,
-      text: p.muc === "DO" ? `Quá hạn ${ten} ${p.n} ngày` : `${ten} còn ${p.n} ngày`,
+      text:
+        p.muc === "DO"
+          ? `Quá hạn ${ten} ${p.n} ngày`
+          : `${ten} còn ${p.n} ngày`,
     });
   }
 
-  for (const x of d.payments) {
+  // Vai không được xem tiền thì cũng không thấy tình hình thu tiền.
+  for (const x of opts.anTien ? [] : d.payments) {
     if (x.direction !== "THU" || x.amount == null || !x.dueDate) continue;
     const thieu = x.amount - (x.paidAmount ?? 0);
     if (thieu <= 0) continue;
     const p = phanLoaiHan(x.dueDate, nowMs);
     if (!p) continue;
-    // Người không được xem tiền vẫn thấy có đợt quá hạn, nhưng không thấy số tiền.
-    const tien = opts.anTien ? "" : `: ${formatVND(thieu)}`;
+    const tien = `: ${formatVND(thieu)}`; // chỉ tới đây khi được xem tiền
     lyDo.push({
       muc: p.muc,
       loai: "THU_TIEN",
@@ -107,7 +124,12 @@ export function tinhCo(
     const n = -soNgay(nowMs, o.expectedDate.getTime());
     if (n <= 0) continue; // vật tư chỉ có cờ ĐỎ
     const ten = PO_CATEGORY_MAP[o.category]?.label ?? o.category;
-    lyDo.push({ muc: "DO", loai: "VAT_TU", soNgay: n, text: `Trễ giao ${ten} ${n} ngày` });
+    lyDo.push({
+      muc: "DO",
+      loai: "VAT_TU",
+      soNgay: n,
+      text: `Trễ giao ${ten} ${n} ngày`,
+    });
   }
 
   lyDo.sort((a, b) =>
@@ -117,7 +139,7 @@ export function tinhCo(
         : 1
       : a.muc === "DO"
         ? b.soNgay - a.soNgay
-        : a.soNgay - b.soNgay
+        : a.soNgay - b.soNgay,
   );
   return { muc: lyDo[0]?.muc ?? null, lyDo };
 }
@@ -128,7 +150,9 @@ export function tinhChiSo(d: HealthInput): {
   giaTriHD: number | null;
   conPhaiThu: number;
 } {
-  const xong = d.milestones.filter((m) => m.done && m.type in MILESTONE_TYPE_MAP).length;
+  const xong = d.milestones.filter(
+    (m) => m.done && m.type in MILESTONE_TYPE_MAP,
+  ).length;
   let keHoach = 0;
   let thucThu = 0;
   for (const x of d.payments) {
