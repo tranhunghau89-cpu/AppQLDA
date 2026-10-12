@@ -1,13 +1,27 @@
 // Đọc phía server cho hộp thư trao đổi. Không phải server action: nhận userId từ
 // phiên ở server component, không để trình duyệt truyền vào.
 import { db } from "@/lib/db";
+import { can, type Role } from "@/lib/rbac";
+import { canAccessProject } from "@/lib/scope";
+import { canAccessCoHoi } from "@/lib/coHoiAccess";
+import type { SessionUser } from "@/lib/session";
 
-export const LOAI_TRAO_DOI_LABEL: Record<string, string> = {
-  GHI_CHU: "Ghi chú",
-  XIN_DUYET: "Xin duyệt",
-  CAN_SUA: "Cần chỉnh sửa",
-  DONG_Y: "Đồng ý",
-};
+/** Chủ của việc mà tin trao đổi gắn vào. */
+export type ChuViec = { projectId: string | null; coHoiId: string | null };
+
+/** Người này có được xem việc (và trao đổi của nó) không. */
+export async function duocXemViec(
+  ai: Pick<SessionUser, "userId" | "role">,
+  chu: ChuViec
+): Promise<boolean> {
+  if (!can(ai.role as Role, "quote", "view")) return false;
+  const s = ai as SessionUser;
+  if (chu.projectId) return canAccessProject(s, chu.projectId);
+  if (chu.coHoiId) return canAccessCoHoi(s, chu.coHoiId);
+  return false;
+}
+
+export { LOAI_TRAO_DOI_LABEL } from "@/lib/traoDoiNhan";
 
 export function demChuaDoc(userId: string): Promise<number> {
   return db.traoDoiNhan.count({ where: { userId, daDocLuc: null } });
@@ -24,4 +38,22 @@ export function duongDanViec(t: {
   return t.doiTuong === "CLIENT_QUOTE"
     ? `${goc}/client-quote?mo=${t.doiTuongId}#trao-doi`
     : `${goc}/quote#trao-doi-${t.doiTuongId}`;
+}
+
+/**
+ * Báo giá gửi khách đã được đồng ý chưa: tin quyết định MỚI NHẤT (xin duyệt / cần sửa /
+ * đồng ý) phải là "Đồng ý". Xin duyệt lại sau khi được đồng ý thì phải chờ duyệt lại.
+ */
+export async function daDuocDongY(clientQuoteId: string, nguoiGuiId: string): Promise<boolean> {
+  const cuoi = await db.traoDoi.findFirst({
+    where: {
+      doiTuong: "CLIENT_QUOTE",
+      doiTuongId: clientQuoteId,
+      loai: { in: ["XIN_DUYET", "CAN_SUA", "DONG_Y"] },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { loai: true, tacGiaId: true },
+  });
+  // Không tự duyệt cho chính mình: người bấm "Đã gửi" không được là người bấm "Đồng ý".
+  return cuoi?.loai === "DONG_Y" && cuoi.tacGiaId !== nguoiGuiId;
 }

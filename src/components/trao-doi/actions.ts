@@ -4,10 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { can, type Role } from "@/lib/rbac";
-import { canAccessProject } from "@/lib/scope";
-import { canAccessCoHoi } from "@/lib/coHoiAccess";
-import type { SessionUser } from "@/lib/session";
+import { duocXemViec } from "@/lib/traoDoi";
 
 export type DoiTuongTraoDoi = "CLIENT_QUOTE" | "QUOTE";
 export type LoaiTraoDoi = "GHI_CHU" | "XIN_DUYET" | "CAN_SUA" | "DONG_Y";
@@ -49,18 +46,11 @@ async function chuCuaViec(doiTuong: DoiTuongTraoDoi, id: string): Promise<Chu | 
   return q ? { projectId: q.projectId, coHoiId: q.coHoiId, nhanDe: q.title } : null;
 }
 
-async function duocXem(session: SessionUser, chu: Chu): Promise<boolean> {
-  if (!can(session.role as Role, "quote", "view")) return false;
-  if (chu.projectId) return canAccessProject(session, chu.projectId);
-  if (chu.coHoiId) return canAccessCoHoi(session, chu.coHoiId);
-  return false;
-}
-
 async function guard(doiTuong: DoiTuongTraoDoi, id: string) {
   const session = await getSession();
   if (!session) return { ok: false, error: "Phiên đăng nhập hết hạn." } as const;
   const chu = await chuCuaViec(doiTuong, id);
-  if (!chu || !(await duocXem(session, chu))) {
+  if (!chu || !(await duocXemViec(session, chu))) {
     return { ok: false, error: "Không tìm thấy việc này hoặc bạn không có quyền xem." } as const;
   }
   return { ok: true, session, chu } as const;
@@ -90,6 +80,8 @@ export async function napTraoDoi(
     }),
   ]);
   const ten = new Map(users.map((u) => [u.id, u.name]));
+  // Chỉ gợi ý người xem được việc này — nhắn người ngoài phạm vi là lộ nội dung.
+  const xemDuoc = await Promise.all(users.map((u) => duocXemViec({ userId: u.id, role: u.role as never }, g.chu)));
 
   const daDoc = await db.traoDoiNhan.updateMany({
     where: { userId: g.session.userId, daDocLuc: null, traoDoi: { doiTuong, doiTuongId: id } },
@@ -101,7 +93,7 @@ export async function napTraoDoi(
   return {
     ok: true,
     toiLa: g.session.userId,
-    nguoiDung: users,
+    nguoiDung: users.filter((_, i) => xemDuoc[i]),
     tin: rows.map((r) => ({
       id: r.id,
       loai: r.loai as LoaiTraoDoi,
@@ -158,9 +150,25 @@ export async function guiTraoDoi(
     nhan = cu.flatMap((c) => [c.tacGiaId, ...c.nguoiNhan.map((n) => n.userId)]);
   }
   const ids = [...new Set(nhan)].filter((u) => u !== g.session.userId);
-  const hopLe = ids.length
-    ? (await db.user.findMany({ where: { id: { in: ids }, active: true }, select: { id: true } })).map((u) => u.id)
+  const ung = ids.length
+    ? await db.user.findMany({ where: { id: { in: ids }, active: true }, select: { id: true, role: true } })
     : [];
+  const duoc = await Promise.all(ung.map((u) => duocXemViec({ userId: u.id, role: u.role as never }, g.chu)));
+  const hopLe = ung.filter((_, i) => duoc[i]).map((u) => u.id);
+  if (loai === "XIN_DUYET" && hopLe.length === 0) {
+    return { ok: false, error: "Người được chọn không có quyền xem việc này." };
+  }
+
+  if (loai === "DONG_Y" || loai === "CAN_SUA") {
+    const xin = await db.traoDoi.findFirst({
+      where: { doiTuong, doiTuongId: id, loai: "XIN_DUYET" },
+      orderBy: { createdAt: "desc" },
+      select: { tacGiaId: true },
+    });
+    if (xin?.tacGiaId === g.session.userId) {
+      return { ok: false, error: "Không tự duyệt yêu cầu của chính mình — chờ người được nhờ xem trả lời." };
+    }
+  }
 
   await db.traoDoi.create({
     data: {

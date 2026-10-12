@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
-import { LOAI_TRAO_DOI_LABEL, duongDanViec } from "@/lib/traoDoi";
+import { LOAI_TRAO_DOI_LABEL, duocXemViec, duongDanViec } from "@/lib/traoDoi";
 
 const TONE: Record<string, "slate" | "blue" | "amber" | "green"> = {
   GHI_CHU: "slate",
@@ -20,12 +20,15 @@ const TEN_VIEC: Record<string, string> = {
 // khung trao đổi ở đó tự đánh dấu đã đọc.
 export default async function TraoDoiPage() {
   const session = await requireSession();
-  const nhan = await db.traoDoiNhan.findMany({
+  const tatCa = await db.traoDoiNhan.findMany({
     where: { userId: session.userId },
     include: { traoDoi: true },
     orderBy: [{ daDocLuc: { sort: "desc", nulls: "first" } }, { traoDoi: { createdAt: "desc" } }],
     take: 100,
   });
+  // Bị rút khỏi dự án sau khi được nhắn thì không còn đọc được nội dung nữa.
+  const xem = await Promise.all(tatCa.map((n) => duocXemViec(session, n.traoDoi)));
+  const nhan = tatCa.filter((_, i) => xem[i]);
   const chuaDoc = nhan.filter((n) => !n.daDocLuc).length;
 
   return (

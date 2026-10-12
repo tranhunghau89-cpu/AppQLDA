@@ -15,6 +15,7 @@ import {
   validatePaymentPercents,
 } from "@/lib/clientQuote";
 import { CLIENT_QUOTE_STATUS_MAP } from "@/lib/constants";
+import { daDuocDongY } from "@/lib/traoDoi";
 import { sectionSubtotals } from "@/lib/quote";
 import { doanNhan } from "@/lib/clientQuoteSpecs";
 import { deriveLines, repriceLines, type DeriveSpec } from "@/lib/clientQuoteDerive";
@@ -1151,6 +1152,13 @@ export async function setClientQuoteStatus(
   const data: Record<string, unknown> = { status };
 
   if (status === "DA_GUI") {
+    // Lần gửi đầu (từ Nháp) phải có người đồng ý trong khung trao đổi nội bộ.
+    if (truoc.status === "NHAP" && !(await daDuocDongY(clientQuoteId, (await requireSession()).userId))) {
+      return {
+        ok: false,
+        error: "Báo giá chưa được duyệt — gửi xin duyệt ở mục \"Trao đổi nội bộ\" và chờ người khác (quản lý) bấm \"Đồng ý gửi\".",
+      };
+    }
     // Chặn TRƯỚC khi gửi, không phải lúc in: một văn bản có tiến độ thanh toán
     // cộng không đủ 100% mà đã ra khỏi công ty thì không rút lại được.
     const kiem = validatePaymentPercents(truoc.payments);

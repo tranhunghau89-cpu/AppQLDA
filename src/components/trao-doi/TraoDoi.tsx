@@ -5,7 +5,7 @@ import { CheckCircle2, MessageSquare, PencilLine, Send, UserCheck } from "lucide
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
-import { LOAI_TRAO_DOI_LABEL } from "@/lib/traoDoi";
+import { LOAI_TRAO_DOI_LABEL } from "@/lib/traoDoiNhan";
 import {
   guiTraoDoi,
   napTraoDoi,
