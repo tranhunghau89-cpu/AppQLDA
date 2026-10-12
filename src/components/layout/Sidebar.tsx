@@ -7,6 +7,8 @@ import {
   LayoutDashboard,
   FolderKanban,
   Gauge,
+  ClipboardCheck,
+  ClipboardList,
   CalendarRange,
   CheckCheck,
   Calculator,
@@ -121,6 +123,7 @@ const NAV: NavGroup[] = [
         // /projects/tong-quan cũng khớp tiền tố của mục "Dự án" — giành để chỉ mục này sáng.
         gianh: (p) => p.startsWith("/projects/tong-quan"),
       },
+      { href: "/qc", label: "Việc QC", icon: ClipboardCheck, resource: "project" },
       { ...mucGop(TAB_TIEN_DO), label: "Tiến độ", icon: CalendarRange },
       { href: "/approvals", label: "Phê duyệt", icon: CheckCheck },
       { href: "/estimates", label: "Dự toán thi công & chi phí", icon: Calculator, resource: "estimate" },
@@ -147,6 +150,14 @@ const NAV: NavGroup[] = [
       // Không gắn quyền: ai đăng nhập cũng đọc được sổ tay.
       { href: "/huong-dan", label: "Sổ tay hướng dẫn", icon: BookOpen },
       { href: "/users", label: "Người dùng", icon: Users, resource: "user" },
+      {
+        href: "/qc-mau",
+        label: "Mẫu QC",
+        icon: ClipboardList,
+        resource: "user",
+        // /qc-mau cũng khớp tiền tố của "Việc QC" — giành để chỉ mục này sáng.
+        gianh: (p) => p.startsWith("/qc-mau"),
+      },
     ],
   },
 ];

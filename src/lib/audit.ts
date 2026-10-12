@@ -13,6 +13,7 @@ export type AuditAction = "CREATE" | "UPDATE" | "DELETE";
 export const AUDIT_ENTITY = {
   Project: "Dự án",
   ProjectContact: "Người liên hệ dự án",
+  QcMau: "Mẫu QC",
   Contract: "Hợp đồng",
   ContractItem: "Hạng mục hợp đồng",
   Payment: "Đợt thanh toán",
