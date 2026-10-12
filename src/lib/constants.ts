@@ -58,6 +58,16 @@ export const MILESTONE_TYPE: Option[] = [
 ];
 export const MILESTONE_TYPE_MAP = map(MILESTONE_TYPE);
 
+// ----- Vai trò người liên hệ của dự án -----
+export const CONTACT_ROLE: Option[] = [
+  { value: "CDT", label: "Đại diện CĐT" },
+  { value: "KY_THUAT", label: "Kỹ thuật" },
+  { value: "GIAM_SAT", label: "Giám sát" },
+  { value: "KE_TOAN", label: "Kế toán" },
+  { value: "KHAC", label: "Khác" },
+];
+export const CONTACT_ROLE_MAP = map(CONTACT_ROLE);
+
 // ----- Nhóm dự toán (mục IV sheet Nxxx) -----
 // isCost = tính vào tổng chi phí để ra lợi nhuận.
 export const ESTIMATE_GROUP: Option[] = [

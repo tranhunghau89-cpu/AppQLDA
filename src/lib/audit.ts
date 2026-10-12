@@ -12,6 +12,7 @@ export type AuditAction = "CREATE" | "UPDATE" | "DELETE";
 /** Các thực thể được theo dõi. Thêm mới thì bổ sung vào đây để nhãn hiển thị có sẵn. */
 export const AUDIT_ENTITY = {
   Project: "Dự án",
+  ProjectContact: "Người liên hệ dự án",
   Contract: "Hợp đồng",
   ContractItem: "Hạng mục hợp đồng",
   Payment: "Đợt thanh toán",
