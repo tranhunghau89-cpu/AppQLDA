@@ -97,7 +97,7 @@ export function tinhCo(
       soNgay: p.n,
       text:
         p.muc === "DO"
-          ? `Quá hạn thu ${x.name}${tien || ` ${p.n} ngày`}`
+          ? `Quá hạn thu ${x.name} ${p.n} ngày${tien}`
           : `Đến hạn thu ${x.name} còn ${p.n} ngày${tien}`,
     });
   }
@@ -140,7 +140,7 @@ export function tinhChiSo(d: HealthInput): {
     tienDo: xong / MILESTONE_TYPE.length,
     daThu: keHoach > 0 ? thucThu / keHoach : null,
     giaTriHD: pickContractValue(d.contracts) ?? d.salePrice,
-    conPhaiThu: keHoach - thucThu,
+    conPhaiThu: Math.max(0, keHoach - thucThu), // trả dư không hiện số âm
   };
 }
 

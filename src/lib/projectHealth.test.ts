@@ -71,6 +71,7 @@ describe("tinhCo", () => {
     expect(r.lyDo[0].loai).toBe("THU_TIEN");
     expect(r.lyDo[0].text).toContain("Đợt 2");
     expect(r.lyDo[0].text).toContain("120");
+    expect(r.lyDo[0].text).toContain("11 ngày");
   });
 
   it("đợt thu đã đủ / amount null / chiều CHI → không cờ", () => {
@@ -148,6 +149,15 @@ describe("tinhChiSo", () => {
       })
     );
     expect(r).toEqual({ tienDo: 2 / 8, daThu: 0.3, giaTriHD: 1000, conPhaiThu: 700 });
+  });
+});
+
+describe("tinhChiSo — trả dư", () => {
+  it("còn phải thu không âm", () => {
+    const r = tinhChiSo(
+      input({ payments: [{ direction: "THU", name: "1", amount: 100, paidAmount: 150, dueDate: null }] })
+    );
+    expect(r.conPhaiThu).toBe(0);
   });
 });
 
