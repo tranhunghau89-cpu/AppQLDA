@@ -1,13 +1,16 @@
-import { LogOut, Menu } from "lucide-react";
+import Link from "next/link";
+import { Bell, LogOut, Menu } from "lucide-react";
 import { ROLE_LABEL, type Role } from "@/lib/rbac";
 import { GlobalSearch } from "./GlobalSearch";
 
 export function Topbar({
   name,
+  chuaDoc,
   role,
   onOpenMenu,
 }: {
   name: string;
+  chuaDoc: number;
   role: Role;
   /** Mở ngăn kéo điều hướng — chỉ hiện dưới lg. */
   onOpenMenu: () => void;
@@ -35,6 +38,18 @@ export function Topbar({
           <div className="truncate text-sm font-medium text-slate-900">{name}</div>
           <div className="truncate text-xs text-slate-400">{ROLE_LABEL[role]}</div>
         </div>
+        <Link
+          href="/trao-doi"
+          aria-label={`Trao đổi công việc${chuaDoc ? ` — ${chuaDoc} chưa đọc` : ""}`}
+          className="relative rounded-md p-2 text-slate-600 hover:bg-slate-100"
+        >
+          <Bell className="h-5 w-5" />
+          {chuaDoc > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 min-w-[18px] rounded-full bg-red-600 px-1 text-center text-[11px] font-semibold leading-[18px] text-white">
+              {chuaDoc > 99 ? "99+" : chuaDoc}
+            </span>
+          )}
+        </Link>
         <form action="/api/auth/logout" method="post">
           <button
             type="submit"

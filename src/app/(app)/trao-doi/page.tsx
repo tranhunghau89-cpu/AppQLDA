@@ -1,0 +1,69 @@
+import Link from "next/link";
+import { requireSession } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { Badge } from "@/components/ui/badge";
+import { LOAI_TRAO_DOI_LABEL, duongDanViec } from "@/lib/traoDoi";
+
+const TONE: Record<string, "slate" | "blue" | "amber" | "green"> = {
+  GHI_CHU: "slate",
+  XIN_DUYET: "blue",
+  CAN_SUA: "amber",
+  DONG_Y: "green",
+};
+
+const TEN_VIEC: Record<string, string> = {
+  CLIENT_QUOTE: "Báo giá gửi khách",
+  QUOTE: "Dự toán chi tiết",
+};
+
+// Hộp thư: các tin người khác nhắn tới mình, chưa đọc lên đầu. Đọc là bấm vào việc —
+// khung trao đổi ở đó tự đánh dấu đã đọc.
+export default async function TraoDoiPage() {
+  const session = await requireSession();
+  const nhan = await db.traoDoiNhan.findMany({
+    where: { userId: session.userId },
+    include: { traoDoi: true },
+    orderBy: [{ daDocLuc: { sort: "desc", nulls: "first" } }, { traoDoi: { createdAt: "desc" } }],
+    take: 100,
+  });
+  const chuaDoc = nhan.filter((n) => !n.daDocLuc).length;
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-4">
+      <div>
+        <h1 className="text-2xl font-semibold text-slate-900">Trao đổi công việc</h1>
+        <p className="text-sm text-slate-500">
+          Tin nhắn về báo giá, dự toán gửi tới bạn · {chuaDoc} chưa đọc
+        </p>
+      </div>
+      {nhan.length === 0 ? (
+        <p className="rounded-md border border-dashed border-slate-300 p-6 text-center text-sm text-slate-400">
+          Chưa có ai nhắn bạn. Mở một báo giá, kéo xuống “Trao đổi nội bộ” để nhắn người khác.
+        </p>
+      ) : (
+        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
+          {nhan.map(({ traoDoi: t, daDocLuc }) => (
+            <li key={t.id}>
+              <Link
+                href={duongDanViec(t)}
+                className={`block p-4 hover:bg-slate-50 ${daDocLuc ? "" : "bg-blue-50/60"}`}
+              >
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                  {!daDocLuc && <span className="h-2 w-2 rounded-full bg-blue-600" aria-label="Chưa đọc" />}
+                  <span className="font-medium text-slate-800">{t.tacGiaTen}</span>
+                  {t.loai !== "GHI_CHU" && <Badge tone={TONE[t.loai]}>{LOAI_TRAO_DOI_LABEL[t.loai]}</Badge>}
+                  <span>
+                    {TEN_VIEC[t.doiTuong] ?? t.doiTuong}
+                    {t.nhanDe ? `: ${t.nhanDe}` : ""}
+                  </span>
+                  <span className="ml-auto">{t.createdAt.toLocaleString("vi-VN")}</span>
+                </div>
+                <p className="mt-1 line-clamp-2 text-sm text-slate-700">{t.noiDung}</p>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}

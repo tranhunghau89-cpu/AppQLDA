@@ -18,10 +18,13 @@ import type { Role } from "@/lib/rbac";
 export function AppShell({
   role,
   name,
+  chuaDoc,
   children,
 }: {
   role: Role;
   name: string;
+  /** Số tin trao đổi chưa đọc — chuông trên thanh đầu trang. */
+  chuaDoc: number;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -49,7 +52,7 @@ export function AppShell({
   return (
     <ToastProvider>
       <ConfirmProvider>
-        <AppFrame open={open} setOpen={setOpen} role={role} name={name}>
+        <AppFrame open={open} setOpen={setOpen} role={role} name={name} chuaDoc={chuaDoc}>
           {children}
         </AppFrame>
       </ConfirmProvider>
@@ -62,12 +65,15 @@ function AppFrame({
   setOpen,
   role,
   name,
+  chuaDoc,
   children,
 }: {
   open: boolean;
   setOpen: (v: boolean) => void;
   role: Role;
   name: string;
+  /** Số tin trao đổi chưa đọc — chuông trên thanh đầu trang. */
+  chuaDoc: number;
   children: React.ReactNode;
 }) {
   return (
@@ -83,7 +89,7 @@ function AppFrame({
       <Sidebar role={role} open={open} onClose={() => setOpen(false)} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar name={name} role={role} onOpenMenu={() => setOpen(true)} />
+        <Topbar name={name} role={role} chuaDoc={chuaDoc} onOpenMenu={() => setOpen(true)} />
         <main className="flex-1 p-4 sm:p-6"><div className="mx-auto max-w-7xl has-[.trang-rong]:max-w-none">{children}</div></main>
       </div>
     </div>

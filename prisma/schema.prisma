@@ -1518,3 +1518,39 @@ model MoTaMau {
 
   @@index([createdAt])
 }
+
+// ===================== TRAO ĐỔI THEO TỪNG VIỆC =====================
+//
+// Luồng nội bộ quanh MỘT việc cụ thể (một bản báo giá gửi khách, một bản dự toán):
+// KD lập xong nhắn quản lý "xem giúp", quản lý trả lời "sửa chỗ này" hoặc "đồng ý,
+// gửi đi". Tham chiếu mềm (doiTuong + doiTuongId) để dùng chung cho nhiều loại việc;
+// projectId/coHoiId chụp lại chủ của việc lúc nhắn — quyền xem đi theo chủ đó.
+model TraoDoi {
+  id          String   @id @default(cuid())
+  doiTuong    String // CLIENT_QUOTE | QUOTE
+  doiTuongId  String
+  projectId   String?
+  coHoiId     String?
+  nhanDe      String? // tên việc chụp lại lúc nhắn, để hộp thư đọc không cần join
+  loai        String   @default("GHI_CHU") // GHI_CHU | XIN_DUYET | CAN_SUA | DONG_Y
+  noiDung     String
+  tacGiaId    String
+  tacGiaTen   String
+  createdAt   DateTime @default(now())
+
+  nguoiNhan TraoDoiNhan[]
+
+  @@index([doiTuong, doiTuongId, createdAt])
+}
+
+// Người được nhắn trong một tin — cũng là hộp thư "chưa đọc" của họ.
+model TraoDoiNhan {
+  id        String    @id @default(cuid())
+  traoDoiId String
+  traoDoi   TraoDoi   @relation(fields: [traoDoiId], references: [id], onDelete: Cascade)
+  userId    String
+  daDocLuc  DateTime?
+
+  @@unique([traoDoiId, userId])
+  @@index([userId, daDocLuc])
+}

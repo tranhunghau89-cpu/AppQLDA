@@ -77,7 +77,9 @@ export function ClientQuoteEditor({
   const search = useSearchParams();
   // Nhiều báo giá bày hết ra thì dễ sửa nhầm bản: chỉ mở một bản, mặc định bản đầu.
   // null = đóng hết. Báo giá vừa lập (chưa từng thấy) tự mở.
-  const [moId, setMoId] = useState<string | null>(quotes[0]?.id ?? null);
+  const [moId, setMoId] = useState<string | null>(
+    () => quotes.find((q) => q.id === search.get("mo"))?.id ?? quotes[0]?.id ?? null
+  );
   const [daThay, setDaThay] = useState(() => new Set(quotes.map((q) => q.id)));
   const moi = quotes.find((q) => !daThay.has(q.id));
   if (moi) {
@@ -139,6 +141,7 @@ export function ClientQuoteEditor({
           key={q.id}
           q={q}
           chu={chu}
+          moTraoDoi={search.get("mo") === q.id}
           canEdit={canEdit}
           canViewCrm={canViewCrm}
           canEditCrm={canEditCrm}

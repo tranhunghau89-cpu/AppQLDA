@@ -1,6 +1,7 @@
 import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { db } from "@/lib/db";
+import { demChuaDoc } from "@/lib/traoDoi";
 import { myProjects } from "@/lib/scope";
 import { AppShell } from "@/components/layout/AppShell";
 import { QuickAdd, type QuickType } from "@/app/(app)/quick/QuickAdd";
@@ -12,9 +13,10 @@ export default async function AppLayout({
 }) {
   const session = await requireSession();
 
-  const [projects, suppliers] = await Promise.all([
+  const [projects, suppliers, chuaDoc] = await Promise.all([
     myProjects(session),
     db.supplier.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    demChuaDoc(session.userId),
   ]);
 
   const allowed: QuickType[] = [];
@@ -25,7 +27,7 @@ export default async function AppLayout({
   if (can(session.role, "estimate", "edit")) allowed.push("estimate");
 
   return (
-    <AppShell role={session.role} name={session.name}>
+    <AppShell role={session.role} name={session.name} chuaDoc={chuaDoc}>
       {children}
       <QuickAdd projects={projects} allowed={allowed} role={session.role} suppliers={suppliers} />
     </AppShell>

@@ -34,6 +34,7 @@ import {
   tagsDangDung,
 } from "@/lib/clientQuoteSpecs";
 import { InteractionLog } from "@/components/crm/InteractionLog";
+import { TraoDoi } from "@/components/trao-doi/TraoDoi";
 import { StatusBar } from "./StatusBar";
 import { ThongTinIn } from "./ThongTinIn";
 import { DongHangMuc, DongMoi } from "./DongHangMuc";
@@ -65,7 +66,10 @@ export function ClientQuoteCard({
   onEditTerms,
   onPreview,
   onThuGon,
+  moTraoDoi = false,
 }: {
+  /** Đến từ hộp thư trao đổi: mở sẵn khung trao đổi. */
+  moTraoDoi?: boolean;
   q: ClientQuoteView;
   chu: ChuBaoGia;
   canEdit: boolean;
@@ -529,6 +533,8 @@ export function ClientQuoteCard({
       </div>
 
       <StatusBar q={q} chu={chu} canEdit={canEdit} tongSauThue={tong.withVat} />
+
+      <TraoDoi doiTuong="CLIENT_QUOTE" doiTuongId={q.id} moSan={moTraoDoi} />
 
       {/* ---- Điều khoản tóm tắt ---- */}
       <div className="border-t border-slate-100 p-4 text-sm text-slate-600">

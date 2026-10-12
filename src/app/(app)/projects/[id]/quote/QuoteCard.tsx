@@ -1,5 +1,6 @@
 "use client";
 
+import { TraoDoi } from "@/components/trao-doi/TraoDoi";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -502,6 +503,7 @@ export function QuoteCard({
           </div>
         </div>
       </Modal>
+      <TraoDoi doiTuong="QUOTE" doiTuongId={q.id} />
     </div>
   );
 }
