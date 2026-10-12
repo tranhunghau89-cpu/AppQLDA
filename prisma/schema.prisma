@@ -219,6 +219,11 @@ model Project {
   area         Float? // m2
   salePrice    Float? // giá bán / hợp đồng
   note         String?
+  // Thông tin vật tư hiển thị ở khối Tổng quan — một giá trị cho cả công trình.
+  mauSon       String? // sơn kết cấu: "Chống gỉ xám + phủ trắng sữa"
+  mauTonMai    String?
+  mauTonVach   String?
+  ghiChuVatTu  String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -238,7 +243,9 @@ model Project {
   quotes           Quote[]
   clientQuotes     ClientQuote[]
   members          ProjectMember[]
-  coHoi            CoHoi? // cơ hội chào giá đã sinh ra dự án này (nếu có)
+  contacts         ProjectContact[]
+  materialSpecs    ProjectMaterialSpec[]
+  coHoi           CoHoi? // cơ hội chào giá đã sinh ra dự án này (nếu có)
 
   @@index([status])
   @@index([customerId])
@@ -371,6 +378,38 @@ model Milestone {
   note       String?
 
   @@unique([projectId, type])
+}
+
+// Người liên hệ của MỘT dự án — cùng một CĐT có thể cử người khác nhau cho từng công trình.
+model ProjectContact {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  role      String? // CDT | KY_THUAT | GIAM_SAT | KE_TOAN | KHAC
+  phone     String?
+  email     String?
+  note      String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+}
+
+// Chủng loại vật tư theo HĐ. Lưu riêng thay vì đọc thẳng ClientQuoteSpec: khi ký HĐ
+// chủng loại hay đổi (độ dày tôn, mác thép), và QC đối chiếu đơn mua với bảng này.
+model ProjectMaterialSpec {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tag       String? // VAT_TU_TAG; trống = vật tư dùng chung
+  name      String
+  spec      String?
+  origin    String?
+  sortOrder Int     @default(0)
+
+  @@index([projectId])
 }
 
 model WeeklyLog {
