@@ -154,7 +154,10 @@ export default async function ProjectDetailPage({
   });
   const qcTepKeys = qcRows.flatMap((m) => m.lanKiem.flatMap((l) => l.tep.map((t) => t.key)));
   const qcTepUrls = new Map(
-    await Promise.all(qcTepKeys.map(async (k) => [k, await signedUrl(k)] as const))
+    // Một tệp ký lỗi chỉ mất link của tệp đó, không làm hỏng cả trang dự án.
+    await Promise.all(
+      qcTepKeys.map(async (k) => [k, await signedUrl(k).catch(() => null)] as const)
+    )
   );
   const qcMuc: QcMucView[] = qcRows.map((m) => ({
     id: m.id,

@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { denyProject, requireSession } from "@/lib/auth";
@@ -30,8 +31,11 @@ export async function taoQcTuMau(projectId: string): Promise<ActionResult> {
   });
   if (mau.length === 0) return { ok: false, error: "Bộ mẫu QC đang trống." };
 
-  // Kiểm "đã có" và tạo trong cùng transaction: bấm hai lần (hai tab) không nhân đôi mục.
+  // Khoá theo dự án rồi mới kiểm "đã có": ở READ COMMITTED, count-rồi-insert không khoá
+  // gì, hai yêu cầu chồng nhau (hai tab, bấm lại khi chậm) sẽ cùng thấy 0 và cùng chép.
+  // Khoá advisory tự nhả khi transaction kết thúc.
   const daCo = await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${"qc:" + projectId}))::text`;
     if ((await tx.qcMuc.count({ where: { projectId } })) > 0) return true;
     await tx.qcMuc.createMany({
       data: mau.map((m) => ({
@@ -146,10 +150,27 @@ export async function danhGiaQc(
   if (tep.length > 0 && !isStorageConfigured())
     return { ok: false, error: "Chưa cấu hình kho lưu tệp." };
 
+  // Tải tệp TRƯỚC, ghi DB SAU (một transaction): tải hỏng giữa chừng thì không có lần
+  // kiểm nào mang kết quả mà thiếu bằng chứng. Tệp đã lên kho của lần hỏng thành rác lưu
+  // trữ — chấp nhận, giống ảnh nhật ký.
+  const lanId = randomUUID();
+  const daTai: { key: string; ten: string; mime: string }[] = [];
+  try {
+    for (const f of tep) {
+      const safe = f.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-60);
+      const key = `qc/${projectId}/${lanId}/${Date.now()}-${safe}`;
+      await uploadFile(key, Buffer.from(await f.arrayBuffer()), f.type);
+      daTai.push({ key, ten: f.name, mime: f.type });
+    }
+  } catch {
+    return { ok: false, error: "Không tải được tệp lên kho. Thử lại sau." };
+  }
+
   const now = new Date();
-  const lan = await db.$transaction(async (tx) => {
-    const lan = await tx.qcLanKiem.create({
+  await db.$transaction([
+    db.qcLanKiem.create({
       data: {
+        id: lanId,
         mucId,
         ketQua,
         ghiChu: ghiChu || null,
@@ -157,9 +178,10 @@ export async function danhGiaQc(
         nguoiTen: session.name,
         nguoiVai: session.role,
         createdAt: now,
+        tep: { create: daTai },
       },
-    });
-    await tx.qcMuc.update({
+    }),
+    db.qcMuc.update({
       where: { id: mucId },
       data: {
         ketQua,
@@ -167,18 +189,8 @@ export async function danhGiaQc(
         nguoiKiem: session.name,
         ngayKiem: now,
       },
-    });
-    return lan;
-  });
-
-  for (const f of tep) {
-    const safe = f.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-60);
-    const key = `qc/${projectId}/${lan.id}/${Date.now()}-${safe}`;
-    await uploadFile(key, Buffer.from(await f.arrayBuffer()), f.type);
-    await db.qcTep.create({
-      data: { lanKiemId: lan.id, key, ten: f.name, mime: f.type },
-    });
-  }
+    }),
+  ]);
 
   lamMoi(projectId);
   return { ok: true };
