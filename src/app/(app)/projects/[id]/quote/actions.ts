@@ -178,7 +178,33 @@ export async function saveQuote(
     ? await db.quote.findUnique({ where: { id: quoteId }, select: QUOTE_AUDIT_SELECT })
     : null;
   let qid = quoteId;
-  if (qid) await db.quote.update({ where: { id: qid }, data });
+  if (qid) {
+    const cu = await db.quote.findUnique({
+      where: { id: qid },
+      select: { markup: true, items: { select: { id: true, baseCost: true, sellPrice: true } } },
+    });
+    await db.quote.update({ where: { id: qid }, data });
+    // Đổi hệ số TL phải kéo theo giá bán của các dòng đã có. Chỉ tính lại dòng có giá
+    // bán vẫn đúng bằng giá gốc × TL cũ — dòng lệch là giá bán đã sửa tay, giữ nguyên.
+    const tlCu = cu?.markup ?? 1;
+    if (cu && tlCu !== data.markup) {
+      const doi = cu.items.filter(
+        (it) =>
+          it.baseCost != null &&
+          (it.sellPrice == null ||
+            Math.abs(it.sellPrice - Math.round(sellFromBase(it.baseCost, tlCu))) < 1 ||
+            Math.abs(it.sellPrice - sellFromBase(it.baseCost, tlCu)) < 1)
+      );
+      await db.$transaction(
+        doi.map((it) =>
+          db.quoteItem.update({
+            where: { id: it.id },
+            data: { sellPrice: Math.round(sellFromBase(it.baseCost!, data.markup)) },
+          })
+        )
+      );
+    }
+  }
   // `duLieuChu` ghi cả hai cột chủ (cột kia là null), nên không có dòng hai chủ.
   else qid = (await db.quote.create({ data: { ...duLieuChu(chu), ...data } })).id;
   await recordAudit({
