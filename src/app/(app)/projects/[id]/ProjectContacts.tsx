@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { Input, Select } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
+import { useConfirm } from "@/components/ui/confirm";
 import { CONTACT_ROLE, CONTACT_ROLE_MAP } from "@/lib/constants";
 import { deleteContact, saveContact } from "./overviewActions";
 
@@ -18,7 +18,14 @@ export interface ContactRow {
   email: string | null;
   note: string | null;
 }
-type Draft = { id?: string; name: string; role: string; phone: string; email: string; note: string };
+type Draft = {
+  id?: string;
+  name: string;
+  role: string;
+  phone: string;
+  email: string;
+  note: string;
+};
 const EMPTY: Draft = { name: "", role: "", phone: "", email: "", note: "" };
 
 export function ProjectContacts({
@@ -30,7 +37,7 @@ export function ProjectContacts({
   contacts: ContactRow[];
   canEdit: boolean;
 }) {
-  const router = useRouter();
+  const confirm = useConfirm();
   const toast = useToast();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [pending, start] = useTransition();
@@ -41,16 +48,14 @@ export function ProjectContacts({
       const r = await saveContact(projectId, draft);
       if (!r.ok) return toast.error(r.error);
       setDraft(null);
-      router.refresh();
     });
   }
 
-  function remove(c: ContactRow) {
-    if (!confirm(`Xoá người liên hệ "${c.name}"?`)) return;
+  async function remove(c: ContactRow) {
+    if (!(await confirm(`Xoá người liên hệ "${c.name}"?`))) return;
     start(async () => {
       const r = await deleteContact(projectId, c.id);
       if (!r.ok) toast.error(r.error);
-      else router.refresh();
     });
   }
 
@@ -71,7 +76,11 @@ export function ProjectContacts({
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-medium text-slate-900">{c.name}</span>
-                {c.role && <Badge tone="blue">{CONTACT_ROLE_MAP[c.role]?.label ?? c.role}</Badge>}
+                {c.role && (
+                  <Badge tone="blue">
+                    {CONTACT_ROLE_MAP[c.role]?.label ?? c.role}
+                  </Badge>
+                )}
               </div>
               <div className="text-slate-600">
                 {c.phone && (
@@ -79,7 +88,9 @@ export function ProjectContacts({
                     {c.phone}
                   </a>
                 )}
-                {c.phone && c.email && <span className="mx-1.5 text-slate-300">·</span>}
+                {c.phone && c.email && (
+                  <span className="mx-1.5 text-slate-300">·</span>
+                )}
                 {c.email && (
                   <a href={`mailto:${c.email}`} className="hover:underline">
                     {c.email}
@@ -119,11 +130,15 @@ export function ProjectContacts({
               </div>
             )}
           </div>
-        )
+        ),
       )}
       {draft && (
         <div className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-2">
-          <Input placeholder="Tên *" value={draft.name} onChange={set("name")} />
+          <Input
+            placeholder="Tên *"
+            value={draft.name}
+            onChange={set("name")}
+          />
           <Select value={draft.role} onChange={set("role")}>
             <option value="">— Vai trò —</option>
             {CONTACT_ROLE.map((o) => (
@@ -132,8 +147,17 @@ export function ProjectContacts({
               </option>
             ))}
           </Select>
-          <Input placeholder="Điện thoại" value={draft.phone} onChange={set("phone")} />
-          <Input placeholder="Email" type="email" value={draft.email} onChange={set("email")} />
+          <Input
+            placeholder="Điện thoại"
+            value={draft.phone}
+            onChange={set("phone")}
+          />
+          <Input
+            placeholder="Email"
+            type="email"
+            value={draft.email}
+            onChange={set("email")}
+          />
           <Input
             className="sm:col-span-2"
             placeholder="Ghi chú"

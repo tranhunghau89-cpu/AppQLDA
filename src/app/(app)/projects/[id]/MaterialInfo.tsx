@@ -1,13 +1,26 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, Download, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Download,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { Input, Select, Textarea } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
-import { PO_CATEGORY, PO_CATEGORY_MAP, PO_STATUS_MAP, VAT_TU_TAG, VAT_TU_TAG_MAP } from "@/lib/constants";
+import { useConfirm } from "@/components/ui/confirm";
+import {
+  PO_CATEGORY,
+  PO_CATEGORY_MAP,
+  PO_STATUS_MAP,
+  VAT_TU_TAG,
+  VAT_TU_TAG_MAP,
+} from "@/lib/constants";
 import { formatDate, formatNumber, formatVND } from "@/lib/utils";
 import { soNgay } from "@/lib/projectHealth";
 import {
@@ -41,7 +54,13 @@ interface Info {
   mauTonVach: string | null;
   ghiChuVatTu: string | null;
 }
-type SpecDraft = { id?: string; tag: string; name: string; spec: string; origin: string };
+type SpecDraft = {
+  id?: string;
+  tag: string;
+  name: string;
+  spec: string;
+  origin: string;
+};
 
 const INFO_LABELS: [keyof Info, string][] = [
   ["mauSon", "Màu sơn kết cấu"],
@@ -67,25 +86,31 @@ export function MaterialInfo({
   coBaoGia: boolean;
   nowMs: number;
 }) {
-  const router = useRouter();
+  const confirm = useConfirm();
   const toast = useToast();
   const [pending, start] = useTransition();
-  const [infoDraft, setInfoDraft] = useState<Record<keyof Info, string> | null>(null);
+  const [infoDraft, setInfoDraft] = useState<Record<keyof Info, string> | null>(
+    null,
+  );
   const [specDraft, setSpecDraft] = useState<SpecDraft | null>(null);
 
-  function run(fn: () => Promise<{ ok: true } | { ok: false; error: string }>, after?: () => void) {
+  function run(
+    fn: () => Promise<{ ok: true } | { ok: false; error: string }>,
+    after?: () => void,
+  ) {
     start(async () => {
       const r = await fn();
       if (!r.ok) return toast.error(r.error);
       after?.();
-      router.refresh();
     });
   }
 
-  function copyFromQuote() {
+  async function copyFromQuote() {
     if (
       specs.length > 0 &&
-      !confirm("Thay toàn bộ chủng loại hiện tại bằng bảng vật liệu của báo giá?")
+      !(await confirm(
+        "Thay toàn bộ chủng loại hiện tại bằng bảng vật liệu của báo giá?",
+      ))
     )
       return;
     run(() => copySpecsFromQuote(projectId));
@@ -104,14 +129,31 @@ export function MaterialInfo({
           </option>
         ))}
       </Select>
-      <Input placeholder="Tên vật tư *" value={specDraft.name} onChange={setSpec("name")} />
-      <Input placeholder="Thông số" value={specDraft.spec} onChange={setSpec("spec")} />
-      <Input placeholder="Xuất xứ / ghi chú" value={specDraft.origin} onChange={setSpec("origin")} />
+      <Input
+        placeholder="Tên vật tư *"
+        value={specDraft.name}
+        onChange={setSpec("name")}
+      />
+      <Input
+        placeholder="Thông số"
+        value={specDraft.spec}
+        onChange={setSpec("spec")}
+      />
+      <Input
+        placeholder="Xuất xứ / ghi chú"
+        value={specDraft.origin}
+        onChange={setSpec("origin")}
+      />
       <div className="flex gap-2 sm:col-span-2">
         <Button
           size="sm"
           disabled={pending}
-          onClick={() => run(() => saveMaterialSpec(projectId, specDraft), () => setSpecDraft(null))}
+          onClick={() =>
+            run(
+              () => saveMaterialSpec(projectId, specDraft),
+              () => setSpecDraft(null),
+            )
+          }
         >
           Lưu
         </Button>
@@ -126,7 +168,12 @@ export function MaterialInfo({
     cat: c.value,
     rows: orders.filter((o) => o.category === c.value),
   }))
-    .concat([{ cat: "_KHAC", rows: orders.filter((o) => !(o.category in PO_CATEGORY_MAP)) }])
+    .concat([
+      {
+        cat: "_KHAC",
+        rows: orders.filter((o) => !(o.category in PO_CATEGORY_MAP)),
+      },
+    ])
     .filter((g) => g.rows.length > 0);
 
   return (
@@ -142,26 +189,39 @@ export function MaterialInfo({
                   className="sm:col-span-2"
                   placeholder={label}
                   value={infoDraft[k]}
-                  onChange={(e) => setInfoDraft({ ...infoDraft, [k]: e.target.value })}
+                  onChange={(e) =>
+                    setInfoDraft({ ...infoDraft, [k]: e.target.value })
+                  }
                 />
               ) : (
                 <Input
                   key={k}
                   placeholder={label}
                   value={infoDraft[k]}
-                  onChange={(e) => setInfoDraft({ ...infoDraft, [k]: e.target.value })}
+                  onChange={(e) =>
+                    setInfoDraft({ ...infoDraft, [k]: e.target.value })
+                  }
                 />
-              )
+              ),
             )}
             <div className="flex gap-2 sm:col-span-2">
               <Button
                 size="sm"
                 disabled={pending}
-                onClick={() => run(() => saveMaterialInfo(projectId, infoDraft), () => setInfoDraft(null))}
+                onClick={() =>
+                  run(
+                    () => saveMaterialInfo(projectId, infoDraft),
+                    () => setInfoDraft(null),
+                  )
+                }
               >
                 Lưu
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setInfoDraft(null)}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setInfoDraft(null)}
+              >
                 Huỷ
               </Button>
             </div>
@@ -170,9 +230,14 @@ export function MaterialInfo({
           <div className="flex items-start justify-between gap-2">
             <dl className="grid flex-1 grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
               {INFO_LABELS.map(([k, label]) => (
-                <div key={k} className={k === "ghiChuVatTu" ? "sm:col-span-2" : ""}>
+                <div
+                  key={k}
+                  className={k === "ghiChuVatTu" ? "sm:col-span-2" : ""}
+                >
                   <dt className="text-slate-500">{label}</dt>
-                  <dd className="whitespace-pre-line font-medium text-slate-900">{info[k] ?? "—"}</dd>
+                  <dd className="whitespace-pre-line font-medium text-slate-900">
+                    {info[k] ?? "—"}
+                  </dd>
                 </div>
               ))}
             </dl>
@@ -199,7 +264,9 @@ export function MaterialInfo({
       {/* Chủng loại theo HĐ */}
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h4 className="text-sm font-semibold text-slate-700">Chủng loại theo hợp đồng</h4>
+          <h4 className="text-sm font-semibold text-slate-700">
+            Chủng loại theo hợp đồng
+          </h4>
           {canEdit && (
             <Button
               size="sm"
@@ -231,11 +298,17 @@ export function MaterialInfo({
                 {specs.map((s, i) => (
                   <tr key={s.id}>
                     <td className="py-1.5 pr-2 text-slate-500">
-                      {s.tag ? (VAT_TU_TAG_MAP[s.tag]?.label ?? s.tag) : "Dùng chung"}
+                      {s.tag
+                        ? (VAT_TU_TAG_MAP[s.tag]?.label ?? s.tag)
+                        : "Dùng chung"}
                     </td>
-                    <td className="py-1.5 pr-2 font-medium text-slate-900">{s.name}</td>
+                    <td className="py-1.5 pr-2 font-medium text-slate-900">
+                      {s.name}
+                    </td>
                     <td className="py-1.5 pr-2">{s.spec ?? ""}</td>
-                    <td className="py-1.5 pr-2 text-slate-600">{s.origin ?? ""}</td>
+                    <td className="py-1.5 pr-2 text-slate-600">
+                      {s.origin ?? ""}
+                    </td>
                     {canEdit && (
                       <td className="whitespace-nowrap py-1 text-right">
                         <Button
@@ -243,7 +316,9 @@ export function MaterialInfo({
                           size="icon"
                           aria-label="Lên"
                           disabled={pending || i === 0}
-                          onClick={() => run(() => moveMaterialSpec(projectId, s.id, -1))}
+                          onClick={() =>
+                            run(() => moveMaterialSpec(projectId, s.id, -1))
+                          }
                         >
                           <ArrowUp className="h-4 w-4" />
                         </Button>
@@ -252,7 +327,9 @@ export function MaterialInfo({
                           size="icon"
                           aria-label="Xuống"
                           disabled={pending || i === specs.length - 1}
-                          onClick={() => run(() => moveMaterialSpec(projectId, s.id, 1))}
+                          onClick={() =>
+                            run(() => moveMaterialSpec(projectId, s.id, 1))
+                          }
                         >
                           <ArrowDown className="h-4 w-4" />
                         </Button>
@@ -277,8 +354,8 @@ export function MaterialInfo({
                           size="icon"
                           aria-label="Xoá"
                           disabled={pending}
-                          onClick={() => {
-                            if (confirm(`Xoá "${s.name}"?`))
+                          onClick={async () => {
+                            if (await confirm(`Xoá "${s.name}"?`))
                               run(() => deleteMaterialSpec(projectId, s.id));
                           }}
                         >
@@ -297,7 +374,9 @@ export function MaterialInfo({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => setSpecDraft({ tag: "", name: "", spec: "", origin: "" })}
+            onClick={() =>
+              setSpecDraft({ tag: "", name: "", spec: "", origin: "" })
+            }
           >
             <Plus className="h-4 w-4" /> Thêm dòng
           </Button>
@@ -326,9 +405,15 @@ export function MaterialInfo({
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <Badge tone={cat?.tone ?? "slate"}>{cat?.label ?? o.category}</Badge>
-                    <Badge tone={st?.tone ?? "slate"}>{st?.label ?? o.status}</Badge>
-                    <span className="text-slate-600">{o.supplierName ?? "Chưa gán NCC"}</span>
+                    <Badge tone={cat?.tone ?? "slate"}>
+                      {cat?.label ?? o.category}
+                    </Badge>
+                    <Badge tone={st?.tone ?? "slate"}>
+                      {st?.label ?? o.status}
+                    </Badge>
+                    <span className="text-slate-600">
+                      {o.supplierName ?? "Chưa gán NCC"}
+                    </span>
                   </div>
                   <div className="text-slate-600">
                     {formatNumber(o.totalWeight)} kg
@@ -345,7 +430,7 @@ export function MaterialInfo({
                   </div>
                 </div>
               );
-            })
+            }),
           )
         )}
       </div>
