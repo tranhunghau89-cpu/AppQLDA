@@ -4,8 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { duocXemViec } from "@/lib/traoDoi";
-import { can, type Role } from "@/lib/rbac";
+import { duocDuyet, duocXemViec } from "@/lib/traoDoi";
 
 export type DoiTuongTraoDoi = "CLIENT_QUOTE" | "QUOTE";
 export type LoaiTraoDoi = "GHI_CHU" | "XIN_DUYET" | "CAN_SUA" | "DONG_Y";
@@ -62,7 +61,7 @@ export async function napTraoDoi(
   doiTuong: DoiTuongTraoDoi,
   id: string
 ): Promise<
-  | { ok: true; tin: TinTraoDoi[]; nguoiDung: NguoiDungChon[]; toiLa: string }
+  | { ok: true; tin: TinTraoDoi[]; nguoiDung: NguoiDungChon[]; toiLa: string; coTheDuyet: boolean }
   | { ok: false; error: string }
 > {
   const g = await guard(doiTuong, id);
@@ -94,6 +93,7 @@ export async function napTraoDoi(
   return {
     ok: true,
     toiLa: g.session.userId,
+    coTheDuyet: doiTuong === "CLIENT_QUOTE" && (await duocDuyet(g.session)),
     nguoiDung: users.filter((_, i) => xemDuoc[i]),
     tin: rows.map((r) => ({
       id: r.id,
@@ -161,9 +161,9 @@ export async function guiTraoDoi(
   }
 
   if (loai === "DONG_Y" || loai === "CAN_SUA") {
-    // Duyệt là quyết định về báo giá — vai chỉ được xem (Kế toán, Vật tư…) không duyệt được.
-    if (!can(g.session.role as Role, "quote", "edit")) {
-      return { ok: false, error: "Bạn không có quyền duyệt báo giá." };
+    // Duyệt chỉ dành cho Quản trị và người Quản trị giao (cờ User.duocDuyet).
+    if (!(await duocDuyet(g.session))) {
+      return { ok: false, error: "Bạn không có quyền duyệt — chỉ Quản trị hoặc người được Quản trị giao." };
     }
     const xin = await db.traoDoi.findFirst({
       where: { doiTuong, doiTuongId: id, loai: "XIN_DUYET" },

@@ -21,6 +21,7 @@ export interface UserRow {
   name: string;
   role: string;
   active: boolean;
+  duocDuyet: boolean;
 }
 
 export function UserManager({
@@ -104,6 +105,7 @@ export function UserManager({
                 <Td>{u.email}</Td>
                 <Td>
                   <Badge tone="purple">{ROLE_LABEL[u.role as keyof typeof ROLE_LABEL] ?? u.role}</Badge>
+                  {u.duocDuyet && u.role !== "ADMIN" && <Badge tone="green" className="ml-1">Duyệt báo giá</Badge>}
                 </Td>
                 <Td>
                   {u.active ? (
@@ -181,6 +183,15 @@ export function UserManager({
               className="h-4 w-4"
             />
             Tài khoản hoạt động
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              name="duocDuyet"
+              defaultChecked={editing?.duocDuyet ?? false}
+              className="h-4 w-4"
+            />
+            Được duyệt báo giá gửi khách (thay Quản trị)
           </label>
           {error && (
             <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>

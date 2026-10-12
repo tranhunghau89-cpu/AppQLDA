@@ -15,6 +15,7 @@ const base = z.object({
   phone: z.string().trim().optional(),
   role: z.string().refine(isValidRole, "Vai trò không hợp lệ"),
   active: z.boolean(),
+  duocDuyet: z.boolean(),
   password: z.string().optional(),
 });
 
@@ -25,6 +26,7 @@ function fields(form: FormData) {
     phone: String(form.get("phone") ?? ""),
     role: String(form.get("role") ?? "SALES"),
     active: form.get("active") === "on" || form.get("active") === "true",
+    duocDuyet: form.get("duocDuyet") === "on",
     password: String(form.get("password") ?? ""),
   };
 }
@@ -57,6 +59,7 @@ export async function saveUser(
         phone: d.phone || null,
         role: d.role,
         active: d.active,
+        duocDuyet: d.duocDuyet,
       };
       if (d.password && d.password.length > 0) {
         if (d.password.length < 6)
@@ -80,6 +83,7 @@ export async function saveUser(
           phone: d.phone || null,
           role: d.role,
           active: d.active,
+          duocDuyet: d.duocDuyet,
           passwordHash: await hashPassword(d.password),
         },
       });

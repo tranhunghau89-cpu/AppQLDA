@@ -46,6 +46,7 @@ export function TraoDoi({
   const [tin, setTin] = useState<TinTraoDoi[] | null>(null);
   const [nguoiDung, setNguoiDung] = useState<NguoiDungChon[]>([]);
   const [toiLa, setToiLa] = useState("");
+  const [coTheDuyet, setCoTheDuyet] = useState(false);
   const [loi, setLoi] = useState<string | null>(null);
   const [noiDung, setNoiDung] = useState("");
   const [nhan, setNhan] = useState<string[]>([]);
@@ -58,6 +59,7 @@ export function TraoDoi({
         setTin(r.tin);
         setNguoiDung(r.nguoiDung);
         setToiLa(r.toiLa);
+        setCoTheDuyet(r.coTheDuyet);
       }),
     [doiTuong, doiTuongId]
   );
@@ -167,12 +169,16 @@ export function TraoDoi({
                 <Button size="sm" variant="outline" disabled={dangGui} onClick={() => gui("XIN_DUYET")}>
                   <UserCheck className="mr-1 h-4 w-4" /> Gửi xin duyệt
                 </Button>
+                {coTheDuyet && (
+                  <>
                 <Button size="sm" variant="outline" disabled={dangGui} onClick={() => gui("CAN_SUA")}>
                   <PencilLine className="mr-1 h-4 w-4 text-amber-600" /> Yêu cầu chỉnh sửa
                 </Button>
                 <Button size="sm" variant="outline" disabled={dangGui} onClick={() => gui("DONG_Y")}>
                   <CheckCircle2 className="mr-1 h-4 w-4 text-green-600" /> Đồng ý gửi
                 </Button>
+                  </>
+                )}
               </div>
             </div>
           )}

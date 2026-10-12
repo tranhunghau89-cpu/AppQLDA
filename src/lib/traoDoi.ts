@@ -54,6 +54,14 @@ export async function daDuocDongY(clientQuoteId: string, nguoiGuiId: string): Pr
     orderBy: { createdAt: "desc" },
     select: { loai: true, tacGiaId: true },
   });
-  // Không tự duyệt cho chính mình: người bấm "Đã gửi" không được là người bấm "Đồng ý".
-  return cuoi?.loai === "DONG_Y" && cuoi.tacGiaId !== nguoiGuiId;
+  if (cuoi?.loai !== "DONG_Y" || cuoi.tacGiaId === nguoiGuiId) return false;
+  const nguoiDuyet = await db.user.findUnique({ where: { id: cuoi.tacGiaId }, select: { role: true } });
+  return !!nguoiDuyet && (await duocDuyet({ userId: cuoi.tacGiaId, role: nguoiDuyet.role as never }));
+}
+
+/** Quản trị, hoặc người được Quản trị giao quyền duyệt báo giá. Đọc cờ từ CSDL, không từ phiên. */
+export async function duocDuyet(ai: Pick<SessionUser, "userId" | "role">): Promise<boolean> {
+  if (ai.role === "ADMIN") return true;
+  const u = await db.user.findUnique({ where: { id: ai.userId }, select: { duocDuyet: true, active: true } });
+  return !!u?.active && u.duocDuyet;
 }
