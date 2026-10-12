@@ -142,7 +142,8 @@ export function tinhChiSo(d: HealthInput): {
   tienDo: number;
   daThu: number | null;
   giaTriHD: number | null;
-  conPhaiThu: number;
+  /** null = chưa lập đợt thu nào (chưa biết), khác 0 = đã thu đủ. */
+  conPhaiThu: number | null;
 } {
   const xong = d.milestones.filter(
     (m) => m.done && m.type in MILESTONE_TYPE_MAP,
@@ -158,7 +159,8 @@ export function tinhChiSo(d: HealthInput): {
     tienDo: xong / MILESTONE_TYPE.length,
     daThu: keHoach > 0 ? thucThu / keHoach : null,
     giaTriHD: pickContractValue(d.contracts) ?? d.salePrice,
-    conPhaiThu: Math.max(0, keHoach - thucThu), // trả dư không hiện số âm
+    // trả dư không hiện số âm; chưa có kế hoạch thu thì chưa biết
+    conPhaiThu: keHoach > 0 ? Math.max(0, keHoach - thucThu) : null,
   };
 }
 

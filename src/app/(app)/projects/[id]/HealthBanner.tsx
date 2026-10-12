@@ -11,7 +11,7 @@ export function HealthBanner(p: {
   tienDo: number;
   daThu: number | null;
   giaTriHD: number | null;
-  conPhaiThu: number;
+  conPhaiThu: number | null;
   hienTien: boolean;
 }) {
   const style =

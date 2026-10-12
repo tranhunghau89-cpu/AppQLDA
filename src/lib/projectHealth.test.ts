@@ -141,7 +141,8 @@ describe("tinhCo — QC", () => {
 
 describe("tinhChiSo", () => {
   it("không dữ liệu → tiến độ 0, đã thu null, giá trị HĐ = salePrice", () => {
-    expect(tinhChiSo(input({ salePrice: 500 }))).toEqual({ tienDo: 0, daThu: null, giaTriHD: 500, conPhaiThu: 0 });
+    // Chưa lập đợt thu nào: "còn phải thu" là chưa biết, không phải 0 (0 đọc thành "thu đủ").
+    expect(tinhChiSo(input({ salePrice: 500 }))).toEqual({ tienDo: 0, daThu: null, giaTriHD: 500, conPhaiThu: null });
   });
   it("tính % và còn phải thu, ưu tiên HĐ đã ký", () => {
     const r = tinhChiSo(

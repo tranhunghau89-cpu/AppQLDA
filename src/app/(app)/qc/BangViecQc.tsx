@@ -75,7 +75,7 @@ export function BangViecQc({
           ))}
         </Select>
         <Select
-          className="w-40"
+          className="w-56"
           value={ketQua}
           onChange={(e) => setKetQua(e.target.value)}
         >

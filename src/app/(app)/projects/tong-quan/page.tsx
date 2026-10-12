@@ -59,7 +59,7 @@ export default async function TongQuanDuAnPage() {
         tienDo: cs.tienDo,
         daThu: hienTien ? cs.daThu : null,
         giaTriHD: hienTien ? cs.giaTriHD : null,
-        conPhaiThu: hienTien ? cs.conPhaiThu : 0,
+        conPhaiThu: hienTien ? cs.conPhaiThu : null,
       };
     })
     .sort((a, b) => soSanhCo(a.muc, b.muc) || a.code.localeCompare(b.code));

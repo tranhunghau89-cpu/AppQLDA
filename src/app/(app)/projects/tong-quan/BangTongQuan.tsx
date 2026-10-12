@@ -19,7 +19,7 @@ export interface TongQuanRow {
   tienDo: number;
   daThu: number | null;
   giaTriHD: number | null;
-  conPhaiThu: number;
+  conPhaiThu: number | null;
 }
 
 type Loc = "ALL" | "DO" | "VANG" | "CO";
