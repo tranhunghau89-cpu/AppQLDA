@@ -68,6 +68,22 @@ export const CONTACT_ROLE: Option[] = [
 ];
 export const CONTACT_ROLE_MAP = map(CONTACT_ROLE);
 
+// ----- QC theo giai đoạn -----
+export const QC_KET_QUA: Option[] = [
+  { value: "CHUA", label: "Chưa kiểm", tone: "slate" },
+  { value: "DAT", label: "Đạt", tone: "green" },
+  { value: "KHONG_DAT", label: "Không đạt", tone: "red" },
+  { value: "KHONG_AP_DUNG", label: "Không áp dụng", tone: "slate" },
+];
+export const QC_KET_QUA_MAP = map(QC_KET_QUA);
+
+export const QC_LOAI: Option[] = [
+  { value: "THUONG", label: "Thường" },
+  // Mục có nút "So sánh": chủng loại/màu theo HĐ ↔ dòng đơn mua của dự án.
+  { value: "DOI_CHIEU_VAT_TU", label: "Đối chiếu vật tư" },
+];
+export const QC_LOAI_MAP = map(QC_LOAI);
+
 // ----- Nhóm dự toán (mục IV sheet Nxxx) -----
 // isCost = tính vào tổng chi phí để ra lợi nhuận.
 export const ESTIMATE_GROUP: Option[] = [

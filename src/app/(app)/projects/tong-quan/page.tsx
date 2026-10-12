@@ -37,6 +37,7 @@ export default async function TongQuanDuAnPage() {
       purchaseOrders: {
         select: { category: true, status: true, expectedDate: true },
       },
+      qcMuc: { select: { giaiDoan: true, ketQua: true } },
       contracts: {
         select: { valueWithVat: true, status: true, signDate: true },
       },
@@ -45,7 +46,7 @@ export default async function TongQuanDuAnPage() {
 
   const rows: TongQuanRow[] = projects
     .map((p) => {
-      const co = tinhCo(p, nowMs, { anTien: !hienTien });
+      const co = tinhCo({ ...p, qc: p.qcMuc }, nowMs, { anTien: !hienTien });
       const cs = tinhChiSo(p);
       return {
         id: p.id,

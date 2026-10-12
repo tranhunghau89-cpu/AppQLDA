@@ -12,17 +12,17 @@ import {
   type ContractValueInput,
 } from "@/lib/contractValue";
 import { formatVND } from "@/lib/utils";
+import { NGUONG_SAP_DEN_HAN, dauNgayVN, soNgay } from "@/lib/ngayVN";
+import { lyDoQc } from "@/lib/qc";
 
-export const NGUONG_SAP_DEN_HAN = 7;
-const NGAY = 86_400_000;
-const LECH_VN = 7 * 3_600_000;
+export { NGUONG_SAP_DEN_HAN, dauNgayVN, soNgay };
 
 export type MucCo = "DO" | "VANG" | null;
 export type TrangThaiMoc = "XONG" | "TRE" | "SAP_DEN" | "DUNG_HAN" | "CHUA_CO";
 
 export interface LyDo {
   muc: "DO" | "VANG";
-  loai: "TIEN_DO" | "THU_TIEN" | "VAT_TU";
+  loai: "TIEN_DO" | "THU_TIEN" | "VAT_TU" | "QC";
   text: string;
   /** Số ngày trễ (ĐỎ) hoặc số ngày còn lại (VÀNG). */
   soNgay: number;
@@ -44,16 +44,8 @@ export interface HealthInput {
   }[];
   contracts: ContractValueInput[];
   salePrice: number | null;
-}
-
-/** Mốc 00:00 giờ Việt Nam của ngày chứa `ms`. */
-export function dauNgayVN(ms: number): number {
-  return Math.floor((ms + LECH_VN) / NGAY) * NGAY - LECH_VN;
-}
-
-/** Số ngày VN từ `tu` tới `den` (âm nếu `den` ở trước). */
-export function soNgay(tu: number, den: number): number {
-  return Math.round((dauNgayVN(den) - dauNgayVN(tu)) / NGAY);
+  /** Mục QC của dự án; bỏ trống = dự án chưa có danh mục QC. */
+  qc?: { giaiDoan: string; ketQua: string }[];
 }
 
 function phanLoaiHan(
@@ -131,6 +123,8 @@ export function tinhCo(
       text: `Trễ giao ${ten} ${n} ngày`,
     });
   }
+
+  lyDo.push(...lyDoQc(d.qc ?? [], d.milestones, nowMs));
 
   lyDo.sort((a, b) =>
     a.muc !== b.muc

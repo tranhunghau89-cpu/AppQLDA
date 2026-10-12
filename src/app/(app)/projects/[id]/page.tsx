@@ -78,6 +78,7 @@ export default async function ProjectDetailPage({
         contacts: { orderBy: { sortOrder: "asc" } },
         materialSpecs: { orderBy: { sortOrder: "asc" } },
         clientQuotes: { select: { id: true } },
+        qcMuc: { select: { giaiDoan: true, ketQua: true } },
       },
     }),
     projectNoteDb.findMany({
@@ -126,6 +127,7 @@ export default async function ProjectDetailPage({
     purchaseOrders: project.purchaseOrders,
     contracts: project.contracts,
     salePrice: project.salePrice,
+    qc: project.qcMuc,
   };
   const co = tinhCo(healthInput, nowMs, { anTien: !canViewPayment });
   const chiSo = tinhChiSo(healthInput);

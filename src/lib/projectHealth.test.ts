@@ -128,6 +128,17 @@ describe("tinhCo", () => {
   });
 });
 
+describe("tinhCo — QC", () => {
+  it("mục QC không đạt → ĐỎ loại QC, kể cả khi ẩn tiền", () => {
+    const r = tinhCo(input({ qc: [{ giaiDoan: "SHOP", ketQua: "KHONG_DAT" }] }), NOW, { anTien: true });
+    expect(r.muc).toBe("DO");
+    expect(r.lyDo).toEqual([{ muc: "DO", loai: "QC", soNgay: 1, text: "QC Shop: 1 mục không đạt" }]);
+  });
+  it("không có dữ liệu QC → như cũ", () => {
+    expect(tinhCo(input(), NOW)).toEqual({ muc: null, lyDo: [] });
+  });
+});
+
 describe("tinhChiSo", () => {
   it("không dữ liệu → tiến độ 0, đã thu null, giá trị HĐ = salePrice", () => {
     expect(tinhChiSo(input({ salePrice: 500 }))).toEqual({ tienDo: 0, daThu: null, giaTriHD: 500, conPhaiThu: 0 });
