@@ -1,0 +1,70 @@
+import { db } from "@/lib/db";
+import { requireView } from "@/lib/auth";
+import { scopedProjectWhere } from "@/lib/scope";
+import { sapXepViecQc } from "@/lib/qc";
+import { BangViecQc, type ViecQcRow } from "./BangViecQc";
+
+export default async function ViecQcPage() {
+  const session = await requireView("project");
+  const scope = await scopedProjectWhere(session);
+  const laAdmin = session.role === "ADMIN";
+
+  const rows = await db.qcMuc.findMany({
+    where: {
+      ketQua: { in: ["CHUA", "KHONG_DAT"] },
+      ...(laAdmin ? {} : { boPhan: session.role }),
+      project: { AND: [scope, { status: { not: "HOAN_THANH" } }] },
+    },
+    select: {
+      id: true,
+      giaiDoan: true,
+      noiDung: true,
+      boPhan: true,
+      ketQua: true,
+      ghiChu: true,
+      project: {
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          milestones: { select: { type: true, planDate: true } },
+        },
+      },
+    },
+  });
+
+  const viec = rows
+    .map((r) => ({
+      ...r,
+      han:
+        r.project.milestones.find((m) => m.type === r.giaiDoan)?.planDate ??
+        null,
+    }))
+    .sort(sapXepViecQc);
+
+  const data: ViecQcRow[] = viec.map((r) => ({
+    id: r.id,
+    projectId: r.project.id,
+    projectLabel: `${r.project.code} — ${r.project.name}`,
+    giaiDoan: r.giaiDoan,
+    noiDung: r.noiDung,
+    boPhan: r.boPhan,
+    ketQua: r.ketQua,
+    ghiChu: r.ghiChu,
+    han: r.han?.toISOString() ?? null,
+  }));
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-slate-900">Việc QC</h1>
+        <p className="text-sm text-slate-500">
+          {laAdmin
+            ? "Mục QC chưa kiểm hoặc không đạt của mọi bộ phận, ở các dự án đang chạy"
+            : "Mục QC của bộ phận bạn chưa kiểm hoặc không đạt, ở các dự án bạn được giao"}
+        </p>
+      </div>
+      <BangViecQc rows={data} laAdmin={laAdmin} />
+    </div>
+  );
+}
