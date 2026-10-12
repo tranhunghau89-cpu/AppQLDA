@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   FolderKanban,
+  Gauge,
   CalendarRange,
   CheckCheck,
   Calculator,
@@ -112,6 +113,14 @@ const NAV: NavGroup[] = [
     ten: "Thi công",
     items: [
       { href: "/projects", label: "Dự án", icon: FolderKanban, resource: "project" },
+      {
+        href: "/projects/tong-quan",
+        label: "Tổng quan dự án",
+        icon: Gauge,
+        resource: "project",
+        // /projects/tong-quan cũng khớp tiền tố của mục "Dự án" — giành để chỉ mục này sáng.
+        gianh: (p) => p.startsWith("/projects/tong-quan"),
+      },
       { ...mucGop(TAB_TIEN_DO), label: "Tiến độ", icon: CalendarRange },
       { href: "/approvals", label: "Phê duyệt", icon: CheckCheck },
       { href: "/estimates", label: "Dự toán thi công & chi phí", icon: Calculator, resource: "estimate" },
