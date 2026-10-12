@@ -245,6 +245,7 @@ model Project {
   members          ProjectMember[]
   contacts         ProjectContact[]
   materialSpecs    ProjectMaterialSpec[]
+  qcMuc            QcMuc[]
   coHoi           CoHoi? // cơ hội chào giá đã sinh ra dự án này (nếu có)
 
   @@index([status])
@@ -410,6 +411,73 @@ model ProjectMaterialSpec {
   sortOrder Int     @default(0)
 
   @@index([projectId])
+}
+
+// ----- QC theo giai đoạn -----
+
+// Bộ mẫu QC do Quản trị quản lý. Dự án CHÉP mẫu lúc tạo danh mục — sửa mẫu sau đó
+// không đụng dự án cũ. Không xoá cứng: tắt (active=false) để ẩn khỏi dự án mới.
+model QcMau {
+  id        String   @id @default(cuid())
+  giaiDoan  String // MILESTONE_TYPE
+  noiDung   String
+  boPhan    String // Role
+  loai      String   @default("THUONG") // THUONG | DOI_CHIEU_VAT_TU
+  thuTu     Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([giaiDoan, thuTu])
+}
+
+model QcMuc {
+  id        String      @id @default(cuid())
+  projectId String
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  giaiDoan  String
+  noiDung   String
+  boPhan    String
+  loai      String      @default("THUONG")
+  thuTu     Int         @default(0)
+  // Kết quả hiện tại = lần kiểm mới nhất (giữ sẵn để lọc/đếm không phải join lịch sử).
+  ketQua    String      @default("CHUA") // CHUA | DAT | KHONG_DAT | KHONG_AP_DUNG
+  nguoiKiem String?
+  ngayKiem  DateTime?
+  ghiChu    String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  lanKiem   QcLanKiem[]
+
+  @@index([projectId, giaiDoan])
+  @@index([boPhan, ketQua])
+}
+
+model QcLanKiem {
+  id        String   @id @default(cuid())
+  mucId     String
+  muc       QcMuc    @relation(fields: [mucId], references: [id], onDelete: Cascade)
+  ketQua    String
+  ghiChu    String?
+  nguoiId   String
+  nguoiTen  String
+  nguoiVai  String
+  createdAt DateTime @default(now())
+  tep       QcTep[]
+
+  @@index([mucId, createdAt])
+}
+
+model QcTep {
+  id        String    @id @default(cuid())
+  lanKiemId String
+  lanKiem   QcLanKiem @relation(fields: [lanKiemId], references: [id], onDelete: Cascade)
+  key       String // đường dẫn trong bucket
+  ten       String // tên tệp gốc
+  mime      String
+  createdAt DateTime  @default(now())
+
+  @@index([lanKiemId])
 }
 
 model WeeklyLog {
