@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { MILESTONE_TYPE } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
+import { trangThaiMoc, type TrangThaiMoc } from "@/lib/projectHealth";
 import { upsertMilestone } from "../actions";
 import { useToast } from "@/components/ui/toast";
 
@@ -16,6 +17,15 @@ export interface MilestoneValue {
   done: boolean;
   note: string | null;
 }
+
+// Tô màu theo giá trị ĐÃ LƯU, không theo ô đang gõ.
+const MAU_MOC: Record<TrangThaiMoc, string> = {
+  XONG: "border-l-green-500",
+  TRE: "border-l-red-500 bg-red-50",
+  SAP_DEN: "border-l-amber-500 bg-amber-50",
+  DUNG_HAN: "border-l-slate-300",
+  CHUA_CO: "border-l-slate-200",
+};
 
 function toInput(v: string | null): string {
   return v ? v.slice(0, 10) : "";
@@ -27,12 +37,14 @@ function Row({
   label,
   value,
   canEdit,
+  nowMs,
 }: {
   projectId: string;
   type: string;
   label: string;
   value: MilestoneValue;
   canEdit: boolean;
+  nowMs: number;
 }) {
   const router = useRouter();
   const [plan, setPlan] = useState(toInput(value.planDate));
@@ -56,9 +68,17 @@ function Row({
     });
   }
 
+  const mau =
+    MAU_MOC[
+      trangThaiMoc(
+        { planDate: value.planDate ? new Date(value.planDate) : null, done: value.done },
+        nowMs
+      )
+    ];
+
   if (!canEdit) {
     return (
-      <div className="grid grid-cols-12 items-center gap-2 py-2 text-sm">
+      <div className={`grid grid-cols-12 items-center gap-2 border-l-4 py-2 pl-2 text-sm ${mau}`}>
         <span className="col-span-3 font-medium text-slate-600">{label}</span>
         <span className="col-span-3">{formatDate(value.planDate)}</span>
         <span className="col-span-3">{formatDate(value.actualDate)}</span>
@@ -76,7 +96,7 @@ function Row({
   }
 
   return (
-    <div className="grid grid-cols-12 items-center gap-2 py-2">
+    <div className={`grid grid-cols-12 items-center gap-2 border-l-4 py-2 pl-2 ${mau}`}>
       <span className="col-span-2 text-sm font-medium text-slate-600">{label}</span>
       <Input
         className="col-span-3 h-9"
@@ -112,10 +132,12 @@ export function Milestones({
   projectId,
   milestones,
   canEdit,
+  nowMs,
 }: {
   projectId: string;
   milestones: Record<string, MilestoneValue>;
   canEdit: boolean;
+  nowMs: number;
 }) {
   const empty: MilestoneValue = { planDate: null, actualDate: null, done: false, note: null };
   return (
@@ -134,6 +156,7 @@ export function Milestones({
           label={m.label}
           value={milestones[m.value] ?? empty}
           canEdit={canEdit}
+          nowMs={nowMs}
         />
       ))}
     </div>

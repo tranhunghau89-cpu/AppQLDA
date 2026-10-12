@@ -3,7 +3,7 @@
 // Hàm thuần — không chạm DB, không đọc đồng hồ. Server component truyền `serverNow()` vào.
 // Cờ tính lúc tải trang, không lưu: dữ liệu nguồn (mốc, đợt thu, đơn mua) đổi là cờ đổi theo.
 import { MILESTONE_TYPE, MILESTONE_TYPE_MAP, PO_CATEGORY_MAP } from "@/lib/constants";
-import { pickContractValue, type ContractValueInput } from "@/lib/debt";
+import { pickContractValue, type ContractValueInput } from "@/lib/contractValue";
 import { formatVND } from "@/lib/utils";
 
 export const NGUONG_SAP_DEN_HAN = 7;

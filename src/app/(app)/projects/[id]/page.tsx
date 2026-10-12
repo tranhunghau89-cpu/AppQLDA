@@ -25,6 +25,10 @@ import { BangGiaiDoan } from "@/components/BangGiaiDoan";
 import { Badge } from "@/components/ui/badge";
 import { CONTRACT_STATUS_MAP, PO_CATEGORY_MAP, PO_STATUS_MAP } from "@/lib/constants";
 import { Calculator, FileSignature, ShoppingCart, Wallet } from "lucide-react";
+import { tinhChiSo, tinhCo } from "@/lib/projectHealth";
+import { HealthBanner } from "./HealthBanner";
+import { ProjectContacts } from "./ProjectContacts";
+import { MaterialInfo } from "./MaterialInfo";
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -71,6 +75,9 @@ export default async function ProjectDetailPage({
           include: { supplier: { select: { name: true } }, _count: { select: { items: true } } },
         },
         costSummary: { select: { id: true, revenue: true, cost: true, profit: true } },
+        contacts: { orderBy: { sortOrder: "asc" } },
+        materialSpecs: { orderBy: { sortOrder: "asc" } },
+        clientQuotes: { select: { id: true } },
       },
     }),
     projectNoteDb.findMany({
@@ -110,6 +117,18 @@ export default async function ProjectDetailPage({
   const canViewContract = can(session.role, "contract", "view");
   const canViewPurchase = can(session.role, "purchase", "view");
   const canViewCost = can(session.role, "cost", "view");
+  const canEditPayment = can(session.role, "cost", "edit");
+  const canViewPayment = can(session.role, "debt", "view") || canEditPayment;
+  const nowMs = serverNow();
+  const healthInput = {
+    milestones: project.milestones,
+    payments: paymentRows,
+    purchaseOrders: project.purchaseOrders,
+    contracts: project.contracts,
+    salePrice: project.salePrice,
+  };
+  const co = tinhCo(healthInput, nowMs, { anTien: !canViewPayment });
+  const chiSo = tinhChiSo(healthInput);
   const profit = computeProfit(project.estimateItems, project.salePrice, project.area);
   const giaiDoan = await docGiaTriGiaiDoan(project.id);
   const milestoneMap: Record<string, MilestoneValue> = {};
@@ -170,9 +189,6 @@ export default async function ProjectDetailPage({
     paidAmount: x.paidAmount,
     note: x.note,
   }));
-  const canEditPayment = can(session.role, "cost", "edit");
-  const canViewPayment = can(session.role, "debt", "view") || canEditPayment;
-
   const auditLog: AuditRow[] = auditRows.map((r) => ({
     id: r.id,
     actorName: r.actorName,
@@ -241,15 +257,89 @@ export default async function ProjectDetailPage({
         <StatusChanger projectId={project.id} status={project.status} canEdit={canEdit} />
       </div>
 
+      <section id="tong-quan" className="scroll-mt-20 space-y-6">
+        <HealthBanner muc={co.muc} lyDo={co.lyDo} {...chiSo} hienTien={canViewPayment} />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Chủ đầu tư & người liên hệ</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="divide-y divide-slate-100">
+                <InfoRow label="Chủ đầu tư" value={project.customer?.name ?? "—"} />
+                <InfoRow label="Địa chỉ" value={project.customer?.address ?? "—"} />
+                {project.customer?.contactPerson && (
+                  <InfoRow
+                    label="Liên hệ (hồ sơ CĐT)"
+                    value={[project.customer.contactPerson, project.customer.phone]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  />
+                )}
+              </div>
+              <ProjectContacts
+                projectId={project.id}
+                contacts={project.contacts.map(({ id, name, role, phone, email, note }) => ({
+                  id,
+                  name,
+                  role,
+                  phone,
+                  email,
+                  note,
+                }))}
+                canEdit={canEdit}
+              />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Vật tư</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <MaterialInfo
+                projectId={project.id}
+                info={{
+                  mauSon: project.mauSon,
+                  mauTonMai: project.mauTonMai,
+                  mauTonVach: project.mauTonVach,
+                  ghiChuVatTu: project.ghiChuVatTu,
+                }}
+                specs={project.materialSpecs.map(({ id, tag, name, spec, origin }) => ({
+                  id,
+                  tag,
+                  name,
+                  spec,
+                  origin,
+                }))}
+                orders={
+                  canViewPurchase
+                    ? project.purchaseOrders.map((o) => ({
+                        id: o.id,
+                        category: o.category,
+                        status: o.status,
+                        supplierName: o.supplier?.name ?? null,
+                        value: canViewProfit ? o.value : null,
+                        totalWeight: o.totalWeight,
+                        expectedDate: o.expectedDate?.toISOString() ?? null,
+                        receivedDate: o.receivedDate?.toISOString() ?? null,
+                      }))
+                    : []
+                }
+                canEdit={canEdit}
+                coBaoGia={project.clientQuotes.length > 0}
+                nowMs={nowMs}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Thông tin dự án</CardTitle>
           </CardHeader>
           <CardContent className="divide-y divide-slate-100 py-1">
-            <InfoRow label="Chủ đầu tư" value={project.customer?.name ?? "—"} />
-            <InfoRow label="Người phụ trách" value={project.customer?.contactPerson ?? "—"} />
-            <InfoRow label="Điện thoại" value={project.customer?.phone ?? "—"} />
             <InfoRow label="Vị trí" value={project.location ?? "—"} />
             <InfoRow label="Kích thước (K×L×H)" value={dim} />
             <InfoRow label="Diện tích" value={`${formatNumber(project.area)} m²`} />
@@ -461,6 +551,7 @@ export default async function ProjectDetailPage({
             projectId={project.id}
             milestones={milestoneMap}
             canEdit={canEditProgress}
+            nowMs={nowMs}
           />
         </CardContent>
       </Card>
@@ -475,7 +566,7 @@ export default async function ProjectDetailPage({
               projectId={project.id}
               payments={payments}
               canEdit={canEditPayment}
-              now={serverNow()}
+              now={nowMs}
             />
           </CardContent>
         </Card>

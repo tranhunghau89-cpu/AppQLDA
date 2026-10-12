@@ -6,6 +6,9 @@
 // `getReceivables` / `getPayables` chỉ lo truy vấn + áp phạm vi dự án rồi gọi hàm thuần.
 import { db } from "@/lib/db";
 import { norm } from "@/lib/text";
+import { pickContractValue, type ContractValueInput } from "@/lib/contractValue";
+
+export { pickContractValue, type ContractValueInput };
 
 /** Phạm vi dự án được phép xem: "ALL" (ADMIN) hoặc danh sách id. */
 export type ProjectScope = string[] | "ALL";
@@ -60,11 +63,6 @@ export interface SupplierDebt {
 
 // ----- Đầu vào của các hàm thuần -----
 
-export interface ContractValueInput {
-  valueWithVat: number | null;
-  status: string;
-  signDate: Date | null;
-}
 
 export interface ReceivableProjectInput {
   id: string;
@@ -106,17 +104,6 @@ export interface PayableCategoryInput {
   summary: { project: ProjectRefInput } | null;
 }
 
-/** Giá trị hợp đồng đại diện của 1 dự án: ưu tiên HĐ đã ký mới nhất. */
-export function pickContractValue(contracts: ContractValueInput[]): number | null {
-  if (contracts.length === 0) return null;
-  const ranked = [...contracts].sort((a, b) => {
-    const sa = a.status === "SIGNED" || a.status === "LIQUIDATED" ? 1 : 0;
-    const sb = b.status === "SIGNED" || b.status === "LIQUIDATED" ? 1 : 0;
-    if (sa !== sb) return sb - sa;
-    return (b.signDate?.getTime() ?? 0) - (a.signDate?.getTime() ?? 0);
-  });
-  return ranked[0].valueWithVat ?? null;
-}
 
 /** Gom công nợ phải thu theo chủ đầu tư. Hàm thuần — không chạm DB. */
 export function buildReceivables(projects: ReceivableProjectInput[]): CustomerDebt[] {
