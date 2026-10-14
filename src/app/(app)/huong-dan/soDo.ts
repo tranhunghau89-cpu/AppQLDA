@@ -10,6 +10,7 @@ import {
   TAB_DOI_TAC,
   TAB_DU_AN,
   TAB_HOP_DONG,
+  TAB_KHACH_HANG,
   TAB_QUAN_TRI,
   TAB_TIEN_DO,
   TAB_TIEN_ICH,
@@ -126,9 +127,9 @@ const SO_DO = [
     ),
   ),
   d(
-    "Mở <span class=\"path\">Khách hàng (CRM)</span>, bấm bút sửa ở dòng khách",
+    "Mở <span class=\"path\">Khách hàng & Cơ hội › Khách hàng (CRM)</span>, bấm bút sửa ở dòng khách",
     b(
-      { t: "Mở Khách hàng (CRM)" },
+      { t: "Mở Khách hàng & Cơ hội" },
       { t: "Bấm bút sửa", m: "ở dòng khách" },
       { t: "Chọn Người phụ trách, lưu", m: "khách chưa phân công thì mọi nhân viên kinh doanh đều thấy", k: "xong" },
     ),
@@ -375,7 +376,7 @@ const PHONG: Record<Phong, string> = {
 /** Mười hai bước đời một công trình, tô màu theo phòng chịu trách nhiệm. */
 export function soDoVongDoi(): string {
   const bước: [Phong, string, string][] = [
-    ["kd", "Ghi khách mới", "và từng lần trao đổi · Khách hàng (CRM)"],
+    ["kd", "Ghi khách mới", "và từng lần trao đổi · Khách hàng & Cơ hội"],
     ["kd", "Thêm công trình đang hỏi giá", "chưa cần mã dự án · CRM"],
     ["kd", "Lập dự toán chào giá", "từ bộ hạng mục chuẩn · Chào giá › Dự toán"],
     ["kd", "Báo giá gửi khách", "in PDF, gửi, đàm phán → Đã chốt"],
@@ -414,8 +415,7 @@ const NHANH_MENU: NhanhSoDo[] = [
     lop: "kd",
     buoc: true,
     muc: [
-      { t: "Quy trình kinh doanh", m: "các bước từ khách mới tới chốt giá" },
-      { t: "Khách hàng (CRM)", m: "khách, công trình đang hỏi giá, nhật ký trao đổi" },
+      { t: "Khách hàng & Cơ hội", m: "khách, công trình đang hỏi giá, nhật ký; làm lần lượt từng bước", tabs: TAB_KHACH_HANG },
       { t: "Chào giá", m: "dự toán chào giá rồi báo giá in cho khách", tabs: TAB_CHAO_GIA },
     ],
   },

@@ -90,11 +90,11 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
       <div class="tbl"><table>
         <thead><tr><th>#</th><th>Việc</th><th>Phòng làm</th><th>Ở đâu</th></tr></thead>
         <tbody>
-          <tr><td class="n">1</td><td>Ghi khách mới, ghi từng lần trao đổi</td><td>Kinh doanh</td><td><span class="path">Khách hàng (CRM)</span></td></tr>
-          <tr><td class="n">2</td><td>Thêm công trình khách đang hỏi giá (chưa cần mã dự án)</td><td>Kinh doanh</td><td><span class="path">Khách hàng (CRM)</span></td></tr>
+          <tr><td class="n">1</td><td>Ghi khách mới, ghi từng lần trao đổi</td><td>Kinh doanh</td><td><span class="path">Khách hàng & Cơ hội › Khách hàng (CRM)</span></td></tr>
+          <tr><td class="n">2</td><td>Thêm công trình khách đang hỏi giá (chưa cần mã dự án)</td><td>Kinh doanh</td><td><span class="path">Khách hàng & Cơ hội › Khách hàng (CRM)</span></td></tr>
           <tr><td class="n">3</td><td>Lập dự toán chào giá từ bộ hạng mục chuẩn, giá lấy từ thư viện</td><td>Kinh doanh</td><td><span class="path">Chào giá › Dự toán</span></td></tr>
           <tr><td class="n">4</td><td>Tạo báo giá gửi khách, in PDF, gửi, đàm phán, <b>Đã chốt</b></td><td>Kinh doanh</td><td><span class="path">Chào giá › Báo giá gửi khách</span></td></tr>
-          <tr><td class="n">5</td><td>Ký hợp đồng → tạo dự án (sinh mã Nxxx), chuyển khách thành chủ đầu tư</td><td>Kinh doanh / BGĐ</td><td><span class="path">Khách hàng (CRM)</span></td></tr>
+          <tr><td class="n">5</td><td>Ký hợp đồng → tạo dự án (sinh mã Nxxx), chuyển khách thành chủ đầu tư</td><td>Kinh doanh / BGĐ</td><td><span class="path">Khách hàng & Cơ hội › Khách hàng (CRM)</span></td></tr>
           <tr><td class="n">6</td><td>Gán người phụ trách vào dự án</td><td>Ban giám đốc</td><td>Trang dự án › Thành viên dự án</td></tr>
           <tr><td class="n">7</td><td>Nhập hợp đồng, đẩy giá bán vào dự án</td><td>Kinh doanh</td><td><span class="path">Hợp đồng & Dự toán › Hợp đồng & Báo giá</span></td></tr>
           <tr><td class="n">8</td><td>Đổ dự toán chào giá xuống dự toán thi công, gán nhà cung cấp, bảng bóc</td><td>Vật tư</td><td>Trang dự án › Mở dự toán</td></tr>
@@ -151,7 +151,7 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
 
       <div class="task" id="bgd-phan-cong">
         <h3>Phân công người vào dự án và giao khách cho kinh doanh</h3>
-        <p class="where">Trang chi tiết dự án › Thành viên dự án · <span class="path">Khách hàng (CRM)</span></p>
+        <p class="where">Trang chi tiết dự án › Thành viên dự án · <span class="path">Khách hàng & Cơ hội › Khách hàng (CRM)</span></p>
         <h5>Gán thành viên dự án</h5>
         <ol class="steps">
           <li>Mở <span class="path">Dự án</span>, bấm vào mã dự án.</li>
@@ -161,7 +161,7 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
         <p class="warn"><b>Chưa gán = không thấy.</b>Nhân viên báo “không tìm thấy dự án” thì gần như luôn là chưa được gán vào dự án đó.</p>
         <h5>Giao khách cho nhân viên kinh doanh</h5>
         <ol class="steps">
-          <li>Mở <span class="path">Khách hàng (CRM)</span>, bấm bút sửa ở dòng khách.</li>
+          <li>Mở <span class="path">Khách hàng & Cơ hội › Khách hàng (CRM)</span>, bấm bút sửa ở dòng khách.</li>
           <li>Chọn <b>Người phụ trách</b>, lưu. Khách “Chưa phân công” thì mọi nhân viên kinh doanh đều thấy — nên giao sớm để rõ ai theo.</li>
         </ol>
       </div>
@@ -233,7 +233,7 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
 
       <div class="task" id="kd-khach">
         <h3>Ghi khách mới và nhật ký trao đổi</h3>
-        <p class="where"><span class="path">Khách hàng (CRM)</span></p>
+        <p class="where"><span class="path">Khách hàng & Cơ hội › Khách hàng (CRM)</span></p>
         <ol class="steps">
           <li>Bấm <span class="ui">Thêm khách</span>. Chỉ bắt buộc <b>Tên khách / công ty</b> — biết tới đâu ghi tới đó, có khi chỉ là tên người.</li>
           <li>Điền thêm nếu có: người liên hệ, điện thoại, email, địa chỉ, <b>Nguồn khách</b> (được giới thiệu, website, khách gọi đến, triển lãm…), người phụ trách.</li>
@@ -243,7 +243,7 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
 
       <div class="task">
         <h3>Thêm công trình đang chào giá</h3>
-        <p class="where"><span class="path">Khách hàng (CRM)</span> › mở dòng khách › Công trình chào giá</p>
+        <p class="where"><span class="path">Khách hàng & Cơ hội › Khách hàng (CRM)</span> › mở dòng khách › Công trình chào giá</p>
         <ol class="steps">
           <li>Bấm <span class="ui">Thêm công trình</span>. Điền <b>Tên công trình</b>, địa điểm, loại công trình, diện tích, bước khung K, chiều dài L, chiều cao H.</li>
           <li>Theo dõi <b>Trạng thái</b>: Mới → Đang chào giá → Đang đàm phán. Mất khách thì chọn <b>Mất khách</b> và ghi <b>Lý do mất khách</b> — để sau này biết vì giá, vì tiến độ hay khách hoãn.</li>
@@ -292,7 +292,7 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
 
       <div class="task" id="kd-tao-du-an">
         <h3>Khách ký hợp đồng → tạo dự án</h3>
-        <p class="where"><span class="path">Khách hàng (CRM)</span> › thẻ công trình</p>
+        <p class="where"><span class="path">Khách hàng & Cơ hội › Khách hàng (CRM)</span> › thẻ công trình</p>
         <ol class="steps">
           <li>Bảo đảm công trình có ít nhất một báo giá gửi khách ở trạng thái <b>Đã chốt</b>. Chưa có thì nút tạo dự án không hiện.</li>
           <li>Bấm <span class="ui">Đã ký hợp đồng — tạo dự án</span>.</li>

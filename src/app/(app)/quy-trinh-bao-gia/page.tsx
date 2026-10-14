@@ -8,6 +8,7 @@ import { QUY_TRINH_BAO_GIA } from "@/lib/quyTrinhBaoGia";
 import { Badge } from "@/components/ui/badge";
 import { can, type Role } from "@/lib/rbac";
 import { NutXoaCoHoi } from "./NutXoaCoHoi";
+import { TabTrang, TAB_KHACH_HANG } from "@/components/layout/TabTrang";
 
 /**
  * Cửa vào quy trình báo giá: chọn một quy trình để bắt đầu công trình mới, hoặc tiếp
@@ -35,6 +36,7 @@ export default async function QuyTrinhBaoGiaPage() {
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_KHACH_HANG} hienTai="/quy-trinh-bao-gia" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">
           Quy trình kinh doanh

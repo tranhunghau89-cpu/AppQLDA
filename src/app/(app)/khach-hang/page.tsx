@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { whereKhachHangTrongPhamVi } from "@/lib/crmScope";
 import { KhachHangManager, type KhachHangRow } from "./KhachHangManager";
 import type { NoteView } from "@/components/crm/InteractionLog";
+import { TabTrang, TAB_KHACH_HANG } from "@/components/layout/TabTrang";
 
 export default async function KhachHangPage() {
   const session = await requireView("customer");
@@ -97,6 +98,7 @@ export default async function KhachHangPage() {
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_KHACH_HANG} hienTai="/khach-hang" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Khách hàng</h1>
         <p className="text-sm text-slate-500">

@@ -13,7 +13,6 @@ import {
   ShoppingCart,
   Wallet,
   Receipt,
-  ListChecks,
   Workflow,
   Building2,
   UserSearch,
@@ -33,6 +32,7 @@ import {
   TAB_DOI_TAC,
   TAB_DU_AN,
   TAB_HOP_DONG,
+  TAB_KHACH_HANG,
   TAB_QUAN_TRI,
   TAB_TIEN_DO,
   TAB_TIEN_ICH,
@@ -72,6 +72,7 @@ interface NavGroup {
  *
  * Mắt chỉ quét được một danh sách ngắn. Nên những trang là HAI CÁCH NHÌN cùng một việc
  * dùng chung một mục, chuyển qua lại bằng tab ở đầu trang (`TabTrang`):
+ *   Khách hàng & Cơ hội = CRM · quy trình kinh doanh
  *   Chào giá          = dự toán chào giá · báo giá gửi khách
  *   Dự án             = danh sách · tổng quan
  *   Hợp đồng & Dự toán = hợp đồng & báo giá · dự toán thi công
@@ -100,22 +101,16 @@ const NAV: NavGroup[] = [
   {
     ten: "Bán hàng",
     items: [
+      // Theo nhịp bán hàng: có khách → chào giá.
       {
-        href: "/quy-trinh-bao-gia",
-        label: "Quy trình kinh doanh",
-        icon: ListChecks,
-        resource: "customer",
-        // /quy-trinh-bao-gia cũng khớp tiền tố của "Việc quy trình" — giành để chỉ mục này sáng.
-        gianh: (p) => p.startsWith("/quy-trinh-bao-gia"),
-      },
-      {
-        href: "/khach-hang",
-        label: "Khách hàng (CRM)",
+        ...mucGop(TAB_KHACH_HANG),
+        label: "Khách hàng & Cơ hội",
         icon: UserSearch,
-        resource: "customer",
         // Trang dự toán/báo giá của một cơ hội nằm dưới /co-hoi nhưng vẫn là việc
         // của khu này — không đánh dấu thì vào đó menu trông như không ở đâu cả.
-        khopThem: ["/co-hoi"],
+        khopThem: [...TAB_KHACH_HANG.slice(1).map((t) => t.href), "/co-hoi"],
+        // /quy-trinh-bao-gia cũng khớp tiền tố của "Việc thi công" — giành để chỉ mục này sáng.
+        gianh: (p) => p.startsWith("/quy-trinh-bao-gia"),
       },
       // Dự toán chào giá và báo giá gửi khách của từng dự án/cơ hội mang đường dẫn
       // /projects/… và /co-hoi/…, nhưng thuộc về mục này chứ không phải "Dự án".

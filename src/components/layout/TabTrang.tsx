@@ -27,6 +27,12 @@ export function tabDuocXem(tabs: readonly MucTab[], role: Role): MucTab[] {
   return tabs.filter((t) => !t.resource || can(role, t.resource, "view"));
 }
 
+// Khách và cơ hội: danh sách CRM, và lối làm lần lượt từng bước từ khách mới tới chốt giá.
+export const TAB_KHACH_HANG: readonly MucTab[] = [
+  { href: "/khach-hang", label: "Khách hàng (CRM)", resource: "customer" },
+  { href: "/quy-trinh-bao-gia", label: "Quy trình kinh doanh", resource: "customer" },
+];
+
 export const TAB_CHAO_GIA: readonly MucTab[] = [
   { href: "/quotes", label: "Dự toán", resource: "quote" },
   { href: "/client-quotes", label: "Báo giá gửi khách", resource: "quote" },
