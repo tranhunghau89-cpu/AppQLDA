@@ -6,7 +6,8 @@ import { LayoutTemplate } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
-import { formatNumber, formatVND, parseViNumber } from "@/lib/utils";
+import { formatNumber, formatVND } from "@/lib/utils";
+import { laCongThuc, tinhBieuThuc } from "@/lib/bieuThuc";
 import { computeTemplateLines, type TemplateLine } from "@/lib/estimateTemplate";
 import { applyEstimateTemplate } from "./actions";
 
@@ -17,7 +18,37 @@ export interface TemplateForClient {
   lines: TemplateLine[];
 }
 
-const parseNum = (s: string | undefined): number | null => parseViNumber(s);
+// Ô khối lượng / đơn giá nhận số kiểu Việt hoặc công thức bắt đầu bằng "=" (=12*3,5).
+const parseNum = (s: string | undefined): number | null => tinhBieuThuc(s);
+const loiO = (s: string | undefined) => !!s?.trim() && tinhBieuThuc(s) == null;
+
+/** Ô nhập số/công thức: viền đỏ khi không đọc được, dòng nhỏ "= kết quả" khi là công thức. */
+function OCongThuc({
+  value,
+  onChange,
+  rong,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  rong: string;
+}) {
+  const loi = loiO(value);
+  const kq = laCongThuc(value) && !loi ? tinhBieuThuc(value) : null;
+  return (
+    <div className="inline-flex flex-col items-end">
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        title={loi ? "Không đọc được số / công thức" : undefined}
+        className={`${rong} rounded border px-1.5 py-1 text-right text-xs focus:outline-none ${
+          loi ? "border-red-400 bg-red-50 focus:border-red-500" : "border-slate-200 focus:border-blue-500"
+        }`}
+        inputMode="decimal"
+      />
+      {kq != null && <span className="text-[11px] text-slate-400">= {formatNumber(kq)}</span>}
+    </div>
+  );
+}
 
 export function ApplyTemplate({
   projectId,
@@ -43,8 +74,9 @@ export function ApplyTemplate({
     const init: Record<string, { qty: string; price: string }> = {};
     for (const l of t?.lines ?? []) {
       init[l.id] = {
-        qty: l.defaultQty != null ? String(l.defaultQty) : "",
-        price: l.defaultUnitPrice != null ? String(l.defaultUnitPrice) : "",
+        // Dấu phẩy thập phân: ô đọc số kiểu Việt, "0.5" sẽ thành 5.
+        qty: l.defaultQty != null ? String(l.defaultQty).replace(".", ",") : "",
+        price: l.defaultUnitPrice != null ? String(l.defaultUnitPrice).replace(".", ",") : "",
       };
     }
     setValues(init);
@@ -92,8 +124,11 @@ export function ApplyTemplate({
     setValues((prev) => ({ ...prev, [lineId]: { qty: prev[lineId]?.qty ?? "", price: prev[lineId]?.price ?? "", [key]: v } }));
   }
 
+  const coOLoi = template?.lines.some((l) => loiO(values[l.id]?.qty) || loiO(values[l.id]?.price)) ?? false;
+
   function submit() {
     if (!template) return;
+    if (coOLoi) return setError("Còn ô số / công thức không đọc được (viền đỏ).");
     setError(null);
     const payload = {
       templateId: template.id,
@@ -142,7 +177,9 @@ export function ApplyTemplate({
 
           <p className="text-xs text-slate-500">
             Ô <span className="font-medium text-blue-600">Khối lượng</span> nhập tay; dòng tô xám là <b>tự tính</b> (vận chuyển,
-            lắp dựng…). Đơn giá sửa được. Dòng để trống sẽ không tạo.
+            lắp dựng…). Đơn giá sửa được. Dòng để trống sẽ không tạo. Gõ công thức bắt đầu bằng{" "}
+            <code className="rounded bg-slate-100 px-1">=</code>, ví dụ{" "}
+            <code className="rounded bg-slate-100 px-1">=12*3,5+2</code>.
           </p>
 
           <div className="max-h-[60vh] overflow-auto rounded-lg border border-slate-200">
@@ -181,20 +218,18 @@ export function ApplyTemplate({
                               {derived ? (
                                 <span className="text-slate-500">{formatNumber(c?.qty ?? null)}</span>
                               ) : (
-                                <input
+                                <OCongThuc
                                   value={values[l.id]?.qty ?? ""}
-                                  onChange={(e) => set(l.id, "qty", e.target.value)}
-                                  className="w-24 rounded border border-slate-200 px-1.5 py-1 text-right text-xs focus:border-blue-500 focus:outline-none"
-                                  inputMode="decimal"
+                                  onChange={(v) => set(l.id, "qty", v)}
+                                  rong="w-28"
                                 />
                               )}
                             </td>
                             <td className="px-1 py-0.5 text-right">
-                              <input
+                              <OCongThuc
                                 value={values[l.id]?.price ?? ""}
-                                onChange={(e) => set(l.id, "price", e.target.value)}
-                                className="w-28 rounded border border-slate-200 px-1.5 py-1 text-right text-xs focus:border-blue-500 focus:outline-none"
-                                inputMode="decimal"
+                                onChange={(v) => set(l.id, "price", v)}
+                                rong="w-28"
                               />
                             </td>
                             <td className="px-2 py-0.5 text-right font-medium text-slate-700">{formatVND(c?.amount ?? 0)}</td>

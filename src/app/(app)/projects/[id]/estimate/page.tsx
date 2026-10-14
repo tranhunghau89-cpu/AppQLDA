@@ -36,6 +36,7 @@ export default async function EstimatePage({
         estimateItems: {
           include: {
             supplier: { select: { name: true } },
+            congTac: { select: { ma: true } },
             // Chỉ ĐẾM dòng bảng bóc, không nạp nội dung: một đầu mục có thể có hàng trăm
             // dòng chi tiết, mà trang này chỉ cần biết "có hay không" để khoá ô.
             _count: { select: { chiTiet: true } },
@@ -131,6 +132,7 @@ export default async function EstimatePage({
     sortOrder: it.sortOrder,
     soChiTiet: it._count.chiTiet,
     congTacId: it.congTacId,
+    maCV: it.congTac?.ma ?? null,
   }));
 
   return (

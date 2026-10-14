@@ -2,13 +2,14 @@
 
 import { Fragment, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Table2, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Pencil, Table2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { Table, Tr, Td } from "@/components/ui/table";
 import { ESTIMATE_GROUP, ESTIMATE_GROUP_MAP } from "@/lib/constants";
 import { formatVND, formatNumber, formatQty } from "@/lib/utils";
+import { chiSoNhom } from "@/lib/nhomDong";
 import { OSoSua } from "@/components/ui/OSoSua";
 import { OChonCongTac, type CongTacChon } from "@/components/ui/OChonCongTac";
 import {
@@ -54,6 +55,8 @@ export interface EstimateRow {
   soChiTiet: number;
   /** Công tác thư viện đang gắn; null = dòng nhập từ Excel hoặc gõ tay. */
   congTacId: string | null;
+  /** Mã CV (mã định mức) của công tác đang gắn. */
+  maCV: string | null;
 }
 
 export interface SectionInfo {
@@ -69,6 +72,11 @@ export interface SupplierOpt {
 }
 
 const UNSECTIONED = "__none__";
+
+const phanTram = (x: number | null) => (x == null ? "—" : `${(x * 100).toFixed(1)}%`);
+// Ô số đọc kiểu Việt (dấu chấm = hàng nghìn) — điền sẵn phải dùng dấu phẩy thập phân,
+// không thì 75922.52 bị đọc thành 7.592.252.
+const soVN = (v: number | null | undefined) => (v == null ? "" : String(v).replace(".", ","));
 
 export function EstimateEditor({
   projectId,
@@ -105,6 +113,19 @@ export function EstimateEditor({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<EstimateRow | null>(null);
+  // Hạng mục + nhóm điền sẵn khi bấm "Thêm dòng vào …"; "" = chưa phân hạng mục.
+  const [dich, setDich] = useState<{ sectionId: string; groupLabel: string }>({
+    sectionId: "",
+    groupLabel: "",
+  });
+  const [thuGon, setThuGon] = useState<Set<string>>(new Set());
+  const doiThuGon = (k: string) =>
+    setThuGon((cu) => {
+      const moi = new Set(cu);
+      if (moi.has(k)) moi.delete(k);
+      else moi.add(k);
+      return moi;
+    });
   const [bangBoc, setBangBoc] = useState<EstimateRow | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -171,16 +192,33 @@ export function EstimateEditor({
     return blocks;
   }, [items, sections]);
 
-  function openNew() {
+  const tongDuToan = summary.totalCost;
+  const dsSection = [...sections].sort((a, b) => a.sortOrder - b.sortOrder);
+
+  /** Mở form thêm dòng; không chỉ định thì vào hạng mục cuối cùng (chứ không "Chưa phân"). */
+  function openNew(sectionId?: string | null, groupLabel?: string) {
     setEditing(null);
+    setDich({
+      sectionId: sectionId === undefined ? (dsSection.at(-1)?.id ?? "") : (sectionId ?? ""),
+      groupLabel: groupLabel ?? "",
+    });
     setError(null);
     setOpen(true);
   }
   function openEdit(it: EstimateRow) {
     setEditing(it);
+    setDich({ sectionId: it.sectionId ?? "", groupLabel: it.groupLabel ?? "" });
     setError(null);
     setOpen(true);
   }
+  // Nhóm đã có trong hạng mục đang chọn — gợi ý cho ô Nhóm của form.
+  const nhomCoSan = [
+    ...new Set(
+      items
+        .filter((it) => (it.sectionId ?? "") === dich.sectionId)
+        .map((it) => it.groupLabel ?? ESTIMATE_GROUP_MAP[it.groupCode]?.label ?? it.groupCode),
+    ),
+  ];
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -223,7 +261,7 @@ export function EstimateEditor({
           {canEdit && (
             <div className="flex gap-2">
               <ApplyTemplate projectId={projectId} templates={templates} />
-              <Button size="sm" onClick={openNew}>
+              <Button size="sm" onClick={() => openNew()}>
                 <Plus className="h-4 w-4" /> Thêm dòng
               </Button>
             </div>
@@ -238,15 +276,43 @@ export function EstimateEditor({
 
         {sectionBlocks.map((block) => {
           const sectionTotal = block.rows.reduce((s, r) => s + computeAmount(r), 0);
+          const khoa = block.id ?? UNSECTIONED;
+          const gon = thuGon.has(khoa);
+          const tyLeTong = chiSoNhom(sectionTotal, tongDuToan, area).tyLe;
+          const m2 = chiSoNhom(sectionTotal, 0, area).moiM2;
           return (
-            <div key={block.id ?? UNSECTIONED} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-              <div className="flex items-center justify-between bg-slate-800 px-4 py-2.5 text-white">
-                <span className="font-semibold">
-                  {block.code ? <span className="mr-2 rounded bg-white/20 px-1.5 py-0.5 text-xs">{block.code}</span> : null}
-                  {block.name}
-                </span>
-                <div className="flex items-center gap-3">
+            <div key={khoa} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <div className="flex items-center justify-between gap-3 bg-slate-800 px-4 py-2.5 text-white">
+                <button
+                  type="button"
+                  onClick={() => doiThuGon(khoa)}
+                  aria-expanded={!gon}
+                  title={gon ? "Mở hạng mục" : "Thu gọn hạng mục"}
+                  className="flex min-w-0 items-center gap-1.5 text-left font-semibold"
+                >
+                  {gon ? <ChevronRight className="h-4 w-4 shrink-0" /> : <ChevronDown className="h-4 w-4 shrink-0" />}
+                  {block.code ? <span className="mr-1 rounded bg-white/20 px-1.5 py-0.5 text-xs">{block.code}</span> : null}
+                  <span className="truncate">{block.name}</span>
+                  <span
+                    className="ml-2 shrink-0 text-xs font-normal text-white/60"
+                    title="Thành tiền hạng mục ÷ tổng dự toán"
+                  >
+                    {phanTram(tyLeTong)} tổng
+                    {m2 != null && ` · ${formatNumber(Math.round(m2))}/m²`}
+                  </span>
+                </button>
+                <div className="flex shrink-0 items-center gap-3">
                   <span className="text-sm font-semibold">{formatVND(sectionTotal)}</span>
+                  {canEdit && (
+                    <button
+                      className="text-white/70 hover:text-white"
+                      title={`Thêm dòng vào ${block.name}`}
+                      aria-label={`Thêm dòng vào ${block.name}`}
+                      onClick={() => openNew(block.id)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  )}
                   {canEdit && block.id && (
                     <button
                       className="text-white/70 hover:text-red-300"
@@ -260,9 +326,10 @@ export function EstimateEditor({
               </div>
 
               {/* Một bảng cho cả hạng mục, cột cố định độ rộng để các nhóm thẳng hàng nhau. */}
+              {!gon && (
               <Table className="table-fixed">
                 <colgroup>
-                  <col className="w-12" />
+                  <col className="w-20" />
                   <col />
                   <col className="w-14" />
                   <col className="w-24" />
@@ -275,7 +342,9 @@ export function EstimateEditor({
                 </colgroup>
                 <thead className="bg-white text-xs font-medium uppercase tracking-wide text-slate-500">
                   <tr>
-                    <th rowSpan={2} className="px-2 py-1 text-center align-bottom">STT</th>
+                    <th rowSpan={2} className="px-2 py-1 text-left align-bottom" title="Mã định mức (Mã CV) của công tác thư viện; dòng gõ tay hiện số thứ tự">
+                      Mã CV
+                    </th>
                     <th rowSpan={2} className="px-3 py-1 text-left align-bottom">Công việc</th>
                     <th rowSpan={2} className="px-3 py-1 text-left align-bottom">ĐVT</th>
                     <th colSpan={3} className="border-b border-slate-200 px-3 pt-2 pb-1 text-center text-slate-600">
@@ -298,13 +367,33 @@ export function EstimateEditor({
               {block.groups.map((grp, gi) => {
                 const subtotal = grp.rows.reduce((s, r) => s + computeAmount(r), 0);
                 const thucNhom = computeActualCost(grp.rows);
+                const csNhom = chiSoNhom(subtotal, sectionTotal, area);
+                const tyLeNhomTong = chiSoNhom(subtotal, tongDuToan, null).tyLe;
                 return (
                   <Fragment key={grp.label}>
                   <tbody>
                     <tr className="border-y border-slate-100 bg-slate-50">
-                      <td className="px-2 py-1.5 text-center text-sm font-semibold text-slate-700">{gi + 1}</td>
-                      <td colSpan={4} className="px-4 py-1.5 text-sm font-semibold text-slate-700">
+                      <td className="px-2 py-1.5 text-sm font-semibold text-slate-700">{gi + 1}</td>
+                      <td colSpan={3} className="px-4 py-1.5 text-sm font-semibold text-slate-700">
                         {grp.label}
+                        <span
+                          className="ml-2 text-xs font-medium text-slate-500"
+                          title="Thành tiền của nhóm ÷ thành tiền của hạng mục"
+                        >
+                          {phanTram(csNhom.tyLe)} hạng mục
+                        </span>
+                        <span
+                          className="ml-1 text-xs font-medium text-slate-400"
+                          title="Thành tiền của nhóm ÷ tổng dự toán"
+                        >
+                          · {phanTram(tyLeNhomTong)} tổng
+                        </span>
+                      </td>
+                      <td
+                        className="px-3 py-1.5 text-right text-xs text-slate-500"
+                        title="Thành tiền của nhóm ÷ diện tích dự án"
+                      >
+                        {csNhom.moiM2 != null ? `${formatNumber(Math.round(csNhom.moiM2))}/m²` : ""}
                       </td>
                       <td className="px-3 py-1.5 text-right text-xs font-medium text-slate-500">
                         {formatVND(subtotal)}
@@ -333,7 +422,15 @@ export function EstimateEditor({
                     </tr>
                         {grp.rows.map((r, ri) => (
                           <Tr key={r.id}>
-                            <Td className="px-2 text-center text-slate-400">{gi + 1}.{ri + 1}</Td>
+                            <Td className="px-2 font-mono text-xs">
+                              {r.maCV ? (
+                                <span className="text-slate-600">{r.maCV}</span>
+                              ) : (
+                                <span className="text-slate-300">
+                                  {gi + 1}.{ri + 1}
+                                </span>
+                              )}
+                            </Td>
                             <Td className="pl-6 text-slate-800 break-words">
                               {canEdit ? (
                                 <>
@@ -462,7 +559,24 @@ export function EstimateEditor({
                   </Fragment>
                 );
               })}
+              {canEdit && (
+                <tbody>
+                  <tr>
+                    <td colSpan={10} className="px-3 py-1.5">
+                      <button
+                        type="button"
+                        className="text-xs text-blue-600 hover:underline"
+                        onClick={() => openNew(block.id)}
+                      >
+                        + Thêm dòng vào {block.code ? `${block.code} · ` : ""}
+                        {block.name}
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              )}
               </Table>
+              )}
             </div>
           );
         })}
@@ -518,11 +632,42 @@ export function EstimateEditor({
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title={editing ? "Sửa hạng mục dự toán" : "Thêm hạng mục dự toán"}
+        title={editing ? "Sửa dòng dự toán" : "Thêm dòng dự toán"}
       >
         <form onSubmit={onSubmit} className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Nhóm *">
+            <Field label="Hạng mục">
+              <Select
+                name="sectionId"
+                value={dich.sectionId}
+                onChange={(e) => setDich((d) => ({ ...d, sectionId: e.target.value }))}
+              >
+                {dsSection.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.code ? `${s.code} · ` : ""}
+                    {s.name}
+                  </option>
+                ))}
+                <option value="">— Chưa phân hạng mục —</option>
+              </Select>
+            </Field>
+            <Field label="Nhóm trong hạng mục (Bulong neo, Giằng…)">
+              <Input
+                name="groupLabel"
+                list="nhom-trong-hang-muc"
+                value={dich.groupLabel}
+                onChange={(e) => setDich((d) => ({ ...d, groupLabel: e.target.value }))}
+                placeholder="Chọn nhóm có sẵn hoặc gõ nhóm mới"
+              />
+              <datalist id="nhom-trong-hang-muc">
+                {nhomCoSan.map((n) => (
+                  <option key={n} value={n} />
+                ))}
+              </datalist>
+            </Field>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Nhóm chi phí *">
               <Select name="groupCode" defaultValue={editing?.groupCode ?? "KCT"}>
                 {ESTIMATE_GROUP.map((g) => (
                   <option key={g.value} value={g.value}>
@@ -535,7 +680,7 @@ export function EstimateEditor({
               <Input name="unit" defaultValue={editing?.unit ?? ""} placeholder="kg, bộ, m²…" />
             </Field>
           </div>
-          <Field label="Tên hạng mục *">
+          <Field label="Tên công việc *">
             <Input name="name" defaultValue={editing?.name ?? ""} required />
           </Field>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -546,9 +691,9 @@ export function EstimateEditor({
               */}
               <Input
                 name="designQty"
-                type="number"
-                step="any"
-                defaultValue={editing?.designQty ?? ""}
+                inputMode="decimal"
+                placeholder="12,5 hoặc =3*4"
+                defaultValue={soVN(editing?.designQty)}
                 readOnly={(editing?.soChiTiet ?? 0) > 0}
                 className={(editing?.soChiTiet ?? 0) > 0 ? "bg-slate-100 text-slate-500" : undefined}
               />
@@ -559,14 +704,17 @@ export function EstimateEditor({
               )}
             </Field>
             <Field label="KL thực tế">
-              <Input name="actualQty" type="number" step="any" defaultValue={editing?.actualQty ?? ""} />
+              <Input name="actualQty" inputMode="decimal" defaultValue={soVN(editing?.actualQty)} />
             </Field>
             <Field label="Đơn giá">
-              <Input name="unitPrice" type="number" step="any" defaultValue={editing?.unitPrice ?? ""} />
+              <Input name="unitPrice" inputMode="decimal" defaultValue={soVN(editing?.unitPrice)} />
             </Field>
           </div>
           <Field label="Thành tiền (để trống = KL × đơn giá)">
-            <Input name="amount" type="number" step="any" defaultValue={editing?.amount ?? ""} />
+            <Input name="amount" inputMode="decimal" defaultValue={soVN(editing?.amount)} />
+            <p className="text-xs text-slate-500">
+              Các ô số nhận công thức bắt đầu bằng &quot;=&quot;, ví dụ =12*3,5.
+            </p>
           </Field>
           <Field label="Nhà cung cấp">
             <Select name="supplierId" defaultValue={editing?.supplierId ?? ""}>

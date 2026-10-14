@@ -30,11 +30,19 @@ export interface ApplyTemplatePayload {
   lines: ApplyLineValue[];
 }
 
-const num = z
-  .union([z.string(), z.number()])
-  .transform((v) => (v === "" || v == null ? null : Number(v)))
-  .refine((v) => v === null || !Number.isNaN(v), "Số không hợp lệ")
-  .nullable();
+// Ô số của biểu mẫu nhận cả số kiểu Việt ("1.234,5") lẫn công thức ("=12*3,5").
+const num = z.string().transform((v, ctx) => {
+  if (!v.trim()) return null;
+  const n = tinhBieuThuc(v);
+  if (n == null) {
+    ctx.addIssue({
+      code: "custom",
+      message: laCongThuc(v) ? `Công thức "${v}" không tính được` : `Số "${v}" không hợp lệ`,
+    });
+    return z.NEVER;
+  }
+  return n;
+});
 
 const schema = z.object({
   groupCode: z.string().refine((v) => v in ESTIMATE_GROUP_MAP, "Nhóm không hợp lệ"),
@@ -48,6 +56,8 @@ const schema = z.object({
   orderStatus: z.string().trim().optional(),
   dispatchStatus: z.string().trim().optional(),
   note: z.string().trim().optional(),
+  sectionId: z.string().trim().optional(),
+  groupLabel: z.string().trim().optional(),
 });
 
 function parse(form: FormData) {
@@ -63,6 +73,8 @@ function parse(form: FormData) {
     orderStatus: String(form.get("orderStatus") ?? ""),
     dispatchStatus: String(form.get("dispatchStatus") ?? ""),
     note: String(form.get("note") ?? ""),
+    sectionId: String(form.get("sectionId") ?? ""),
+    groupLabel: String(form.get("groupLabel") ?? ""),
   });
 }
 
@@ -116,7 +128,29 @@ export async function saveEstimateItem(
     orderStatus: d.orderStatus || null,
     dispatchStatus: d.dispatchStatus || null,
     note: d.note || null,
+    sectionId: d.sectionId || null,
+    groupLabel: d.groupLabel || null,
   };
+  if (data.sectionId) {
+    const s = await db.estimateSection.findUnique({
+      where: { id: data.sectionId },
+      select: { projectId: true },
+    });
+    if (s?.projectId !== projectId) return { ok: false, error: "Hạng mục không thuộc dự án này." };
+  }
+  // Dòng mới, hoặc dòng vừa chuyển sang hạng mục khác, nằm cuối hạng mục đó.
+  const cuoiHangMuc = async () =>
+    ((
+      await db.estimateItem.aggregate({
+        where: { projectId, sectionId: data.sectionId },
+        _max: { sortOrder: true },
+      })
+    )._max.sortOrder ?? 0) + 1;
+  const truoc = id
+    ? await db.estimateItem.findUnique({ where: { id }, select: { sectionId: true } })
+    : null;
+  const sortOrder =
+    !id || truoc?.sectionId !== data.sectionId ? { sortOrder: await cuoiHangMuc() } : {};
 
   // Đầu mục đã có bảng bóc thì khối lượng thiết kế do bảng quyết định — bỏ qua con số
   // gửi lên. Giao diện đã khoá ô, nhưng một biểu mẫu cũ còn mở trong tab khác vẫn gửi
@@ -126,12 +160,12 @@ export async function saveEstimateItem(
     if (soChiTiet > 0) {
       const conLai = { ...data };
       delete (conLai as { designQty?: number | null }).designQty;
-      await db.estimateItem.update({ where: { id }, data: conLai });
+      await db.estimateItem.update({ where: { id }, data: { ...conLai, ...sortOrder } });
     } else {
-      await db.estimateItem.update({ where: { id }, data });
+      await db.estimateItem.update({ where: { id }, data: { ...data, ...sortOrder } });
     }
   }
-  else await db.estimateItem.create({ data: { projectId, ...data } });
+  else await db.estimateItem.create({ data: { projectId, ...data, ...sortOrder } });
 
   revalidatePath(`/projects/${projectId}/estimate`);
   revalidatePath(`/projects/${projectId}`);
