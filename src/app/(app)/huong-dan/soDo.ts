@@ -10,6 +10,7 @@ import {
   TAB_DOI_TAC,
   TAB_DU_AN,
   TAB_HOP_DONG,
+  TAB_QUAN_TRI,
   TAB_TIEN_DO,
   TAB_TIEN_ICH,
   TAB_VIEC_THI_CONG,
@@ -449,7 +450,8 @@ const NHANH_MENU: NhanhSoDo[] = [
       { t: "Thư viện đơn giá", m: "công tác, đơn giá, vật tư, khu vực, bộ hạng mục" },
       { t: "Chủ đầu tư & NCC", m: "hai danh bạ đối tác", tabs: TAB_DOI_TAC },
       { t: "Tiện ích", m: "tra cứu, nhập Excel, nhật ký", tabs: TAB_TIEN_ICH },
-      { t: "Sổ tay · Người dùng · Mẫu QC", m: "hướng dẫn, tài khoản, mẫu kiểm tra" },
+      { t: "Quản trị", m: "tài khoản, mẫu kiểm tra QC — chỉ BGĐ", tabs: TAB_QUAN_TRI },
+      { t: "Sổ tay hướng dẫn", m: "chính trang này, ai cũng đọc được" },
     ],
   },
 ];

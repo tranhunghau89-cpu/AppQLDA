@@ -27,7 +27,7 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
           <li>Nhập <b>email</b> và <b>mật khẩu</b> quản trị viên cấp, bấm <span class="ui">Đăng nhập</span>.</li>
           <li>Góc trên bên phải hiện tên bạn và vai trò (ví dụ “Kinh doanh / CĐT”). Sai vai trò thì báo quản trị viên sửa trước khi làm việc.</li>
         </ol>
-        <p class="tip"><b>Quên mật khẩu?</b>Nhờ Ban giám đốc / Quản lý đặt mật khẩu mới cho bạn ở <span class="path">Người dùng</span>. App không tự gửi email khôi phục.</p>
+        <p class="tip"><b>Quên mật khẩu?</b>Nhờ Ban giám đốc / Quản lý đặt mật khẩu mới cho bạn ở <span class="path">Quản trị › Người dùng</span>. App không tự gửi email khôi phục.</p>
       </div>
 
       <div class="task">
@@ -139,7 +139,7 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
 
       <div class="task" id="bgd-nguoi-dung">
         <h3>Tạo, sửa, khoá tài khoản người dùng</h3>
-        <p class="where"><span class="path">Người dùng</span></p>
+        <p class="where"><span class="path">Quản trị › Người dùng</span></p>
         <ol class="steps">
           <li>Bấm <span class="ui">Thêm người dùng</span>. Điền <b>Tên</b>, <b>Email</b> (dùng để đăng nhập), <b>Số điện thoại</b>.</li>
           <li>Chọn <b>Vai trò</b> đúng phòng: Ban giám đốc / Quản lý · Kinh doanh / CĐT · Kỹ thuật / Thiết kế · Vật tư / Mua hàng · Kế toán / Tài chính.</li>

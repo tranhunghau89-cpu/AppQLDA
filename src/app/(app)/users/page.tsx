@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
 import { UserManager } from "./UserManager";
+import { TabTrang, TAB_QUAN_TRI } from "@/components/layout/TabTrang";
 
 export default async function UsersPage() {
   const session = await requireView("user");
@@ -12,6 +13,7 @@ export default async function UsersPage() {
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_QUAN_TRI} hienTai="/users" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Người dùng</h1>
         <p className="text-sm text-slate-500">Quản lý tài khoản và phân quyền theo bộ phận</p>

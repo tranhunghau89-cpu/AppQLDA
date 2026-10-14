@@ -73,6 +73,13 @@ export const TAB_TIEN_ICH: readonly MucTab[] = [
   { href: "/audit", label: "Nhật ký thay đổi", resource: "audit" },
 ];
 
+// Việc của quản trị viên: tài khoản và mẫu kiểm tra QC mặc định. Mẫu QC chỉ ADMIN vào được,
+// cùng mức với quyền "user".
+export const TAB_QUAN_TRI: readonly MucTab[] = [
+  { href: "/users", label: "Người dùng", resource: "user" },
+  { href: "/qc-mau", label: "Mẫu QC", resource: "user" },
+];
+
 export function TabTrang({
   tabs,
   hienTai,

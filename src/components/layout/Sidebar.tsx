@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   FolderKanban,
-  ClipboardList,
   CalendarRange,
   CheckCheck,
   ChevronDown,
@@ -34,6 +33,7 @@ import {
   TAB_DOI_TAC,
   TAB_DU_AN,
   TAB_HOP_DONG,
+  TAB_QUAN_TRI,
   TAB_TIEN_DO,
   TAB_TIEN_ICH,
   TAB_VIEC_THI_CONG,
@@ -78,6 +78,7 @@ interface NavGroup {
  *   Tiến độ           = theo tuần · Gantt
  *   Việc thi công     = việc quy trình · việc QC
  *   Chi phí & công nợ = tổng hợp · theo kỳ · công nợ
+ *   Quản trị          = người dùng · mẫu QC
  *   Chủ đầu tư & NCC  = chủ đầu tư · nhà cung cấp
  *   Tiện ích          = tra cứu & bóc KL · nhập từ Excel · nhật ký thay đổi
  * và Bộ hạng mục chuẩn không còn mục riêng vì Thư viện đơn giá đã có lối vào nó.
@@ -155,17 +156,15 @@ const NAV: NavGroup[] = [
       },
       { ...mucGop(TAB_DOI_TAC), label: "Chủ đầu tư & NCC", icon: Building2 },
       { ...mucGop(TAB_TIEN_ICH), label: "Tiện ích", icon: Wrench },
-      // Không gắn quyền: ai đăng nhập cũng đọc được sổ tay.
-      { href: "/huong-dan", label: "Sổ tay hướng dẫn", icon: BookOpen },
-      { href: "/users", label: "Người dùng", icon: Users, resource: "user" },
       {
-        href: "/qc-mau",
-        label: "Mẫu QC",
-        icon: ClipboardList,
-        resource: "user",
+        ...mucGop(TAB_QUAN_TRI),
+        label: "Quản trị",
+        icon: Users,
         // /qc-mau cũng khớp tiền tố của "Việc QC" — giành để chỉ mục này sáng.
         gianh: (p) => p.startsWith("/qc-mau"),
       },
+      // Không gắn quyền: ai đăng nhập cũng đọc được sổ tay. Để cuối: tra cứu khi cần.
+      { href: "/huong-dan", label: "Sổ tay hướng dẫn", icon: BookOpen },
     ],
   },
 ];
