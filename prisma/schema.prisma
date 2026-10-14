@@ -441,6 +441,7 @@ model QcMuc {
   boPhan    String
   loai      String      @default("THUONG")
   tieuChi   String? // chép từ mẫu lúc tạo, mỗi dòng một ý
+  ghiChuTc  Json? // { "<nội dung tiêu chí>": "ghi chú" } — khoá theo nội dung để đổi thứ tự không lạc
   thuTu     Int         @default(0)
   // Kết quả hiện tại = lần kiểm mới nhất (giữ sẵn để lọc/đếm không phải join lịch sử).
   ketQua    String      @default("CHUA") // CHUA | DAT | KHONG_DAT | KHONG_AP_DUNG

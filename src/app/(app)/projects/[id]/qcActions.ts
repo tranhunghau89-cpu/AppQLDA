@@ -8,7 +8,7 @@ import { canAccessProject } from "@/lib/scope";
 import { isStorageConfigured, uploadFile } from "@/lib/storage";
 import { MILESTONE_TYPE_MAP, QC_LOAI_MAP } from "@/lib/constants";
 import { ROLES } from "@/lib/rbac";
-import { chuanTieuChi, duocDanhQc, kiemTraDanhGia } from "@/lib/qc";
+import { chuanTieuChi, dongTieuChi, duocDanhQc, kiemTraDanhGia } from "@/lib/qc";
 import type { ActionResult } from "../actions";
 
 const NO_EDIT = "Bạn không có quyền sửa danh mục QC.";
@@ -195,6 +195,39 @@ export async function danhGiaQc(
     }),
   ]);
 
+  lamMoi(projectId);
+  return { ok: true };
+}
+
+/** Ghi chú cho một tiêu chí con (cần chỉnh sửa, vướng gì). Chuỗi rỗng = xoá ghi chú. */
+export async function ghiChuTieuChiQc(
+  projectId: string,
+  mucId: string,
+  tieuChi: string,
+  ghiChu: string,
+): Promise<ActionResult> {
+  const session = await requireSession();
+  if (!(await canAccessProject(session, projectId)))
+    return { ok: false, error: "Bạn không có quyền với dự án này." };
+  const muc = await db.qcMuc.findFirst({ where: { id: mucId, projectId } });
+  if (!muc) return { ok: false, error: "Không tìm thấy mục QC." };
+  if (!duocDanhQc(session.role, muc.boPhan)) {
+    const denied = await denyProject("project", "edit", projectId, NO_EDIT);
+    if (denied) return denied;
+  }
+  if (!dongTieuChi(muc.tieuChi).includes(tieuChi))
+    return { ok: false, error: "Tiêu chí không còn trong mục — tải lại trang." };
+  const nd = ghiChu.trim();
+  if (nd.length > 1000)
+    return { ok: false, error: "Ghi chú quá dài (tối đa 1000 ký tự)." };
+
+  const cu = (muc.ghiChuTc ?? {}) as Record<string, string>;
+  const moi: Record<string, string> = {};
+  // Bỏ luôn ghi chú của tiêu chí đã bị xoá khỏi mục.
+  for (const t of dongTieuChi(muc.tieuChi)) if (cu[t]) moi[t] = cu[t];
+  if (nd) moi[tieuChi] = nd;
+  else delete moi[tieuChi];
+  await db.qcMuc.update({ where: { id: mucId }, data: { ghiChuTc: moi } });
   lamMoi(projectId);
   return { ok: true };
 }

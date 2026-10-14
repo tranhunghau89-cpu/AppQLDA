@@ -2,13 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { ArrowDown, ArrowUp, Eye, EyeOff, Pencil, Plus } from "lucide-react";
-import { Input, Select, Textarea } from "@/components/ui/form";
+import { Input, Select } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { MILESTONE_TYPE, QC_LOAI, QC_LOAI_MAP } from "@/lib/constants";
 import { ROLES, ROLE_LABEL, type Role } from "@/lib/rbac";
 import { dongTieuChi } from "@/lib/qc";
+import { TieuChiEditor } from "./TieuChiEditor";
 import { batTatQcMau, doiThuTuQcMau, luuQcMau } from "./actions";
 
 interface MauRow {
@@ -69,12 +70,10 @@ export function QcMauEditor({ mau }: { mau: MauRow[] }) {
           </option>
         ))}
       </Select>
-      <Textarea
+      <TieuChiEditor
         className="sm:col-span-4"
-        rows={5}
-        placeholder="Tiêu chí chi tiết — mỗi dòng một ý (cách kiểm, dung sai, bằng chứng cần có)"
         value={draft.tieuChi ?? ""}
-        onChange={set("tieuChi")}
+        onChange={(v) => setDraft((d) => (d ? { ...d, tieuChi: v } : d))}
       />
       <div className="flex gap-2 sm:col-span-4">
         <Button

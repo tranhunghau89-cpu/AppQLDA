@@ -23,8 +23,15 @@ import {
 import { ROLES, ROLE_LABEL, type Role } from "@/lib/rbac";
 import { dongTieuChi, duocDanhQc, tomTatGiaiDoan } from "@/lib/qc";
 import { formatDate } from "@/lib/utils";
-import { danhGiaQc, luuQcMuc, taoQcTuMau, xoaQcMuc } from "./qcActions";
+import {
+  danhGiaQc,
+  ghiChuTieuChiQc,
+  luuQcMuc,
+  taoQcTuMau,
+  xoaQcMuc,
+} from "./qcActions";
 import { QcSoSanhVatTu, type SoSanhData } from "./QcSoSanhVatTu";
+import { TieuChiEditor } from "../../qc-mau/TieuChiEditor";
 
 export interface QcLanKiemView {
   id: string;
@@ -41,6 +48,7 @@ export interface QcMucView {
   boPhan: string;
   loai: string;
   tieuChi: string | null;
+  ghiChuTc: Record<string, string>;
   ketQua: string;
   nguoiKiem: string | null;
   ngayKiem: string | null;
@@ -132,12 +140,10 @@ export function QcPanel({
             </option>
           ))}
         </Select>
-        <Textarea
+        <TieuChiEditor
           className="sm:col-span-4"
-          rows={5}
-          placeholder="Tiêu chí chi tiết — mỗi dòng một ý (cách kiểm, dung sai, bằng chứng cần có)"
           value={draft.tieuChi ?? ""}
-          onChange={set("tieuChi")}
+          onChange={(v) => setDraft((d) => (d ? { ...d, tieuChi: v } : d))}
         />
         <div className="flex gap-2 sm:col-span-4">
           <Button
@@ -276,6 +282,7 @@ function QcDong({
   const kq = QC_KET_QUA_MAP[m.ketQua];
   const [xemTc, setXemTc] = useState(false);
   const tieuChi = dongTieuChi(m.tieuChi);
+  const soGhiChuTc = tieuChi.filter((t) => m.ghiChuTc[t]).length;
 
   function luu() {
     if (!formRef.current) return;
@@ -317,11 +324,21 @@ function QcDong({
                 {xemTc || mo === "danh" ? "Ẩn" : "Xem"} tiêu chí ({tieuChi.length})
               </button>
             )}
+            {soGhiChuTc > 0 && (
+              <span className="text-amber-700">{soGhiChuTc} tiêu chí có ghi chú</span>
+            )}
           </div>
           {tieuChi.length > 0 && (xemTc || mo === "danh") && (
-            <ol className="mt-1 list-decimal space-y-0.5 rounded-md bg-slate-50 py-2 pl-8 pr-3 text-slate-700">
+            <ol className="mt-1 space-y-1 rounded-md bg-slate-50 px-3 py-2 text-slate-700">
               {tieuChi.map((t, i) => (
-                <li key={i}>{t}</li>
+                <TieuChiDong
+                  key={t}
+                  stt={i + 1}
+                  noiDung={t}
+                  ghiChu={m.ghiChuTc[t] ?? ""}
+                  sua={duocDanh || canEdit}
+                  onLuu={(v) => ghiChuTieuChiQc(projectId, m.id, t, v)}
+                />
               ))}
             </ol>
           )}
@@ -490,5 +507,89 @@ function QcDong({
         </ul>
       )}
     </div>
+  );
+}
+
+function TieuChiDong({
+  stt,
+  noiDung,
+  ghiChu,
+  sua,
+  onLuu,
+}: {
+  stt: number;
+  noiDung: string;
+  ghiChu: string;
+  sua: boolean;
+  onLuu: (v: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+}) {
+  const toast = useToast();
+  const [dangSua, setDangSua] = useState(false);
+  const [nhap, setNhap] = useState(ghiChu);
+  const [dangLuu, start] = useTransition();
+
+  function luu(v: string) {
+    start(async () => {
+      const r = await onLuu(v);
+      if (!r.ok) return toast.error(r.error);
+      setDangSua(false);
+    });
+  }
+
+  return (
+    <li className="flex gap-2">
+      <span className="w-5 shrink-0 text-right text-slate-500">{stt}.</span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-start gap-x-2">
+          <span className="flex-1">{noiDung}</span>
+          {sua && !dangSua && (
+            <button
+              type="button"
+              className="text-xs text-blue-600 hover:underline"
+              onClick={() => {
+                setNhap(ghiChu);
+                setDangSua(true);
+              }}
+            >
+              {ghiChu ? "Sửa ghi chú" : "+ Ghi chú"}
+            </button>
+          )}
+        </div>
+        {ghiChu && !dangSua && (
+          <div className="mt-0.5 whitespace-pre-line rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
+            {ghiChu}
+          </div>
+        )}
+        {dangSua && (
+          <div className="mt-1 space-y-1">
+            <Textarea
+              rows={2}
+              autoFocus
+              placeholder="Cần chỉnh sửa gì, đang vướng vấn đề gì…"
+              value={nhap}
+              onChange={(e) => setNhap(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <Button size="sm" disabled={dangLuu} onClick={() => luu(nhap)}>
+                Lưu
+              </Button>
+              {ghiChu && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={dangLuu}
+                  onClick={() => luu("")}
+                >
+                  Xoá ghi chú
+                </Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={() => setDangSua(false)}>
+                Huỷ
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </li>
   );
 }
