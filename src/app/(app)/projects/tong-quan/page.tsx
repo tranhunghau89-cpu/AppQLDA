@@ -5,6 +5,8 @@ import { scopedProjectWhere } from "@/lib/scope";
 import { serverNow } from "@/lib/now";
 import { soSanhCo, tinhChiSo, tinhCo } from "@/lib/projectHealth";
 import { BangTongQuan, type TongQuanRow } from "./BangTongQuan";
+import { napQuyTrinhNhieu, quyTrinhChoCo } from "@/lib/quyTrinhDb";
+import { buocHienTai } from "@/lib/quyTrinh";
 
 export default async function TongQuanDuAnPage() {
   const session = await requireView("project");
@@ -44,9 +46,16 @@ export default async function TongQuanDuAnPage() {
     },
   });
 
+  const quyTrinh = await napQuyTrinhNhieu(projects.map((p) => p.id));
   const rows: TongQuanRow[] = projects
     .map((p) => {
-      const co = tinhCo({ ...p, qc: p.qcMuc }, nowMs, { anTien: !hienTien });
+      const qt = quyTrinh.get(p.id) ?? [];
+      const dangO = qt.find((b) => b.buoc === buocHienTai(qt));
+      const co = tinhCo(
+        { ...p, qc: p.qcMuc, quyTrinh: quyTrinhChoCo(qt) },
+        nowMs,
+        { anTien: !hienTien },
+      );
       const cs = tinhChiSo(p);
       return {
         id: p.id,
@@ -60,6 +69,7 @@ export default async function TongQuanDuAnPage() {
         daThu: hienTien ? cs.daThu : null,
         giaTriHD: hienTien ? cs.giaTriHD : null,
         conPhaiThu: hienTien ? cs.conPhaiThu : null,
+        buoc: dangO ? { ten: dangO.ten, trangThai: dangO.trangThai } : null,
       };
     })
     .sort((a, b) => soSanhCo(a.muc, b.muc) || a.code.localeCompare(b.code));

@@ -7,6 +7,7 @@ import { Select } from "@/components/ui/form";
 import { PROJECT_STATUS, PROJECT_STATUS_MAP } from "@/lib/constants";
 import { formatVND } from "@/lib/utils";
 import type { MucCo } from "@/lib/projectHealth";
+import { TRANG_THAI_BUOC, type TrangThaiHien } from "@/lib/quyTrinh";
 
 export interface TongQuanRow {
   id: string;
@@ -20,6 +21,8 @@ export interface TongQuanRow {
   daThu: number | null;
   giaTriHD: number | null;
   conPhaiThu: number | null;
+  /** Bước quy trình đang ở + trạng thái; null = xong hết. */
+  buoc: { ten: string; trangThai: TrangThaiHien } | null;
 }
 
 type Loc = "ALL" | "DO" | "VANG" | "CO";
@@ -99,6 +102,7 @@ export function BangTongQuan({
               <th className="px-3 py-2">Dự án</th>
               <th className="px-3 py-2">CĐT</th>
               <th className="px-3 py-2">Giai đoạn</th>
+              <th className="px-3 py-2">Đang ở bước</th>
               <th className="px-3 py-2">Tiến độ</th>
               {hienTien && <th className="px-3 py-2">Đã thu</th>}
               {hienTien && <th className="px-3 py-2 text-right">Giá trị HĐ</th>}
@@ -112,7 +116,7 @@ export function BangTongQuan({
             {hien.length === 0 && (
               <tr>
                 <td
-                  colSpan={hienTien ? 9 : 6}
+                  colSpan={hienTien ? 10 : 7}
                   className="px-3 py-6 text-center text-slate-400"
                 >
                   Không có dự án nào khớp bộ lọc
@@ -147,6 +151,18 @@ export function BangTongQuan({
                     <Badge tone={st?.tone ?? "slate"}>
                       {st?.label ?? r.status}
                     </Badge>,
+                  )}
+                  {cell(
+                    r.buoc ? (
+                      <span className="whitespace-nowrap">
+                        {r.buoc.ten}{" "}
+                        <Badge tone={TRANG_THAI_BUOC[r.buoc.trangThai].tone}>
+                          {TRANG_THAI_BUOC[r.buoc.trangThai].label}
+                        </Badge>
+                      </span>
+                    ) : (
+                      <Badge tone="green">Xong quy trình</Badge>
+                    ),
                   )}
                   {cell(
                     <div className="flex items-center gap-2">

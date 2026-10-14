@@ -30,20 +30,30 @@ export interface BuocView {
 }
 
 /** Tạo đủ các dòng bước còn thiếu cho dự án (chạy lại an toàn). */
-export async function damBaoBuoc(projectId: string) {
+export async function damBaoBuoc(projectIds: string[]) {
+  if (projectIds.length === 0) return;
   await db.buocQuyTrinh.createMany({
-    data: CAC_BUOC.map((b) => ({ projectId, buoc: b.value })),
+    data: projectIds.flatMap((projectId) => CAC_BUOC.map((b) => ({ projectId, buoc: b.value }))),
     skipDuplicates: true,
   });
 }
 
 export async function napQuyTrinh(projectId: string): Promise<BuocView[]> {
-  await damBaoBuoc(projectId);
-  const [rows, project, qc, mocs] = await Promise.all([
-    db.buocQuyTrinh.findMany({ where: { projectId } }),
-    db.project.findUniqueOrThrow({
-      where: { id: projectId },
+  return (await napQuyTrinhNhieu([projectId])).get(projectId) ?? [];
+}
+
+/** Chuỗi bước của nhiều dự án trong một lượt truy vấn (Tổng quan, Việc quy trình). */
+export async function napQuyTrinhNhieu(projectIds: string[]): Promise<Map<string, BuocView[]>> {
+  const out = new Map<string, BuocView[]>();
+  if (projectIds.length === 0) return out;
+  await damBaoBuoc(projectIds);
+  const where = { projectId: { in: projectIds } };
+  const [rows, projects, qc, mocs] = await Promise.all([
+    db.buocQuyTrinh.findMany({ where }),
+    db.project.findMany({
+      where: { id: { in: projectIds } },
       select: {
+        id: true,
         customerId: true,
         location: true,
         khuVucId: true,
@@ -58,65 +68,78 @@ export async function napQuyTrinh(projectId: string): Promise<BuocView[]> {
         _count: { select: { contacts: true, materialSpecs: true } },
       },
     }),
-    db.qcMuc.findMany({
-      where: { projectId },
-      select: { giaiDoan: true, ketQua: true, boPhan: true },
-    }),
-    db.milestone.findMany({ where: { projectId }, select: { type: true, planDate: true } }),
+    db.qcMuc.findMany({ where, select: { projectId: true, giaiDoan: true, ketQua: true, boPhan: true } }),
+    db.milestone.findMany({ where, select: { projectId: true, type: true, planDate: true } }),
   ]);
 
-  const nguoiIds = rows.map((r) => r.phuTrachId).filter((x): x is string => !!x);
+  const nguoiIds = [...new Set(rows.map((r) => r.phuTrachId).filter((x): x is string => !!x))];
   const nguoi = new Map(
     (
       await db.user.findMany({ where: { id: { in: nguoiIds } }, select: { id: true, name: true } })
     ).map((u) => [u.id, u.name]),
   );
+  const nhom = <T extends { projectId: string }>(ds: T[]) => {
+    const m = new Map<string, T[]>();
+    for (const x of ds) (m.get(x.projectId) ?? m.set(x.projectId, []).get(x.projectId)!).push(x);
+    return m;
+  };
+  const rowsTheoDa = nhom(rows);
+  const qcTheoDa = nhom(qc);
+  const mocTheoDa = nhom(mocs);
 
-  const soMuc: Record<string, number> = {};
-  const xong: Record<string, number> = {};
-  const boPhan: Record<string, string[]> = {};
-  for (const m of qc) {
-    soMuc[m.giaiDoan] = (soMuc[m.giaiDoan] ?? 0) + 1;
-    if (m.ketQua === "DAT" || m.ketQua === "KHONG_AP_DUNG")
-      xong[m.giaiDoan] = (xong[m.giaiDoan] ?? 0) + 1;
-    (boPhan[m.giaiDoan] ??= []).push(m.boPhan);
+  for (const project of projects) {
+    const soMuc: Record<string, number> = {};
+    const xong: Record<string, number> = {};
+    const boPhan: Record<string, string[]> = {};
+    for (const m of qcTheoDa.get(project.id) ?? []) {
+      soMuc[m.giaiDoan] = (soMuc[m.giaiDoan] ?? 0) + 1;
+      if (m.ketQua === "DAT" || m.ketQua === "KHONG_AP_DUNG")
+        xong[m.giaiDoan] = (xong[m.giaiDoan] ?? 0) + 1;
+      (boPhan[m.giaiDoan] ??= []).push(m.boPhan);
+    }
+    const thieu = thieuThongTin({
+      ...project,
+      soNguoiLienHe: project._count.contacts,
+      soQuyCachVatTu: project._count.materialSpecs,
+    });
+    const keHoach = new Map((mocTheoDa.get(project.id) ?? []).map((m) => [m.type, m.planDate]));
+    const ds = rowsTheoDa.get(project.id) ?? [];
+    const theoBuoc = new Map(ds.map((r) => [r.buoc, r]));
+    const chuoi = tinhChuoi(
+      ds.map((r) => ({ buoc: r.buoc, trangThai: r.trangThai as TrangThaiLuu })),
+      soMuc,
+    );
+
+    out.set(
+      project.id,
+      chuoi.map(({ buoc, trangThai }) => {
+        const r = theoBuoc.get(buoc)!;
+        const han = r.hanXuLy ?? keHoach.get(buoc) ?? null;
+        return {
+          id: r.id,
+          buoc,
+          ten: TEN_BUOC[buoc],
+          trangThai,
+          phuTrachId: r.phuTrachId,
+          phuTrachTen: r.phuTrachId ? (nguoi.get(r.phuTrachId) ?? "(đã xoá)") : null,
+          boPhanMacDinh: boPhanMacDinh(buoc, boPhan[buoc] ?? []),
+          han: han?.toISOString() ?? null,
+          hanDatTay: r.hanXuLy != null,
+          guiLuc: r.guiLuc?.toISOString() ?? null,
+          duyetLuc: r.duyetLuc?.toISOString() ?? null,
+          chuaDu:
+            buoc === BUOC_THONG_TIN
+              ? thieu.length
+                ? `Còn thiếu: ${thieu.join(", ")}.`
+                : null
+              : loiGuiQc({ tong: soMuc[buoc] ?? 0, xong: xong[buoc] ?? 0 }),
+        };
+      }),
+    );
   }
-  const thieu = thieuThongTin({
-    ...project,
-    soNguoiLienHe: project._count.contacts,
-    soQuyCachVatTu: project._count.materialSpecs,
-  });
-  const keHoach = new Map(mocs.map((m) => [m.type, m.planDate]));
-  const theoBuoc = new Map(rows.map((r) => [r.buoc, r]));
-  const chuoi = tinhChuoi(
-    rows.map((r) => ({ buoc: r.buoc, trangThai: r.trangThai as TrangThaiLuu })),
-    soMuc,
-  );
-
-  return chuoi.map(({ buoc, trangThai }) => {
-    const r = theoBuoc.get(buoc)!;
-    const han = r.hanXuLy ?? keHoach.get(buoc) ?? null;
-    return {
-      id: r.id,
-      buoc,
-      ten: TEN_BUOC[buoc],
-      trangThai,
-      phuTrachId: r.phuTrachId,
-      phuTrachTen: r.phuTrachId ? (nguoi.get(r.phuTrachId) ?? "(đã xoá)") : null,
-      boPhanMacDinh: boPhanMacDinh(buoc, boPhan[buoc] ?? []),
-      han: han?.toISOString() ?? null,
-      hanDatTay: r.hanXuLy != null,
-      guiLuc: r.guiLuc?.toISOString() ?? null,
-      duyetLuc: r.duyetLuc?.toISOString() ?? null,
-      chuaDu:
-        buoc === BUOC_THONG_TIN
-          ? thieu.length
-            ? `Còn thiếu: ${thieu.join(", ")}.`
-            : null
-          : loiGuiQc({ tong: soMuc[buoc] ?? 0, xong: xong[buoc] ?? 0 }),
-    };
-  });
+  return out;
 }
+
 
 /** Ghi một tin Trao đổi gắn vào bước — chuông + hộp thư của người nhận. */
 export async function nhanTinBuoc(v: {
@@ -170,4 +193,14 @@ export async function moLaiBuocQc(
     tacGia,
     nguoiNhanIds: [...admins.map((a) => a.id), ...(b.phuTrachId ? [b.phuTrachId] : [])],
   });
+}
+
+/** Đầu vào cờ sức khoẻ từ chuỗi bước đã nạp. */
+export function quyTrinhChoCo(ds: BuocView[]) {
+  return ds.map((b) => ({
+    buoc: b.buoc,
+    ten: b.ten,
+    trangThai: b.trangThai,
+    han: b.han ? new Date(b.han) : null,
+  }));
 }

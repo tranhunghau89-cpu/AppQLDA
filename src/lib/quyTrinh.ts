@@ -1,6 +1,8 @@
 // Quy trình dự án: Thông tin dự án → QC từng giai đoạn. Luật thuần — không chạm DB,
 // không đọc đồng hồ; dùng chung server + client. Thiết kế: plan/33_QuyTrinh_ThongTin_QC.md
 import { MILESTONE_TYPE } from "@/lib/constants";
+import { soNgay } from "@/lib/ngayVN";
+import type { LyDo } from "@/lib/projectHealth";
 
 export const BUOC_THONG_TIN = "THONG_TIN";
 export const CAC_BUOC: { value: string; label: string }[] = [
@@ -135,4 +137,34 @@ export function boPhanMacDinh(buoc: string, boPhanCacMuc: string[]): string {
   let max = 0;
   for (const [b, n] of dem) if (n > max) [tot, max] = [b, n];
   return tot;
+}
+
+/**
+ * Cờ cảnh báo của quy trình (không chặn gì):
+ * - ĐỎ: bước đang mở / bị trả lại mà đã quá hạn.
+ * - VÀNG: bước bị trả lại; hoặc mốc tiến độ đã đánh xong mà bước QC cùng giai đoạn chưa duyệt.
+ */
+export function lyDoQuyTrinh(
+  chuoi: { buoc: string; ten: string; trangThai: TrangThaiHien; han: Date | null }[],
+  milestones: { type: string; done: boolean }[],
+  nowMs: number,
+): LyDo[] {
+  const out: LyDo[] = [];
+  const mocXong = new Set(milestones.filter((m) => m.done).map((m) => m.type));
+  for (const b of chuoi) {
+    if (b.trangThai === "DA_DUYET" || b.trangThai === "BO_QUA") continue;
+    const dangMo = b.trangThai !== "CHUA_MO";
+    if (dangMo && b.han) {
+      const tre = soNgay(b.han.getTime(), nowMs);
+      if (tre > 0) {
+        out.push({ muc: "DO", loai: "QUY_TRINH", soNgay: tre, text: `Bước ${b.ten} quá hạn ${tre} ngày` });
+        continue;
+      }
+    }
+    if (b.trangThai === "TRA_LAI")
+      out.push({ muc: "VANG", loai: "QUY_TRINH", soNgay: 0, text: `Bước ${b.ten} bị trả lại` });
+    else if (mocXong.has(b.buoc))
+      out.push({ muc: "VANG", loai: "QUY_TRINH", soNgay: 0, text: `Tiến độ xong nhưng ${b.ten} chưa duyệt` });
+  }
+  return out;
 }

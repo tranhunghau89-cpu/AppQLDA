@@ -4,6 +4,7 @@ import {
   buocHienTai,
   loiChuyen,
   loiGuiQc,
+  lyDoQuyTrinh,
   thieuThongTin,
   tinhChuoi,
 } from "./quyTrinh";
@@ -91,4 +92,40 @@ describe("boPhanMacDinh", () => {
   it("bước 0 là Kinh doanh", () => expect(boPhanMacDinh("THONG_TIN", [])).toBe("SALES"));
   it("bộ phận nhiều mục nhất", () =>
     expect(boPhanMacDinh("MUA_HANG", ["PROCUREMENT", "ADMIN", "PROCUREMENT"])).toBe("PROCUREMENT"));
+});
+
+describe("lyDoQuyTrinh", () => {
+  const now = Date.UTC(2026, 9, 14, 3);
+  const ngay = (d: number) => new Date(Date.UTC(2026, 9, d, 3));
+  it("quá hạn thì đỏ; chưa mở thì không xét hạn", () => {
+    const r = lyDoQuyTrinh(
+      [
+        { buoc: "THONG_TIN", ten: "Thông tin dự án", trangThai: "DANG_LAM", han: ngay(10) },
+        { buoc: "BV_KT", ten: "QC Bản vẽ KT", trangThai: "CHUA_MO", han: ngay(1) },
+      ],
+      [],
+      now,
+    );
+    expect(r).toEqual([
+      { muc: "DO", loai: "QUY_TRINH", soNgay: 4, text: "Bước Thông tin dự án quá hạn 4 ngày" },
+    ]);
+  });
+  it("trả lại thì vàng; tiến độ xong mà chưa duyệt thì vàng; đã duyệt bỏ qua", () => {
+    const r = lyDoQuyTrinh(
+      [
+        { buoc: "THONG_TIN", ten: "Thông tin dự án", trangThai: "TRA_LAI", han: null },
+        { buoc: "BV_KT", ten: "QC Bản vẽ KT", trangThai: "CHO_DUYET", han: ngay(20) },
+        { buoc: "SHOP", ten: "QC Shop", trangThai: "DA_DUYET", han: ngay(1) },
+      ],
+      [
+        { type: "BV_KT", done: true },
+        { type: "SHOP", done: true },
+      ],
+      now,
+    );
+    expect(r.map((x) => [x.muc, x.text])).toEqual([
+      ["VANG", "Bước Thông tin dự án bị trả lại"],
+      ["VANG", "Tiến độ xong nhưng QC Bản vẽ KT chưa duyệt"],
+    ]);
+  });
 });

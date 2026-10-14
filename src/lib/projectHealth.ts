@@ -14,6 +14,7 @@ import {
 import { formatVND } from "@/lib/utils";
 import { NGUONG_SAP_DEN_HAN, dauNgayVN, soNgay } from "@/lib/ngayVN";
 import { lyDoQc } from "@/lib/qc";
+import { lyDoQuyTrinh, type TrangThaiHien } from "@/lib/quyTrinh";
 
 export { NGUONG_SAP_DEN_HAN, dauNgayVN, soNgay };
 
@@ -22,7 +23,7 @@ export type TrangThaiMoc = "XONG" | "TRE" | "SAP_DEN" | "DUNG_HAN" | "CHUA_CO";
 
 export interface LyDo {
   muc: "DO" | "VANG";
-  loai: "TIEN_DO" | "THU_TIEN" | "VAT_TU" | "QC";
+  loai: "TIEN_DO" | "THU_TIEN" | "VAT_TU" | "QC" | "QUY_TRINH";
   text: string;
   /** Số ngày trễ (ĐỎ) hoặc số ngày còn lại (VÀNG). */
   soNgay: number;
@@ -46,6 +47,8 @@ export interface HealthInput {
   salePrice: number | null;
   /** Mục QC của dự án; bỏ trống = dự án chưa có danh mục QC. */
   qc?: { giaiDoan: string; ketQua: string }[];
+  /** Chuỗi bước quy trình; bỏ trống = không xét. */
+  quyTrinh?: { buoc: string; ten: string; trangThai: TrangThaiHien; han: Date | null }[];
 }
 
 function phanLoaiHan(
@@ -125,6 +128,7 @@ export function tinhCo(
   }
 
   lyDo.push(...lyDoQc(d.qc ?? [], d.milestones, nowMs));
+  lyDo.push(...lyDoQuyTrinh(d.quyTrinh ?? [], d.milestones, nowMs));
 
   lyDo.sort((a, b) =>
     a.muc !== b.muc

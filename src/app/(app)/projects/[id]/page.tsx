@@ -31,7 +31,7 @@ import { ProjectContacts } from "./ProjectContacts";
 import { MaterialInfo } from "./MaterialInfo";
 import { QcPanel, type QcMucView } from "./QcPanel";
 import { QuyTrinhPanel, type TinBuoc } from "./QuyTrinhPanel";
-import { napQuyTrinh } from "@/lib/quyTrinhDb";
+import { napQuyTrinh, quyTrinhChoCo } from "@/lib/quyTrinhDb";
 import type { SoSanhData } from "./QcSoSanhVatTu";
 import { isStorageConfigured } from "@/lib/storage";
 
@@ -126,6 +126,7 @@ export default async function ProjectDetailPage({
   const canEditPayment = can(session.role, "cost", "edit");
   const canViewPayment = can(session.role, "debt", "view") || canEditPayment;
   const nowMs = serverNow();
+  const quyTrinh = await napQuyTrinh(id);
   const healthInput = {
     milestones: project.milestones,
     payments: paymentRows,
@@ -133,6 +134,7 @@ export default async function ProjectDetailPage({
     contracts: project.contracts,
     salePrice: project.salePrice,
     qc: project.qcMuc,
+    quyTrinh: quyTrinhChoCo(quyTrinh),
   };
   const co = tinhCo(healthInput, nowMs, { anTien: !canViewPayment });
   const chiSo = tinhChiSo(healthInput);
@@ -149,7 +151,6 @@ export default async function ProjectDetailPage({
   }
 
   // ----- Quy trình dự án -----
-  const quyTrinh = await napQuyTrinh(id);
   const [tinBuocRows, nguoiDungRows] = await Promise.all([
     db.traoDoi.findMany({
       where: { doiTuong: "BUOC", doiTuongId: { in: quyTrinh.map((b) => b.id) } },

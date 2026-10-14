@@ -13,6 +13,7 @@ const NO_EDIT = "Bạn không có quyền sửa quy trình dự án này.";
 function lamMoi(projectId: string) {
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/trao-doi");
+  revalidatePath("/quy-trinh");
   revalidatePath("/", "layout");
 }
 

@@ -18,6 +18,7 @@ import {
   Wallet,
   Receipt,
   ListChecks,
+  Workflow,
   HandCoins,
   Building2,
   UserSearch,
@@ -96,7 +97,14 @@ const NAV: NavGroup[] = [
   {
     ten: "Bán hàng",
     items: [
-      { href: "/quy-trinh-bao-gia", label: "Quy trình kinh doanh", icon: ListChecks, resource: "customer" },
+      {
+        href: "/quy-trinh-bao-gia",
+        label: "Quy trình kinh doanh",
+        icon: ListChecks,
+        resource: "customer",
+        // /quy-trinh-bao-gia cũng khớp tiền tố của "Việc quy trình" — giành để chỉ mục này sáng.
+        gianh: (p) => p.startsWith("/quy-trinh-bao-gia"),
+      },
       {
         href: "/khach-hang",
         label: "Khách hàng (CRM)",
@@ -123,6 +131,7 @@ const NAV: NavGroup[] = [
         // /projects/tong-quan cũng khớp tiền tố của mục "Dự án" — giành để chỉ mục này sáng.
         gianh: (p) => p.startsWith("/projects/tong-quan"),
       },
+      { href: "/quy-trinh", label: "Việc quy trình", icon: Workflow, resource: "project" },
       { href: "/qc", label: "Việc QC", icon: ClipboardCheck, resource: "project" },
       { ...mucGop(TAB_TIEN_DO), label: "Tiến độ", icon: CalendarRange },
       { href: "/approvals", label: "Phê duyệt", icon: CheckCheck },

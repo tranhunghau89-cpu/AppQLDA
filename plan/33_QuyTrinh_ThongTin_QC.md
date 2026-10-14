@@ -1,6 +1,6 @@
 # 33 — Quy trình: Điền thông tin dự án + QC theo giai đoạn
 
-Trạng thái: **bản đề xuất, chờ duyệt** (14/10/2026)
+Trạng thái: **đã làm cả 3 đợt** (14/10/2026)
 
 ## Mục tiêu
 Biến phần Thông tin dự án và QC thành chuỗi bước tuần tự. Mỗi bước có người phụ trách, hạn
@@ -46,7 +46,7 @@ Giai đoạn chưa có mục QC nào thì bước đó **tự bỏ qua**.
 - Trang dự án: tab **Quy trình**, thanh bước ngang (trạng thái, người, hạn). Bấm một bước sẽ mở
   nội dung bước: form thông tin (bước 0) hoặc danh mục QC của giai đoạn (dùng lại QcPanel),
   cùng các nút Gửi duyệt / Duyệt / Trả lại và lịch sử trao đổi.
-- Trang **Việc QC** đổi thành **Việc quy trình**: bước tôi phụ trách, bước chờ tôi duyệt, quá hạn.
+- Trang mới **Việc quy trình** (`/quy-trinh`): bước tôi phụ trách, bước chờ tôi duyệt, quá hạn. Trang Việc QC (từng mục) giữ nguyên.
 - Tổng quan dự án: cột "Đang ở bước" + cờ.
 
 ## Dữ liệu
