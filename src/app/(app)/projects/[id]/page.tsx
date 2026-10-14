@@ -6,7 +6,6 @@ import { requireProjectView } from "@/lib/auth";
 import { AuditEntries, type AuditRow } from "@/components/audit/AuditEntries";
 import { serverNow } from "@/lib/now";
 import { can } from "@/lib/rbac";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatVND, formatDate, formatNumber } from "@/lib/utils";
 import { StatusChanger, SupplierAssigner } from "./ProjectDetail";
 import { ProjectMembers, type MemberUser } from "./ProjectMembers";
@@ -23,7 +22,7 @@ import { computeContractTotals } from "@/lib/contract";
 import { docGiaTriGiaiDoan } from "@/lib/giaTriGiaiDoanDuAn";
 import { BangGiaiDoan } from "@/components/BangGiaiDoan";
 import { Badge } from "@/components/ui/badge";
-import { CONTRACT_STATUS_MAP, PO_CATEGORY_MAP, PO_STATUS_MAP } from "@/lib/constants";
+import { CONTRACT_STATUS_MAP, MILESTONE_TYPE, PO_CATEGORY_MAP, PO_STATUS_MAP } from "@/lib/constants";
 import { Calculator, FileSignature, ShoppingCart, Wallet } from "lucide-react";
 import { tinhChiSo, tinhCo } from "@/lib/projectHealth";
 import { HealthBanner } from "./HealthBanner";
@@ -34,15 +33,9 @@ import { QuyTrinhPanel, type TinBuoc } from "./QuyTrinhPanel";
 import { napQuyTrinh, quyTrinhChoCo } from "@/lib/quyTrinhDb";
 import type { SoSanhData } from "./QcSoSanhVatTu";
 import { isStorageConfigured } from "@/lib/storage";
-
-function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex justify-between gap-4 py-2 text-sm">
-      <span className="text-slate-500">{label}</span>
-      <span className="text-right font-medium text-slate-900">{value}</span>
-    </div>
-  );
-}
+import { tomTatGiaiDoan } from "@/lib/qc";
+import { MucDuAn, MucLuc, OThongTin } from "./MucDuAn";
+import { MoMucTheoHash } from "./MoMucTheoHash";
 
 export default async function ProjectDetailPage({
   params,
@@ -366,9 +359,37 @@ export default async function ProjectDetailPage({
       ? `${formatNumber(project.kK)} × ${formatNumber(project.kL)} × ${formatNumber(project.kH)}`
       : "—";
 
+  const qcTom = tomTatGiaiDoan(qcMuc);
+  const mocXong = project.milestones.filter((m) => m.done).length;
+  // Thứ tự mục = thứ tự đánh số; mục không có quyền xem thì bỏ, số tự dồn lên.
+  const cacMuc = [
+    { id: "quy-trinh", tieuDe: "Quy trình" },
+    { id: "tong-quan", tieuDe: "Thông tin chung" },
+    { id: "tien-do", tieuDe: "Tiến độ" },
+    { id: "qc", tieuDe: "QC giai đoạn", canChuY: qcTom.khongDat > 0 },
+    { id: "vat-tu", tieuDe: "Vật tư & NCC" },
+    { id: "tai-chinh", tieuDe: "Dự toán & tài chính" },
+    canViewPurchase && { id: "mua-hang", tieuDe: "Đơn hàng" },
+    { id: "ho-so", tieuDe: "Hồ sơ" },
+    { id: "nhat-ky", tieuDe: "Nhật ký" },
+    canViewProfit && { id: "lich-su", tieuDe: "Lịch sử" },
+  ]
+    .filter((m): m is { id: string; tieuDe: string; canChuY?: boolean } => !!m)
+    .map((m, i) => ({ ...m, so: i + 1 }));
+  const so = (id: string) => cacMuc.find((m) => m.id === id)?.so ?? 0;
+  const nutMo = (href: string, icon: React.ReactNode, text: string) => (
+    <Link
+      href={href}
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
+    >
+      {icon} {text}
+    </Link>
+  );
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      <MoMucTheoHash />
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Link
             href="/projects"
@@ -388,154 +409,203 @@ export default async function ProjectDetailPage({
         <StatusChanger projectId={project.id} status={project.status} canEdit={canEdit} />
       </div>
 
-      <section id="quy-trinh" className="scroll-mt-20">
-        <Card>
-          <CardHeader>
-            <CardTitle>Quy trình dự án</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <QuyTrinhPanel
-              projectId={project.id}
-              buoc={quyTrinh}
-              tin={tinBuoc}
-              nguoiDung={nguoiDungRows}
-              toiLa={session.userId}
-              laAdmin={session.role === "ADMIN"}
-              canEdit={canEdit}
-              nowMs={nowMs}
-            />
-          </CardContent>
-        </Card>
-      </section>
+      <HealthBanner muc={co.muc} lyDo={co.lyDo} {...chiSo} hienTien={canViewPayment} />
 
-      <section id="tong-quan" className="scroll-mt-20 space-y-6">
-        <HealthBanner muc={co.muc} lyDo={co.lyDo} {...chiSo} hienTien={canViewPayment} />
+      <MucLuc muc={cacMuc} />
+
+      <MucDuAn id="quy-trinh" so={so("quy-trinh")} tieuDe="Quy trình dự án">
+        <QuyTrinhPanel
+          projectId={project.id}
+          buoc={quyTrinh}
+          tin={tinBuoc}
+          nguoiDung={nguoiDungRows}
+          toiLa={session.userId}
+          laAdmin={session.role === "ADMIN"}
+          canEdit={canEdit}
+          nowMs={nowMs}
+        />
+      </MucDuAn>
+
+      <MucDuAn
+        id="tong-quan"
+        so={so("tong-quan")}
+        tieuDe="Thông tin chung"
+        tomTat={`${project.customer?.name ?? "Chưa có CĐT"} · ${project.contacts.length} người liên hệ`}
+      >
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Chủ đầu tư & người liên hệ</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="divide-y divide-slate-100">
-                <InfoRow label="Chủ đầu tư" value={project.customer?.name ?? "—"} />
-                <InfoRow label="Địa chỉ" value={project.customer?.address ?? "—"} />
-                {project.customer?.contactPerson && (
-                  <InfoRow
-                    label="Liên hệ (hồ sơ CĐT)"
-                    value={[project.customer.contactPerson, project.customer.phone]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  />
-                )}
-              </div>
-              <ProjectContacts
-                projectId={project.id}
-                contacts={project.contacts.map(({ id, name, role, phone, email, note }) => ({
-                  id,
-                  name,
-                  role,
-                  phone,
-                  email,
-                  note,
-                }))}
-                canEdit={canEdit}
-              />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Vật tư</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <MaterialInfo
-                projectId={project.id}
-                info={{
-                  mauSon: project.mauSon,
-                  mauTonMai: project.mauTonMai,
-                  mauTonVach: project.mauTonVach,
-                  ghiChuVatTu: project.ghiChuVatTu,
-                }}
-                specs={project.materialSpecs.map(({ id, tag, name, spec, origin }) => ({
-                  id,
-                  tag,
-                  name,
-                  spec,
-                  origin,
-                }))}
-                orders={
-                  canViewPurchase
-                    ? project.purchaseOrders.map((o) => ({
-                        id: o.id,
-                        category: o.category,
-                        status: o.status,
-                        supplierName: o.supplier?.name ?? null,
-                        value: canViewProfit ? o.value : null,
-                        totalWeight: o.totalWeight,
-                        expectedDate: o.expectedDate?.toISOString() ?? null,
-                        receivedDate: o.receivedDate?.toISOString() ?? null,
-                      }))
-                    : []
-                }
-                canEdit={canEdit}
-                coBaoGia={project.clientQuotes.length > 0}
-                nowMs={nowMs}
-              />
-            </CardContent>
-          </Card>
+          <div>
+            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Công trình
+            </h4>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+              <OThongTin nhan="Vị trí">{project.location ?? "—"}</OThongTin>
+              <OThongTin nhan="Kích thước (K×L×H)">{dim}</OThongTin>
+              <OThongTin nhan="Diện tích">
+                {project.area ? `${formatNumber(project.area)} m²` : "—"}
+              </OThongTin>
+              <OThongTin nhan="Giá bán">
+                {project.salePrice ? formatVND(project.salePrice) : "—"}
+              </OThongTin>
+              <OThongTin nhan="Ngày bắt đầu">{formatDate(project.startDate)}</OThongTin>
+              <OThongTin nhan="Ngày hoàn thành">{formatDate(project.endDate)}</OThongTin>
+              {project.note && (
+                <OThongTin nhan="Ghi chú" rong>
+                  <span className="font-normal text-slate-700">{project.note}</span>
+                </OThongTin>
+              )}
+            </dl>
+          </div>
+          <div>
+            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Chủ đầu tư & người liên hệ
+            </h4>
+            <dl className="mb-3 grid grid-cols-2 gap-x-4 gap-y-3">
+              <OThongTin nhan="Chủ đầu tư">{project.customer?.name ?? "—"}</OThongTin>
+              <OThongTin nhan="Địa chỉ">{project.customer?.address ?? "—"}</OThongTin>
+              {project.customer?.contactPerson && (
+                <OThongTin nhan="Liên hệ (hồ sơ CĐT)" rong>
+                  {[project.customer.contactPerson, project.customer.phone]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </OThongTin>
+              )}
+            </dl>
+            <ProjectContacts
+              projectId={project.id}
+              contacts={project.contacts.map(({ id, name, role, phone, email, note }) => ({
+                id,
+                name,
+                role,
+                phone,
+                email,
+                note,
+              }))}
+              canEdit={canEdit}
+            />
+          </div>
         </div>
-      </section>
+        {memberData && (
+          <div className="mt-4">
+            <ProjectMembers
+              projectId={project.id}
+              members={memberData.members}
+              allUsers={memberData.allUsers}
+            />
+          </div>
+        )}
+      </MucDuAn>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Thông tin dự án</CardTitle>
-          </CardHeader>
-          <CardContent className="divide-y divide-slate-100 py-1">
-            <InfoRow label="Vị trí" value={project.location ?? "—"} />
-            <InfoRow label="Kích thước (K×L×H)" value={dim} />
-            <InfoRow label="Diện tích" value={`${formatNumber(project.area)} m²`} />
-            <InfoRow label="Giá bán" value={project.salePrice ? formatVND(project.salePrice) : "—"} />
-            <InfoRow label="Ngày bắt đầu" value={formatDate(project.startDate)} />
-            <InfoRow label="Ngày hoàn thành" value={formatDate(project.endDate)} />
-            {project.note && <InfoRow label="Ghi chú" value={project.note} />}
-          </CardContent>
-        </Card>
+      <MucDuAn
+        id="tien-do"
+        so={so("tien-do")}
+        tieuDe="Tiến độ thực hiện"
+        tomTat={`${mocXong}/${MILESTONE_TYPE.length} mốc xong`}
+      >
+        <Milestones
+          projectId={project.id}
+          milestones={milestoneMap}
+          canEdit={canEditProgress}
+          nowMs={nowMs}
+        />
+      </MucDuAn>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Nhà cung cấp theo hạng mục</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <MucDuAn
+        id="qc"
+        so={so("qc")}
+        tieuDe="QC theo giai đoạn"
+        mo={false}
+        tomTat={
+          qcMuc.length === 0 ? (
+            "Chưa tạo"
+          ) : (
+            <>
+              xong {qcTom.dat}/{qcTom.tong}
+              {qcTom.khongDat > 0 && (
+                <span className="ml-2 font-medium text-red-600">
+                  {qcTom.khongDat} không đạt
+                </span>
+              )}
+            </>
+          )
+        }
+      >
+        <QcPanel
+          projectId={project.id}
+          muc={qcMuc}
+          role={session.role}
+          canEdit={canEdit}
+          coKho={isStorageConfigured()}
+          soSanh={soSanh}
+          soViecHoSoThieu={soViecHoSoThieu}
+        />
+      </MucDuAn>
+
+      <MucDuAn
+        id="vat-tu"
+        so={so("vat-tu")}
+        tieuDe="Vật tư & nhà cung cấp"
+        tomTat={`${project.materialSpecs.length} quy cách`}
+      >
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[3fr_2fr]">
+          <MaterialInfo
+            projectId={project.id}
+            info={{
+              mauSon: project.mauSon,
+              mauTonMai: project.mauTonMai,
+              mauTonVach: project.mauTonVach,
+              ghiChuVatTu: project.ghiChuVatTu,
+            }}
+            specs={project.materialSpecs.map(({ id, tag, name, spec, origin }) => ({
+              id,
+              tag,
+              name,
+              spec,
+              origin,
+            }))}
+            orders={
+              canViewPurchase
+                ? project.purchaseOrders.map((o) => ({
+                    id: o.id,
+                    category: o.category,
+                    status: o.status,
+                    supplierName: o.supplier?.name ?? null,
+                    value: canViewProfit ? o.value : null,
+                    totalWeight: o.totalWeight,
+                    expectedDate: o.expectedDate?.toISOString() ?? null,
+                    receivedDate: o.receivedDate?.toISOString() ?? null,
+                  }))
+                : []
+            }
+            canEdit={canEdit}
+            coBaoGia={project.clientQuotes.length > 0}
+            nowMs={nowMs}
+          />
+          <div className="lg:border-l lg:border-slate-100 lg:pl-6">
+            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Nhà cung cấp theo hạng mục
+            </h4>
             <SupplierAssigner
               projectId={project.id}
               assigned={assigned}
               suppliers={suppliers}
               canEdit={canEdit}
             />
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </div>
+      </MucDuAn>
 
-      {memberData && (
-        <ProjectMembers
-          projectId={project.id}
-          members={memberData.members}
-          allUsers={memberData.allUsers}
-        />
-      )}
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Dự toán & Chi phí</CardTitle>
-          <Link
-            href={`/projects/${project.id}/estimate`}
-            className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100"
-          >
-            <Calculator className="h-4 w-4" /> Mở dự toán
-          </Link>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <MucDuAn
+        id="tai-chinh"
+        so={so("tai-chinh")}
+        tieuDe="Dự toán & tài chính"
+        hanhDong={nutMo(
+          `/projects/${project.id}/estimate`,
+          <Calculator className="h-3.5 w-3.5" />,
+          "Mở dự toán",
+        )}
+      >
+        <div className="space-y-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Summary label="Tổng chi phí" value={formatVND(profit.totalCost)} />
             {canViewProfit && <Summary label="Giá bán" value={formatVND(profit.salePrice)} />}
             {canViewProfit && (
@@ -545,9 +615,7 @@ export default async function ProjectDetailPage({
                 valueClass={profit.profit >= 0 ? "text-green-600" : "text-red-600"}
               />
             )}
-            {canViewProfit && (
-              <Summary label="Biên LN" value={formatPercent(profit.margin)} />
-            )}
+            {canViewProfit && <Summary label="Biên LN" value={formatPercent(profit.margin)} />}
             {!canViewProfit && (
               <Summary
                 label="CP / m²"
@@ -556,226 +624,176 @@ export default async function ProjectDetailPage({
             )}
           </div>
           {canViewProfit && giaiDoan && (
-            <div className="mt-4 max-w-xl">
+            <div className="max-w-xl">
               <BangGiaiDoan g={giaiDoan} />
             </div>
           )}
-        </CardContent>
-      </Card>
 
-      {canViewContract && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Hợp đồng & Báo giá</CardTitle>
-            <Link
-              href={`/projects/${project.id}/contract`}
-              className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100"
+          {canViewContract && (
+            <PhanCon
+              tieuDe="Hợp đồng & báo giá"
+              hanhDong={nutMo(
+                `/projects/${project.id}/contract`,
+                <FileSignature className="h-3.5 w-3.5" />,
+                "Mở hợp đồng",
+              )}
             >
-              <FileSignature className="h-4 w-4" /> Mở hợp đồng
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {project.contracts.length === 0 ? (
-              <p className="text-sm text-slate-400">Chưa có hợp đồng / báo giá</p>
-            ) : (
-              <div className="space-y-2">
-                {project.contracts.map((c) => {
-                  const t = computeContractTotals(c.items, c.vatPercent);
-                  const st = CONTRACT_STATUS_MAP[c.status];
-                  return (
-                    <div
-                      key={c.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Badge tone={st?.tone ?? "slate"}>{st?.label ?? c.status}</Badge>
-                        <span className="text-sm font-medium text-slate-800">
-                          {c.contractNo ?? c.subject ?? "—"}
-                        </span>
+              {project.contracts.length === 0 ? (
+                <p className="text-sm text-slate-400">Chưa có hợp đồng / báo giá</p>
+              ) : (
+                <div className="space-y-2">
+                  {project.contracts.map((c) => {
+                    const t = computeContractTotals(c.items, c.vatPercent);
+                    const st = CONTRACT_STATUS_MAP[c.status];
+                    return (
+                      <div
+                        key={c.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Badge tone={st?.tone ?? "slate"}>{st?.label ?? c.status}</Badge>
+                          <span className="text-sm font-medium text-slate-800">
+                            {c.contractNo ?? c.subject ?? "—"}
+                          </span>
+                        </div>
+                        <div className="text-sm text-slate-600">
+                          Chưa VAT: <span className="font-medium">{formatVND(t.beforeVat)}</span>
+                          <span className="mx-1.5 text-slate-300">·</span>
+                          Tổng:{" "}
+                          <span className="font-semibold text-green-600">
+                            {formatVND(t.withVat)}
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-sm text-slate-600">
-                        Chưa VAT: <span className="font-medium">{formatVND(t.beforeVat)}</span>
-                        <span className="mx-1.5 text-slate-300">·</span>
-                        Tổng:{" "}
-                        <span className="font-semibold text-green-600">{formatVND(t.withVat)}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {canViewPurchase && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Đơn hàng & Mua hàng</CardTitle>
-            <Link
-              href={`/projects/${project.id}/purchase`}
-              className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100"
-            >
-              <ShoppingCart className="h-4 w-4" /> Mở đơn hàng
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {project.purchaseOrders.length === 0 ? (
-              <p className="text-sm text-slate-400">Chưa có đơn đặt hàng</p>
-            ) : (
-              <div className="space-y-2">
-                {project.purchaseOrders.map((o) => {
-                  const cat = PO_CATEGORY_MAP[o.category];
-                  const st = PO_STATUS_MAP[o.status];
-                  return (
-                    <div
-                      key={o.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Badge tone={cat?.tone ?? "slate"}>{cat?.label ?? o.category}</Badge>
-                        <Badge tone={st?.tone ?? "slate"}>{st?.label ?? o.status}</Badge>
-                        <span className="text-sm text-slate-600">
-                          {o.supplier?.name ?? "Chưa gán NCC"}
-                        </span>
-                      </div>
-                      <div className="text-sm text-slate-600">
-                        {o._count.items} dòng
-                        <span className="mx-1.5 text-slate-300">·</span>
-                        <span className="font-medium text-blue-600">
-                          {formatNumber(o.totalWeight)} kg
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {canViewCost && project.costSummary && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Tổng hợp chi phí (quyết toán)</CardTitle>
-            <Link
-              href={`/projects/${project.id}/cost`}
-              className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100"
-            >
-              <Wallet className="h-4 w-4" /> Xem chi tiết
-            </Link>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="rounded-lg bg-slate-50 px-3 py-2">
-                <div className="text-xs text-slate-500">Doanh thu</div>
-                <div className="font-semibold text-blue-600">
-                  {formatVND(project.costSummary.revenue ?? 0)}
-                </div>
-              </div>
-              <div className="rounded-lg bg-slate-50 px-3 py-2">
-                <div className="text-xs text-slate-500">Chi phí</div>
-                <div className="font-semibold text-amber-600">
-                  {formatVND(project.costSummary.cost ?? 0)}
-                </div>
-              </div>
-              {canViewProfit && (
-                <div className="rounded-lg bg-slate-50 px-3 py-2">
-                  <div className="text-xs text-slate-500">LNTT</div>
-                  <div className="font-semibold text-green-600">
-                    {formatVND(project.costSummary.profit ?? 0)}
-                  </div>
+                    );
+                  })}
                 </div>
               )}
+            </PhanCon>
+          )}
+
+          {canViewPayment && (
+            <PhanCon tieuDe="Thanh toán theo đợt">
+              <ProjectPayments
+                projectId={project.id}
+                payments={payments}
+                canEdit={canEditPayment}
+                now={nowMs}
+              />
+            </PhanCon>
+          )}
+
+          {canViewCost && project.costSummary && (
+            <PhanCon
+              tieuDe="Tổng hợp chi phí (quyết toán)"
+              hanhDong={nutMo(
+                `/projects/${project.id}/cost`,
+                <Wallet className="h-3.5 w-3.5" />,
+                "Xem chi tiết",
+              )}
+            >
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <Summary
+                  label="Doanh thu"
+                  value={formatVND(project.costSummary.revenue ?? 0)}
+                  valueClass="text-blue-600"
+                />
+                <Summary
+                  label="Chi phí"
+                  value={formatVND(project.costSummary.cost ?? 0)}
+                  valueClass="text-amber-600"
+                />
+                {canViewProfit && (
+                  <Summary
+                    label="LNTT"
+                    value={formatVND(project.costSummary.profit ?? 0)}
+                    valueClass="text-green-600"
+                  />
+                )}
+              </div>
+            </PhanCon>
+          )}
+        </div>
+      </MucDuAn>
+
+      {canViewPurchase && (
+        <MucDuAn
+          id="mua-hang"
+          so={so("mua-hang")}
+          tieuDe="Đơn hàng & mua hàng"
+          tomTat={`${project.purchaseOrders.length} đơn`}
+          hanhDong={nutMo(
+            `/projects/${project.id}/purchase`,
+            <ShoppingCart className="h-3.5 w-3.5" />,
+            "Mở đơn hàng",
+          )}
+        >
+          {project.purchaseOrders.length === 0 ? (
+            <p className="text-sm text-slate-400">Chưa có đơn đặt hàng</p>
+          ) : (
+            <div className="space-y-2">
+              {project.purchaseOrders.map((o) => {
+                const cat = PO_CATEGORY_MAP[o.category];
+                const st = PO_STATUS_MAP[o.status];
+                return (
+                  <div
+                    key={o.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Badge tone={cat?.tone ?? "slate"}>{cat?.label ?? o.category}</Badge>
+                      <Badge tone={st?.tone ?? "slate"}>{st?.label ?? o.status}</Badge>
+                      <span className="text-sm text-slate-600">
+                        {o.supplier?.name ?? "Chưa gán NCC"}
+                      </span>
+                    </div>
+                    <div className="text-sm text-slate-600">
+                      {o._count.items} dòng
+                      <span className="mx-1.5 text-slate-300">·</span>
+                      <span className="font-medium text-blue-600">
+                        {formatNumber(o.totalWeight)} kg
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </MucDuAn>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Tiến độ thực hiện</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Milestones
-            projectId={project.id}
-            milestones={milestoneMap}
-            canEdit={canEditProgress}
-            nowMs={nowMs}
-          />
-        </CardContent>
-      </Card>
+      <MucDuAn
+        id="ho-so"
+        so={so("ho-so")}
+        tieuDe="Hồ sơ & phiên bản"
+        tomTat={`${docs.length} bản`}
+        mo={false}
+      >
+        <DocVersions
+          projectId={project.id}
+          docs={docs}
+          canEditTypes={canEditTypes}
+          canDelete={session.role === "ADMIN"}
+        />
+      </MucDuAn>
 
-      <section id="qc" className="scroll-mt-20">
-        <Card>
-          <CardHeader>
-            <CardTitle>QC theo giai đoạn</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <QcPanel
-              projectId={project.id}
-              muc={qcMuc}
-              role={session.role}
-              canEdit={canEdit}
-              coKho={isStorageConfigured()}
-              soSanh={soSanh}
-              soViecHoSoThieu={soViecHoSoThieu}
-            />
-          </CardContent>
-        </Card>
-      </section>
+      <MucDuAn
+        id="nhat-ky"
+        so={so("nhat-ky")}
+        tieuDe="Nhật ký dự án"
+        tomTat={`${notes.length} ghi chép`}
+        mo={false}
+      >
+        <ProjectNotes
+          projectId={project.id}
+          notes={notes}
+          canEdit={canEdit}
+          canDelete={session.role === "ADMIN"}
+        />
+      </MucDuAn>
 
-      {canViewPayment && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Thanh toán theo đợt</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ProjectPayments
-              projectId={project.id}
-              payments={payments}
-              canEdit={canEditPayment}
-              now={nowMs}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Hồ sơ & phiên bản</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DocVersions
-            projectId={project.id}
-            docs={docs}
-            canEditTypes={canEditTypes}
-            canDelete={session.role === "ADMIN"}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Nhật ký dự án</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ProjectNotes
-            projectId={project.id}
-            notes={notes}
-            canEdit={canEdit}
-            canDelete={session.role === "ADMIN"}
-          />
-        </CardContent>
-      </Card>
-
-      {can(session.role, "profit", "view") && (
-      <Card>
-        <CardHeader>
-          <CardTitle>Lịch sử thay đổi</CardTitle>
-        </CardHeader>
-        <CardContent>
+      {canViewProfit && (
+        <MucDuAn id="lich-su" so={so("lich-su")} tieuDe="Lịch sử thay đổi" mo={false}>
           <AuditEntries rows={auditLog} />
           {auditLog.length === 30 && (
             <p className="pt-2 text-xs text-slate-400">
@@ -783,9 +801,29 @@ export default async function ProjectDetailPage({
               {session.role === "ADMIN" ? " Xem đầy đủ ở mục Nhật ký thay đổi." : ""}
             </p>
           )}
-        </CardContent>
-      </Card>
+        </MucDuAn>
       )}
+    </div>
+  );
+}
+
+/** Phần con trong một mục (vd. Hợp đồng, Thanh toán trong mục Tài chính). */
+function PhanCon({
+  tieuDe,
+  hanhDong,
+  children,
+}: {
+  tieuDe: string;
+  hanhDong?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border-t border-slate-100 pt-4">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400">{tieuDe}</h4>
+        {hanhDong}
+      </div>
+      {children}
     </div>
   );
 }
