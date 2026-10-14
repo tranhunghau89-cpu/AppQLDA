@@ -2,12 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { ArrowDown, ArrowUp, Eye, EyeOff, Pencil, Plus } from "lucide-react";
-import { Input, Select } from "@/components/ui/form";
+import { Input, Select, Textarea } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { MILESTONE_TYPE, QC_LOAI, QC_LOAI_MAP } from "@/lib/constants";
 import { ROLES, ROLE_LABEL, type Role } from "@/lib/rbac";
+import { dongTieuChi } from "@/lib/qc";
 import { batTatQcMau, doiThuTuQcMau, luuQcMau } from "./actions";
 
 interface MauRow {
@@ -16,6 +17,7 @@ interface MauRow {
   noiDung: string;
   boPhan: string;
   loai: string;
+  tieuChi: string | null;
   active: boolean;
 }
 type Draft = {
@@ -24,6 +26,7 @@ type Draft = {
   noiDung: string;
   boPhan: string;
   loai: string;
+  tieuChi: string | null;
 };
 
 export function QcMauEditor({ mau }: { mau: MauRow[] }) {
@@ -66,6 +69,13 @@ export function QcMauEditor({ mau }: { mau: MauRow[] }) {
           </option>
         ))}
       </Select>
+      <Textarea
+        className="sm:col-span-4"
+        rows={5}
+        placeholder="Tiêu chí chi tiết — mỗi dòng một ý (cách kiểm, dung sai, bằng chứng cần có)"
+        value={draft.tieuChi ?? ""}
+        onChange={set("tieuChi")}
+      />
       <div className="flex gap-2 sm:col-span-4">
         <Button
           size="sm"
@@ -112,6 +122,7 @@ export function QcMauEditor({ mau }: { mau: MauRow[] }) {
                       noiDung: "",
                       boPhan: "ENGINEERING",
                       loai: "THUONG",
+                      tieuChi: "",
                     })
                   }
                 >
@@ -141,6 +152,13 @@ export function QcMauEditor({ mau }: { mau: MauRow[] }) {
                         )}
                         {!m.active && <Badge>Đã tắt</Badge>}
                       </div>
+                      {m.tieuChi && (
+                        <ol className="mt-1 list-decimal pl-5 text-xs text-slate-600">
+                          {dongTieuChi(m.tieuChi).map((t, k) => (
+                            <li key={k}>{t}</li>
+                          ))}
+                        </ol>
+                      )}
                     </div>
                     <div className="flex shrink-0 gap-1">
                       <Button
@@ -172,6 +190,7 @@ export function QcMauEditor({ mau }: { mau: MauRow[] }) {
                             noiDung: m.noiDung,
                             boPhan: m.boPhan,
                             loai: m.loai,
+                            tieuChi: m.tieuChi,
                           })
                         }
                       >

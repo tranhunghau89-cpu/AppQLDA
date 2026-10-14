@@ -14,6 +14,7 @@ export default async function QcMauPage() {
       noiDung: true,
       boPhan: true,
       loai: true,
+      tieuChi: true,
       active: true,
     },
   });

@@ -21,7 +21,7 @@ import {
   QC_LOAI_MAP,
 } from "@/lib/constants";
 import { ROLES, ROLE_LABEL, type Role } from "@/lib/rbac";
-import { duocDanhQc, tomTatGiaiDoan } from "@/lib/qc";
+import { dongTieuChi, duocDanhQc, tomTatGiaiDoan } from "@/lib/qc";
 import { formatDate } from "@/lib/utils";
 import { danhGiaQc, luuQcMuc, taoQcTuMau, xoaQcMuc } from "./qcActions";
 import { QcSoSanhVatTu, type SoSanhData } from "./QcSoSanhVatTu";
@@ -40,6 +40,7 @@ export interface QcMucView {
   noiDung: string;
   boPhan: string;
   loai: string;
+  tieuChi: string | null;
   ketQua: string;
   nguoiKiem: string | null;
   ngayKiem: string | null;
@@ -52,6 +53,7 @@ type Draft = {
   noiDung: string;
   boPhan: string;
   loai: string;
+  tieuChi: string | null;
 };
 
 const NUT_KET_QUA = ["DAT", "KHONG_DAT", "KHONG_AP_DUNG"] as const;
@@ -130,6 +132,13 @@ export function QcPanel({
             </option>
           ))}
         </Select>
+        <Textarea
+          className="sm:col-span-4"
+          rows={5}
+          placeholder="Tiêu chí chi tiết — mỗi dòng một ý (cách kiểm, dung sai, bằng chứng cần có)"
+          value={draft.tieuChi ?? ""}
+          onChange={set("tieuChi")}
+        />
         <div className="flex gap-2 sm:col-span-4">
           <Button
             size="sm"
@@ -178,6 +187,7 @@ export function QcPanel({
                       noiDung: "",
                       boPhan: "ENGINEERING",
                       loai: "THUONG",
+                      tieuChi: "",
                     })
                   }
                 >
@@ -208,6 +218,7 @@ export function QcPanel({
                         noiDung: m.noiDung,
                         boPhan: m.boPhan,
                         loai: m.loai,
+                        tieuChi: m.tieuChi,
                       })
                     }
                     onXoa={async () => {
@@ -263,6 +274,8 @@ function QcDong({
   const [dangLuu, start] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
   const kq = QC_KET_QUA_MAP[m.ketQua];
+  const [xemTc, setXemTc] = useState(false);
+  const tieuChi = dongTieuChi(m.tieuChi);
 
   function luu() {
     if (!formRef.current) return;
@@ -295,7 +308,23 @@ function QcDong({
                 {m.nguoiKiem} · {formatDate(m.ngayKiem)}
               </span>
             )}
+            {tieuChi.length > 0 && (
+              <button
+                type="button"
+                className="text-blue-600 hover:underline"
+                onClick={() => setXemTc((x) => !x)}
+              >
+                {xemTc || mo === "danh" ? "Ẩn" : "Xem"} tiêu chí ({tieuChi.length})
+              </button>
+            )}
           </div>
+          {tieuChi.length > 0 && (xemTc || mo === "danh") && (
+            <ol className="mt-1 list-decimal space-y-0.5 rounded-md bg-slate-50 py-2 pl-8 pr-3 text-slate-700">
+              {tieuChi.map((t, i) => (
+                <li key={i}>{t}</li>
+              ))}
+            </ol>
+          )}
           {m.ghiChu && (
             <div className="mt-1 whitespace-pre-line text-slate-700">
               {m.ghiChu}

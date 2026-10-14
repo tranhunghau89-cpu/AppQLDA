@@ -10,6 +10,20 @@ export interface QcMucLite {
   ketQua: string;
 }
 
+/** Tách tiêu chí con: mỗi dòng một ý, bỏ dòng trống và gạch đầu dòng gõ tay. */
+export function dongTieuChi(s: string | null | undefined): string[] {
+  return (s ?? "")
+    .split(/\r?\n/)
+    .map((d) => d.replace(/^\s*[-•*+]\s*/, "").trim())
+    .filter(Boolean);
+}
+
+/** Chuẩn hoá tiêu chí con trước khi lưu; null khi không có ý nào. */
+export function chuanTieuChi(s: string | null | undefined): string | null {
+  const ds = dongTieuChi(s);
+  return ds.length ? ds.join("\n") : null;
+}
+
 /** Người dùng có được đánh kết quả mục thuộc `boPhan` không. ADMIN đánh được mọi bộ phận. */
 export function duocDanhQc(role: string, boPhan: string): boolean {
   return role === "ADMIN" || role === boPhan;

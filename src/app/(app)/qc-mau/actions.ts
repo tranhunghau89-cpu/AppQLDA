@@ -6,10 +6,11 @@ import { requireSession } from "@/lib/auth";
 import { diffFields, recordAudit } from "@/lib/audit";
 import { MILESTONE_TYPE_MAP, QC_LOAI_MAP } from "@/lib/constants";
 import { ROLES } from "@/lib/rbac";
+import { chuanTieuChi } from "@/lib/qc";
 
 type Result = { ok: true } | { ok: false; error: string };
 const CHI_ADMIN = "Chỉ Ban giám đốc / Quản lý được sửa mẫu QC.";
-const FIELDS = ["giaiDoan", "noiDung", "boPhan", "loai", "active"] as const;
+const FIELDS = ["giaiDoan", "noiDung", "boPhan", "loai", "tieuChi", "active"] as const;
 
 async function admin() {
   const s = await requireSession();
@@ -22,6 +23,7 @@ export async function luuQcMau(v: {
   noiDung: string;
   boPhan: string;
   loai: string;
+  tieuChi?: string | null;
 }): Promise<Result> {
   const s = await admin();
   if (!s) return { ok: false, error: CHI_ADMIN };
@@ -38,6 +40,7 @@ export async function luuQcMau(v: {
     noiDung,
     boPhan: v.boPhan,
     loai: v.loai,
+    tieuChi: chuanTieuChi(v.tieuChi),
   };
 
   if (v.id) {

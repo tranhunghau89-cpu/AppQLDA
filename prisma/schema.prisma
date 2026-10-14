@@ -423,6 +423,7 @@ model QcMau {
   noiDung   String
   boPhan    String // Role
   loai      String   @default("THUONG") // THUONG | DOI_CHIEU_VAT_TU
+  tieuChi   String? // tiêu chí con, mỗi dòng một ý
   thuTu     Int      @default(0)
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -439,6 +440,7 @@ model QcMuc {
   noiDung   String
   boPhan    String
   loai      String      @default("THUONG")
+  tieuChi   String? // chép từ mẫu lúc tạo, mỗi dòng một ý
   thuTu     Int         @default(0)
   // Kết quả hiện tại = lần kiểm mới nhất (giữ sẵn để lọc/đếm không phải join lịch sử).
   ketQua    String      @default("CHUA") // CHUA | DAT | KHONG_DAT | KHONG_AP_DUNG

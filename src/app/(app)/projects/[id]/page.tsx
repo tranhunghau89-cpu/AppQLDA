@@ -165,6 +165,7 @@ export default async function ProjectDetailPage({
     noiDung: m.noiDung,
     boPhan: m.boPhan,
     loai: m.loai,
+    tieuChi: m.tieuChi,
     ketQua: m.ketQua,
     nguoiKiem: m.nguoiKiem,
     ngayKiem: m.ngayKiem?.toISOString() ?? null,

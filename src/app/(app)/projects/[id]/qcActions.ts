@@ -8,7 +8,7 @@ import { canAccessProject } from "@/lib/scope";
 import { isStorageConfigured, uploadFile } from "@/lib/storage";
 import { MILESTONE_TYPE_MAP, QC_LOAI_MAP } from "@/lib/constants";
 import { ROLES } from "@/lib/rbac";
-import { duocDanhQc, kiemTraDanhGia } from "@/lib/qc";
+import { chuanTieuChi, duocDanhQc, kiemTraDanhGia } from "@/lib/qc";
 import type { ActionResult } from "../actions";
 
 const NO_EDIT = "Bạn không có quyền sửa danh mục QC.";
@@ -44,6 +44,7 @@ export async function taoQcTuMau(projectId: string): Promise<ActionResult> {
         noiDung: m.noiDung,
         boPhan: m.boPhan,
         loai: m.loai,
+        tieuChi: m.tieuChi,
         thuTu: m.thuTu,
       })),
     });
@@ -62,6 +63,7 @@ export async function luuQcMuc(
     noiDung: string;
     boPhan: string;
     loai: string;
+    tieuChi?: string | null;
   },
 ): Promise<ActionResult> {
   const denied = await denyProject("project", "edit", projectId, NO_EDIT);
@@ -80,6 +82,7 @@ export async function luuQcMuc(
     noiDung,
     boPhan: v.boPhan,
     loai: v.loai,
+    tieuChi: chuanTieuChi(v.tieuChi),
   };
   if (v.id) {
     const n = await db.qcMuc.updateMany({
