@@ -7,15 +7,17 @@ import { canAccessCoHoi } from "@/lib/coHoiAccess";
 import type { SessionUser } from "@/lib/session";
 
 /** Chủ của việc mà tin trao đổi gắn vào. */
-export type ChuViec = { projectId: string | null; coHoiId: string | null };
+export type ChuViec = { projectId: string | null; coHoiId: string | null; doiTuong?: string };
 
 /** Người này có được xem việc (và trao đổi của nó) không. */
 export async function duocXemViec(
   ai: Pick<SessionUser, "userId" | "role">,
   chu: ChuViec
 ): Promise<boolean> {
-  if (!can(ai.role as Role, "quote", "view")) return false;
   const s = ai as SessionUser;
+  // Bước quy trình dự án: ai xem được dự án là xem được, không cần quyền báo giá.
+  if (chu.doiTuong === "BUOC") return !!chu.projectId && canAccessProject(s, chu.projectId);
+  if (!can(ai.role as Role, "quote", "view")) return false;
   if (chu.projectId) return canAccessProject(s, chu.projectId);
   if (chu.coHoiId) return canAccessCoHoi(s, chu.coHoiId);
   return false;
@@ -34,6 +36,7 @@ export function duongDanViec(t: {
   projectId: string | null;
   coHoiId: string | null;
 }): string {
+  if (t.doiTuong === "BUOC") return `/projects/${t.projectId}#quy-trinh`;
   const goc = t.projectId ? `/projects/${t.projectId}` : `/co-hoi/${t.coHoiId}`;
   return t.doiTuong === "CLIENT_QUOTE"
     ? `${goc}/client-quote?mo=${t.doiTuongId}#trao-doi`

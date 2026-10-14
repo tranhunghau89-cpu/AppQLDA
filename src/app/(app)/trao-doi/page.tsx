@@ -14,6 +14,7 @@ const TONE: Record<string, "slate" | "blue" | "amber" | "green"> = {
 const TEN_VIEC: Record<string, string> = {
   CLIENT_QUOTE: "Báo giá gửi khách",
   QUOTE: "Dự toán chi tiết",
+  BUOC: "Quy trình dự án",
 };
 
 // Hộp thư: các tin người khác nhắn tới mình, chưa đọc lên đầu. Đọc là bấm vào việc —

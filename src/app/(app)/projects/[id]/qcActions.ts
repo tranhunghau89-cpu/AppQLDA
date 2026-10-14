@@ -9,6 +9,7 @@ import { isStorageConfigured, uploadFile } from "@/lib/storage";
 import { MILESTONE_TYPE_MAP, QC_LOAI_MAP } from "@/lib/constants";
 import { ROLES } from "@/lib/rbac";
 import { chuanTieuChi, dongTieuChi, duocDanhQc, kiemTraDanhGia } from "@/lib/qc";
+import { moLaiBuocQc } from "@/lib/quyTrinhDb";
 import type { ActionResult } from "../actions";
 
 const NO_EDIT = "Bạn không có quyền sửa danh mục QC.";
@@ -194,6 +195,8 @@ export async function danhGiaQc(
       },
     }),
   ]);
+  if (ketQua === "KHONG_DAT")
+    await moLaiBuocQc(projectId, muc.giaiDoan, { userId: session.userId, name: session.name }, muc.noiDung);
 
   lamMoi(projectId);
   return { ok: true };

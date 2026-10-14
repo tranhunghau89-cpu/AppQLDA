@@ -30,6 +30,8 @@ import { HealthBanner } from "./HealthBanner";
 import { ProjectContacts } from "./ProjectContacts";
 import { MaterialInfo } from "./MaterialInfo";
 import { QcPanel, type QcMucView } from "./QcPanel";
+import { QuyTrinhPanel, type TinBuoc } from "./QuyTrinhPanel";
+import { napQuyTrinh } from "@/lib/quyTrinhDb";
 import type { SoSanhData } from "./QcSoSanhVatTu";
 import { isStorageConfigured } from "@/lib/storage";
 
@@ -145,6 +147,28 @@ export default async function ProjectDetailPage({
       note: m.note,
     };
   }
+
+  // ----- Quy trình dự án -----
+  const quyTrinh = await napQuyTrinh(id);
+  const [tinBuocRows, nguoiDungRows] = await Promise.all([
+    db.traoDoi.findMany({
+      where: { doiTuong: "BUOC", doiTuongId: { in: quyTrinh.map((b) => b.id) } },
+      orderBy: { createdAt: "asc" },
+      select: { doiTuongId: true, loai: true, noiDung: true, tacGiaTen: true, createdAt: true },
+    }),
+    db.user.findMany({
+      where: { active: true },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+  const tinBuoc: TinBuoc[] = tinBuocRows.map((t) => ({
+    buocId: t.doiTuongId,
+    loai: t.loai,
+    noiDung: t.noiDung,
+    tacGiaTen: t.tacGiaTen,
+    createdAt: t.createdAt.toISOString(),
+  }));
 
   // ----- QC theo giai đoạn -----
   const qcRows = await db.qcMuc.findMany({
@@ -350,6 +374,26 @@ export default async function ProjectDetailPage({
         </div>
         <StatusChanger projectId={project.id} status={project.status} canEdit={canEdit} />
       </div>
+
+      <section id="quy-trinh" className="scroll-mt-20">
+        <Card>
+          <CardHeader>
+            <CardTitle>Quy trình dự án</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <QuyTrinhPanel
+              projectId={project.id}
+              buoc={quyTrinh}
+              tin={tinBuoc}
+              nguoiDung={nguoiDungRows}
+              toiLa={session.userId}
+              laAdmin={session.role === "ADMIN"}
+              canEdit={canEdit}
+              nowMs={nowMs}
+            />
+          </CardContent>
+        </Card>
+      </section>
 
       <section id="tong-quan" className="scroll-mt-20 space-y-6">
         <HealthBanner muc={co.muc} lyDo={co.lyDo} {...chiSo} hienTien={canViewPayment} />

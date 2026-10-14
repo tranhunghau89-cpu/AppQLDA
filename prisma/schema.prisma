@@ -246,6 +246,7 @@ model Project {
   contacts         ProjectContact[]
   materialSpecs    ProjectMaterialSpec[]
   qcMuc            QcMuc[]
+  buocQuyTrinh     BuocQuyTrinh[]
   coHoi           CoHoi? // cơ hội chào giá đã sinh ra dự án này (nếu có)
 
   @@index([status])
@@ -417,6 +418,27 @@ model ProjectMaterialSpec {
 
 // Bộ mẫu QC do Quản trị quản lý. Dự án CHÉP mẫu lúc tạo danh mục — sửa mẫu sau đó
 // không đụng dự án cũ. Không xoá cứng: tắt (active=false) để ẩn khỏi dự án mới.
+// Một bước của quy trình dự án (Thông tin dự án → QC từng giai đoạn). Lịch sử gửi / duyệt /
+// trả lại nằm ở TraoDoi (doiTuong = "BUOC"). Xem plan/33_QuyTrinh_ThongTin_QC.md
+model BuocQuyTrinh {
+  id           String    @id @default(cuid())
+  projectId    String
+  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  buoc         String // THONG_TIN | MILESTONE_TYPE
+  trangThai    String    @default("DANG_LAM") // DANG_LAM | CHO_DUYET | TRA_LAI | DA_DUYET
+  phuTrachId   String?
+  hanXuLy      DateTime? // null = lấy ngày kế hoạch của mốc tiến độ cùng giai đoạn
+  guiLuc       DateTime?
+  duyetLuc     DateTime?
+  nguoiDuyetId String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([projectId, buoc])
+  @@index([phuTrachId, trangThai])
+  @@index([trangThai])
+}
+
 model QcMau {
   id        String   @id @default(cuid())
   giaiDoan  String // MILESTONE_TYPE
