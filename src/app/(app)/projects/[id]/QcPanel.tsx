@@ -14,16 +14,18 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { useConfirm } from "@/components/ui/confirm";
-import {
-  QC_GIAI_DOAN,
-  QC_KET_QUA_MAP,
-  QC_LOAI,
-  QC_LOAI_MAP,
-} from "@/lib/constants";
+import { QC_GIAI_DOAN, QC_LOAI, QC_LOAI_MAP, QC_NHOM } from "@/lib/constants";
 import { ROLES, ROLE_LABEL, type Role } from "@/lib/rbac";
-import { dongTieuChi, duocDanhQc, tomTatGiaiDoan } from "@/lib/qc";
+import {
+  KET_QUA_THEO_NHOM,
+  dongTieuChi,
+  duocDanhQc,
+  nhanKetQua,
+  tomTatGiaiDoan,
+} from "@/lib/qc";
 import { formatDate } from "@/lib/utils";
 import {
+  boSungViecHoSoTuMau,
   chepMauGiaiDoan,
   danhGiaQc,
   ghiChuTieuChiQc,
@@ -47,6 +49,7 @@ export interface QcMucView {
   giaiDoan: string;
   noiDung: string;
   boPhan: string;
+  nhom: string;
   loai: string;
   tieuChi: string | null;
   ghiChuTc: Record<string, string>;
@@ -61,11 +64,21 @@ type Draft = {
   giaiDoan: string;
   noiDung: string;
   boPhan: string;
+  nhom: string;
   loai: string;
   tieuChi: string | null;
 };
 
-const NUT_KET_QUA = ["DAT", "KHONG_DAT", "KHONG_AP_DUNG"] as const;
+const NUT_DANH: Record<string, string> = {
+  VIEC: "Cập nhật",
+  HO_SO: "Nộp hồ sơ",
+  KIEM_TRA: "Đánh giá",
+};
+const GOI_Y_NOI_DUNG: Record<string, string> = {
+  VIEC: "Việc cần làm *",
+  HO_SO: "Hồ sơ cần có *",
+  KIEM_TRA: "Nội dung kiểm tra *",
+};
 
 export function QcPanel({
   projectId,
@@ -74,6 +87,7 @@ export function QcPanel({
   canEdit,
   coKho,
   soSanh,
+  soViecHoSoThieu,
 }: {
   projectId: string;
   muc: QcMucView[];
@@ -81,6 +95,7 @@ export function QcPanel({
   canEdit: boolean;
   coKho: boolean;
   soSanh: SoSanhData | null;
+  soViecHoSoThieu: number;
 }) {
   const toast = useToast();
   const confirm = useConfirm();
@@ -121,9 +136,16 @@ export function QcPanel({
   const formMuc = (giaiDoan: string) =>
     draft && draft.giaiDoan === giaiDoan ? (
       <div className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-4">
+        <Select value={draft.nhom} onChange={set("nhom")}>
+          {QC_NHOM.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </Select>
         <Input
-          className="sm:col-span-2"
-          placeholder="Nội dung kiểm tra *"
+          className="sm:col-span-3"
+          placeholder={GOI_Y_NOI_DUNG[draft.nhom]}
           value={draft.noiDung}
           onChange={set("noiDung")}
         />
@@ -134,13 +156,15 @@ export function QcPanel({
             </option>
           ))}
         </Select>
-        <Select value={draft.loai} onChange={set("loai")}>
-          {QC_LOAI.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </Select>
+        {draft.nhom === "KIEM_TRA" && (
+          <Select value={draft.loai} onChange={set("loai")}>
+            {QC_LOAI.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
+        )}
         <TieuChiEditor
           className="sm:col-span-4"
           value={draft.tieuChi ?? ""}
@@ -172,6 +196,21 @@ export function QcPanel({
 
   return (
     <div className="space-y-4">
+      {canEdit && soViecHoSoThieu > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-blue-50 px-4 py-2.5 text-sm">
+          <span className="text-blue-900">
+            Mẫu có {soViecHoSoThieu} việc cần làm / hồ sơ cần có mà dự án chưa
+            có.
+          </span>
+          <Button
+            size="sm"
+            disabled={pending}
+            onClick={() => run(() => boSungViecHoSoTuMau(projectId))}
+          >
+            <Plus className="h-4 w-4" /> Bổ sung từ mẫu
+          </Button>
+        </div>
+      )}
       {canEdit && gdTrong.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-4 py-2.5 text-sm">
           <span className="text-slate-500">Giai đoạn chưa có mục:</span>
@@ -199,7 +238,7 @@ export function QcPanel({
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-slate-800">{gd.label}</span>
                 <span className="text-sm text-slate-500">
-                  đạt {t.dat}/{t.tong}
+                  xong {t.dat}/{t.tong}
                 </span>
                 {t.khongDat > 0 && (
                   <Badge tone="red">{t.khongDat} không đạt</Badge>
@@ -214,6 +253,7 @@ export function QcPanel({
                       giaiDoan: gd.value,
                       noiDung: "",
                       boPhan: "ENGINEERING",
+                      nhom: "KIEM_TRA",
                       loai: "THUONG",
                       tieuChi: "",
                     })
@@ -224,46 +264,66 @@ export function QcPanel({
               )}
             </div>
             <div className="divide-y divide-slate-100">
-              {ds.map((m) =>
-                draft?.id === m.id ? (
-                  <div key={m.id} className="p-3">
-                    {formMuc(gd.value)}
+              {QC_NHOM.map((nh) => {
+                const dsNhom = ds.filter((m) => m.nhom === nh.value);
+                if (dsNhom.length === 0) return null;
+                const tn = tomTatGiaiDoan(dsNhom);
+                // Giai đoạn chỉ có mục kiểm tra (dự án cũ) thì khỏi tiêu đề nhóm.
+                const coTieuDe = ds.some((m) => m.nhom !== "KIEM_TRA");
+                return (
+                  <div key={nh.value} className="divide-y divide-slate-100">
+                    {coTieuDe && (
+                      <div className="flex items-center gap-2 bg-slate-50/70 px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+                        {nh.label}
+                        <span className="font-normal normal-case tabular-nums">
+                          {tn.dat}/{tn.tong}
+                        </span>
+                      </div>
+                    )}
+                    {dsNhom.map((m) =>
+                      draft?.id === m.id ? (
+                        <div key={m.id} className="p-3">
+                          {formMuc(gd.value)}
+                        </div>
+                      ) : (
+                        <QcDong
+                          key={m.id}
+                          projectId={projectId}
+                          m={m}
+                          duocDanh={duocDanhQc(role, m.boPhan)}
+                          canEdit={canEdit}
+                          coKho={coKho}
+                          soSanh={soSanh}
+                          pending={pending}
+                          onSua={() =>
+                            setDraft({
+                              id: m.id,
+                              giaiDoan: m.giaiDoan,
+                              noiDung: m.noiDung,
+                              boPhan: m.boPhan,
+                              nhom: m.nhom,
+                              loai: m.loai,
+                              tieuChi: m.tieuChi,
+                            })
+                          }
+                          onXoa={async () => {
+                            const coLichSu = m.lanKiem.length > 0;
+                            if (
+                              !(await confirm(
+                                coLichSu
+                                  ? `Xoá mục "${m.noiDung}"? ${m.lanKiem.length} lần kiểm sẽ bị xoá theo.`
+                                  : `Xoá mục "${m.noiDung}"?`,
+                              ))
+                            )
+                              return;
+                            run(() => xoaQcMuc(projectId, m.id));
+                          }}
+                        />
+                      ),
+                    )}
                   </div>
-                ) : (
-                  <QcDong
-                    key={m.id}
-                    projectId={projectId}
-                    m={m}
-                    duocDanh={duocDanhQc(role, m.boPhan)}
-                    canEdit={canEdit}
-                    coKho={coKho}
-                    soSanh={soSanh}
-                    pending={pending}
-                    onSua={() =>
-                      setDraft({
-                        id: m.id,
-                        giaiDoan: m.giaiDoan,
-                        noiDung: m.noiDung,
-                        boPhan: m.boPhan,
-                        loai: m.loai,
-                        tieuChi: m.tieuChi,
-                      })
-                    }
-                    onXoa={async () => {
-                      const coLichSu = m.lanKiem.length > 0;
-                      if (
-                        !(await confirm(
-                          coLichSu
-                            ? `Xoá mục "${m.noiDung}"? ${m.lanKiem.length} lần kiểm sẽ bị xoá theo.`
-                            : `Xoá mục "${m.noiDung}"?`,
-                        ))
-                      )
-                        return;
-                      run(() => xoaQcMuc(projectId, m.id));
-                    }}
-                  />
-                ),
-              )}
+                );
+              })}
               {!draft?.id && draft?.giaiDoan === gd.value && (
                 <div className="p-3">{formMuc(gd.value)}</div>
               )}
@@ -301,7 +361,8 @@ function QcDong({
   const [ketQua, setKetQua] = useState<string>("DAT");
   const [dangLuu, start] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
-  const kq = QC_KET_QUA_MAP[m.ketQua];
+  const kq = nhanKetQua(m.nhom, m.ketQua);
+  const laHoSo = m.nhom === "HO_SO";
   const [xemTc, setXemTc] = useState(false);
   const tieuChi = dongTieuChi(m.tieuChi);
   const soGhiChuTc = tieuChi.filter((t) => m.ghiChuTc[t]).length;
@@ -326,7 +387,7 @@ function QcDong({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone={kq?.tone ?? "slate"}>{kq?.label ?? m.ketQua}</Badge>
+            <Badge tone={kq.tone}>{kq.label}</Badge>
             <span className="text-slate-900">{m.noiDung}</span>
           </div>
           <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-slate-500">
@@ -343,11 +404,14 @@ function QcDong({
                 className="text-blue-600 hover:underline"
                 onClick={() => setXemTc((x) => !x)}
               >
-                {xemTc || mo === "danh" ? "Ẩn" : "Xem"} tiêu chí ({tieuChi.length})
+                {xemTc || mo === "danh" ? "Ẩn" : "Xem"} tiêu chí (
+                {tieuChi.length})
               </button>
             )}
             {soGhiChuTc > 0 && (
-              <span className="text-amber-700">{soGhiChuTc} tiêu chí có ghi chú</span>
+              <span className="text-amber-700">
+                {soGhiChuTc} tiêu chí có ghi chú
+              </span>
             )}
           </div>
           {tieuChi.length > 0 && (xemTc || mo === "danh") && (
@@ -398,7 +462,7 @@ function QcDong({
               variant={mo === "danh" ? "secondary" : "outline"}
               onClick={() => bat("danh")}
             >
-              Đánh giá
+              {NUT_DANH[m.nhom] ?? "Đánh giá"}
             </Button>
           )}
           {m.loai === "DOI_CHIEU_VAT_TU" && soSanh && (
@@ -445,7 +509,7 @@ function QcDong({
           className="space-y-2 rounded-lg bg-slate-50 p-3"
         >
           <div className="flex flex-wrap gap-2">
-            {NUT_KET_QUA.map((k) => (
+            {(KET_QUA_THEO_NHOM[m.nhom] ?? []).map((k) => (
               <button
                 type="button"
                 key={k}
@@ -460,7 +524,9 @@ function QcDong({
                     : "bg-white text-slate-700 ring-1 ring-slate-300"
                 }`}
               >
-                {QC_KET_QUA_MAP[k].label}
+                {k === "KHONG_AP_DUNG"
+                  ? "Không áp dụng"
+                  : nhanKetQua(m.nhom, k).label}
               </button>
             ))}
           </div>
@@ -473,14 +539,28 @@ function QcDong({
             }
             required={ketQua === "KHONG_DAT"}
           />
-          {coKho && (
-            <input
-              type="file"
-              name="tep"
-              multiple
-              accept="image/*,application/pdf"
-              className="block text-sm text-slate-600"
-            />
+          {coKho ? (
+            <div>
+              {laHoSo && ketQua === "DAT" && (
+                <p className="mb-1 text-xs font-medium text-purple-700">
+                  Đính kèm bản hồ sơ (ảnh hoặc PDF) — bắt buộc để đánh Đủ.
+                </p>
+              )}
+              <input
+                type="file"
+                name="tep"
+                multiple
+                required={laHoSo && ketQua === "DAT"}
+                accept="image/*,application/pdf"
+                className="block text-sm text-slate-600"
+              />
+            </div>
+          ) : (
+            laHoSo && (
+              <p className="text-xs text-amber-700">
+                Chưa cấu hình kho lưu tệp nên chưa đánh Đủ hồ sơ được.
+              </p>
+            )
           )}
           <div className="flex gap-2">
             <Button size="sm" type="submit" disabled={dangLuu}>
@@ -504,8 +584,8 @@ function QcDong({
         <ul className="space-y-1 rounded-lg bg-slate-50 p-3">
           {m.lanKiem.map((l) => (
             <li key={l.id} className="text-xs text-slate-600">
-              <Badge tone={QC_KET_QUA_MAP[l.ketQua]?.tone ?? "slate"}>
-                {QC_KET_QUA_MAP[l.ketQua]?.label ?? l.ketQua}
+              <Badge tone={nhanKetQua(m.nhom, l.ketQua).tone}>
+                {nhanKetQua(m.nhom, l.ketQua).label}
               </Badge>{" "}
               {l.nguoiTen} · {formatDate(l.createdAt)}
               {l.ghiChu && (
@@ -605,7 +685,11 @@ function TieuChiDong({
                   Xoá ghi chú
                 </Button>
               )}
-              <Button size="sm" variant="ghost" onClick={() => setDangSua(false)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setDangSua(false)}
+              >
                 Huỷ
               </Button>
             </div>

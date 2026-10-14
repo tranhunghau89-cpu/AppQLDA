@@ -441,9 +441,10 @@ model BuocQuyTrinh {
 
 model QcMau {
   id        String   @id @default(cuid())
-  giaiDoan  String // MILESTONE_TYPE
+  giaiDoan  String // QC_GIAI_DOAN
   noiDung   String
   boPhan    String // Role
+  nhom      String   @default("KIEM_TRA") // VIEC | HO_SO | KIEM_TRA
   loai      String   @default("THUONG") // THUONG | DOI_CHIEU_VAT_TU
   tieuChi   String? // tiêu chí con, mỗi dòng một ý
   thuTu     Int      @default(0)
@@ -461,6 +462,7 @@ model QcMuc {
   giaiDoan  String
   noiDung   String
   boPhan    String
+  nhom      String      @default("KIEM_TRA") // VIEC | HO_SO | KIEM_TRA
   loai      String      @default("THUONG")
   tieuChi   String? // chép từ mẫu lúc tạo, mỗi dòng một ý
   ghiChuTc  Json? // { "<nội dung tiêu chí>": "ghi chú" } — khoá theo nội dung để đổi thứ tự không lạc

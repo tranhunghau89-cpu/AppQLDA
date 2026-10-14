@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { duocDanhQc, kiemTraDanhGia, lyDoQc, sapXepViecQc, tomTatGiaiDoan } from "./qc";
+import { duocDanhQc, kiemTraDanhGia, lyDoQc, nhanKetQua, sapXepViecQc, tomTatGiaiDoan } from "./qc";
 
 // 12/10/2026 09:00 giờ VN
 const NOW = Date.parse("2026-10-12T02:00:00Z");
@@ -23,6 +23,27 @@ describe("kiemTraDanhGia", () => {
     expect(kiemTraDanhGia({ ketQua: "CHUA", ghiChu: "" })).not.toBeNull();
     expect(kiemTraDanhGia({ ketQua: "DAT", ghiChu: "" })).toBeNull();
     expect(kiemTraDanhGia({ ketQua: "KHONG_AP_DUNG", ghiChu: "" })).toBeNull();
+  });
+});
+
+describe("kiemTraDanhGia theo nhóm", () => {
+  it("việc / hồ sơ không có Không đạt", () => {
+    expect(kiemTraDanhGia({ ketQua: "KHONG_DAT", ghiChu: "x", nhom: "VIEC" })).not.toBeNull();
+    expect(kiemTraDanhGia({ ketQua: "KHONG_DAT", ghiChu: "x", nhom: "HO_SO" })).not.toBeNull();
+    expect(kiemTraDanhGia({ ketQua: "DAT", ghiChu: "", nhom: "VIEC" })).toBeNull();
+  });
+  it("hồ sơ Đủ bắt buộc có tệp; Không áp dụng thì không cần", () => {
+    expect(kiemTraDanhGia({ ketQua: "DAT", ghiChu: "", nhom: "HO_SO", soTep: 0 })).toMatch(/tệp/);
+    expect(kiemTraDanhGia({ ketQua: "DAT", ghiChu: "", nhom: "HO_SO", soTep: 1 })).toBeNull();
+    expect(kiemTraDanhGia({ ketQua: "KHONG_AP_DUNG", ghiChu: "", nhom: "HO_SO" })).toBeNull();
+  });
+});
+
+describe("nhanKetQua", () => {
+  it("đổi nhãn theo nhóm, giữ màu", () => {
+    expect(nhanKetQua("VIEC", "DAT")).toEqual({ label: "Xong", tone: "green" });
+    expect(nhanKetQua("HO_SO", "CHUA")).toEqual({ label: "Chưa có", tone: "slate" });
+    expect(nhanKetQua("KIEM_TRA", "DAT").label).toBe("Đạt");
   });
 });
 
@@ -51,7 +72,7 @@ describe("lyDoQc", () => {
     expect(lyDoQc(chua, mk(vn("2026-10-19")), NOW)[0]).toMatchObject({
       muc: "VANG",
       loai: "QC",
-      text: "QC Lắp dựng còn 2 mục chưa kiểm",
+      text: "QC Lắp dựng còn 2 mục chưa xong",
     });
     expect(lyDoQc(chua, mk(vn("2026-10-01")), NOW)[0]?.muc).toBe("VANG");
     expect(lyDoQc(chua, mk(vn("2026-10-20")), NOW)).toEqual([]);

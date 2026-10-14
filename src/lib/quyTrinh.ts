@@ -75,7 +75,7 @@ export interface QcDem {
 export function loiGuiQc(d: QcDem): string | null {
   if (d.tong === 0) return "Giai đoạn chưa có mục QC.";
   const con = d.tong - d.xong;
-  return con > 0 ? `Còn ${con}/${d.tong} mục QC chưa Đạt.` : null;
+  return con > 0 ? `Còn ${con}/${d.tong} mục QC chưa xong.` : null;
 }
 
 export interface BuocLuu {

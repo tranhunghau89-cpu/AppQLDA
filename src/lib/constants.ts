@@ -77,6 +77,14 @@ export const QC_GIAI_DOAN: Option[] = [
 ];
 export const QC_GIAI_DOAN_MAP = map(QC_GIAI_DOAN);
 
+// Nhóm mục trong mỗi giai đoạn: việc phải làm, hồ sơ phải có, điểm kiểm tra chất lượng.
+export const QC_NHOM: Option[] = [
+  { value: "VIEC", label: "Việc cần làm", tone: "blue" },
+  { value: "HO_SO", label: "Hồ sơ cần có", tone: "purple" },
+  { value: "KIEM_TRA", label: "Kiểm tra QC", tone: "slate" },
+];
+export const QC_NHOM_MAP = map(QC_NHOM);
+
 export const QC_KET_QUA: Option[] = [
   { value: "CHUA", label: "Chưa kiểm", tone: "slate" },
   { value: "DAT", label: "Đạt", tone: "green" },

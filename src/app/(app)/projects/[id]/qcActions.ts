@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { denyProject, requireSession } from "@/lib/auth";
 import { canAccessProject } from "@/lib/scope";
 import { isStorageConfigured, uploadFile } from "@/lib/storage";
-import { QC_GIAI_DOAN_MAP, QC_LOAI_MAP } from "@/lib/constants";
+import { QC_GIAI_DOAN_MAP, QC_LOAI_MAP, QC_NHOM_MAP } from "@/lib/constants";
 import { ROLES } from "@/lib/rbac";
 import { chuanTieuChi, dongTieuChi, duocDanhQc, kiemTraDanhGia } from "@/lib/qc";
 import { moLaiBuocQc } from "@/lib/quyTrinhDb";
@@ -44,6 +44,7 @@ export async function taoQcTuMau(projectId: string): Promise<ActionResult> {
         giaiDoan: m.giaiDoan,
         noiDung: m.noiDung,
         boPhan: m.boPhan,
+        nhom: m.nhom,
         loai: m.loai,
         tieuChi: m.tieuChi,
         thuTu: m.thuTu,
@@ -81,6 +82,7 @@ export async function chepMauGiaiDoan(
         giaiDoan: m.giaiDoan,
         noiDung: m.noiDung,
         boPhan: m.boPhan,
+        nhom: m.nhom,
         loai: m.loai,
         tieuChi: m.tieuChi,
         thuTu: m.thuTu,
@@ -93,6 +95,44 @@ export async function chepMauGiaiDoan(
   return { ok: true };
 }
 
+/**
+ * Chép các mục Việc cần làm / Hồ sơ cần có của mẫu mà dự án còn thiếu (so theo giai đoạn
+ * + nội dung). Mục Kiểm tra không chép bù — dự án có thể đã sửa chữ, chép lại sẽ trùng.
+ */
+export async function boSungViecHoSoTuMau(projectId: string): Promise<ActionResult> {
+  const denied = await denyProject("project", "edit", projectId, NO_EDIT);
+  if (denied) return denied;
+  const n = await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${"qc:" + projectId}))::text`;
+    const [mau, coSan] = await Promise.all([
+      tx.qcMau.findMany({
+        where: { active: true, nhom: { in: ["VIEC", "HO_SO"] } },
+        orderBy: { thuTu: "asc" },
+      }),
+      tx.qcMuc.findMany({ where: { projectId }, select: { giaiDoan: true, noiDung: true } }),
+    ]);
+    const da = new Set(coSan.map((m) => `${m.giaiDoan}|${m.noiDung}`));
+    const thieu = mau.filter((m) => !da.has(`${m.giaiDoan}|${m.noiDung}`));
+    if (thieu.length === 0) return 0;
+    await tx.qcMuc.createMany({
+      data: thieu.map((m) => ({
+        projectId,
+        giaiDoan: m.giaiDoan,
+        noiDung: m.noiDung,
+        boPhan: m.boPhan,
+        nhom: m.nhom,
+        loai: m.loai,
+        tieuChi: m.tieuChi,
+        thuTu: m.thuTu,
+      })),
+    });
+    return thieu.length;
+  });
+  if (n === 0) return { ok: false, error: "Dự án đã có đủ việc và hồ sơ theo mẫu." };
+  lamMoi(projectId);
+  return { ok: true };
+}
+
 export async function luuQcMuc(
   projectId: string,
   v: {
@@ -100,6 +140,7 @@ export async function luuQcMuc(
     giaiDoan: string;
     noiDung: string;
     boPhan: string;
+    nhom: string;
     loai: string;
     tieuChi?: string | null;
   },
@@ -112,6 +153,8 @@ export async function luuQcMuc(
     return { ok: false, error: "Giai đoạn không hợp lệ." };
   if (!(ROLES as readonly string[]).includes(v.boPhan))
     return { ok: false, error: "Bộ phận không hợp lệ." };
+  if (!(v.nhom in QC_NHOM_MAP))
+    return { ok: false, error: "Nhóm mục không hợp lệ." };
   if (!(v.loai in QC_LOAI_MAP))
     return { ok: false, error: "Loại mục không hợp lệ." };
 
@@ -119,7 +162,9 @@ export async function luuQcMuc(
     giaiDoan: v.giaiDoan,
     noiDung,
     boPhan: v.boPhan,
-    loai: v.loai,
+    nhom: v.nhom,
+    // Đối chiếu vật tư chỉ có nghĩa với mục kiểm tra.
+    loai: v.nhom === "KIEM_TRA" ? v.loai : "THUONG",
     tieuChi: chuanTieuChi(v.tieuChi),
   };
   if (v.id) {
@@ -171,15 +216,14 @@ export async function danhGiaQc(
 
   const ketQua = String(form.get("ketQua") ?? "");
   const ghiChu = String(form.get("ghiChu") ?? "").trim();
-  const loi = kiemTraDanhGia({ ketQua, ghiChu });
-  if (loi) return { ok: false, error: loi };
-  if (ghiChu.length > 2000)
-    return { ok: false, error: "Ghi chú quá dài (tối đa 2000 ký tự)." };
-
   // Kiểm hết tệp TRƯỚC khi ghi gì: lỗi giữa chừng không để lại lần kiểm dở dang.
   const tep = form
     .getAll("tep")
     .filter((f): f is File => f instanceof File && f.size > 0);
+  const loi = kiemTraDanhGia({ ketQua, ghiChu, nhom: muc.nhom, soTep: tep.length });
+  if (loi) return { ok: false, error: loi };
+  if (ghiChu.length > 2000)
+    return { ok: false, error: "Ghi chú quá dài (tối đa 2000 ký tự)." };
   if (tep.length > TOI_DA_TEP)
     return { ok: false, error: `Tối đa ${TOI_DA_TEP} tệp mỗi lần kiểm.` };
   for (const f of tep) {

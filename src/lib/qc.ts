@@ -1,6 +1,6 @@
 // QC theo giai đoạn: luật thuần — quyền đánh kết quả, kiểm tra đầu vào, đếm, cờ, sắp xếp.
 // Không chạm DB, không đọc đồng hồ; dùng chung server + client.
-import { QC_GIAI_DOAN_MAP } from "@/lib/constants";
+import { QC_GIAI_DOAN_MAP, QC_KET_QUA_MAP } from "@/lib/constants";
 import { NGUONG_SAP_DEN_HAN, soNgay } from "@/lib/ngayVN";
 import type { LyDo } from "@/lib/projectHealth";
 
@@ -24,16 +24,48 @@ export function chuanTieuChi(s: string | null | undefined): string | null {
   return ds.length ? ds.join("\n") : null;
 }
 
+type Tone = "slate" | "blue" | "amber" | "green" | "red" | "purple";
+
+/** Kết quả được chọn khi đánh giá, theo nhóm mục. Việc / hồ sơ không có "Không đạt". */
+export const KET_QUA_THEO_NHOM: Record<string, readonly string[]> = {
+  VIEC: ["DAT", "KHONG_AP_DUNG"],
+  HO_SO: ["DAT", "KHONG_AP_DUNG"],
+  KIEM_TRA: ["DAT", "KHONG_DAT", "KHONG_AP_DUNG"],
+};
+
+const NHAN_THEO_NHOM: Record<string, Record<string, string>> = {
+  VIEC: { CHUA: "Chưa làm", DAT: "Xong" },
+  HO_SO: { CHUA: "Chưa có", DAT: "Đủ" },
+};
+
+/** Nhãn + màu của kết quả, đổi chữ theo nhóm (Việc: Xong, Hồ sơ: Đủ, Kiểm tra: Đạt). */
+export function nhanKetQua(nhom: string, ketQua: string): { label: string; tone: Tone } {
+  const goc = QC_KET_QUA_MAP[ketQua];
+  return {
+    label: NHAN_THEO_NHOM[nhom]?.[ketQua] ?? goc?.label ?? ketQua,
+    tone: (goc?.tone ?? "slate") as Tone,
+  };
+}
+
 /** Người dùng có được đánh kết quả mục thuộc `boPhan` không. ADMIN đánh được mọi bộ phận. */
 export function duocDanhQc(role: string, boPhan: string): boolean {
   return role === "ADMIN" || role === boPhan;
 }
 
-const DANH_DUOC = new Set(["DAT", "KHONG_DAT", "KHONG_AP_DUNG"]);
-
-/** null = hợp lệ; chuỗi = lỗi để hiện cho người dùng. */
-export function kiemTraDanhGia(v: { ketQua: string; ghiChu: string }): string | null {
-  if (!DANH_DUOC.has(v.ketQua)) return "Kết quả không hợp lệ.";
+/**
+ * null = hợp lệ; chuỗi = lỗi để hiện cho người dùng.
+ * Hồ sơ đánh "Đủ" phải kèm tệp ngay trong lần đánh đó (`soTep`).
+ */
+export function kiemTraDanhGia(v: {
+  ketQua: string;
+  ghiChu: string;
+  nhom?: string;
+  soTep?: number;
+}): string | null {
+  const nhom = v.nhom ?? "KIEM_TRA";
+  if (!(KET_QUA_THEO_NHOM[nhom] ?? []).includes(v.ketQua)) return "Kết quả không hợp lệ.";
+  if (nhom === "HO_SO" && v.ketQua === "DAT" && !v.soTep)
+    return "Hồ sơ phải đính kèm tệp (ảnh hoặc PDF) mới đánh Đủ được.";
   if (v.ketQua === "KHONG_DAT" && !v.ghiChu.trim())
     return "Không đạt thì phải ghi chú lỗi và hướng xử lý.";
   return null;
@@ -86,7 +118,7 @@ export function lyDoQc(
           muc: "VANG",
           loai: "QC",
           soNgay: Math.max(0, conLai),
-          text: `QC ${ten} còn ${t.chua} mục chưa kiểm`,
+          text: `QC ${ten} còn ${t.chua} mục chưa xong`,
         });
       }
     }

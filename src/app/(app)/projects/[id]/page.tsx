@@ -189,6 +189,7 @@ export default async function ProjectDetailPage({
     giaiDoan: m.giaiDoan,
     noiDung: m.noiDung,
     boPhan: m.boPhan,
+    nhom: m.nhom,
     loai: m.loai,
     tieuChi: m.tieuChi,
     ghiChuTc: (m.ghiChuTc ?? {}) as Record<string, string>,
@@ -205,6 +206,17 @@ export default async function ProjectDetailPage({
       tep: l.tep.map((t) => ({ ten: t.ten, url: qcTepUrls.get(t.key) ?? null })),
     })),
   }));
+  // Việc / hồ sơ trong mẫu mà dự án (đã có QC) chưa có — để hiện nút bổ sung.
+  let soViecHoSoThieu = 0;
+  if (qcRows.length > 0) {
+    const da = new Set(qcRows.map((m) => `${m.giaiDoan}|${m.noiDung}`));
+    soViecHoSoThieu = (
+      await db.qcMau.findMany({
+        where: { active: true, nhom: { in: ["VIEC", "HO_SO"] } },
+        select: { giaiDoan: true, noiDung: true },
+      })
+    ).filter((m) => !da.has(`${m.giaiDoan}|${m.noiDung}`)).length;
+  }
   // Bảng so sánh chỉ cần khi có mục đối chiếu vật tư. Không lấy đơn giá/thành tiền.
   let soSanh: SoSanhData | null = null;
   if (qcRows.some((m) => m.loai === "DOI_CHIEU_VAT_TU")) {
@@ -708,6 +720,7 @@ export default async function ProjectDetailPage({
               canEdit={canEdit}
               coKho={isStorageConfigured()}
               soSanh={soSanh}
+              soViecHoSoThieu={soViecHoSoThieu}
             />
           </CardContent>
         </Card>

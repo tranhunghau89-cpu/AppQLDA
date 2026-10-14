@@ -4,13 +4,13 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { diffFields, recordAudit } from "@/lib/audit";
-import { QC_GIAI_DOAN_MAP, QC_LOAI_MAP } from "@/lib/constants";
+import { QC_GIAI_DOAN_MAP, QC_LOAI_MAP, QC_NHOM_MAP } from "@/lib/constants";
 import { ROLES } from "@/lib/rbac";
 import { chuanTieuChi } from "@/lib/qc";
 
 type Result = { ok: true } | { ok: false; error: string };
 const CHI_ADMIN = "Chỉ Ban giám đốc / Quản lý được sửa mẫu QC.";
-const FIELDS = ["giaiDoan", "noiDung", "boPhan", "loai", "tieuChi", "active"] as const;
+const FIELDS = ["giaiDoan", "noiDung", "boPhan", "nhom", "loai", "tieuChi", "active"] as const;
 
 async function admin() {
   const s = await requireSession();
@@ -22,6 +22,7 @@ export async function luuQcMau(v: {
   giaiDoan: string;
   noiDung: string;
   boPhan: string;
+  nhom: string;
   loai: string;
   tieuChi?: string | null;
 }): Promise<Result> {
@@ -33,13 +34,16 @@ export async function luuQcMau(v: {
     return { ok: false, error: "Giai đoạn không hợp lệ." };
   if (!(ROLES as readonly string[]).includes(v.boPhan))
     return { ok: false, error: "Bộ phận không hợp lệ." };
+  if (!(v.nhom in QC_NHOM_MAP))
+    return { ok: false, error: "Nhóm mục không hợp lệ." };
   if (!(v.loai in QC_LOAI_MAP))
     return { ok: false, error: "Loại mục không hợp lệ." };
   const data = {
     giaiDoan: v.giaiDoan,
     noiDung,
     boPhan: v.boPhan,
-    loai: v.loai,
+    nhom: v.nhom,
+    loai: v.nhom === "KIEM_TRA" ? v.loai : "THUONG",
     tieuChi: chuanTieuChi(v.tieuChi),
   };
 
@@ -102,17 +106,21 @@ export async function doiThuTuQcMau(id: string, dir: -1 | 1): Promise<Result> {
   const m = await db.qcMau.findUnique({ where: { id } });
   if (!m) return { ok: false, error: "Không tìm thấy mục mẫu." };
   const rows = await db.qcMau.findMany({
-    where: { giaiDoan: m.giaiDoan },
+    // Đổi thứ tự trong cùng giai đoạn + nhóm (giao diện hiển thị theo nhóm).
+    where: { giaiDoan: m.giaiDoan, nhom: m.nhom },
     orderBy: { thuTu: "asc" },
-    select: { id: true },
+    select: { id: true, thuTu: true },
   });
   const i = rows.findIndex((r) => r.id === id);
   const j = i + dir;
   if (j < 0 || j >= rows.length) return { ok: true };
+  // Giữ nguyên dải số thứ tự của nhóm, chỉ hoán vị — không đè lên thứ tự của nhóm khác.
+  let so = rows.map((r) => r.thuTu);
+  if (new Set(so).size !== so.length) so = so.map((_, k) => so[0] + k);
   [rows[i], rows[j]] = [rows[j], rows[i]];
   await db.$transaction(
     rows.map((r, k) =>
-      db.qcMau.update({ where: { id: r.id }, data: { thuTu: k + 1 } }),
+      db.qcMau.update({ where: { id: r.id }, data: { thuTu: so[k] } }),
     ),
   );
   revalidatePath("/qc-mau");

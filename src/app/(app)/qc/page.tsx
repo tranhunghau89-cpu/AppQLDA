@@ -22,6 +22,7 @@ export default async function ViecQcPage() {
       giaiDoan: true,
       noiDung: true,
       boPhan: true,
+      nhom: true,
       ketQua: true,
       ghiChu: true,
       project: {
@@ -50,6 +51,7 @@ export default async function ViecQcPage() {
     giaiDoan: r.giaiDoan,
     noiDung: r.noiDung,
     boPhan: r.boPhan,
+    nhom: r.nhom,
     ketQua: r.ketQua,
     ghiChu: r.ghiChu,
     han: r.han?.toISOString() ?? null,
@@ -63,8 +65,8 @@ export default async function ViecQcPage() {
         <h1 className="text-2xl font-semibold text-slate-900">Việc QC</h1>
         <p className="text-sm text-slate-500">
           {laAdmin
-            ? "Mục QC chưa kiểm hoặc không đạt của mọi bộ phận, ở các dự án đang chạy"
-            : "Mục QC của bộ phận bạn chưa kiểm hoặc không đạt, ở các dự án bạn được giao"}
+            ? "Việc, hồ sơ, mục kiểm tra QC chưa xong hoặc không đạt của mọi bộ phận, ở các dự án đang chạy"
+            : "Việc, hồ sơ, mục kiểm tra QC của bộ phận bạn chưa xong hoặc không đạt, ở các dự án bạn được giao"}
         </p>
       </div>
       <BangViecQc rows={data} laAdmin={laAdmin} nowMs={serverNow()} />

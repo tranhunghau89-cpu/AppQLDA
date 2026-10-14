@@ -36,7 +36,7 @@ describe("thieuThongTin", () => {
 
 describe("loiGuiQc", () => {
   it("chưa có mục", () => expect(loiGuiQc({ tong: 0, xong: 0 })).toMatch(/chưa có/));
-  it("còn mục", () => expect(loiGuiQc({ tong: 4, xong: 3 })).toBe("Còn 1/4 mục QC chưa Đạt."));
+  it("còn mục", () => expect(loiGuiQc({ tong: 4, xong: 3 })).toBe("Còn 1/4 mục QC chưa xong."));
   it("đủ", () => expect(loiGuiQc({ tong: 4, xong: 4 })).toBeNull());
 });
 

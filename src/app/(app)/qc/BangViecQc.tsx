@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Select } from "@/components/ui/form";
-import { QC_GIAI_DOAN, QC_GIAI_DOAN_MAP } from "@/lib/constants";
+import { QC_GIAI_DOAN, QC_GIAI_DOAN_MAP, QC_NHOM } from "@/lib/constants";
+import { nhanKetQua } from "@/lib/qc";
 import { NGUONG_SAP_DEN_HAN, soNgay } from "@/lib/ngayVN";
 import { ROLES, ROLE_LABEL, type Role } from "@/lib/rbac";
 import { cn, formatDate } from "@/lib/utils";
@@ -17,6 +18,7 @@ export interface ViecQcRow {
   giaiDoan: string;
   noiDung: string;
   boPhan: string;
+  nhom: string;
   ketQua: string;
   ghiChu: string | null;
   han: string | null;
@@ -41,6 +43,11 @@ interface NhomDuAn {
 }
 
 const THU_TU_GD = new Map(QC_GIAI_DOAN.map((o, i) => [o.value, i]));
+const THU_TU_NHOM = new Map(QC_NHOM.map((o, i) => [o.value, i]));
+const CHIP_NHOM: Record<string, { text: string; cls: string }> = {
+  VIEC: { text: "Việc", cls: "bg-blue-50 text-blue-700" },
+  HO_SO: { text: "Hồ sơ", cls: "bg-purple-50 text-purple-700" },
+};
 
 /** Dự án → giai đoạn (theo thứ tự mốc) → mục (Không đạt trước). */
 function gomNhom(rows: ViecQcRow[]): NhomDuAn[] {
@@ -87,7 +94,8 @@ function gomNhom(rows: ViecQcRow[]): NhomDuAn[] {
     for (const gd of da.giaiDoan)
       gd.muc.sort(
         (a, b) =>
-          Number(b.ketQua === "KHONG_DAT") - Number(a.ketQua === "KHONG_DAT"),
+          Number(b.ketQua === "KHONG_DAT") - Number(a.ketQua === "KHONG_DAT") ||
+          (THU_TU_NHOM.get(a.nhom) ?? 9) - (THU_TU_NHOM.get(b.nhom) ?? 9),
       );
   }
   return ds.sort(
@@ -191,6 +199,7 @@ export function BangViecQc({
   const [giaiDoan, setGiaiDoan] = useState("");
   const [ketQua, setKetQua] = useState("");
   const [boPhan, setBoPhan] = useState("");
+  const [loaiMuc, setLoaiMuc] = useState("");
   // Mặc định chỉ mở công trình gấp nhất; null = chưa ai bấm.
   const [mo, setMo] = useState<Set<string> | null>(null);
 
@@ -204,6 +213,7 @@ export function BangViecQc({
       (!duAn || r.projectId === duAn) &&
       (!giaiDoan || r.giaiDoan === giaiDoan) &&
       (!ketQua || r.ketQua === ketQua) &&
+      (!loaiMuc || r.nhom === loaiMuc) &&
       (!boPhan || r.boPhan === boPhan),
   );
   const nhom = gomNhom(hien);
@@ -259,9 +269,21 @@ export function BangViecQc({
           value={ketQua}
           onChange={(e) => setKetQua(e.target.value)}
         >
-          <option value="">Chưa kiểm & không đạt</option>
+          <option value="">Chưa xong & không đạt</option>
           <option value="KHONG_DAT">Không đạt</option>
-          <option value="CHUA">Chưa kiểm</option>
+          <option value="CHUA">Chưa xong</option>
+        </Select>
+        <Select
+          className="w-44"
+          value={loaiMuc}
+          onChange={(e) => setLoaiMuc(e.target.value)}
+        >
+          <option value="">Mọi loại mục</option>
+          {QC_NHOM.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
         </Select>
         {laAdmin && (
           <Select
@@ -294,7 +316,7 @@ export function BangViecQc({
           <b className="tabular-nums text-slate-900">
             {hien.length - tongKhongDat}
           </b>{" "}
-          chưa kiểm
+          chưa xong
         </span>
         {tongQuaHan > 0 && (
           <span className="flex items-center gap-1.5 text-slate-600">
@@ -362,7 +384,7 @@ export function BangViecQc({
               </button>
               <div className="flex items-center gap-1.5">
                 <SoDem n={da.khongDat} tone="red" nhan="không đạt" />
-                <SoDem n={da.chua} tone="slate" nhan="chưa kiểm" />
+                <SoDem n={da.chua} tone="slate" nhan="chưa xong" />
                 <Link
                   href={href}
                   className="ml-2 text-xs text-blue-600 hover:underline"
@@ -420,7 +442,7 @@ export function BangViecQc({
                               className="flex items-start gap-3 px-4 py-2 hover:bg-slate-50"
                             >
                               <span
-                                title={loi ? "Không đạt" : "Chưa kiểm"}
+                                title={nhanKetQua(r.nhom, r.ketQua).label}
                                 className={cn(
                                   "mt-1.5 h-2 w-2 shrink-0 rounded-full",
                                   loi
@@ -437,6 +459,16 @@ export function BangViecQc({
                                       : "text-slate-700",
                                   )}
                                 >
+                                  {CHIP_NHOM[r.nhom] && (
+                                    <span
+                                      className={cn(
+                                        "mr-1.5 rounded px-1.5 py-0.5 text-[11px] font-medium",
+                                        CHIP_NHOM[r.nhom].cls,
+                                      )}
+                                    >
+                                      {CHIP_NHOM[r.nhom].text}
+                                    </span>
+                                  )}
                                   {r.noiDung}
                                 </span>
                                 {r.ghiChu && (

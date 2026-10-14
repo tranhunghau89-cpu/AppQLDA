@@ -14,6 +14,7 @@ export default async function QcMauPage() {
       giaiDoan: true,
       noiDung: true,
       boPhan: true,
+      nhom: true,
       loai: true,
       tieuChi: true,
       active: true,
@@ -26,7 +27,7 @@ export default async function QcMauPage() {
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Mẫu QC</h1>
         <p className="text-sm text-slate-500">
-          Danh mục kiểm tra mặc định theo giai đoạn. Dự án chép mẫu lúc tạo danh
+          Việc cần làm, hồ sơ cần có và mục kiểm tra mặc định theo giai đoạn. Dự án chép mẫu lúc tạo danh
           mục QC — sửa mẫu ở đây không đổi dự án đã tạo.
         </p>
       </div>
