@@ -59,8 +59,23 @@ interface NavItem {
 interface NavGroup {
   /** Tên nhóm; `null` = mục đứng một mình trên đầu, không có tiêu đề, không gập. */
   ten: string | null;
+  /** Màu của nhóm — trùng màu nhánh trong sơ đồ menu của sổ tay (soDo.ts). */
+  mau?: Mau;
   items: NavItem[];
 }
+
+/**
+ * Mỗi nhóm lớn một màu để mắt phân biệt khu nào với khu nào: tiêu đề nhóm tô đặc, mục đang
+ * xem và vạch bên trái các mục lấy màu nhạt của nhóm. Viết đủ tên class (không ghép chuỗi)
+ * để Tailwind thấy mà sinh CSS.
+ */
+type Mau = "kd" | "tc" | "tien" | "ht";
+const MAU: Record<Mau, { tieuDe: string; dangXem: string; vach: string }> = {
+  kd: { tieuDe: "bg-sky-600 hover:bg-sky-700", dangXem: "bg-sky-50 text-sky-700", vach: "border-sky-200" },
+  tc: { tieuDe: "bg-emerald-600 hover:bg-emerald-700", dangXem: "bg-emerald-50 text-emerald-700", vach: "border-emerald-200" },
+  tien: { tieuDe: "bg-purple-600 hover:bg-purple-700", dangXem: "bg-purple-50 text-purple-700", vach: "border-purple-200" },
+  ht: { tieuDe: "bg-indigo-700 hover:bg-indigo-800", dangXem: "bg-indigo-50 text-indigo-700", vach: "border-indigo-200" },
+};
 
 /**
  * Menu chia theo NHỊP LÀM VIỆC, không theo tên bảng dữ liệu: bán hàng trước hợp đồng,
@@ -96,6 +111,7 @@ const NAV: NavGroup[] = [
   },
   {
     ten: "Bán hàng",
+    mau: "kd",
     items: [
       // Theo nhịp bán hàng: có khách → chào giá.
       {
@@ -115,6 +131,7 @@ const NAV: NavGroup[] = [
   },
   {
     ten: "Thi công",
+    mau: "tc",
     items: [
       // Theo đúng trình tự một công trình: dự án → hợp đồng & dự toán thi công → tiến độ,
       // làm việc theo quy trình và nghiệm thu QC.
@@ -126,6 +143,7 @@ const NAV: NavGroup[] = [
   {
     // Dòng tiền của công trình: đề xuất → duyệt → đặt hàng, rồi chi phí & công nợ.
     ten: "Mua hàng & Tài chính",
+    mau: "tien",
     items: [
       { ...mucGop(TAB_MUA_HANG), label: "Đề xuất & Mua hàng", icon: ShoppingCart },
       { ...mucGop(TAB_CHI_PHI), label: "Chi phí & công nợ", icon: Wallet },
@@ -133,6 +151,7 @@ const NAV: NavGroup[] = [
   },
   {
     ten: "Danh mục & hệ thống",
+    mau: "ht",
     items: [
       {
         ...mucGop(TAB_DANH_MUC),
@@ -286,6 +305,7 @@ export function Sidebar({
           // bấm sang trang trong đó mà menu vẫn đóng thì trông như mình lạc chỗ nào.
           const moRong = nhom.ten === null || coTrangDangXem || !dong.has(nhom.ten);
           const idND = `nhom-${nhom.ten ?? "dau"}`;
+          const mau = nhom.mau ? MAU[nhom.mau] : null;
 
           return (
             <div key={nhom.ten ?? "dau"} className="mb-1">
@@ -295,7 +315,10 @@ export function Sidebar({
                   onClick={() => gap(nhom.ten!)}
                   aria-expanded={moRong}
                   aria-controls={idND}
-                  className="mt-3 flex w-full items-center gap-1.5 rounded-md px-3 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+                  className={cn(
+                    "mt-3 flex w-full items-center gap-1.5 rounded-md px-3 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide",
+                    mau ? `${mau.tieuDe} text-white` : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+                  )}
                 >
                   <ChevronDown
                     className={cn(
@@ -308,7 +331,11 @@ export function Sidebar({
                 </button>
               )}
 
-              <div id={idND} hidden={!moRong} className="space-y-1">
+              <div
+                id={idND}
+                hidden={!moRong}
+                className={cn("space-y-1", mau && `mt-1 ml-2 border-l-2 pl-1.5 ${mau.vach}`)}
+              >
                 {items.map((item) => {
                   const active = dangO(pathname, item);
                   const Icon = item.icon;
@@ -318,7 +345,7 @@ export function Sidebar({
                       href={item.href}
                       className={cn(
                         "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                        active ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-100"
+                        active ? (mau?.dangXem ?? "bg-blue-50 text-blue-700") : "text-slate-600 hover:bg-slate-100"
                       )}
                     >
                       <Icon className="h-4 w-4 shrink-0" />
