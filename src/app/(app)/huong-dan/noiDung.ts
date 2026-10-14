@@ -168,7 +168,7 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
 
       <div class="task" id="bgd-thu-vien">
         <h3>Giữ thư viện đơn giá luôn đúng</h3>
-        <p class="where"><span class="path">Thư viện đơn giá</span> — chỉ Ban giám đốc sửa; các phòng khác dùng giá ở đây</p>
+        <p class="where"><span class="path">Danh mục › Thư viện đơn giá</span> — chỉ Ban giám đốc sửa; các phòng khác dùng giá ở đây</p>
         <p>Thư viện là nguồn giá cho mọi bản dự toán. Mỗi dòng dự toán <b>chụp lại giá lúc lập</b>; sửa thư viện không làm đổi bản đã lập, chỉ hiện huy hiệu lệch giá để người lập tự quyết cập nhật.</p>
         <h5>Thêm hoặc sửa một công tác</h5>
         <ol class="steps">
@@ -187,14 +187,14 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
         <h5>Biến thể vật liệu, vật tư, khu vực</h5>
         <ul class="bul">
           <li><b>Biến thể vật liệu</b> (trang chi tiết công tác): cùng công tác “lợp tôn” nhưng tôn Hoa Sen 0,45 và tôn Đông Á 0,40 là hai giá. Bấm <span class="ui">Thêm biến thể vật liệu</span>, chọn vật tư, đặt một cái làm mặc định.</li>
-          <li><b>Vật tư</b> (<span class="path">Thư viện đơn giá › Vật tư</span>): tên, hãng, quy cách, xuất xứ. <b>Quy cách</b> in ra bảng thông số kỹ thuật của báo giá khách. Mở <span class="ui">Xem giá mua</span> để ghi giá mua theo từng nhà cung cấp.</li>
-          <li><b>Khu vực</b> (<span class="path">Thư viện đơn giá › Khu vực</span>): ví dụ Miền Bắc, Tây Ninh. Gán nhà cung cấp phục vụ từng khu vực; dự toán thi công của dự án thuộc khu vực nào sẽ đưa những nhà cung cấp đó lên đầu danh sách.</li>
+          <li><b>Vật tư</b> (<span class="path">Danh mục › Thư viện đơn giá › Vật tư</span>): tên, hãng, quy cách, xuất xứ. <b>Quy cách</b> in ra bảng thông số kỹ thuật của báo giá khách. Mở <span class="ui">Xem giá mua</span> để ghi giá mua theo từng nhà cung cấp.</li>
+          <li><b>Khu vực</b> (<span class="path">Danh mục › Thư viện đơn giá › Khu vực</span>): ví dụ Miền Bắc, Tây Ninh. Gán nhà cung cấp phục vụ từng khu vực; dự toán thi công của dự án thuộc khu vực nào sẽ đưa những nhà cung cấp đó lên đầu danh sách.</li>
         </ul>
       </div>
 
       <div class="task" id="bgd-bo-hang-muc">
         <h3>Soạn bộ hạng mục chuẩn</h3>
-        <p class="where"><span class="path">Thư viện đơn giá › Bộ hạng mục chuẩn</span></p>
+        <p class="where"><span class="path">Danh mục › Thư viện đơn giá › Bộ hạng mục chuẩn</span></p>
         <p>Bộ hạng mục là khung dự toán dựng sẵn cho một loại công trình (ví dụ “Nhà xưởng kết cấu thép + bao che”): các phần A Khung mái, B Vách…, trong mỗi phần là các dòng công tác đã gắn mã. Kinh doanh áp bộ vào dự toán là có ngay đủ dòng, chỉ còn nhập khối lượng.</p>
         <ol class="steps">
           <li>Bấm <span class="ui">Thêm bộ hạng mục</span>: <b>Mã</b>, <b>Tên bộ</b>, <b>Loại công trình</b> (để trống = dùng chung).</li>
@@ -219,8 +219,8 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
         <ul class="bul">
           <li><span class="path">Tổng quan</span>: số dự án theo trạng thái, lợi nhuận dự kiến, giá bán so với chi phí từng dự án. <span class="ui">Xuất báo cáo Excel</span> để gửi họp.</li>
           <li><span class="path">Chi phí & công nợ › Theo kỳ</span>: chọn Tháng / Quý / Năm — tiền đã thu, đã chi, dòng tiền ròng, hợp đồng ký mới, đơn hàng, so với kỳ trước.</li>
-          <li><span class="path">Tiện ích › Nhật ký thay đổi</span>: ai sửa gì, lúc nào, giá trị trước → sau. Trang dự án cũng có khung <b>Lịch sử thay đổi</b> riêng.</li>
-          <li><span class="path">Tiện ích › Nhập từ Excel</span>: nạp dự toán (sheet TongHop), quyết toán / sổ giá thành, đơn hàng DH_*.xlsx, bảng giá BG_*.xlsx. Luôn bấm <span class="ui">Xem trước</span>, đọc cảnh báo rồi mới ghi.</li>
+          <li><span class="path">Quản trị › Nhật ký thay đổi</span>: ai sửa gì, lúc nào, giá trị trước → sau. Trang dự án cũng có khung <b>Lịch sử thay đổi</b> riêng.</li>
+          <li><span class="path">Quản trị › Nhập từ Excel</span>: nạp dự toán (sheet TongHop), quyết toán / sổ giá thành, đơn hàng DH_*.xlsx, bảng giá BG_*.xlsx. Luôn bấm <span class="ui">Xem trước</span>, đọc cảnh báo rồi mới ghi.</li>
           <li><b>Nhắc việc 8 giờ sáng</b>: mỗi ngày app gom mốc tiến độ trễ, đợt thanh toán quá hạn hoặc tới hạn trong 7 ngày, báo giá sắp hết hiệu lực. Muốn nhận qua nhóm chat, báo bộ phận kỹ thuật app cấu hình.</li>
         </ul>
       </div>
@@ -424,7 +424,7 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
 
       <div class="task" id="vt-ncc">
         <h3>Danh bạ nhà cung cấp</h3>
-        <p class="where"><span class="path">Chủ đầu tư & NCC › Nhà cung cấp</span></p>
+        <p class="where"><span class="path">Danh mục › Nhà cung cấp</span></p>
         <ul class="bul">
           <li>Thêm / sửa NCC: <b>Tên NCC</b>, <b>Loại NCC</b> (Kết cấu thép, Xà gồ, Tôn, Bulong neo, Bulong liên kết, Lắp dựng, Khác), người phụ trách, điện thoại, ghi chú.</li>
           <li>Giá mua theo NCC và khu vực phục vụ do Ban giám đốc ghi trong Thư viện; gửi báo giá mới của NCC cho BGĐ để cập nhật.</li>
@@ -466,7 +466,7 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
         <p class="where"><span class="path">Chi phí & công nợ › Tổng hợp</span> · <span class="path">Chi phí & công nợ › Theo kỳ</span></p>
         <ol class="steps">
           <li><b>Tổng hợp</b>: doanh thu, chi phí, lợi nhuận trước thuế, biên lợi nhuận, còn phải thu của từng dự án đã quyết toán. Bấm dự án để xem chi tiết theo nhóm A–K (Kết cấu thép, Xà gồ, Tôn – Diềm… Khác).</li>
-          <li>Số liệu quyết toán nạp từ file quyết toán / sổ giá thành: gửi file cho Ban giám đốc nạp qua <span class="path">Tiện ích › Nhập từ Excel</span> (mỗi file một dự án).</li>
+          <li>Số liệu quyết toán nạp từ file quyết toán / sổ giá thành: gửi file cho Ban giám đốc nạp qua <span class="path">Quản trị › Nhập từ Excel</span> (mỗi file một dự án).</li>
           <li><b>Theo kỳ</b>: chọn Tháng / Quý / Năm và kỳ cần xem — tiền đã thu, đã chi, dòng tiền ròng, hợp đồng ký mới, đơn hàng đặt, dự án khởi công / hoàn thành, so với kỳ trước.</li>
           <li>Ô nào bằng 0 bất thường: đọc dòng giải thích “Vì sao vài ô bên dưới bằng 0” — thường do thiếu ngày thực tế.</li>
         </ol>

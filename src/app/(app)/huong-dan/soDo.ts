@@ -7,7 +7,7 @@
 import {
   TAB_CHAO_GIA,
   TAB_CHI_PHI,
-  TAB_DOI_TAC,
+  TAB_DANH_MUC,
   TAB_DU_AN,
   TAB_HOP_DONG,
   TAB_KHACH_HANG,
@@ -348,7 +348,7 @@ const SO_DO = [
   d(
     "<b>Tổng hợp</b>: doanh thu",
     b(
-      { t: "Nạp file quyết toán", m: "gửi Ban giám đốc nạp ở Tiện ích › Nhập từ Excel, mỗi file một dự án" },
+      { t: "Nạp file quyết toán", m: "gửi Ban giám đốc nạp ở Quản trị › Nhập từ Excel, mỗi file một dự án" },
       { t: "Tổng hợp", m: "doanh thu, chi phí, lợi nhuận, biên, còn phải thu từng dự án" },
       { t: "Bấm dự án", m: "xem chi tiết theo nhóm A–K" },
       { t: "Theo kỳ", m: "chọn Tháng / Quý / Năm, so với kỳ trước", k: "xong" },
@@ -447,11 +447,9 @@ const NHANH_MENU: NhanhSoDo[] = [
     phu: "tra cứu, ít khi động tới",
     lop: "bgd",
     muc: [
-      { t: "Thư viện đơn giá", m: "công tác, đơn giá, vật tư, khu vực, bộ hạng mục" },
-      { t: "Chủ đầu tư & NCC", m: "hai danh bạ đối tác", tabs: TAB_DOI_TAC },
-      { t: "Tiện ích", m: "tra cứu, nhập Excel, nhật ký", tabs: TAB_TIEN_ICH },
-      { t: "Quản trị", m: "tài khoản, mẫu kiểm tra QC — chỉ BGĐ", tabs: TAB_QUAN_TRI },
-      { t: "Sổ tay hướng dẫn", m: "chính trang này, ai cũng đọc được" },
+      { t: "Danh mục", m: "đơn giá, vật tư, khu vực, bộ hạng mục và danh bạ đối tác", tabs: TAB_DANH_MUC },
+      { t: "Tiện ích", m: "tra cứu thép, bóc khối lượng, sổ tay — ai cũng dùng", tabs: TAB_TIEN_ICH },
+      { t: "Quản trị", m: "tài khoản, mẫu QC, nạp Excel, nhật ký — chỉ BGĐ", tabs: TAB_QUAN_TRI },
     ],
   },
 ];

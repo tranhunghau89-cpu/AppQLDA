@@ -4,7 +4,7 @@ import { can } from "@/lib/rbac";
 import { myProjectIds } from "@/lib/scope";
 import { getPayables } from "@/lib/debt";
 import { SupplierManager } from "./SupplierManager";
-import { TabTrang, TAB_DOI_TAC } from "@/components/layout/TabTrang";
+import { TabTrang, TAB_DANH_MUC } from "@/components/layout/TabTrang";
 
 export default async function SuppliersPage() {
   const session = await requireView("supplier");
@@ -45,7 +45,7 @@ export default async function SuppliersPage() {
 
   return (
     <div className="space-y-6">
-      <TabTrang tabs={TAB_DOI_TAC} hienTai="/suppliers" role={session.role} />
+      <TabTrang tabs={TAB_DANH_MUC} hienTai="/suppliers" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Nhà cung cấp</h1>
         <p className="text-sm text-slate-500">

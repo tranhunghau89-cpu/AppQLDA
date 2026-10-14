@@ -73,24 +73,28 @@ export const TAB_CHI_PHI: readonly MucTab[] = [
   { href: "/debts", label: "Công nợ", resource: "debt" },
 ];
 
-// Hai danh bạ đối tác: bên mua (CĐT) và bên bán (NCC). Khác quyền nhau — người mua hàng
-// có thể chỉ thấy NCC — nên menu và thanh tab đều phải lọc theo từng tab.
-export const TAB_DOI_TAC: readonly MucTab[] = [
+// Dữ liệu gốc dùng chung: đơn giá, và hai danh bạ đối tác — bên mua (CĐT) và bên bán (NCC).
+// Khác quyền nhau — người mua hàng có thể chỉ thấy NCC — nên menu và thanh tab đều phải
+// lọc theo từng tab.
+export const TAB_DANH_MUC: readonly MucTab[] = [
+  { href: "/thu-vien", label: "Thư viện đơn giá", resource: "thuVien" },
   { href: "/customers", label: "Chủ đầu tư", resource: "customer" },
   { href: "/suppliers", label: "Nhà cung cấp", resource: "supplier" },
 ];
 
+// Ai đăng nhập cũng dùng được: tra cứu thép, bóc khối lượng, đọc sổ tay.
 export const TAB_TIEN_ICH: readonly MucTab[] = [
   { href: "/tools", label: "Tra cứu & Bóc KL" },
-  { href: "/import", label: "Nhập từ Excel", resource: "import" },
-  { href: "/audit", label: "Nhật ký thay đổi", resource: "audit" },
+  { href: "/huong-dan", label: "Sổ tay hướng dẫn" },
 ];
 
-// Việc của quản trị viên: tài khoản và mẫu kiểm tra QC mặc định. Mẫu QC chỉ ADMIN vào được,
-// cùng mức với quyền "user".
+// Việc của quản trị viên — cả bốn trang chỉ Ban giám đốc vào được. Mẫu QC kiểm bằng vai
+// trò ADMIN, cùng mức với quyền "user".
 export const TAB_QUAN_TRI: readonly MucTab[] = [
   { href: "/users", label: "Người dùng", resource: "user" },
   { href: "/qc-mau", label: "Mẫu QC", resource: "user" },
+  { href: "/import", label: "Nhập từ Excel", resource: "import" },
+  { href: "/audit", label: "Nhật ký thay đổi", resource: "audit" },
 ];
 
 export function TabTrang({

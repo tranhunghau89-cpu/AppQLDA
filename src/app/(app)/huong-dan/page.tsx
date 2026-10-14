@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/auth";
 import { isValidRole } from "@/lib/rbac";
 import { CAC_PHAN, docKhoaPhan, htmlPhan, phanMacDinh } from "./phan";
 import styles from "./soTay.module.css";
+import { TabTrang, TAB_TIEN_ICH } from "@/components/layout/TabTrang";
 
 /**
  * Sổ tay hướng dẫn sử dụng, đọc ngay trong app.
@@ -23,6 +24,7 @@ export default async function HuongDanPage({
 
   return (
     <div className="mx-auto max-w-6xl">
+      <TabTrang tabs={TAB_TIEN_ICH} hienTai="/huong-dan" role={session.role} />
       <nav className={styles.cacTab} aria-label="Phần của sổ tay">
         {CAC_PHAN.map((p) => (
           <Link

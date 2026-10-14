@@ -13,11 +13,9 @@ import {
   Wallet,
   Receipt,
   Workflow,
-  Building2,
   UserSearch,
   Users,
   Library,
-  BookOpen,
   Wrench,
   X,
   type LucideIcon,
@@ -28,7 +26,7 @@ import { laTrangChaoGia } from "@/lib/duongDanChaoGia";
 import {
   TAB_CHAO_GIA,
   TAB_CHI_PHI,
-  TAB_DOI_TAC,
+  TAB_DANH_MUC,
   TAB_DU_AN,
   TAB_HOP_DONG,
   TAB_KHACH_HANG,
@@ -80,9 +78,9 @@ interface NavGroup {
  *   Việc thi công     = việc quy trình · việc QC
  *   Đề xuất & Mua hàng = phê duyệt · đơn hàng
  *   Chi phí & công nợ = tổng hợp · theo kỳ · công nợ
- *   Quản trị          = người dùng · mẫu QC
- *   Chủ đầu tư & NCC  = chủ đầu tư · nhà cung cấp
- *   Tiện ích          = tra cứu & bóc KL · nhập từ Excel · nhật ký thay đổi
+ *   Quản trị          = người dùng · mẫu QC · nhập từ Excel · nhật ký thay đổi
+ *   Danh mục          = thư viện đơn giá · chủ đầu tư · nhà cung cấp
+ *   Tiện ích          = tra cứu & bóc KL · sổ tay hướng dẫn
  * và Bộ hạng mục chuẩn không còn mục riêng vì Thư viện đơn giá đã có lối vào nó.
  *
  * Mục gộp mở tab ĐẦU TIÊN người dùng được xem và khớp thêm các tab còn lại — đọc từ chính bộ tab, để
@@ -141,15 +139,17 @@ const NAV: NavGroup[] = [
     ten: "Danh mục & hệ thống",
     items: [
       {
-        href: "/thu-vien",
-        label: "Thư viện đơn giá",
+        ...mucGop(TAB_DANH_MUC),
+        label: "Danh mục",
         icon: Library,
-        resource: "thuVien",
         // /thu-vien/* (vật tư, khu vực, bộ hạng mục) đã khớp theo tiền tố. Hai đường dẫn
         // mẫu cũ đã gộp vào Bộ hạng mục; giữ để bookmark cũ vẫn sáng đúng mục.
-        khopThem: ["/estimate-templates", "/quote-templates"],
+        khopThem: [
+          ...TAB_DANH_MUC.slice(1).map((t) => t.href),
+          "/estimate-templates",
+          "/quote-templates",
+        ],
       },
-      { ...mucGop(TAB_DOI_TAC), label: "Chủ đầu tư & NCC", icon: Building2 },
       { ...mucGop(TAB_TIEN_ICH), label: "Tiện ích", icon: Wrench },
       {
         ...mucGop(TAB_QUAN_TRI),
@@ -158,8 +158,6 @@ const NAV: NavGroup[] = [
         // /qc-mau cũng khớp tiền tố của "Việc QC" — giành để chỉ mục này sáng.
         gianh: (p) => p.startsWith("/qc-mau"),
       },
-      // Không gắn quyền: ai đăng nhập cũng đọc được sổ tay. Để cuối: tra cứu khi cần.
-      { href: "/huong-dan", label: "Sổ tay hướng dẫn", icon: BookOpen },
     ],
   },
 ];

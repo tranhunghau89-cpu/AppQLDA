@@ -5,6 +5,7 @@ import { requireView } from "@/lib/auth";
 import { can, type Role } from "@/lib/rbac";
 import { chonDonGia, type DongGiaUngVien, ngayTraGia } from "@/lib/thuVien/gia";
 import { CongTacGrid, type CongTacView } from "./CongTacGrid";
+import { TabTrang, TAB_DANH_MUC } from "@/components/layout/TabTrang";
 
 export default async function ThuVienPage() {
   const session = await requireView("thuVien");
@@ -63,6 +64,7 @@ export default async function ThuVienPage() {
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_DANH_MUC} hienTai="/thu-vien" role={session.role} />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Thư viện đơn giá</h1>

@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
 import { AUDIT_ACTION_LABEL, AUDIT_ENTITY } from "@/lib/audit";
 import { AuditEntries, type AuditRow } from "@/components/audit/AuditEntries";
-import { TabTrang, TAB_TIEN_ICH } from "@/components/layout/TabTrang";
+import { TabTrang, TAB_QUAN_TRI } from "@/components/layout/TabTrang";
 
 const MOI_TRANG = 50;
 
@@ -66,7 +66,7 @@ export default async function AuditPage({
 
   return (
     <div className="space-y-6">
-      <TabTrang tabs={TAB_TIEN_ICH} hienTai="/audit" role={session.role} />
+      <TabTrang tabs={TAB_QUAN_TRI} hienTai="/audit" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Nhật ký thay đổi</h1>
         <p className="text-sm text-slate-500">

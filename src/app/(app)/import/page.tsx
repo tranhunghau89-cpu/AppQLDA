@@ -2,7 +2,7 @@ import { requireView } from "@/lib/auth";
 import { IMPORT_KIND } from "@/lib/import/types";
 import type { ImportKind } from "@/lib/import/types";
 import { ImportWizard } from "./ImportWizard";
-import { TabTrang, TAB_TIEN_ICH } from "@/components/layout/TabTrang";
+import { TabTrang, TAB_QUAN_TRI } from "@/components/layout/TabTrang";
 
 /** Loại nào đã chuyển sang web, loại nào còn phải chạy CLI. */
 const HO_TRO: Record<ImportKind, { moTa: string; sanSang: boolean }> = {
@@ -26,7 +26,7 @@ export default async function ImportPage() {
 
   return (
     <div className="space-y-6">
-      <TabTrang tabs={TAB_TIEN_ICH} hienTai="/import" role={session.role} />
+      <TabTrang tabs={TAB_QUAN_TRI} hienTai="/import" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Nhập dữ liệu từ Excel</h1>
         <p className="text-sm text-slate-500">
