@@ -141,11 +141,11 @@ export function boPhanMacDinh(buoc: string, boPhanCacMuc: string[]): string {
 
 /**
  * Cờ cảnh báo của quy trình (không chặn gì):
- * - ĐỎ: bước đang mở / bị trả lại mà đã quá hạn.
+ * - ĐỎ: bước đang mở / bị trả lại, ĐÃ GIAO người phụ trách, mà đã quá hạn (chưa giao thì chưa tính hạn).
  * - VÀNG: bước bị trả lại; hoặc mốc tiến độ đã đánh xong mà bước QC cùng giai đoạn chưa duyệt.
  */
 export function lyDoQuyTrinh(
-  chuoi: { buoc: string; ten: string; trangThai: TrangThaiHien; han: Date | null }[],
+  chuoi: { buoc: string; ten: string; trangThai: TrangThaiHien; han: Date | null; daGiao: boolean }[],
   milestones: { type: string; done: boolean }[],
   nowMs: number,
 ): LyDo[] {
@@ -154,7 +154,7 @@ export function lyDoQuyTrinh(
   for (const b of chuoi) {
     if (b.trangThai === "DA_DUYET" || b.trangThai === "BO_QUA") continue;
     const dangMo = b.trangThai !== "CHUA_MO";
-    if (dangMo && b.han) {
+    if (dangMo && b.daGiao && b.han) {
       const tre = soNgay(b.han.getTime(), nowMs);
       if (tre > 0) {
         out.push({ muc: "DO", loai: "QUY_TRINH", soNgay: tre, text: `Bước ${b.ten} quá hạn ${tre} ngày` });

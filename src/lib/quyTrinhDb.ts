@@ -202,5 +202,6 @@ export function quyTrinhChoCo(ds: BuocView[]) {
     ten: b.ten,
     trangThai: b.trangThai,
     han: b.han ? new Date(b.han) : null,
+    daGiao: b.phuTrachId != null,
   }));
 }

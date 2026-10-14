@@ -100,8 +100,8 @@ describe("lyDoQuyTrinh", () => {
   it("quá hạn thì đỏ; chưa mở thì không xét hạn", () => {
     const r = lyDoQuyTrinh(
       [
-        { buoc: "THONG_TIN", ten: "Thông tin dự án", trangThai: "DANG_LAM", han: ngay(10) },
-        { buoc: "BV_KT", ten: "QC Bản vẽ KT", trangThai: "CHUA_MO", han: ngay(1) },
+        { buoc: "THONG_TIN", ten: "Thông tin dự án", trangThai: "DANG_LAM", han: ngay(10), daGiao: true },
+        { buoc: "BV_KT", ten: "QC Bản vẽ KT", trangThai: "CHUA_MO", han: ngay(1), daGiao: true },
       ],
       [],
       now,
@@ -113,9 +113,9 @@ describe("lyDoQuyTrinh", () => {
   it("trả lại thì vàng; tiến độ xong mà chưa duyệt thì vàng; đã duyệt bỏ qua", () => {
     const r = lyDoQuyTrinh(
       [
-        { buoc: "THONG_TIN", ten: "Thông tin dự án", trangThai: "TRA_LAI", han: null },
-        { buoc: "BV_KT", ten: "QC Bản vẽ KT", trangThai: "CHO_DUYET", han: ngay(20) },
-        { buoc: "SHOP", ten: "QC Shop", trangThai: "DA_DUYET", han: ngay(1) },
+        { buoc: "THONG_TIN", ten: "Thông tin dự án", trangThai: "TRA_LAI", han: null, daGiao: true },
+        { buoc: "BV_KT", ten: "QC Bản vẽ KT", trangThai: "CHO_DUYET", han: ngay(20), daGiao: true },
+        { buoc: "SHOP", ten: "QC Shop", trangThai: "DA_DUYET", han: ngay(1), daGiao: true },
       ],
       [
         { type: "BV_KT", done: true },
@@ -127,5 +127,16 @@ describe("lyDoQuyTrinh", () => {
       ["VANG", "Bước Thông tin dự án bị trả lại"],
       ["VANG", "Tiến độ xong nhưng QC Bản vẽ KT chưa duyệt"],
     ]);
+  });
+});
+
+describe("lyDoQuyTrinh — chưa giao người", () => {
+  it("quá hạn mà chưa giao thì không lên cờ đỏ", () => {
+    const r = lyDoQuyTrinh(
+      [{ buoc: "THONG_TIN", ten: "Thông tin dự án", trangThai: "DANG_LAM", han: new Date(Date.UTC(2026, 0, 1)), daGiao: false }],
+      [],
+      Date.UTC(2026, 9, 14),
+    );
+    expect(r).toEqual([]);
   });
 });

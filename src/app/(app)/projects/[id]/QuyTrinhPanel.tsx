@@ -55,6 +55,7 @@ export function QuyTrinhPanel({
   const b = buoc.find((x) => x.buoc === chon)!;
   const tinBuoc = tin.filter((t) => t.buocId === b.id);
   const quaHan =
+    b.phuTrachId != null &&
     b.han != null &&
     b.trangThai !== "DA_DUYET" &&
     b.trangThai !== "BO_QUA" &&

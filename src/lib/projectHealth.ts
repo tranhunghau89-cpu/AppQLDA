@@ -48,7 +48,7 @@ export interface HealthInput {
   /** Mục QC của dự án; bỏ trống = dự án chưa có danh mục QC. */
   qc?: { giaiDoan: string; ketQua: string }[];
   /** Chuỗi bước quy trình; bỏ trống = không xét. */
-  quyTrinh?: { buoc: string; ten: string; trangThai: TrangThaiHien; han: Date | null }[];
+  quyTrinh?: { buoc: string; ten: string; trangThai: TrangThaiHien; han: Date | null; daGiao: boolean }[];
 }
 
 function phanLoaiHan(

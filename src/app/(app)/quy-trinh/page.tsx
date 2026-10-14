@@ -48,7 +48,8 @@ export default async function ViecQuyTrinhPage() {
     )
     .sort(xep);
   const choDuyet = laAdmin ? tatCa.filter((b) => b.trangThai === "CHO_DUYET").sort(xep) : [];
-  const quaHan = tatCa.filter((b) => b.tre != null && b.tre > 0).sort(xep);
+  // Chỉ tính quá hạn cho bước đã giao người phụ trách.
+  const quaHan = tatCa.filter((b) => b.phuTrachId && b.tre != null && b.tre > 0).sort(xep);
 
   return (
     <div className="space-y-6">
@@ -115,7 +116,7 @@ function Bang({ tieuDe, moTa, ds }: { tieuDe: string; moTa?: string; ds: Viec[] 
                     </td>
                     <td className="whitespace-nowrap px-3 py-2">
                       {b.han ? formatDate(b.han) : "—"}
-                      {b.tre != null && b.tre > 0 && (
+                      {b.phuTrachId && b.tre != null && b.tre > 0 && (
                         <span className="ml-1 text-red-600">(trễ {b.tre} ngày)</span>
                       )}
                     </td>
