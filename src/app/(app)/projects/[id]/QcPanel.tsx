@@ -2,6 +2,8 @@
 
 import { useRef, useState, useTransition } from "react";
 import {
+  ChevronDown,
+  ChevronRight,
   ClipboardCheck,
   History,
   Pencil,
@@ -101,6 +103,8 @@ export function QcPanel({
   const confirm = useConfirm();
   const [pending, start] = useTransition();
   const [draft, setDraft] = useState<Draft | null>(null);
+  // Giai đoạn đang mở. null = chưa ai bấm: mở giai đoạn đầu tiên chưa xong (hoặc có lỗi).
+  const [moGd, setMoGd] = useState<Set<string> | null>(null);
 
   function run(
     fn: () => Promise<{ ok: true } | { ok: false; error: string }>,
@@ -193,6 +197,36 @@ export function QcPanel({
   const gdTrong = QC_GIAI_DOAN.filter(
     (gd) => !muc.some((m) => m.giaiDoan === gd.value),
   );
+  const gdCoMuc = QC_GIAI_DOAN.map((gd) => {
+    const ds = muc.filter((m) => m.giaiDoan === gd.value);
+    return { ...gd, ds, t: tomTatGiaiDoan(ds) };
+  }).filter((g) => g.ds.length > 0);
+  const gdDangLam = gdCoMuc.find((g) => g.t.khongDat > 0 || g.t.dat < g.t.tong);
+  const dangMo = moGd ?? new Set(gdDangLam ? [gdDangLam.value] : []);
+  const latGd = (v: string, mo?: boolean) => {
+    const t = new Set(dangMo);
+    if (mo ?? !t.has(v)) t.add(v);
+    else t.delete(v);
+    setMoGd(t);
+  };
+  /** Màu chip / thanh tiến độ: đỏ có lỗi, xanh xong hết, xanh dương đang làm, xám chưa đụng. */
+  const mauGd = (t: { dat: number; tong: number; khongDat: number }) =>
+    t.khongDat > 0
+      ? { chip: "bg-red-50 text-red-700 ring-red-200", thanh: "bg-red-500" }
+      : t.tong > 0 && t.dat === t.tong
+        ? {
+            chip: "bg-green-50 text-green-700 ring-green-200",
+            thanh: "bg-green-500",
+          }
+        : t.dat > 0
+          ? {
+              chip: "bg-blue-50 text-blue-700 ring-blue-200",
+              thanh: "bg-blue-500",
+            }
+          : {
+              chip: "bg-slate-50 text-slate-600 ring-slate-200",
+              thanh: "bg-slate-300",
+            };
 
   return (
     <div className="space-y-4">
@@ -228,22 +262,103 @@ export function QcPanel({
           ))}
         </div>
       )}
+      {gdCoMuc.length > 1 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {gdCoMuc.map((g, i) => (
+            <button
+              key={g.value}
+              type="button"
+              onClick={() => latGd(g.value, true)}
+              title={`${g.label}: xong ${g.t.dat}/${g.t.tong}${g.t.khongDat ? `, ${g.t.khongDat} không đạt` : ""}`}
+              className={`rounded-md px-2 py-1 text-xs ring-1 ring-inset ${mauGd(g.t).chip} ${
+                dangMo.has(g.value) ? "font-semibold" : ""
+              }`}
+            >
+              {i + 1}. {g.label}{" "}
+              <span className="tabular-nums opacity-80">
+                {g.t.dat}/{g.t.tong}
+              </span>
+            </button>
+          ))}
+          <button
+            type="button"
+            className="ml-auto text-xs text-blue-600 hover:underline"
+            onClick={() =>
+              setMoGd(
+                gdCoMuc.every((g) => dangMo.has(g.value))
+                  ? new Set()
+                  : new Set(gdCoMuc.map((g) => g.value)),
+              )
+            }
+          >
+            {gdCoMuc.every((g) => dangMo.has(g.value))
+              ? "Thu gọn tất cả"
+              : "Mở tất cả"}
+          </button>
+        </div>
+      )}
       {QC_GIAI_DOAN.map((gd) => {
         const ds = muc.filter((m) => m.giaiDoan === gd.value);
         if (ds.length === 0 && draft?.giaiDoan !== gd.value) return null;
         const t = tomTatGiaiDoan(ds);
+        const mo = dangMo.has(gd.value) || draft?.giaiDoan === gd.value;
+        const so = gdCoMuc.findIndex((g) => g.value === gd.value) + 1;
         return (
-          <div key={gd.value} className="rounded-xl border border-slate-200">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-2">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-slate-800">{gd.label}</span>
-                <span className="text-sm text-slate-500">
-                  xong {t.dat}/{t.tong}
+          <div
+            key={gd.value}
+            className="overflow-hidden rounded-xl border border-slate-200"
+          >
+            <div
+              className={`flex flex-wrap items-center justify-between gap-2 px-4 py-2 ${
+                mo ? "border-b border-slate-100" : ""
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => latGd(gd.value)}
+                aria-expanded={mo}
+                className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-left"
+              >
+                <span className="flex items-center gap-1.5 font-semibold text-slate-800">
+                  {mo ? (
+                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-slate-400" />
+                  )}
+                  {so > 0 && <span className="text-slate-400">{so}.</span>}
+                  {gd.label}
                 </span>
+                <span className="flex items-center gap-2 text-sm text-slate-500">
+                  <span className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-100">
+                    <span
+                      className={`block h-full ${mauGd(t).thanh}`}
+                      style={{
+                        width: `${t.tong ? Math.round((t.dat / t.tong) * 100) : 0}%`,
+                      }}
+                    />
+                  </span>
+                  <span className="tabular-nums">
+                    {t.dat}/{t.tong}
+                  </span>
+                </span>
+                {!mo && (
+                  <span className="text-xs text-slate-400">
+                    {QC_NHOM.map((nh) => {
+                      const tn = tomTatGiaiDoan(
+                        ds.filter((m) => m.nhom === nh.value),
+                      );
+                      return tn.tong
+                        ? `${nh.label} ${tn.dat}/${tn.tong}`
+                        : null;
+                    })
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                )}
                 {t.khongDat > 0 && (
                   <Badge tone="red">{t.khongDat} không đạt</Badge>
                 )}
-              </div>
+              </button>
               {canEdit && !draft && (
                 <Button
                   size="sm"
@@ -263,71 +378,73 @@ export function QcPanel({
                 </Button>
               )}
             </div>
-            <div className="divide-y divide-slate-100">
-              {QC_NHOM.map((nh) => {
-                const dsNhom = ds.filter((m) => m.nhom === nh.value);
-                if (dsNhom.length === 0) return null;
-                const tn = tomTatGiaiDoan(dsNhom);
-                // Giai đoạn chỉ có mục kiểm tra (dự án cũ) thì khỏi tiêu đề nhóm.
-                const coTieuDe = ds.some((m) => m.nhom !== "KIEM_TRA");
-                return (
-                  <div key={nh.value} className="divide-y divide-slate-100">
-                    {coTieuDe && (
-                      <div className="flex items-center gap-2 bg-slate-50/70 px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
-                        {nh.label}
-                        <span className="font-normal normal-case tabular-nums">
-                          {tn.dat}/{tn.tong}
-                        </span>
-                      </div>
-                    )}
-                    {dsNhom.map((m) =>
-                      draft?.id === m.id ? (
-                        <div key={m.id} className="p-3">
-                          {formMuc(gd.value)}
+            {mo && (
+              <div className="divide-y divide-slate-100">
+                {QC_NHOM.map((nh) => {
+                  const dsNhom = ds.filter((m) => m.nhom === nh.value);
+                  if (dsNhom.length === 0) return null;
+                  const tn = tomTatGiaiDoan(dsNhom);
+                  // Giai đoạn chỉ có mục kiểm tra (dự án cũ) thì khỏi tiêu đề nhóm.
+                  const coTieuDe = ds.some((m) => m.nhom !== "KIEM_TRA");
+                  return (
+                    <div key={nh.value} className="divide-y divide-slate-100">
+                      {coTieuDe && (
+                        <div className="flex items-center gap-2 bg-slate-50/70 px-4 py-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+                          {nh.label}
+                          <span className="font-normal normal-case tabular-nums">
+                            {tn.dat}/{tn.tong}
+                          </span>
                         </div>
-                      ) : (
-                        <QcDong
-                          key={m.id}
-                          projectId={projectId}
-                          m={m}
-                          duocDanh={duocDanhQc(role, m.boPhan)}
-                          canEdit={canEdit}
-                          coKho={coKho}
-                          soSanh={soSanh}
-                          pending={pending}
-                          onSua={() =>
-                            setDraft({
-                              id: m.id,
-                              giaiDoan: m.giaiDoan,
-                              noiDung: m.noiDung,
-                              boPhan: m.boPhan,
-                              nhom: m.nhom,
-                              loai: m.loai,
-                              tieuChi: m.tieuChi,
-                            })
-                          }
-                          onXoa={async () => {
-                            const coLichSu = m.lanKiem.length > 0;
-                            if (
-                              !(await confirm(
-                                coLichSu
-                                  ? `Xoá mục "${m.noiDung}"? ${m.lanKiem.length} lần kiểm sẽ bị xoá theo.`
-                                  : `Xoá mục "${m.noiDung}"?`,
-                              ))
-                            )
-                              return;
-                            run(() => xoaQcMuc(projectId, m.id));
-                          }}
-                        />
-                      ),
-                    )}
-                  </div>
-                );
-              })}
-              {!draft?.id && draft?.giaiDoan === gd.value && (
-                <div className="p-3">{formMuc(gd.value)}</div>
-              )}
-            </div>
+                      )}
+                      {dsNhom.map((m) =>
+                        draft?.id === m.id ? (
+                          <div key={m.id} className="p-3">
+                            {formMuc(gd.value)}
+                          </div>
+                        ) : (
+                          <QcDong
+                            key={m.id}
+                            projectId={projectId}
+                            m={m}
+                            duocDanh={duocDanhQc(role, m.boPhan)}
+                            canEdit={canEdit}
+                            coKho={coKho}
+                            soSanh={soSanh}
+                            pending={pending}
+                            onSua={() =>
+                              setDraft({
+                                id: m.id,
+                                giaiDoan: m.giaiDoan,
+                                noiDung: m.noiDung,
+                                boPhan: m.boPhan,
+                                nhom: m.nhom,
+                                loai: m.loai,
+                                tieuChi: m.tieuChi,
+                              })
+                            }
+                            onXoa={async () => {
+                              const coLichSu = m.lanKiem.length > 0;
+                              if (
+                                !(await confirm(
+                                  coLichSu
+                                    ? `Xoá mục "${m.noiDung}"? ${m.lanKiem.length} lần kiểm sẽ bị xoá theo.`
+                                    : `Xoá mục "${m.noiDung}"?`,
+                                ))
+                              )
+                                return;
+                              run(() => xoaQcMuc(projectId, m.id));
+                            }}
+                          />
+                        ),
+                      )}
+                    </div>
+                  );
+                })}
+                {!draft?.id && draft?.giaiDoan === gd.value && (
+                  <div className="p-3">{formMuc(gd.value)}</div>
+                )}
+              </div>
+            )}
           </div>
         );
       })}
@@ -383,7 +500,7 @@ function QcDong({
   const tepMoiNhat = m.lanKiem[0]?.tep ?? [];
 
   return (
-    <div className="space-y-2 px-4 py-3 text-sm">
+    <div className="space-y-1.5 px-4 py-2 text-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
