@@ -99,7 +99,7 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
           <tr><td class="n">7</td><td>Nhập hợp đồng, đẩy giá bán vào dự án</td><td>Kinh doanh</td><td><span class="path">Hợp đồng & Dự toán › Hợp đồng & Báo giá</span></td></tr>
           <tr><td class="n">8</td><td>Đổ dự toán chào giá xuống dự toán thi công, gán nhà cung cấp, bảng bóc</td><td>Vật tư</td><td>Trang dự án › Mở dự toán</td></tr>
           <tr><td class="n">9</td><td>Đề xuất mua hàng → duyệt → đặt hàng</td><td>Vật tư → BGĐ</td><td><span class="path">Đề xuất & Mua hàng</span></td></tr>
-          <tr><td class="n">10</td><td>Bản vẽ, shop, gia công, lắp dựng: mốc tiến độ và nhật ký</td><td>Kỹ thuật</td><td>Trang dự án, <span class="path">Tiến độ</span></td></tr>
+          <tr><td class="n">10</td><td>Bản vẽ, shop, gia công, lắp dựng: mốc tiến độ và nhật ký</td><td>Kỹ thuật</td><td>Trang dự án, <span class="path">Tiến độ & Công việc</span></td></tr>
           <tr><td class="n">11</td><td>Thu tiền chủ đầu tư, trả nhà cung cấp theo đợt</td><td>Kế toán</td><td>Trang dự án › Thanh toán theo đợt</td></tr>
           <tr><td class="n">12</td><td>Quyết toán, công nợ, báo cáo theo kỳ</td><td>Kế toán, BGĐ</td><td><span class="path">Chi phí & công nợ</span></td></tr>
         </tbody>
@@ -339,12 +339,12 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
 
       <div class="task" id="kt-tien-do">
         <h3>Mốc tiến độ và Gantt</h3>
-        <p class="where">Trang dự án › Tiến độ thực hiện · <span class="path">Tiến độ › Theo tuần</span> · <span class="path">Tiến độ › Gantt</span></p>
+        <p class="where">Trang dự án › Tiến độ thực hiện · <span class="path">Tiến độ & Công việc › Tiến độ tuần</span> · <span class="path">Tiến độ & Công việc › Gantt</span></p>
         <ol class="steps">
           <li>Tám mốc cố định: Bản vẽ KT · Shop · Mua hàng · Gia công · Lắp dựng · Lợp tôn · HS nghiệm thu · HS quyết toán.</li>
           <li>Mỗi mốc điền ngày <b>Kế hoạch</b> ngay khi có tiến độ tổng. Khi xong, điền ngày <b>Thực tế</b>, tích <b>Xong</b>, bấm <span class="ui">Lưu</span> ở dòng đó.</li>
           <li>Luôn điền ngày thực tế khi tích xong — báo cáo theo kỳ xếp mốc vào tháng theo ngày này; thiếu ngày thì mốc không được đếm.</li>
-          <li><span class="path">Tiến độ › Theo tuần</span> xem nhanh mọi dự án: số mốc đã xong / 8, ghi chú mới nhất. <span class="path">Tiến độ › Gantt</span> xem kế hoạch trên trục thời gian.</li>
+          <li><span class="path">Tiến độ & Công việc › Tiến độ tuần</span> xem nhanh mọi dự án: số mốc đã xong / 8, ghi chú mới nhất. <span class="path">Tiến độ & Công việc › Gantt</span> xem kế hoạch trên trục thời gian.</li>
         </ol>
         <p class="tip"><b>Mốc trễ được nhắc tự động.</b>Mốc chưa xong mà quá ngày kế hoạch sẽ vào bản tin nhắc việc 8 giờ sáng.</p>
       </div>
@@ -353,7 +353,7 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
         <h3>Nhật ký công trường và shopdrawing</h3>
         <p class="where">Trang dự án › Nhật ký dự án · Hồ sơ & phiên bản · nút <span class="ui">Nhập nhanh</span></p>
         <ul class="bul">
-          <li><b>Nhật ký:</b> gõ tiến độ, vướng mắc, chỉ đạo, chọn ảnh đính kèm, bấm <span class="ui">Thêm ghi chú</span>. Giờ và tên người ghi tự lưu; ghi chú mới nhất hiện ở <span class="path">Tiến độ › Theo tuần</span>.</li>
+          <li><b>Nhật ký:</b> gõ tiến độ, vướng mắc, chỉ đạo, chọn ảnh đính kèm, bấm <span class="ui">Thêm ghi chú</span>. Giờ và tên người ghi tự lưu; ghi chú mới nhất hiện ở <span class="path">Tiến độ & Công việc › Tiến độ tuần</span>.</li>
           <li><b>Ở công trường:</b> bấm <span class="ui">Nhập nhanh</span> → chọn dự án → tab <b>Tiến độ / nhật ký</b> → gõ “Đã lắp xong khung trục 1–5…”, bấm <span class="ui">Chụp / thêm ảnh</span> nếu cần → <span class="ui">Lưu tiến độ</span>.</li>
           <li><b>Shopdrawing:</b> khung Hồ sơ & phiên bản, loại <b>Shopdrawing</b>, phiên bản Rev0, Rev1…, trạng thái Nháp / Đã gửi / Được duyệt / Bị thay thế.</li>
         </ul>

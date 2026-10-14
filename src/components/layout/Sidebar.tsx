@@ -12,7 +12,6 @@ import {
   ShoppingCart,
   Wallet,
   Receipt,
-  Workflow,
   UserSearch,
   Users,
   Library,
@@ -32,9 +31,8 @@ import {
   TAB_KHACH_HANG,
   TAB_MUA_HANG,
   TAB_QUAN_TRI,
-  TAB_TIEN_DO,
+  TAB_THUC_HIEN,
   TAB_TIEN_ICH,
-  TAB_VIEC_THI_CONG,
   tabDuocXem,
   type MucTab,
 } from "./TabTrang";
@@ -74,8 +72,7 @@ interface NavGroup {
  *   Chào giá          = dự toán chào giá · báo giá gửi khách
  *   Dự án             = danh sách · tổng quan
  *   Hợp đồng & Dự toán = hợp đồng & báo giá · dự toán thi công
- *   Tiến độ           = theo tuần · Gantt
- *   Việc thi công     = việc quy trình · việc QC
+ *   Tiến độ & Công việc = tiến độ tuần · Gantt · việc quy trình · việc QC
  *   Đề xuất & Mua hàng = phê duyệt · đơn hàng
  *   Chi phí & công nợ = tổng hợp · theo kỳ · công nợ
  *   Quản trị          = người dùng · mẫu QC · nhập từ Excel · nhật ký thay đổi
@@ -108,7 +105,7 @@ const NAV: NavGroup[] = [
         // Trang dự toán/báo giá của một cơ hội nằm dưới /co-hoi nhưng vẫn là việc
         // của khu này — không đánh dấu thì vào đó menu trông như không ở đâu cả.
         khopThem: [...TAB_KHACH_HANG.slice(1).map((t) => t.href), "/co-hoi"],
-        // /quy-trinh-bao-gia cũng khớp tiền tố của "Việc thi công" — giành để chỉ mục này sáng.
+        // /quy-trinh-bao-gia cũng khớp tiền tố của "Tiến độ & Công việc" — giành để chỉ mục này sáng.
         gianh: (p) => p.startsWith("/quy-trinh-bao-gia"),
       },
       // Dự toán chào giá và báo giá gửi khách của từng dự án/cơ hội mang đường dẫn
@@ -119,12 +116,11 @@ const NAV: NavGroup[] = [
   {
     ten: "Thi công",
     items: [
-      // Theo đúng trình tự một công trình: dự án → hợp đồng & dự toán thi công → tiến độ
-      // → làm việc theo quy trình và nghiệm thu QC.
+      // Theo đúng trình tự một công trình: dự án → hợp đồng & dự toán thi công → tiến độ,
+      // làm việc theo quy trình và nghiệm thu QC.
       { ...mucGop(TAB_DU_AN), label: "Dự án", icon: FolderKanban },
       { ...mucGop(TAB_HOP_DONG), label: "Hợp đồng & Dự toán", icon: FileSignature },
-      { ...mucGop(TAB_TIEN_DO), label: "Tiến độ", icon: CalendarRange },
-      { ...mucGop(TAB_VIEC_THI_CONG), label: "Việc thi công", icon: Workflow },
+      { ...mucGop(TAB_THUC_HIEN), label: "Tiến độ & Công việc", icon: CalendarRange },
     ],
   },
   {

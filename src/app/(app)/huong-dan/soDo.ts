@@ -13,9 +13,8 @@ import {
   TAB_KHACH_HANG,
   TAB_MUA_HANG,
   TAB_QUAN_TRI,
-  TAB_TIEN_DO,
+  TAB_THUC_HIEN,
   TAB_TIEN_ICH,
-  TAB_VIEC_THI_CONG,
   type MucTab,
 } from "@/components/layout/TabTrang";
 
@@ -428,8 +427,7 @@ const NHANH_MENU: NhanhSoDo[] = [
     muc: [
       { t: "Dự án", m: "danh sách, trang chi tiết, bức tranh chung", tabs: TAB_DU_AN },
       { t: "Hợp đồng & Dự toán", m: "ký hợp đồng rồi lập dự toán thi công", tabs: TAB_HOP_DONG },
-      { t: "Tiến độ", m: "8 mốc của mọi dự án", tabs: TAB_TIEN_DO },
-      { t: "Việc thi công", m: "làm theo quy trình, nghiệm thu QC", tabs: TAB_VIEC_THI_CONG },
+      { t: "Tiến độ & Công việc", m: "8 mốc tiến độ, làm theo quy trình, nghiệm thu QC", tabs: TAB_THUC_HIEN },
     ],
   },
   {

@@ -9,7 +9,7 @@ import { docVersionDb } from "@/lib/doc-versions";
 import { weekRange } from "@/lib/week";
 import { MILESTONE_TYPE, DOC_TYPE_MAP, DOC_STATUS_MAP, PO_CATEGORY_MAP } from "@/lib/constants";
 import { ProgressBoard, type ProgressRow, type TimelineEntry } from "./ProgressBoard";
-import { TabTrang, TAB_TIEN_DO } from "@/components/layout/TabTrang";
+import { TabTrang, TAB_THUC_HIEN } from "@/components/layout/TabTrang";
 
 function fmtDateTime(d: Date): string {
   const dd = String(d.getDate()).padStart(2, "0");
@@ -193,7 +193,7 @@ export default async function ProgressPage() {
 
   return (
     <div className="trang-rong space-y-6">
-      <TabTrang tabs={TAB_TIEN_DO} hienTai="/weekly" role={session.role} />
+      <TabTrang tabs={TAB_THUC_HIEN} hienTai="/weekly" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Tiến độ</h1>
         <p className="text-sm text-slate-500">

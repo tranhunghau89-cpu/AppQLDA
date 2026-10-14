@@ -49,13 +49,11 @@ export const TAB_HOP_DONG: readonly MucTab[] = [
   { href: "/estimates", label: "Dự toán thi công", resource: "estimate" },
 ];
 
-export const TAB_TIEN_DO: readonly MucTab[] = [
-  { href: "/weekly", label: "Theo tuần", resource: "progress" },
+// Thi công ngoài hiện trường, theo thứ tự: lên kế hoạch tiến độ (tuần · Gantt) → làm việc theo
+// quy trình → nghiệm thu QC. Hai bên khác quyền (progress / project) nên lọc theo từng tab.
+export const TAB_THUC_HIEN: readonly MucTab[] = [
+  { href: "/weekly", label: "Tiến độ tuần", resource: "progress" },
   { href: "/gantt", label: "Gantt", resource: "progress" },
-];
-
-// Việc ngoài hiện trường: làm theo quy trình rồi nghiệm thu QC.
-export const TAB_VIEC_THI_CONG: readonly MucTab[] = [
   { href: "/quy-trinh", label: "Việc quy trình", resource: "project" },
   { href: "/qc", label: "Việc QC", resource: "project" },
 ];
