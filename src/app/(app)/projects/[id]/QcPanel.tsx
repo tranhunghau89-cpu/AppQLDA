@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { useConfirm } from "@/components/ui/confirm";
 import {
-  MILESTONE_TYPE,
+  QC_GIAI_DOAN,
   QC_KET_QUA_MAP,
   QC_LOAI,
   QC_LOAI_MAP,
@@ -24,6 +24,7 @@ import { ROLES, ROLE_LABEL, type Role } from "@/lib/rbac";
 import { dongTieuChi, duocDanhQc, tomTatGiaiDoan } from "@/lib/qc";
 import { formatDate } from "@/lib/utils";
 import {
+  chepMauGiaiDoan,
   danhGiaQc,
   ghiChuTieuChiQc,
   luuQcMuc,
@@ -165,9 +166,30 @@ export function QcPanel({
       </div>
     ) : null;
 
+  const gdTrong = QC_GIAI_DOAN.filter(
+    (gd) => !muc.some((m) => m.giaiDoan === gd.value),
+  );
+
   return (
     <div className="space-y-4">
-      {MILESTONE_TYPE.map((gd) => {
+      {canEdit && gdTrong.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-4 py-2.5 text-sm">
+          <span className="text-slate-500">Giai đoạn chưa có mục:</span>
+          {gdTrong.map((gd) => (
+            <Button
+              key={gd.value}
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              title="Chép các mục mẫu của giai đoạn này vào dự án"
+              onClick={() => run(() => chepMauGiaiDoan(projectId, gd.value))}
+            >
+              <Plus className="h-4 w-4" /> {gd.label}
+            </Button>
+          ))}
+        </div>
+      )}
+      {QC_GIAI_DOAN.map((gd) => {
         const ds = muc.filter((m) => m.giaiDoan === gd.value);
         if (ds.length === 0 && draft?.giaiDoan !== gd.value) return null;
         const t = tomTatGiaiDoan(ds);

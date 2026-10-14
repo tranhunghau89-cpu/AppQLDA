@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Select } from "@/components/ui/form";
-import { MILESTONE_TYPE, MILESTONE_TYPE_MAP } from "@/lib/constants";
+import { QC_GIAI_DOAN, QC_GIAI_DOAN_MAP } from "@/lib/constants";
 import { NGUONG_SAP_DEN_HAN, soNgay } from "@/lib/ngayVN";
 import { ROLES, ROLE_LABEL, type Role } from "@/lib/rbac";
 import { cn, formatDate } from "@/lib/utils";
@@ -40,7 +40,7 @@ interface NhomDuAn {
   hanSomNhat: number;
 }
 
-const THU_TU_GD = new Map(MILESTONE_TYPE.map((o, i) => [o.value, i]));
+const THU_TU_GD = new Map(QC_GIAI_DOAN.map((o, i) => [o.value, i]));
 
 /** Dự án → giai đoạn (theo thứ tự mốc) → mục (Không đạt trước). */
 function gomNhom(rows: ViecQcRow[]): NhomDuAn[] {
@@ -248,7 +248,7 @@ export function BangViecQc({
           onChange={(e) => setGiaiDoan(e.target.value)}
         >
           <option value="">Mọi giai đoạn</option>
-          {MILESTONE_TYPE.map((o) => (
+          {QC_GIAI_DOAN.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
@@ -386,7 +386,7 @@ export function BangViecQc({
                       CHIP_GAP[mucGap(gd, nowMs)],
                     )}
                   >
-                    {MILESTONE_TYPE_MAP[gd.giaiDoan]?.label ?? gd.giaiDoan}{" "}
+                    {QC_GIAI_DOAN_MAP[gd.giaiDoan]?.label ?? gd.giaiDoan}{" "}
                     <b className="tabular-nums">{gd.muc.length}</b>
                   </span>
                 ))}
@@ -399,7 +399,7 @@ export function BangViecQc({
                   <div key={gd.giaiDoan} className="sm:flex">
                     <div className="flex items-center gap-2 bg-slate-50/70 px-4 py-2 sm:w-48 sm:shrink-0 sm:flex-col sm:items-start sm:gap-1 sm:py-3">
                       <span className="text-sm font-medium text-slate-800">
-                        {MILESTONE_TYPE_MAP[gd.giaiDoan]?.label ?? gd.giaiDoan}
+                        {QC_GIAI_DOAN_MAP[gd.giaiDoan]?.label ?? gd.giaiDoan}
                       </span>
                       <HanChip
                         han={gd.han}

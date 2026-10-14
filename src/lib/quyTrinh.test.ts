@@ -42,10 +42,13 @@ describe("loiGuiQc", () => {
 
 describe("tinhChuoi", () => {
   const qc = { BV_KT: 3, SHOP: 2 };
+  const tt = (c: ReturnType<typeof tinhChuoi>, buoc: string) =>
+    c.find((b) => b.buoc === buoc)?.trangThai;
   it("bước sau khoá khi bước trước chưa duyệt; giai đoạn không có QC thì bỏ qua", () => {
     const c = tinhChuoi([], qc);
-    expect(c.slice(0, 4).map((b) => b.trangThai)).toEqual([
+    expect(["THONG_TIN", "HD_DT", "BV_KT", "SHOP", "MUA_HANG"].map((b) => tt(c, b))).toEqual([
       "DANG_LAM",
+      "BO_QUA",
       "CHUA_MO",
       "CHUA_MO",
       "BO_QUA",
@@ -54,9 +57,15 @@ describe("tinhChuoi", () => {
   });
   it("duyệt bước 0 thì mở QC Bản vẽ KT", () => {
     const c = tinhChuoi([{ buoc: "THONG_TIN", trangThai: "DA_DUYET" }], qc);
-    expect(c[1].trangThai).toBe("DANG_LAM");
-    expect(c[2].trangThai).toBe("CHUA_MO");
+    expect(tt(c, "BV_KT")).toBe("DANG_LAM");
+    expect(tt(c, "SHOP")).toBe("CHUA_MO");
     expect(buocHienTai(c)).toBe("BV_KT");
+  });
+  it("QC Hợp đồng & Dự toán có mục thì đứng giữa Thông tin và Bản vẽ KT", () => {
+    const c = tinhChuoi([{ buoc: "THONG_TIN", trangThai: "DA_DUYET" }], { ...qc, HD_DT: 7 });
+    expect(c.map((b) => b.buoc).slice(0, 3)).toEqual(["THONG_TIN", "HD_DT", "BV_KT"]);
+    expect(buocHienTai(c)).toBe("HD_DT");
+    expect(tt(c, "BV_KT")).toBe("CHUA_MO");
   });
   it("bỏ qua không chặn; xong hết thì null", () => {
     const c = tinhChuoi(
@@ -71,7 +80,7 @@ describe("tinhChuoi", () => {
   });
   it("trả lại vẫn hiện trả lại dù bước trước chưa duyệt", () => {
     const c = tinhChuoi([{ buoc: "BV_KT", trangThai: "TRA_LAI" }], qc);
-    expect(c[1].trangThai).toBe("TRA_LAI");
+    expect(tt(c, "BV_KT")).toBe("TRA_LAI");
   });
 });
 

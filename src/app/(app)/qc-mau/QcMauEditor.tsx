@@ -6,7 +6,7 @@ import { Input, Select } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
-import { MILESTONE_TYPE, QC_LOAI, QC_LOAI_MAP } from "@/lib/constants";
+import { QC_GIAI_DOAN, QC_LOAI, QC_LOAI_MAP } from "@/lib/constants";
 import { ROLES, ROLE_LABEL, type Role } from "@/lib/rbac";
 import { dongTieuChi } from "@/lib/qc";
 import { TieuChiEditor } from "./TieuChiEditor";
@@ -97,7 +97,7 @@ export function QcMauEditor({ mau }: { mau: MauRow[] }) {
 
   return (
     <div className="space-y-4">
-      {MILESTONE_TYPE.map((gd) => {
+      {QC_GIAI_DOAN.map((gd) => {
         const ds = mau.filter((m) => m.giaiDoan === gd.value);
         return (
           <div

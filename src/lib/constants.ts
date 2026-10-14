@@ -69,6 +69,14 @@ export const CONTACT_ROLE: Option[] = [
 export const CONTACT_ROLE_MAP = map(CONTACT_ROLE);
 
 // ----- QC theo giai đoạn -----
+// Giai đoạn QC = "Hợp đồng & Dự toán" (không có mốc tiến độ) + các mốc tiến độ.
+export const QC_GIAI_DOAN_HD_DT = "HD_DT";
+export const QC_GIAI_DOAN: Option[] = [
+  { value: QC_GIAI_DOAN_HD_DT, label: "Hợp đồng & Dự toán" },
+  ...MILESTONE_TYPE,
+];
+export const QC_GIAI_DOAN_MAP = map(QC_GIAI_DOAN);
+
 export const QC_KET_QUA: Option[] = [
   { value: "CHUA", label: "Chưa kiểm", tone: "slate" },
   { value: "DAT", label: "Đạt", tone: "green" },

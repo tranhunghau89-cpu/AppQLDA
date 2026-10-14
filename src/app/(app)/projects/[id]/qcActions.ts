@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { denyProject, requireSession } from "@/lib/auth";
 import { canAccessProject } from "@/lib/scope";
 import { isStorageConfigured, uploadFile } from "@/lib/storage";
-import { MILESTONE_TYPE_MAP, QC_LOAI_MAP } from "@/lib/constants";
+import { QC_GIAI_DOAN_MAP, QC_LOAI_MAP } from "@/lib/constants";
 import { ROLES } from "@/lib/rbac";
 import { chuanTieuChi, dongTieuChi, duocDanhQc, kiemTraDanhGia } from "@/lib/qc";
 import { moLaiBuocQc } from "@/lib/quyTrinhDb";
@@ -56,6 +56,43 @@ export async function taoQcTuMau(projectId: string): Promise<ActionResult> {
   return { ok: true };
 }
 
+/** Dự án đã có QC nhưng thiếu cả một giai đoạn (vd. giai đoạn mới thêm vào mẫu): chép mẫu riêng giai đoạn đó. */
+export async function chepMauGiaiDoan(
+  projectId: string,
+  giaiDoan: string,
+): Promise<ActionResult> {
+  const denied = await denyProject("project", "edit", projectId, NO_EDIT);
+  if (denied) return denied;
+  if (!(giaiDoan in QC_GIAI_DOAN_MAP))
+    return { ok: false, error: "Giai đoạn không hợp lệ." };
+  const mau = await db.qcMau.findMany({
+    where: { active: true, giaiDoan },
+    orderBy: { thuTu: "asc" },
+  });
+  if (mau.length === 0)
+    return { ok: false, error: "Giai đoạn này chưa có mục mẫu nào." };
+
+  const daCo = await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${"qc:" + projectId}))::text`;
+    if ((await tx.qcMuc.count({ where: { projectId, giaiDoan } })) > 0) return true;
+    await tx.qcMuc.createMany({
+      data: mau.map((m) => ({
+        projectId,
+        giaiDoan: m.giaiDoan,
+        noiDung: m.noiDung,
+        boPhan: m.boPhan,
+        loai: m.loai,
+        tieuChi: m.tieuChi,
+        thuTu: m.thuTu,
+      })),
+    });
+    return false;
+  });
+  if (daCo) return { ok: false, error: "Giai đoạn này đã có mục QC." };
+  lamMoi(projectId);
+  return { ok: true };
+}
+
 export async function luuQcMuc(
   projectId: string,
   v: {
@@ -71,7 +108,7 @@ export async function luuQcMuc(
   if (denied) return denied;
   const noiDung = v.noiDung.trim();
   if (!noiDung) return { ok: false, error: "Nhập nội dung mục kiểm tra." };
-  if (!(v.giaiDoan in MILESTONE_TYPE_MAP))
+  if (!(v.giaiDoan in QC_GIAI_DOAN_MAP))
     return { ok: false, error: "Giai đoạn không hợp lệ." };
   if (!(ROLES as readonly string[]).includes(v.boPhan))
     return { ok: false, error: "Bộ phận không hợp lệ." };

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { diffFields, recordAudit } from "@/lib/audit";
-import { MILESTONE_TYPE_MAP, QC_LOAI_MAP } from "@/lib/constants";
+import { QC_GIAI_DOAN_MAP, QC_LOAI_MAP } from "@/lib/constants";
 import { ROLES } from "@/lib/rbac";
 import { chuanTieuChi } from "@/lib/qc";
 
@@ -29,7 +29,7 @@ export async function luuQcMau(v: {
   if (!s) return { ok: false, error: CHI_ADMIN };
   const noiDung = v.noiDung.trim();
   if (!noiDung) return { ok: false, error: "Nhập nội dung mục kiểm tra." };
-  if (!(v.giaiDoan in MILESTONE_TYPE_MAP))
+  if (!(v.giaiDoan in QC_GIAI_DOAN_MAP))
     return { ok: false, error: "Giai đoạn không hợp lệ." };
   if (!(ROLES as readonly string[]).includes(v.boPhan))
     return { ok: false, error: "Bộ phận không hợp lệ." };

@@ -1,13 +1,13 @@
 // Quy trình dự án: Thông tin dự án → QC từng giai đoạn. Luật thuần — không chạm DB,
 // không đọc đồng hồ; dùng chung server + client. Thiết kế: plan/33_QuyTrinh_ThongTin_QC.md
-import { MILESTONE_TYPE } from "@/lib/constants";
+import { QC_GIAI_DOAN } from "@/lib/constants";
 import { soNgay } from "@/lib/ngayVN";
 import type { LyDo } from "@/lib/projectHealth";
 
 export const BUOC_THONG_TIN = "THONG_TIN";
 export const CAC_BUOC: { value: string; label: string }[] = [
   { value: BUOC_THONG_TIN, label: "Thông tin dự án" },
-  ...MILESTONE_TYPE.map((m) => ({ value: m.value, label: `QC ${m.label}` })),
+  ...QC_GIAI_DOAN.map((m) => ({ value: m.value, label: `QC ${m.label}` })),
 ];
 export const TEN_BUOC: Record<string, string> = Object.fromEntries(
   CAC_BUOC.map((b) => [b.value, b.label]),

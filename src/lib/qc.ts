@@ -1,6 +1,6 @@
 // QC theo giai đoạn: luật thuần — quyền đánh kết quả, kiểm tra đầu vào, đếm, cờ, sắp xếp.
 // Không chạm DB, không đọc đồng hồ; dùng chung server + client.
-import { MILESTONE_TYPE_MAP } from "@/lib/constants";
+import { QC_GIAI_DOAN_MAP } from "@/lib/constants";
 import { NGUONG_SAP_DEN_HAN, soNgay } from "@/lib/ngayVN";
 import type { LyDo } from "@/lib/projectHealth";
 
@@ -73,7 +73,7 @@ export function lyDoQc(
   }
   const out: LyDo[] = [];
   for (const [giaiDoan, ds] of theoGiaiDoan) {
-    const ten = MILESTONE_TYPE_MAP[giaiDoan]?.label ?? giaiDoan;
+    const ten = QC_GIAI_DOAN_MAP[giaiDoan]?.label ?? giaiDoan;
     const t = tomTatGiaiDoan(ds);
     if (t.khongDat > 0) {
       out.push({ muc: "DO", loai: "QC", soNgay: t.khongDat, text: `QC ${ten}: ${t.khongDat} mục không đạt` });
