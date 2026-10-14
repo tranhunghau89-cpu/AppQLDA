@@ -72,6 +72,11 @@ export interface SupplierOpt {
 }
 
 const UNSECTIONED = "__none__";
+const NHOM_MOI = "__moi__";
+
+/** Tiêu đề nhóm của dòng trên bảng: nhãn tự gõ, không có thì tên loại chi phí. */
+const nhanNhom = (r: { groupLabel: string | null; groupCode: string }) =>
+  r.groupLabel ?? ESTIMATE_GROUP_MAP[r.groupCode]?.label ?? r.groupCode;
 
 const phanTram = (x: number | null) => (x == null ? "—" : `${(x * 100).toFixed(1)}%`);
 // Ô số đọc kiểu Việt (dấu chấm = hàng nghìn) — điền sẵn phải dùng dấu phẩy thập phân,
@@ -114,10 +119,14 @@ export function EstimateEditor({
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<EstimateRow | null>(null);
   // Hạng mục + nhóm điền sẵn khi bấm "Thêm dòng vào …"; "" = chưa phân hạng mục.
-  const [dich, setDich] = useState<{ sectionId: string; groupLabel: string }>({
-    sectionId: "",
-    groupLabel: "",
-  });
+  // Hạng mục, nhóm (tiêu đề trên bảng) và loại chi phí của dòng đang thêm / sửa.
+  // nhomMoi = đang gõ một nhóm chưa có trong hạng mục.
+  const [dich, setDich] = useState<{
+    sectionId: string;
+    groupLabel: string;
+    groupCode: string;
+    nhomMoi: boolean;
+  }>({ sectionId: "", groupLabel: "", groupCode: "KCT", nhomMoi: false });
   const [thuGon, setThuGon] = useState<Set<string>>(new Set());
   const doiThuGon = (k: string) =>
     setThuGon((cu) => {
@@ -165,7 +174,7 @@ export function EstimateEditor({
       const order: string[] = [];
       const map = new Map<string, EstimateRow[]>();
       for (const r of sorted) {
-        const label = r.groupLabel ?? ESTIMATE_GROUP_MAP[r.groupCode]?.label ?? r.groupCode;
+        const label = nhanNhom(r);
         if (!map.has(label)) {
           map.set(label, []);
           order.push(label);
@@ -195,30 +204,57 @@ export function EstimateEditor({
   const tongDuToan = summary.totalCost;
   const dsSection = [...sections].sort((a, b) => a.sortOrder - b.sortOrder);
 
-  /** Mở form thêm dòng; không chỉ định thì vào hạng mục cuối cùng (chứ không "Chưa phân"). */
-  function openNew(sectionId?: string | null, groupLabel?: string) {
-    setEditing(null);
+  /**
+   * Nhóm đang hiện trên bảng của một hạng mục — đúng tiêu đề nhóm người dùng thấy (nhãn
+   * tự gõ, hoặc tên loại chi phí khi dòng chưa có nhãn), kèm loại chi phí hay gặp nhất
+   * trong nhóm để chọn nhóm là loại chi phí tự theo.
+   */
+  const nhomCua = (sectionId: string) => {
+    const dem = new Map<string, Map<string, number>>();
+    for (const it of [...items].sort((a, b) => a.sortOrder - b.sortOrder)) {
+      if ((it.sectionId ?? "") !== sectionId) continue;
+      const nhan = nhanNhom(it);
+      const m = dem.get(nhan) ?? new Map<string, number>();
+      m.set(it.groupCode, (m.get(it.groupCode) ?? 0) + 1);
+      dem.set(nhan, m);
+    }
+    return [...dem].map(([nhan, m]) => ({
+      nhan,
+      groupCode: [...m].sort((a, b) => b[1] - a[1])[0][0],
+    }));
+  };
+  const nhomCoSan = nhomCua(dich.sectionId);
+
+  /** Chọn hạng mục: nhóm về nhóm cuối của hạng mục đó (dòng mới hay nối tiếp nhóm cuối). */
+  function chonHangMuc(sectionId: string, giuNhom?: { nhan: string; groupCode: string }) {
+    const ds = nhomCua(sectionId);
+    const nhom = giuNhom ?? ds.at(-1);
     setDich({
-      sectionId: sectionId === undefined ? (dsSection.at(-1)?.id ?? "") : (sectionId ?? ""),
-      groupLabel: groupLabel ?? "",
+      sectionId,
+      groupLabel: nhom?.nhan ?? "",
+      groupCode: nhom?.groupCode ?? "KCT",
+      nhomMoi: !nhom,
     });
+  }
+
+  /** Mở form thêm dòng; không chỉ định thì vào hạng mục cuối cùng (chứ không "Chưa phân"). */
+  function openNew(sectionId?: string | null) {
+    setEditing(null);
+    chonHangMuc(sectionId === undefined ? (dsSection.at(-1)?.id ?? "") : (sectionId ?? ""));
     setError(null);
     setOpen(true);
   }
   function openEdit(it: EstimateRow) {
     setEditing(it);
-    setDich({ sectionId: it.sectionId ?? "", groupLabel: it.groupLabel ?? "" });
+    setDich({
+      sectionId: it.sectionId ?? "",
+      groupLabel: nhanNhom(it),
+      groupCode: it.groupCode,
+      nhomMoi: false,
+    });
     setError(null);
     setOpen(true);
   }
-  // Nhóm đã có trong hạng mục đang chọn — gợi ý cho ô Nhóm của form.
-  const nhomCoSan = [
-    ...new Set(
-      items
-        .filter((it) => (it.sectionId ?? "") === dich.sectionId)
-        .map((it) => it.groupLabel ?? ESTIMATE_GROUP_MAP[it.groupCode]?.label ?? it.groupCode),
-    ),
-  ];
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -640,7 +676,7 @@ export function EstimateEditor({
               <Select
                 name="sectionId"
                 value={dich.sectionId}
-                onChange={(e) => setDich((d) => ({ ...d, sectionId: e.target.value }))}
+                onChange={(e) => chonHangMuc(e.target.value)}
               >
                 {dsSection.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -651,24 +687,56 @@ export function EstimateEditor({
                 <option value="">— Chưa phân hạng mục —</option>
               </Select>
             </Field>
-            <Field label="Nhóm trong hạng mục (Bulong neo, Giằng…)">
-              <Input
-                name="groupLabel"
-                list="nhom-trong-hang-muc"
-                value={dich.groupLabel}
-                onChange={(e) => setDich((d) => ({ ...d, groupLabel: e.target.value }))}
-                placeholder="Chọn nhóm có sẵn hoặc gõ nhóm mới"
-              />
-              <datalist id="nhom-trong-hang-muc">
-                {nhomCoSan.map((n) => (
-                  <option key={n} value={n} />
+            <Field label="Nhóm (tiêu đề trên bảng)">
+              <input type="hidden" name="groupLabel" value={dich.groupLabel} />
+              <Select
+                value={dich.nhomMoi ? NHOM_MOI : dich.groupLabel}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === NHOM_MOI) {
+                    setDich((d) => ({ ...d, nhomMoi: true, groupLabel: "" }));
+                    return;
+                  }
+                  const n = nhomCoSan.find((x) => x.nhan === v);
+                  setDich((d) => ({
+                    ...d,
+                    nhomMoi: false,
+                    groupLabel: v,
+                    groupCode: n?.groupCode ?? d.groupCode,
+                  }));
+                }}
+              >
+                {nhomCoSan.map((n, i) => (
+                  <option key={n.nhan} value={n.nhan}>
+                    {i + 1}. {n.nhan}
+                  </option>
                 ))}
-              </datalist>
+                <option value={NHOM_MOI}>+ Nhóm mới…</option>
+              </Select>
+              {dich.nhomMoi && (
+                <Input
+                  className="mt-2"
+                  autoFocus
+                  value={dich.groupLabel}
+                  onChange={(e) => setDich((d) => ({ ...d, groupLabel: e.target.value }))}
+                  placeholder="Tên nhóm mới, vd Máng nước"
+                />
+              )}
             </Field>
           </div>
+          <Field label="Tên công việc *">
+            <Input name="name" defaultValue={editing?.name ?? ""} required />
+          </Field>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Nhóm chi phí *">
-              <Select name="groupCode" defaultValue={editing?.groupCode ?? "KCT"}>
+            <Field label="Đơn vị">
+              <Input name="unit" defaultValue={editing?.unit ?? ""} placeholder="kg, bộ, m²…" />
+            </Field>
+            <Field label="Loại chi phí (để tổng hợp bên phải) *">
+              <Select
+                name="groupCode"
+                value={dich.groupCode}
+                onChange={(e) => setDich((d) => ({ ...d, groupCode: e.target.value }))}
+              >
                 {ESTIMATE_GROUP.map((g) => (
                   <option key={g.value} value={g.value}>
                     {g.label}
@@ -676,13 +744,7 @@ export function EstimateEditor({
                 ))}
               </Select>
             </Field>
-            <Field label="Đơn vị">
-              <Input name="unit" defaultValue={editing?.unit ?? ""} placeholder="kg, bộ, m²…" />
-            </Field>
           </div>
-          <Field label="Tên công việc *">
-            <Input name="name" defaultValue={editing?.name ?? ""} required />
-          </Field>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Field label="KL thiết kế">
               {/*
