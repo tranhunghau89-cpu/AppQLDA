@@ -36,6 +36,8 @@ import { isStorageConfigured } from "@/lib/storage";
 import { tomTatGiaiDoan } from "@/lib/qc";
 import { MucDuAn, MucLuc, OThongTin } from "./MucDuAn";
 import { MoMucTheoHash } from "./MoMucTheoHash";
+import { SuaThongTinDuAn } from "./SuaThongTinDuAn";
+import { salePriceFromContracts } from "@/lib/contract";
 
 export default async function ProjectDetailPage({
   params,
@@ -359,6 +361,18 @@ export default async function ProjectDetailPage({
       ? `${formatNumber(project.kK)} × ${formatNumber(project.kL)} × ${formatNumber(project.kH)}`
       : "—";
 
+  // Danh sách chọn cho form "Sửa thông tin" — chỉ nạp khi người xem được sửa.
+  const [dsCdt, dsKhuVuc] = canEdit
+    ? await Promise.all([
+        db.customer.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+        db.khuVuc.findMany({
+          where: { active: true },
+          orderBy: [{ sortOrder: "asc" }, { ma: "asc" }],
+          select: { id: true, ma: true, ten: true },
+        }),
+      ])
+    : [[], []];
+
   const qcTom = tomTatGiaiDoan(qcMuc);
   const mocXong = project.milestones.filter((m) => m.done).length;
   // Thứ tự mục = thứ tự đánh số; mục không có quyền xem thì bỏ, số tự dồn lên.
@@ -432,6 +446,33 @@ export default async function ProjectDetailPage({
         tieuDe="Thông tin chung"
         tomTat={`${project.customer?.name ?? "Chưa có CĐT"} · ${project.contacts.length} người liên hệ`}
       >
+        {canEdit && (
+          <div className="-mt-1 mb-3 flex justify-end">
+            <SuaThongTinDuAn
+              duAn={{
+                id: project.id,
+                code: project.code,
+                name: project.name,
+                buildingType: project.buildingType,
+                status: project.status,
+                location: project.location,
+                khuVucId: project.khuVucId,
+                customerId: project.customerId,
+                startDate: project.startDate?.toISOString() ?? null,
+                endDate: project.endDate?.toISOString() ?? null,
+                kK: project.kK,
+                kL: project.kL,
+                kH: project.kH,
+                area: project.area,
+                salePrice: project.salePrice,
+                note: project.note,
+              }}
+              customers={dsCdt}
+              khuVucs={dsKhuVuc}
+              giaBanKhoa={salePriceFromContracts(project.contracts).locked}
+            />
+          </div>
+        )}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div>
             <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
