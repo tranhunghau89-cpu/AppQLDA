@@ -32,14 +32,32 @@ export const TAB_CHAO_GIA: readonly MucTab[] = [
   { href: "/client-quotes", label: "Báo giá gửi khách", resource: "quote" },
 ];
 
+export const TAB_DU_AN: readonly MucTab[] = [
+  { href: "/projects", label: "Danh sách", resource: "project" },
+  { href: "/projects/tong-quan", label: "Tổng quan", resource: "project" },
+];
+
+// Ký hợp đồng xong mới lập dự toán thi công — hai bước liền nhau của cùng một dự án.
+export const TAB_HOP_DONG: readonly MucTab[] = [
+  { href: "/contracts", label: "Hợp đồng & Báo giá", resource: "contract" },
+  { href: "/estimates", label: "Dự toán thi công", resource: "estimate" },
+];
+
 export const TAB_TIEN_DO: readonly MucTab[] = [
   { href: "/weekly", label: "Theo tuần", resource: "progress" },
   { href: "/gantt", label: "Gantt", resource: "progress" },
 ];
 
+// Việc ngoài hiện trường: làm theo quy trình rồi nghiệm thu QC.
+export const TAB_VIEC_THI_CONG: readonly MucTab[] = [
+  { href: "/quy-trinh", label: "Việc quy trình", resource: "project" },
+  { href: "/qc", label: "Việc QC", resource: "project" },
+];
+
 export const TAB_CHI_PHI: readonly MucTab[] = [
   { href: "/costs", label: "Tổng hợp", resource: "cost" },
   { href: "/reports", label: "Theo kỳ", resource: "cost" },
+  { href: "/debts", label: "Công nợ", resource: "debt" },
 ];
 
 // Hai danh bạ đối tác: bên mua (CĐT) và bên bán (NCC). Khác quyền nhau — người mua hàng

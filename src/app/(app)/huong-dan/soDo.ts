@@ -4,6 +4,18 @@
 // tiết được gập lại ngay dưới sơ đồ, nên sửa lời hướng dẫn vẫn sửa ở noiDung.ts.
 // Kiểu dáng: soTay.module.css (nhóm `.flow`).
 
+import {
+  TAB_CHAO_GIA,
+  TAB_CHI_PHI,
+  TAB_DOI_TAC,
+  TAB_DU_AN,
+  TAB_HOP_DONG,
+  TAB_TIEN_DO,
+  TAB_TIEN_ICH,
+  TAB_VIEC_THI_CONG,
+  type MucTab,
+} from "@/components/layout/TabTrang";
+
 type Phong = "bgd" | "kd" | "kt" | "vt" | "ke";
 
 type Buoc =
@@ -373,7 +385,7 @@ export function soDoVongDoi(): string {
     ["vt", "Đề xuất → duyệt → đặt hàng", "Phê duyệt, Đơn hàng & Mua hàng"],
     ["kt", "Bản vẽ, shop, gia công, lắp dựng", "mốc tiến độ và nhật ký"],
     ["ke", "Thu CĐT, trả NCC theo đợt", "Trang dự án › Thanh toán theo đợt"],
-    ["ke", "Quyết toán, công nợ, báo cáo", "Chi phí & báo cáo, Công nợ"],
+    ["ke", "Quyết toán, công nợ, báo cáo", "Chi phí & công nợ"],
   ];
   const nut = bước
     .map(
@@ -385,4 +397,77 @@ export function soDoVongDoi(): string {
     .map((p) => `<span class="${p}"><i></i>${PHONG[p]}</span>`)
     .join("");
   return `<ol class="flow vong-doi">${nut}</ol><div class="flow-chu-thich">${chuThich}</div>`;
+}
+
+/* ---------- Sơ đồ tư duy của menu ----------
+ * Tab con đọc thẳng từ TabTrang.tsx — cùng nguồn với menu bên trái, nên đổi tab ở đó thì
+ * sơ đồ đổi theo. Tên mục và thứ tự thì chép theo NAV trong Sidebar.tsx: sửa menu nhớ sửa
+ * cả đây. */
+type MucSoDo = { t: string; m: string; tabs?: readonly MucTab[] };
+type NhanhSoDo = { ten: string; phu: string; lop: string; buoc?: boolean; muc: MucSoDo[] };
+
+const NHANH_MENU: NhanhSoDo[] = [
+  {
+    ten: "Bán hàng",
+    phu: "trước hợp đồng",
+    lop: "kd",
+    buoc: true,
+    muc: [
+      { t: "Quy trình kinh doanh", m: "các bước từ khách mới tới chốt giá" },
+      { t: "Khách hàng (CRM)", m: "khách, công trình đang hỏi giá, nhật ký trao đổi" },
+      { t: "Chào giá", m: "dự toán chào giá rồi báo giá in cho khách", tabs: TAB_CHAO_GIA },
+    ],
+  },
+  {
+    ten: "Thi công",
+    phu: "sau hợp đồng",
+    lop: "kt",
+    buoc: true,
+    muc: [
+      { t: "Dự án", m: "danh sách, trang chi tiết, bức tranh chung", tabs: TAB_DU_AN },
+      { t: "Hợp đồng & Dự toán", m: "ký hợp đồng rồi lập dự toán thi công", tabs: TAB_HOP_DONG },
+      { t: "Tiến độ", m: "8 mốc của mọi dự án", tabs: TAB_TIEN_DO },
+      { t: "Việc thi công", m: "làm theo quy trình, nghiệm thu QC", tabs: TAB_VIEC_THI_CONG },
+    ],
+  },
+  {
+    ten: "Mua hàng & Tài chính",
+    phu: "dòng tiền công trình",
+    lop: "ke",
+    buoc: true,
+    muc: [
+      { t: "Đơn hàng & Mua hàng", m: "đơn vật tư gửi nhà cung cấp" },
+      { t: "Chi phí & công nợ", m: "quyết toán, báo cáo kỳ, phải thu – phải trả", tabs: TAB_CHI_PHI },
+      { t: "Phê duyệt", m: "đề xuất mua hàng / thanh toán, BGĐ duyệt" },
+    ],
+  },
+  {
+    ten: "Danh mục & hệ thống",
+    phu: "tra cứu, ít khi động tới",
+    lop: "bgd",
+    muc: [
+      { t: "Thư viện đơn giá", m: "công tác, đơn giá, vật tư, khu vực, bộ hạng mục" },
+      { t: "Chủ đầu tư & NCC", m: "hai danh bạ đối tác", tabs: TAB_DOI_TAC },
+      { t: "Tiện ích", m: "tra cứu, nhập Excel, nhật ký", tabs: TAB_TIEN_ICH },
+      { t: "Sổ tay · Người dùng · Mẫu QC", m: "hướng dẫn, tài khoản, mẫu kiểm tra" },
+    ],
+  },
+];
+
+/** Sơ đồ tư duy của menu bên trái: gốc → nhóm → mục → tab con. */
+export function soDoMenu(): string {
+  const nhanh = NHANH_MENU.map((n) => {
+    const muc = n.muc
+      .map((m, i) => {
+        const so = n.buoc ? `<em>${i + 1}</em>` : "";
+        const tabs = m.tabs
+          ? `<div class="mm-tabs">${m.tabs.map((t) => `<i>${t.label}</i>`).join("")}</div>`
+          : "";
+        return `<li>${so}<div><b>${m.t}</b><span>${m.m}</span>${tabs}</div></li>`;
+      })
+      .join("");
+    return `<div class="mm-nhanh ${n.lop}"><div class="mm-nhom"><b>${n.ten}</b><span>${n.phu}</span></div><ol${n.buoc ? ' class="mm-buoc"' : ""}>${muc}</ol></div>`;
+  }).join("");
+  return `<div class="mindmap"><div class="mm-goc"><b>Menu QLDA</b><span>Tổng quan · tìm kiếm Ctrl K</span></div><div class="mm-cac-nhanh">${nhanh}</div></div>
+<p class="mm-chu-thich"><span><em>1</em> thứ tự làm trong quy trình</span><span><i>Tab</i> tab con — bấm mục chính rồi chuyển tab ở đầu trang</span></p>`;
 }

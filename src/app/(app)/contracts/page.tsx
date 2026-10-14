@@ -7,6 +7,7 @@ import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { CONTRACT_STATUS, CONTRACT_STATUS_MAP } from "@/lib/constants";
 import { formatVND, formatDate } from "@/lib/utils";
+import { TabTrang, TAB_HOP_DONG } from "@/components/layout/TabTrang";
 
 export default async function ContractsPage() {
   const session = await requireView("contract");
@@ -27,6 +28,7 @@ export default async function ContractsPage() {
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_HOP_DONG} hienTai="/contracts" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Hợp đồng & Báo giá</h1>
         <p className="text-sm text-slate-500">

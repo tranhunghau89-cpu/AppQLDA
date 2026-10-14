@@ -4,7 +4,7 @@
 //
 // Để dạng HTML chứ không phải JSX vì đây là một văn bản dài ~500 dòng: đổi sang JSX chỉ
 // thêm hàng trăm cặp {" "} và className mà không thêm được gì cho người đọc hay người sửa.
-import { soDoVongDoi, themSoDo } from "./soDo";
+import { soDoMenu, soDoVongDoi, themSoDo } from "./soDo";
 
 // Sơ đồ các bước dựng từ soDo.ts, chèn lên trên từng danh sách bước; chữ chi tiết gập lại.
 export const NOI_DUNG_SO_TAY = themSoDo(`
@@ -32,26 +32,8 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
 
       <div class="task">
         <h3>Menu bên trái</h3>
-        <p>Menu xếp theo nhịp làm việc. Mỗi người chỉ thấy các mục mình có quyền xem.</p>
-        <div class="tbl"><table>
-          <thead><tr><th>Nhóm</th><th>Mục</th><th>Dùng để</th></tr></thead>
-          <tbody>
-            <tr><td rowspan="2"><b>Bán hàng</b><br><span style="color:var(--muted);font-size:13px">trước hợp đồng</span></td><td>Khách hàng (CRM)</td><td>Khách đang trao đổi, công trình đang chào giá, nhật ký gọi/gặp khách</td></tr>
-            <tr><td>Chào giá</td><td>Hai tab: <b>Dự toán</b> (bảng tính giá thành theo Mã CV) và <b>Báo giá gửi khách</b> (bản m² in cho khách)</td></tr>
-            <tr><td rowspan="7"><b>Thi công</b><br><span style="color:var(--muted);font-size:13px">sau hợp đồng</span></td><td>Dự án</td><td>Danh sách dự án, trang chi tiết từng dự án</td></tr>
-            <tr><td>Tiến độ</td><td>Hai tab: <b>Theo tuần</b> và <b>Gantt</b></td></tr>
-            <tr><td>Phê duyệt</td><td>Gửi đề xuất mua hàng / thanh toán; Ban giám đốc duyệt</td></tr>
-            <tr><td>Dự toán thi công & chi phí</td><td>Chi phí, lợi nhuận từng dự án</td></tr>
-            <tr><td>Hợp đồng & Báo giá</td><td>Hợp đồng đã ký, giá trị, file</td></tr>
-            <tr><td>Đơn hàng & Mua hàng</td><td>Đơn đặt vật tư gửi nhà cung cấp</td></tr>
-            <tr><td>Chi phí & báo cáo · Công nợ</td><td>Quyết toán, báo cáo theo tháng/quý/năm, phải thu – phải trả</td></tr>
-            <tr><td rowspan="5"><b>Danh mục & hệ thống</b></td><td>Thư viện đơn giá</td><td>Công tác, đơn giá theo ngày, vật tư, khu vực, bộ hạng mục chuẩn</td></tr>
-            <tr><td>Chủ đầu tư & NCC</td><td>Hai tab: danh bạ chủ đầu tư và nhà cung cấp</td></tr>
-            <tr><td>Tiện ích</td><td>Ba tab: Tra cứu & Bóc KL · Nhập từ Excel · Nhật ký thay đổi</td></tr>
-            <tr><td>Sổ tay hướng dẫn</td><td>Chính trang này — ai đăng nhập cũng đọc được</td></tr>
-            <tr><td>Người dùng</td><td>Tài khoản và vai trò (chỉ Ban giám đốc)</td></tr>
-          </tbody>
-        </table></div>
+        <p>Menu xếp theo nhịp làm việc, đi từ trái sang phải đúng như một công trình: bán hàng → thi công → mua hàng & tài chính. Trong mỗi nhóm, mục đánh số theo thứ tự làm. Những trang là các bước của cùng một việc được gộp vào <b>một mục chính</b>; bấm mục chính rồi chuyển qua lại bằng <b>tab con</b> ở đầu trang. Mỗi người chỉ thấy các mục, các tab mình có quyền xem.</p>
+        ${soDoMenu()}
         <p>Bấm vào tiêu đề nhóm (ví dụ “BÁN HÀNG”) để thu gọn nhóm đó. App nhớ lựa chọn trên máy bạn.</p>
       </div>
     </section>
@@ -114,12 +96,12 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
           <tr><td class="n">4</td><td>Tạo báo giá gửi khách, in PDF, gửi, đàm phán, <b>Đã chốt</b></td><td>Kinh doanh</td><td><span class="path">Chào giá › Báo giá gửi khách</span></td></tr>
           <tr><td class="n">5</td><td>Ký hợp đồng → tạo dự án (sinh mã Nxxx), chuyển khách thành chủ đầu tư</td><td>Kinh doanh / BGĐ</td><td><span class="path">Khách hàng (CRM)</span></td></tr>
           <tr><td class="n">6</td><td>Gán người phụ trách vào dự án</td><td>Ban giám đốc</td><td>Trang dự án › Thành viên dự án</td></tr>
-          <tr><td class="n">7</td><td>Nhập hợp đồng, đẩy giá bán vào dự án</td><td>Kinh doanh</td><td><span class="path">Hợp đồng & Báo giá</span></td></tr>
+          <tr><td class="n">7</td><td>Nhập hợp đồng, đẩy giá bán vào dự án</td><td>Kinh doanh</td><td><span class="path">Hợp đồng & Dự toán › Hợp đồng & Báo giá</span></td></tr>
           <tr><td class="n">8</td><td>Đổ dự toán chào giá xuống dự toán thi công, gán nhà cung cấp, bảng bóc</td><td>Vật tư</td><td>Trang dự án › Mở dự toán</td></tr>
           <tr><td class="n">9</td><td>Đề xuất mua hàng → duyệt → đặt hàng</td><td>Vật tư → BGĐ</td><td><span class="path">Phê duyệt</span>, <span class="path">Đơn hàng & Mua hàng</span></td></tr>
           <tr><td class="n">10</td><td>Bản vẽ, shop, gia công, lắp dựng: mốc tiến độ và nhật ký</td><td>Kỹ thuật</td><td>Trang dự án, <span class="path">Tiến độ</span></td></tr>
           <tr><td class="n">11</td><td>Thu tiền chủ đầu tư, trả nhà cung cấp theo đợt</td><td>Kế toán</td><td>Trang dự án › Thanh toán theo đợt</td></tr>
-          <tr><td class="n">12</td><td>Quyết toán, công nợ, báo cáo theo kỳ</td><td>Kế toán, BGĐ</td><td><span class="path">Chi phí & báo cáo</span>, <span class="path">Công nợ</span></td></tr>
+          <tr><td class="n">12</td><td>Quyết toán, công nợ, báo cáo theo kỳ</td><td>Kế toán, BGĐ</td><td><span class="path">Chi phí & công nợ</span></td></tr>
         </tbody>
       </table></div>
     </section>
@@ -236,7 +218,7 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
         <h3>Theo dõi toàn cảnh và báo cáo</h3>
         <ul class="bul">
           <li><span class="path">Tổng quan</span>: số dự án theo trạng thái, lợi nhuận dự kiến, giá bán so với chi phí từng dự án. <span class="ui">Xuất báo cáo Excel</span> để gửi họp.</li>
-          <li><span class="path">Chi phí & báo cáo › Theo kỳ</span>: chọn Tháng / Quý / Năm — tiền đã thu, đã chi, dòng tiền ròng, hợp đồng ký mới, đơn hàng, so với kỳ trước.</li>
+          <li><span class="path">Chi phí & công nợ › Theo kỳ</span>: chọn Tháng / Quý / Năm — tiền đã thu, đã chi, dòng tiền ròng, hợp đồng ký mới, đơn hàng, so với kỳ trước.</li>
           <li><span class="path">Tiện ích › Nhật ký thay đổi</span>: ai sửa gì, lúc nào, giá trị trước → sau. Trang dự án cũng có khung <b>Lịch sử thay đổi</b> riêng.</li>
           <li><span class="path">Tiện ích › Nhập từ Excel</span>: nạp dự toán (sheet TongHop), quyết toán / sổ giá thành, đơn hàng DH_*.xlsx, bảng giá BG_*.xlsx. Luôn bấm <span class="ui">Xem trước</span>, đọc cảnh báo rồi mới ghi.</li>
           <li><b>Nhắc việc 8 giờ sáng</b>: mỗi ngày app gom mốc tiến độ trễ, đợt thanh toán quá hạn hoặc tới hạn trong 7 ngày, báo giá sắp hết hiệu lực. Muốn nhận qua nhóm chat, báo bộ phận kỹ thuật app cấu hình.</li>
@@ -395,7 +377,7 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
 
       <div class="task" id="vt-du-toan">
         <h3>Lập dự toán thi công</h3>
-        <p class="where">Trang dự án › <span class="ui">Mở dự toán</span> · hoặc <span class="path">Dự toán thi công & chi phí</span> › bấm dự án</p>
+        <p class="where">Trang dự án › <span class="ui">Mở dự toán</span> · hoặc <span class="path">Hợp đồng & Dự toán › Dự toán thi công</span> › bấm dự án</p>
         <h5>Cách 1 — đổ từ dự toán chào giá (nên dùng)</h5>
         <ol class="steps">
           <li>Bấm <span class="ui">Đổ từ dự toán chào giá</span>, chọn bản dự toán chào giá của dự án.</li>
@@ -470,7 +452,7 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
 
       <div class="task" id="kt2-cong-no">
         <h3>Công nợ phải thu, phải trả</h3>
-        <p class="where"><span class="path">Công nợ</span></p>
+        <p class="where"><span class="path">Chi phí & công nợ › Công nợ</span></p>
         <ul class="bul">
           <li>Ba số đầu trang: còn phải thu (chủ đầu tư), còn phải trả (NCC), chênh lệch.</li>
           <li><b>Phải thu theo chủ đầu tư</b>: giá trị hợp đồng, đã thu, còn phải thu, số dự án. <b>Phải trả theo NCC</b>: từ đơn hàng và đợt chi.</li>
@@ -481,7 +463,7 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
 
       <div class="task" id="kt2-chi-phi">
         <h3>Quyết toán chi phí và báo cáo theo kỳ</h3>
-        <p class="where"><span class="path">Chi phí & báo cáo › Tổng hợp</span> · <span class="path">Chi phí & báo cáo › Theo kỳ</span></p>
+        <p class="where"><span class="path">Chi phí & công nợ › Tổng hợp</span> · <span class="path">Chi phí & công nợ › Theo kỳ</span></p>
         <ol class="steps">
           <li><b>Tổng hợp</b>: doanh thu, chi phí, lợi nhuận trước thuế, biên lợi nhuận, còn phải thu của từng dự án đã quyết toán. Bấm dự án để xem chi tiết theo nhóm A–K (Kết cấu thép, Xà gồ, Tôn – Diềm… Khác).</li>
           <li>Số liệu quyết toán nạp từ file quyết toán / sổ giá thành: gửi file cho Ban giám đốc nạp qua <span class="path">Tiện ích › Nhập từ Excel</span> (mỗi file một dự án).</li>

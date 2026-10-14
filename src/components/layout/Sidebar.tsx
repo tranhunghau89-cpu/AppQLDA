@@ -6,12 +6,9 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   FolderKanban,
-  Gauge,
-  ClipboardCheck,
   ClipboardList,
   CalendarRange,
   CheckCheck,
-  Calculator,
   ChevronDown,
   FileSignature,
   ShoppingCart,
@@ -19,7 +16,6 @@ import {
   Receipt,
   ListChecks,
   Workflow,
-  HandCoins,
   Building2,
   UserSearch,
   Users,
@@ -36,8 +32,11 @@ import {
   TAB_CHAO_GIA,
   TAB_CHI_PHI,
   TAB_DOI_TAC,
+  TAB_DU_AN,
+  TAB_HOP_DONG,
   TAB_TIEN_DO,
   TAB_TIEN_ICH,
+  TAB_VIEC_THI_CONG,
   tabDuocXem,
   type MucTab,
 } from "./TabTrang";
@@ -74,8 +73,11 @@ interface NavGroup {
  * Mắt chỉ quét được một danh sách ngắn. Nên những trang là HAI CÁCH NHÌN cùng một việc
  * dùng chung một mục, chuyển qua lại bằng tab ở đầu trang (`TabTrang`):
  *   Chào giá          = dự toán chào giá · báo giá gửi khách
+ *   Dự án             = danh sách · tổng quan
+ *   Hợp đồng & Dự toán = hợp đồng & báo giá · dự toán thi công
  *   Tiến độ           = theo tuần · Gantt
- *   Chi phí & báo cáo = tổng hợp · theo kỳ
+ *   Việc thi công     = việc quy trình · việc QC
+ *   Chi phí & công nợ = tổng hợp · theo kỳ · công nợ
  *   Chủ đầu tư & NCC  = chủ đầu tư · nhà cung cấp
  *   Tiện ích          = tra cứu & bóc KL · nhập từ Excel · nhật ký thay đổi
  * và Bộ hạng mục chuẩn không còn mục riêng vì Thư viện đơn giá đã có lối vào nó.
@@ -122,24 +124,21 @@ const NAV: NavGroup[] = [
   {
     ten: "Thi công",
     items: [
-      { href: "/projects", label: "Dự án", icon: FolderKanban, resource: "project" },
-      {
-        href: "/projects/tong-quan",
-        label: "Tổng quan dự án",
-        icon: Gauge,
-        resource: "project",
-        // /projects/tong-quan cũng khớp tiền tố của mục "Dự án" — giành để chỉ mục này sáng.
-        gianh: (p) => p.startsWith("/projects/tong-quan"),
-      },
-      { href: "/quy-trinh", label: "Việc quy trình", icon: Workflow, resource: "project" },
-      { href: "/qc", label: "Việc QC", icon: ClipboardCheck, resource: "project" },
+      // Theo đúng trình tự một công trình: dự án → hợp đồng & dự toán thi công → tiến độ
+      // → làm việc theo quy trình và nghiệm thu QC.
+      { ...mucGop(TAB_DU_AN), label: "Dự án", icon: FolderKanban },
+      { ...mucGop(TAB_HOP_DONG), label: "Hợp đồng & Dự toán", icon: FileSignature },
       { ...mucGop(TAB_TIEN_DO), label: "Tiến độ", icon: CalendarRange },
-      { href: "/approvals", label: "Phê duyệt", icon: CheckCheck },
-      { href: "/estimates", label: "Dự toán thi công & chi phí", icon: Calculator, resource: "estimate" },
-      { href: "/contracts", label: "Hợp đồng & Báo giá", icon: FileSignature, resource: "contract" },
+      { ...mucGop(TAB_VIEC_THI_CONG), label: "Việc thi công", icon: Workflow },
+    ],
+  },
+  {
+    // Dòng tiền của công trình: mua hàng → chi phí & công nợ, phê duyệt chốt cuối.
+    ten: "Mua hàng & Tài chính",
+    items: [
       { href: "/purchases", label: "Đơn hàng & Mua hàng", icon: ShoppingCart, resource: "purchase" },
-      { ...mucGop(TAB_CHI_PHI), label: "Chi phí & báo cáo", icon: Wallet },
-      { href: "/debts", label: "Công nợ", icon: HandCoins, resource: "debt" },
+      { ...mucGop(TAB_CHI_PHI), label: "Chi phí & công nợ", icon: Wallet },
+      { href: "/approvals", label: "Phê duyệt", icon: CheckCheck },
     ],
   },
   {

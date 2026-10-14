@@ -3,6 +3,7 @@ import { requireView } from "@/lib/auth";
 import { scopedProjectWhere } from "@/lib/scope";
 import { sapXepViecQc } from "@/lib/qc";
 import { BangViecQc, type ViecQcRow } from "./BangViecQc";
+import { TabTrang, TAB_VIEC_THI_CONG } from "@/components/layout/TabTrang";
 
 export default async function ViecQcPage() {
   const session = await requireView("project");
@@ -56,6 +57,7 @@ export default async function ViecQcPage() {
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_VIEC_THI_CONG} hienTai="/qc" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Việc QC</h1>
         <p className="text-sm text-slate-500">

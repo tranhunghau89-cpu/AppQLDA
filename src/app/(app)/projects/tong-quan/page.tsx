@@ -7,6 +7,7 @@ import { soSanhCo, tinhChiSo, tinhCo } from "@/lib/projectHealth";
 import { BangTongQuan, type TongQuanRow } from "./BangTongQuan";
 import { napQuyTrinhNhieu, quyTrinhChoCo } from "@/lib/quyTrinhDb";
 import { buocHienTai } from "@/lib/quyTrinh";
+import { TabTrang, TAB_DU_AN } from "@/components/layout/TabTrang";
 
 export default async function TongQuanDuAnPage() {
   const session = await requireView("project");
@@ -76,6 +77,7 @@ export default async function TongQuanDuAnPage() {
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_DU_AN} hienTai="/projects/tong-quan" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">
           Tổng quan dự án

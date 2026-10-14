@@ -3,6 +3,7 @@ import { myProjectIds } from "@/lib/scope";
 import { getReceivables, getPayables } from "@/lib/debt";
 import { formatVND } from "@/lib/utils";
 import { ReceivableTable, PayableTable } from "./DebtTables";
+import { TabTrang, TAB_CHI_PHI } from "@/components/layout/TabTrang";
 
 export default async function DebtsPage() {
   const session = await requireView("debt");
@@ -19,6 +20,7 @@ export default async function DebtsPage() {
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_CHI_PHI} hienTai="/debts" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Công nợ</h1>
         <p className="text-sm text-slate-500">

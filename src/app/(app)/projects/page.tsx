@@ -5,6 +5,7 @@ import { requireView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { scopedProjectWhere } from "@/lib/scope";
 import { ProjectList, type ProjectRow } from "./ProjectList";
+import { TabTrang, TAB_DU_AN } from "@/components/layout/TabTrang";
 
 export default async function ProjectsPage() {
   const session = await requireView("project");
@@ -50,6 +51,7 @@ export default async function ProjectsPage() {
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_DU_AN} hienTai="/projects" role={session.role} />
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Dự án</h1>

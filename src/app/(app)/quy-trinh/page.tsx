@@ -9,6 +9,7 @@ import { ROLE_LABEL, type Role } from "@/lib/rbac";
 import { Badge } from "@/components/ui/badge";
 import { TRANG_THAI_BUOC } from "@/lib/quyTrinh";
 import { napQuyTrinhNhieu, type BuocView } from "@/lib/quyTrinhDb";
+import { TabTrang, TAB_VIEC_THI_CONG } from "@/components/layout/TabTrang";
 
 type Viec = BuocView & { projectId: string; projectLabel: string; tre: number | null };
 
@@ -53,6 +54,7 @@ export default async function ViecQuyTrinhPage() {
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_VIEC_THI_CONG} hienTai="/quy-trinh" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Việc quy trình</h1>
         <p className="text-sm text-slate-500">

@@ -8,6 +8,7 @@ import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { computeProfit, formatPercent } from "@/lib/profit";
 import { formatVND } from "@/lib/utils";
+import { TabTrang, TAB_HOP_DONG } from "@/components/layout/TabTrang";
 
 export default async function EstimatesPage() {
   const session = await requireView("estimate");
@@ -53,6 +54,7 @@ export default async function EstimatesPage() {
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_HOP_DONG} hienTai="/estimates" role={session.role} />
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Dự toán & Chi phí</h1>
