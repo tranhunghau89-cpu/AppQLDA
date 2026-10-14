@@ -154,7 +154,7 @@ export default async function ProjectDetailPage({
     }),
     db.user.findMany({
       where: { active: true },
-      select: { id: true, name: true },
+      select: { id: true, name: true, role: true },
       orderBy: { name: "asc" },
     }),
   ]);
@@ -434,7 +434,7 @@ export default async function ProjectDetailPage({
           tin={tinBuoc}
           nguoiDung={nguoiDungRows}
           toiLa={session.userId}
-          laAdmin={session.role === "ADMIN"}
+          vaiTro={session.role}
           canEdit={canEdit}
           nowMs={nowMs}
         />

@@ -25,6 +25,12 @@ export interface BuocView {
   hanDatTay: boolean;
   guiLuc: string | null;
   duyetLuc: string | null;
+  /** Chỉ định duyệt: người > phòng > (trống) Ban giám đốc. */
+  duyetBoPhan: string | null;
+  duyetNguoiId: string | null;
+  duyetNguoiTen: string | null;
+  /** Người đã bấm Duyệt (khi đã duyệt). */
+  nguoiDuyetTen: string | null;
   /** Lý do chưa gửi duyệt được (thiếu thông tin / còn mục QC chưa đạt). null = gửi được. */
   chuaDu: string | null;
 }
@@ -72,7 +78,13 @@ export async function napQuyTrinhNhieu(projectIds: string[]): Promise<Map<string
     db.milestone.findMany({ where, select: { projectId: true, type: true, planDate: true } }),
   ]);
 
-  const nguoiIds = [...new Set(rows.map((r) => r.phuTrachId).filter((x): x is string => !!x))];
+  const nguoiIds = [
+    ...new Set(
+      rows
+        .flatMap((r) => [r.phuTrachId, r.duyetNguoiId, r.nguoiDuyetId])
+        .filter((x): x is string => !!x),
+    ),
+  ];
   const nguoi = new Map(
     (
       await db.user.findMany({ where: { id: { in: nguoiIds } }, select: { id: true, name: true } })
@@ -125,6 +137,10 @@ export async function napQuyTrinhNhieu(projectIds: string[]): Promise<Map<string
           boPhanMacDinh: boPhanMacDinh(buoc, boPhan[buoc] ?? []),
           han: han?.toISOString() ?? null,
           hanDatTay: r.hanXuLy != null,
+          duyetBoPhan: r.duyetBoPhan,
+          duyetNguoiId: r.duyetNguoiId,
+          duyetNguoiTen: r.duyetNguoiId ? (nguoi.get(r.duyetNguoiId) ?? "(đã xoá)") : null,
+          nguoiDuyetTen: r.nguoiDuyetId ? (nguoi.get(r.nguoiDuyetId) ?? "(đã xoá)") : null,
           guiLuc: r.guiLuc?.toISOString() ?? null,
           duyetLuc: r.duyetLuc?.toISOString() ?? null,
           chuaDu:

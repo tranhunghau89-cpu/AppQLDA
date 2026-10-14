@@ -113,6 +113,25 @@ export function buocHienTai(
 
 export type HanhDong = "GUI" | "DUYET" | "TRA_LAI";
 
+export interface ChiDinhDuyet {
+  duyetBoPhan: string | null;
+  duyetNguoiId: string | null;
+}
+
+/**
+ * Người dùng có được Duyệt / Trả lại bước không. ADMIN luôn được. Có người chỉ định thì
+ * chỉ người đó; chỉ có phòng thì cả phòng; không chỉ định gì thì chỉ ADMIN.
+ */
+export function duocDuyetBuoc(
+  nguoi: { userId: string; role: string },
+  b: ChiDinhDuyet,
+): boolean {
+  if (nguoi.role === "ADMIN") return true;
+  if (b.duyetNguoiId) return b.duyetNguoiId === nguoi.userId;
+  if (b.duyetBoPhan) return b.duyetBoPhan === nguoi.role;
+  return false;
+}
+
 /** null = được làm; chuỗi = lý do không được. Chỉ xét trạng thái, quyền xét ở server. */
 export function loiChuyen(hanhDong: HanhDong, hien: TrangThaiHien): string | null {
   if (hien === "BO_QUA") return "Bước này không có mục QC — tự bỏ qua.";

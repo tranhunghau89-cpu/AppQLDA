@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/form";
 import { NGUONG_SAP_DEN_HAN, soNgay } from "@/lib/ngayVN";
-import { CAC_BUOC, TRANG_THAI_BUOC, type TrangThaiHien } from "@/lib/quyTrinh";
+import { CAC_BUOC, TRANG_THAI_BUOC, duocDuyetBuoc, type TrangThaiHien } from "@/lib/quyTrinh";
 import type { BuocView } from "@/lib/quyTrinhDb";
 import { ROLE_LABEL, type Role } from "@/lib/rbac";
 import { cn, formatDate } from "@/lib/utils";
@@ -101,14 +101,17 @@ export function BangViecQuyTrinh({
     CUA_TOI: (b) =>
       b.trangThai !== "CHO_DUYET" &&
       (b.phuTrachId === userId || (!b.phuTrachId && b.boPhanMacDinh === role)),
-    CHO_DUYET: (b) => b.trangThai === "CHO_DUYET",
+    // Bước chờ duyệt mà tôi được duyệt (chỉ định người / phòng, hoặc Ban giám đốc).
+    CHO_DUYET: (b) => b.trangThai === "CHO_DUYET" && duocDuyetBuoc({ userId, role }, b),
     // Chỉ tính quá hạn cho bước đã giao người phụ trách.
     QUA_HAN: (b) => b.phuTrachId != null && (tre(b, nowMs) ?? 0) > 0,
     TAT_CA: () => true,
   };
   const cacCheDo: { v: CheDo; label: string }[] = [
     { v: "CUA_TOI", label: "Tôi phụ trách" },
-    ...(laAdmin ? [{ v: "CHO_DUYET" as const, label: "Chờ tôi duyệt" }] : []),
+    ...(laAdmin || tatCa.some((x) => loc.CHO_DUYET(x.b))
+      ? [{ v: "CHO_DUYET" as const, label: "Chờ tôi duyệt" }]
+      : []),
     { v: "QUA_HAN", label: "Quá hạn" },
     { v: "TAT_CA", label: "Tất cả đang mở" },
   ];

@@ -431,6 +431,9 @@ model BuocQuyTrinh {
   guiLuc       DateTime?
   duyetLuc     DateTime?
   nguoiDuyetId String?
+  // Ai được duyệt bước: người chỉ định > phòng chỉ định > Ban giám đốc (ADMIN luôn duyệt được).
+  duyetBoPhan  String? // Role
+  duyetNguoiId String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 

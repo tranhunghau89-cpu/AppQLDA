@@ -3,8 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { denyProject, requireSession } from "@/lib/auth";
+import type { SessionUser } from "@/lib/session";
 import { canAccessProject } from "@/lib/scope";
-import { TEN_BUOC, TRANG_THAI_SAU, loiChuyen, type HanhDong } from "@/lib/quyTrinh";
+import {
+  TEN_BUOC,
+  TRANG_THAI_SAU,
+  duocDuyetBuoc,
+  loiChuyen,
+  type ChiDinhDuyet,
+  type HanhDong,
+} from "@/lib/quyTrinh";
+import { ROLES, ROLE_LABEL, type Role } from "@/lib/rbac";
 import { napQuyTrinh, nhanTinBuoc } from "@/lib/quyTrinhDb";
 import type { ActionResult } from "../actions";
 
@@ -20,6 +29,29 @@ function lamMoi(projectId: string) {
 async function adminIds() {
   const ds = await db.user.findMany({ where: { role: "ADMIN", active: true }, select: { id: true } });
   return ds.map((u) => u.id);
+}
+
+/** Người nhận tin "Xin duyệt": người chỉ định > cả phòng chỉ định (xem được dự án) > Ban giám đốc. */
+async function nguoiDuyetIds(
+  session: SessionUser,
+  projectId: string,
+  b: ChiDinhDuyet,
+): Promise<string[]> {
+  if (b.duyetNguoiId) return [b.duyetNguoiId];
+  if (b.duyetBoPhan) {
+    const ds = await db.user.findMany({
+      where: { role: b.duyetBoPhan, active: true },
+      select: { id: true, role: true },
+    });
+    const xem = await Promise.all(
+      ds.map((u) =>
+        canAccessProject({ ...session, userId: u.id, role: u.role as Role }, projectId),
+      ),
+    );
+    const ids = ds.filter((_, i) => xem[i]).map((u) => u.id);
+    if (ids.length) return ids;
+  }
+  return adminIds();
 }
 
 /** Gửi duyệt / Duyệt / Trả lại một bước. */
@@ -50,8 +82,15 @@ export async function chuyenBuoc(
     }
     if (b.chuaDu) return { ok: false, error: b.chuaDu };
   } else {
-    if (session.role !== "ADMIN")
-      return { ok: false, error: "Chỉ Ban giám đốc / Quản lý được duyệt." };
+    if (!duocDuyetBuoc(session, b))
+      return {
+        ok: false,
+        error: b.duyetNguoiId
+          ? `Bước này chỉ định ${b.duyetNguoiTen ?? "người khác"} duyệt.`
+          : b.duyetBoPhan
+            ? `Bước này do phòng ${ROLE_LABEL[b.duyetBoPhan as Role] ?? b.duyetBoPhan} duyệt.`
+            : "Chỉ Ban giám đốc / Quản lý được duyệt.",
+      };
     if (hanhDong === "TRA_LAI" && !nd)
       return { ok: false, error: "Nhập lý do trả lại." };
   }
@@ -81,7 +120,7 @@ export async function chuyenBuoc(
     await nhanTinBuoc({
       buocId: b.id, projectId, nhanDe, tacGia, loai: "XIN_DUYET",
       noiDung: nd || `Xin duyệt bước ${b.ten}.`,
-      nguoiNhanIds: await adminIds(),
+      nguoiNhanIds: await nguoiDuyetIds(session, projectId, b),
     });
   } else if (hanhDong === "TRA_LAI") {
     await nhanTinBuoc({
@@ -141,6 +180,60 @@ export async function giaoBuoc(
       tacGia: { userId: session.userId, name: session.name }, loai: "GHI_CHU",
       noiDung: `Bạn được giao phụ trách bước ${TEN_BUOC[buoc]}.`,
       nguoiNhanIds: [v.phuTrachId],
+    });
+  }
+  lamMoi(projectId);
+  return { ok: true };
+}
+
+/**
+ * Chỉ định ai duyệt bước: một phòng, hoặc một người cụ thể (phòng = phòng của người đó).
+ * Cả hai trống = Ban giám đốc duyệt như mặc định.
+ */
+export async function chiDinhDuyet(
+  projectId: string,
+  buoc: string,
+  v: { duyetBoPhan: string | null; duyetNguoiId: string | null },
+): Promise<ActionResult> {
+  const denied = await denyProject("project", "edit", projectId, NO_EDIT);
+  if (denied) return denied;
+  const session = await requireSession();
+  if (!(buoc in TEN_BUOC)) return { ok: false, error: "Bước không hợp lệ." };
+
+  let boPhan = v.duyetBoPhan || null;
+  const nguoiId = v.duyetNguoiId || null;
+  if (boPhan && !(ROLES as readonly string[]).includes(boPhan))
+    return { ok: false, error: "Phòng duyệt không hợp lệ." };
+  if (nguoiId) {
+    const u = await db.user.findUnique({
+      where: { id: nguoiId },
+      select: { active: true, role: true },
+    });
+    if (!u?.active) return { ok: false, error: "Người duyệt không còn hoạt động." };
+    if (!(await canAccessProject({ ...session, userId: nguoiId, role: u.role as never }, projectId)))
+      return { ok: false, error: "Người duyệt không xem được dự án này — thêm vào thành viên trước." };
+    boPhan = u.role;
+  }
+
+  await napQuyTrinh(projectId); // đảm bảo dòng bước đã có
+  const truoc = await db.buocQuyTrinh.findUniqueOrThrow({
+    where: { projectId_buoc: { projectId, buoc } },
+  });
+  await db.buocQuyTrinh.update({
+    where: { id: truoc.id },
+    data: { duyetBoPhan: boPhan, duyetNguoiId: nguoiId },
+  });
+
+  if (nguoiId && nguoiId !== truoc.duyetNguoiId) {
+    const p = await db.project.findUnique({ where: { id: projectId }, select: { code: true } });
+    await nhanTinBuoc({
+      buocId: truoc.id, projectId, nhanDe: `${p?.code ?? ""} · ${TEN_BUOC[buoc]}`,
+      tacGia: { userId: session.userId, name: session.name }, loai: "GHI_CHU",
+      noiDung:
+        truoc.trangThai === "CHO_DUYET"
+          ? `Bạn được chỉ định duyệt bước ${TEN_BUOC[buoc]} — bước đang chờ duyệt.`
+          : `Bạn được chỉ định duyệt bước ${TEN_BUOC[buoc]}.`,
+      nguoiNhanIds: [nguoiId],
     });
   }
   lamMoi(projectId);

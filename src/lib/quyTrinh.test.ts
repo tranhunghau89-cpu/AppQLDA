@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   boPhanMacDinh,
   buocHienTai,
+  duocDuyetBuoc,
   loiChuyen,
   loiGuiQc,
   lyDoQuyTrinh,
@@ -81,6 +82,27 @@ describe("tinhChuoi", () => {
   it("trả lại vẫn hiện trả lại dù bước trước chưa duyệt", () => {
     const c = tinhChuoi([{ buoc: "BV_KT", trangThai: "TRA_LAI" }], qc);
     expect(tt(c, "BV_KT")).toBe("TRA_LAI");
+  });
+});
+
+describe("duocDuyetBuoc", () => {
+  const ai = (userId: string, role: string) => ({ userId, role });
+  it("không chỉ định: chỉ ADMIN", () => {
+    const b = { duyetBoPhan: null, duyetNguoiId: null };
+    expect(duocDuyetBuoc(ai("u1", "ADMIN"), b)).toBe(true);
+    expect(duocDuyetBuoc(ai("u2", "ENGINEERING"), b)).toBe(false);
+  });
+  it("chỉ định phòng: cả phòng + ADMIN", () => {
+    const b = { duyetBoPhan: "ENGINEERING", duyetNguoiId: null };
+    expect(duocDuyetBuoc(ai("u2", "ENGINEERING"), b)).toBe(true);
+    expect(duocDuyetBuoc(ai("u3", "SALES"), b)).toBe(false);
+    expect(duocDuyetBuoc(ai("u1", "ADMIN"), b)).toBe(true);
+  });
+  it("chỉ định người: chỉ người đó + ADMIN, cùng phòng cũng không được", () => {
+    const b = { duyetBoPhan: "ENGINEERING", duyetNguoiId: "u2" };
+    expect(duocDuyetBuoc(ai("u2", "ENGINEERING"), b)).toBe(true);
+    expect(duocDuyetBuoc(ai("u4", "ENGINEERING"), b)).toBe(false);
+    expect(duocDuyetBuoc(ai("u1", "ADMIN"), b)).toBe(true);
   });
 });
 

@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { formatDate } from "@/lib/utils";
-import { ROLE_LABEL, type Role } from "@/lib/rbac";
-import { BUOC_THONG_TIN, TRANG_THAI_BUOC, buocHienTai } from "@/lib/quyTrinh";
+import { ROLES, ROLE_LABEL, type Role } from "@/lib/rbac";
+import { BUOC_THONG_TIN, TRANG_THAI_BUOC, buocHienTai, duocDuyetBuoc } from "@/lib/quyTrinh";
 import { LOAI_TRAO_DOI_LABEL } from "@/lib/traoDoiNhan";
 import type { BuocView } from "@/lib/quyTrinhDb";
-import { chuyenBuoc, giaoBuoc } from "./quyTrinhActions";
+import { chiDinhDuyet, chuyenBuoc, giaoBuoc } from "./quyTrinhActions";
 
 export interface TinBuoc {
   buocId: string;
@@ -34,16 +34,16 @@ export function QuyTrinhPanel({
   tin,
   nguoiDung,
   toiLa,
-  laAdmin,
+  vaiTro,
   canEdit,
   nowMs,
 }: {
   projectId: string;
   buoc: BuocView[];
   tin: TinBuoc[];
-  nguoiDung: { id: string; name: string }[];
+  nguoiDung: { id: string; name: string; role: string }[];
   toiLa: string;
-  laAdmin: boolean;
+  vaiTro: string;
   canEdit: boolean;
   nowMs: number;
 }) {
@@ -71,7 +71,17 @@ export function QuyTrinhPanel({
 
   const duocGui = (b.phuTrachId === toiLa || canEdit) &&
     (b.trangThai === "DANG_LAM" || b.trangThai === "TRA_LAI");
-  const duocDuyet = laAdmin && b.trangThai === "CHO_DUYET";
+  const duocDuyet =
+    b.trangThai === "CHO_DUYET" && duocDuyetBuoc({ userId: toiLa, role: vaiTro }, b);
+  const aiDuyet = b.duyetNguoiTen
+    ? b.duyetNguoiTen
+    : b.duyetBoPhan
+      ? `Phòng ${ROLE_LABEL[b.duyetBoPhan as Role] ?? b.duyetBoPhan}`
+      : "Ban giám đốc";
+  // Người duyệt lọc theo phòng đã chọn (nếu có).
+  const dsNguoiDuyet = b.duyetBoPhan
+    ? nguoiDung.filter((u) => u.role === b.duyetBoPhan)
+    : nguoiDung;
 
   return (
     <div className="space-y-4">
@@ -165,6 +175,66 @@ export function QuyTrinhPanel({
           </div>
         )}
 
+        {b.trangThai !== "BO_QUA" && (
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <label className="space-y-1">
+              <span className="text-xs text-slate-500">Phòng duyệt</span>
+              <Select
+                disabled={!canEdit || pending}
+                value={b.duyetBoPhan ?? ""}
+                onChange={(e) =>
+                  run(() =>
+                    chiDinhDuyet(projectId, b.buoc, {
+                      duyetBoPhan: e.target.value || null,
+                      // Đổi phòng thì bỏ người đã chỉ định nếu người đó không thuộc phòng mới.
+                      duyetNguoiId:
+                        b.duyetNguoiId &&
+                        nguoiDung.find((u) => u.id === b.duyetNguoiId)?.role === e.target.value
+                          ? b.duyetNguoiId
+                          : null,
+                    }),
+                  )
+                }
+              >
+                <option value="">— Ban giám đốc (mặc định) —</option>
+                {ROLES.filter((r) => r !== "ADMIN").map((r) => (
+                  <option key={r} value={r}>
+                    {ROLE_LABEL[r]}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs text-slate-500">Người duyệt</span>
+              <Select
+                disabled={!canEdit || pending}
+                value={b.duyetNguoiId ?? ""}
+                onChange={(e) =>
+                  run(() =>
+                    chiDinhDuyet(projectId, b.buoc, {
+                      duyetBoPhan: b.duyetBoPhan,
+                      duyetNguoiId: e.target.value || null,
+                    }),
+                  )
+                }
+              >
+                <option value="">
+                  {b.duyetBoPhan ? "— Ai trong phòng cũng được —" : "— Không chỉ định —"}
+                </option>
+                {dsNguoiDuyet.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} · {ROLE_LABEL[u.role as Role] ?? u.role}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <p className="text-xs text-slate-500 sm:col-span-2">
+              Người duyệt: <span className="font-medium text-slate-700">{aiDuyet}</span>
+              {(b.duyetNguoiId || b.duyetBoPhan) && " (Ban giám đốc luôn duyệt được)"}
+            </p>
+          </div>
+        )}
+
         {b.trangThai === "BO_QUA" ? (
           <p className="text-slate-500">Giai đoạn này không có mục QC nên tự bỏ qua.</p>
         ) : b.trangThai === "CHUA_MO" ? (
@@ -177,7 +247,12 @@ export function QuyTrinhPanel({
         )}
 
         {b.guiLuc && <p className="text-xs text-slate-500">Gửi duyệt: {formatDate(b.guiLuc)}</p>}
-        {b.duyetLuc && <p className="text-xs text-slate-500">Duyệt: {formatDate(b.duyetLuc)}</p>}
+        {b.duyetLuc && (
+          <p className="text-xs text-slate-500">
+            Duyệt: {formatDate(b.duyetLuc)}
+            {b.nguoiDuyetTen && ` · ${b.nguoiDuyetTen}`}
+          </p>
+        )}
 
         {(duocGui || duocDuyet) && (
           <div className="space-y-2">
