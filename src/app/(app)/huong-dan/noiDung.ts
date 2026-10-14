@@ -98,7 +98,7 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
           <tr><td class="n">6</td><td>Gán người phụ trách vào dự án</td><td>Ban giám đốc</td><td>Trang dự án › Thành viên dự án</td></tr>
           <tr><td class="n">7</td><td>Nhập hợp đồng, đẩy giá bán vào dự án</td><td>Kinh doanh</td><td><span class="path">Hợp đồng & Dự toán › Hợp đồng & Báo giá</span></td></tr>
           <tr><td class="n">8</td><td>Đổ dự toán chào giá xuống dự toán thi công, gán nhà cung cấp, bảng bóc</td><td>Vật tư</td><td>Trang dự án › Mở dự toán</td></tr>
-          <tr><td class="n">9</td><td>Đề xuất mua hàng → duyệt → đặt hàng</td><td>Vật tư → BGĐ</td><td><span class="path">Phê duyệt</span>, <span class="path">Đơn hàng & Mua hàng</span></td></tr>
+          <tr><td class="n">9</td><td>Đề xuất mua hàng → duyệt → đặt hàng</td><td>Vật tư → BGĐ</td><td><span class="path">Đề xuất & Mua hàng</span></td></tr>
           <tr><td class="n">10</td><td>Bản vẽ, shop, gia công, lắp dựng: mốc tiến độ và nhật ký</td><td>Kỹ thuật</td><td>Trang dự án, <span class="path">Tiến độ</span></td></tr>
           <tr><td class="n">11</td><td>Thu tiền chủ đầu tư, trả nhà cung cấp theo đợt</td><td>Kế toán</td><td>Trang dự án › Thanh toán theo đợt</td></tr>
           <tr><td class="n">12</td><td>Quyết toán, công nợ, báo cáo theo kỳ</td><td>Kế toán, BGĐ</td><td><span class="path">Chi phí & công nợ</span></td></tr>
@@ -207,7 +207,7 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
 
       <div class="task" id="bgd-duyet">
         <h3>Duyệt hoặc từ chối đề xuất</h3>
-        <p class="where"><span class="path">Phê duyệt</span></p>
+        <p class="where"><span class="path">Đề xuất & Mua hàng › Phê duyệt</span></p>
         <ol class="steps">
           <li>Bấm bộ lọc <b>Chờ duyệt</b> để xem đề xuất đang đợi.</li>
           <li>Đọc tiêu đề, số tiền, dự án, nội dung. Bấm <span class="ui">Duyệt</span> (ghi chú có thể bỏ trống) hoặc <span class="ui">Từ chối</span> (bắt buộc ghi <b>lý do</b> để người gửi sửa lại).</li>
@@ -411,9 +411,9 @@ export const NOI_DUNG_SO_TAY = themSoDo(`
 
       <div class="task" id="vt-don-hang">
         <h3>Đề xuất, đặt hàng và nhận hàng</h3>
-        <p class="where"><span class="path">Phê duyệt</span> · trang dự án › <span class="ui">Mở đơn hàng</span></p>
+        <p class="where"><span class="path">Đề xuất & Mua hàng › Phê duyệt</span> · trang dự án › <span class="ui">Mở đơn hàng</span></p>
         <ol class="steps">
-          <li>Đơn cần duyệt: vào <span class="path">Phê duyệt</span>, loại <b>Mua hàng / vật tư</b>, gắn dự án, số tiền, nội dung (hạng mục, lý do, nhà cung cấp), bấm <span class="ui">Gửi đề xuất</span>. Còn “Chờ duyệt” thì bạn xoá được.</li>
+          <li>Đơn cần duyệt: vào <span class="path">Đề xuất & Mua hàng › Phê duyệt</span>, loại <b>Mua hàng / vật tư</b>, gắn dự án, số tiền, nội dung (hạng mục, lý do, nhà cung cấp), bấm <span class="ui">Gửi đề xuất</span>. Còn “Chờ duyệt” thì bạn xoá được.</li>
           <li>Được duyệt: mở đơn hàng của dự án, bấm <span class="ui">Thêm đơn hàng</span>: số / tên đơn, loại đơn (Kết cấu thép, Xà gồ, Tôn, Vật tư phụ), nhà cung cấp, ngày đặt, dự kiến giao, đường dẫn file đơn.</li>
           <li>Thêm vật tư vào đơn: loại (sheet), hạng mục, tên hàng & quy cách, đơn vị, số lượng, đơn giá, trọng lượng (kg). Thành tiền để trống thì app tự nhân.</li>
           <li>Có hình biên dạng (máng, diềm): bấm <span class="ui">Thêm ảnh biên dạng</span> ở dòng vật tư.</li>

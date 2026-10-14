@@ -60,6 +60,13 @@ export const TAB_VIEC_THI_CONG: readonly MucTab[] = [
   { href: "/qc", label: "Việc QC", resource: "project" },
 ];
 
+// Mua hàng đi đúng thứ tự: đề xuất được duyệt rồi mới đặt hàng. Phê duyệt không gắn quyền —
+// ai cũng gửi được đề xuất (cả đề xuất thanh toán), nên mục này luôn hiện.
+export const TAB_MUA_HANG: readonly MucTab[] = [
+  { href: "/approvals", label: "Phê duyệt" },
+  { href: "/purchases", label: "Đơn hàng", resource: "purchase" },
+];
+
 export const TAB_CHI_PHI: readonly MucTab[] = [
   { href: "/costs", label: "Tổng hợp", resource: "cost" },
   { href: "/reports", label: "Theo kỳ", resource: "cost" },

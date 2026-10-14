@@ -11,6 +11,7 @@ import {
   TAB_DU_AN,
   TAB_HOP_DONG,
   TAB_KHACH_HANG,
+  TAB_MUA_HANG,
   TAB_QUAN_TRI,
   TAB_TIEN_DO,
   TAB_TIEN_ICH,
@@ -164,7 +165,7 @@ const SO_DO = [
   d(
     "Bấm bộ lọc <b>Chờ duyệt</b>",
     b(
-      { t: "Lọc Chờ duyệt", m: "ở trang Phê duyệt" },
+      { t: "Lọc Chờ duyệt", m: "ở Đề xuất & Mua hàng › Phê duyệt" },
       { t: "Đọc đề xuất", m: "tiêu đề, số tiền, dự án, nội dung" },
       {
         t: "Quyết định",
@@ -324,7 +325,7 @@ const SO_DO = [
   d(
     "Đơn cần duyệt: vào",
     b(
-      { t: "Gửi đề xuất", m: "Phê duyệt › Mua hàng / vật tư. Còn Chờ duyệt thì xoá được" },
+      { t: "Gửi đề xuất", m: "Đề xuất & Mua hàng › Phê duyệt, loại Mua hàng / vật tư. Còn Chờ duyệt thì xoá được" },
       { t: "Ban giám đốc duyệt", m: "được duyệt mới đặt hàng" },
       { t: "Thêm đơn hàng", m: "tên đơn, loại, nhà cung cấp, ngày đặt, dự kiến giao" },
       { t: "Thêm vật tư vào đơn", m: "quy cách, số lượng, đơn giá, kg. Ảnh biên dạng nếu có" },
@@ -384,7 +385,7 @@ export function soDoVongDoi(): string {
     ["bgd", "Gán người phụ trách", "Trang dự án › Thành viên dự án"],
     ["kd", "Nhập hợp đồng", "đẩy giá bán vào dự án"],
     ["vt", "Đổ dự toán thi công", "gán NCC, bảng bóc · Trang dự án › Mở dự toán"],
-    ["vt", "Đề xuất → duyệt → đặt hàng", "Phê duyệt, Đơn hàng & Mua hàng"],
+    ["vt", "Đề xuất → duyệt → đặt hàng", "Đề xuất & Mua hàng"],
     ["kt", "Bản vẽ, shop, gia công, lắp dựng", "mốc tiến độ và nhật ký"],
     ["ke", "Thu CĐT, trả NCC theo đợt", "Trang dự án › Thanh toán theo đợt"],
     ["ke", "Quyết toán, công nợ, báo cáo", "Chi phí & công nợ"],
@@ -437,9 +438,8 @@ const NHANH_MENU: NhanhSoDo[] = [
     lop: "ke",
     buoc: true,
     muc: [
-      { t: "Đơn hàng & Mua hàng", m: "đơn vật tư gửi nhà cung cấp" },
+      { t: "Đề xuất & Mua hàng", m: "gửi đề xuất, BGĐ duyệt, rồi đặt hàng với NCC", tabs: TAB_MUA_HANG },
       { t: "Chi phí & công nợ", m: "quyết toán, báo cáo kỳ, phải thu – phải trả", tabs: TAB_CHI_PHI },
-      { t: "Phê duyệt", m: "đề xuất mua hàng / thanh toán, BGĐ duyệt" },
     ],
   },
   {

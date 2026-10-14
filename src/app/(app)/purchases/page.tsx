@@ -7,6 +7,7 @@ import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { PO_CATEGORY_MAP, PO_STATUS, PO_STATUS_MAP } from "@/lib/constants";
 import { formatVND, formatNumber, formatDate } from "@/lib/utils";
+import { TabTrang, TAB_MUA_HANG } from "@/components/layout/TabTrang";
 
 export default async function PurchasesPage() {
   const session = await requireView("purchase");
@@ -27,6 +28,7 @@ export default async function PurchasesPage() {
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_MUA_HANG} hienTai="/purchases" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Đơn hàng & Mua hàng</h1>
         <p className="text-sm text-slate-500">

@@ -2,6 +2,7 @@ import { requireSession } from "@/lib/auth";
 import { myProjects, scopedByOptionalProjectWhere } from "@/lib/scope";
 import { proposalDb } from "@/lib/proposals";
 import { ProposalBoard, type ProposalItem } from "./ProposalBoard";
+import { TabTrang, TAB_MUA_HANG } from "@/components/layout/TabTrang";
 
 export default async function ApprovalsPage() {
   const session = await requireSession();
@@ -31,6 +32,7 @@ export default async function ApprovalsPage() {
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_MUA_HANG} hienTai="/approvals" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Phê duyệt</h1>
         <p className="text-sm text-slate-500">

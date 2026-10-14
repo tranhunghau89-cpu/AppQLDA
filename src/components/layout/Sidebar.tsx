@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   FolderKanban,
   CalendarRange,
-  CheckCheck,
   ChevronDown,
   FileSignature,
   ShoppingCart,
@@ -33,6 +32,7 @@ import {
   TAB_DU_AN,
   TAB_HOP_DONG,
   TAB_KHACH_HANG,
+  TAB_MUA_HANG,
   TAB_QUAN_TRI,
   TAB_TIEN_DO,
   TAB_TIEN_ICH,
@@ -78,6 +78,7 @@ interface NavGroup {
  *   Hợp đồng & Dự toán = hợp đồng & báo giá · dự toán thi công
  *   Tiến độ           = theo tuần · Gantt
  *   Việc thi công     = việc quy trình · việc QC
+ *   Đề xuất & Mua hàng = phê duyệt · đơn hàng
  *   Chi phí & công nợ = tổng hợp · theo kỳ · công nợ
  *   Quản trị          = người dùng · mẫu QC
  *   Chủ đầu tư & NCC  = chủ đầu tư · nhà cung cấp
@@ -129,12 +130,11 @@ const NAV: NavGroup[] = [
     ],
   },
   {
-    // Dòng tiền của công trình: mua hàng → chi phí & công nợ, phê duyệt chốt cuối.
+    // Dòng tiền của công trình: đề xuất → duyệt → đặt hàng, rồi chi phí & công nợ.
     ten: "Mua hàng & Tài chính",
     items: [
-      { href: "/purchases", label: "Đơn hàng & Mua hàng", icon: ShoppingCart, resource: "purchase" },
+      { ...mucGop(TAB_MUA_HANG), label: "Đề xuất & Mua hàng", icon: ShoppingCart },
       { ...mucGop(TAB_CHI_PHI), label: "Chi phí & công nợ", icon: Wallet },
-      { href: "/approvals", label: "Phê duyệt", icon: CheckCheck },
     ],
   },
   {
