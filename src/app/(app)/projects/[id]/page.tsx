@@ -39,9 +39,9 @@ import { napQuyTrinh, quyTrinhChoCo } from "@/lib/quyTrinhDb";
 import type { SoSanhData } from "./QcSoSanhVatTu";
 import { isStorageConfigured } from "@/lib/storage";
 import { tomTatGiaiDoan } from "@/lib/qc";
-import { MucDuAn, MucLuc, MucLucDoc, OThongTin } from "./MucDuAn";
+import { MucDuAn, OThongTin } from "./MucDuAn";
 import { TEN_NHOM_THAY_DOI } from "@/lib/baoThayDoi";
-import { MoMucTheoHash } from "./MoMucTheoHash";
+import { DanhSachTab, KhungTab, NutTab, TabNoiDung, type TabMeta } from "./KhungTab";
 import { SuaThongTinDuAn } from "./SuaThongTinDuAn";
 import { salePriceFromContracts } from "@/lib/contract";
 
@@ -501,6 +501,41 @@ export default async function ProjectDetailPage({
   ]
     .filter((m): m is { id: string; tieuDe: string; canChuY?: boolean } => !!m)
     .map((m, i) => ({ ...m, so: i + 1 }));
+  const tabMeta: TabMeta[] = [
+    { id: "tong-quan", ten: "Tổng quan", muc: ["tong-quan"] },
+    { id: "tien-do-qc", ten: "Tiến độ & QC", muc: ["tien-do", "qc"], canChuY: qcTom.khongDat > 0 },
+    { id: "vat-tu-mua-hang", ten: canViewPurchase ? "Vật tư & Mua hàng" : "Vật tư", muc: ["vat-tu", "mua-hang"] },
+    { id: "tai-chinh", ten: "Tài chính", muc: ["tai-chinh"] },
+    { id: "ho-so-bao-hanh", ten: "Hồ sơ & Bảo hành", muc: ["ho-so", "bao-hanh"], dem: baoHanhMo },
+    { id: "nhat-ky-lich-su", ten: canViewProfit ? "Nhật ký & Lịch sử" : "Nhật ký", muc: ["nhat-ky", "lich-su"] },
+  ];
+  // Thẻ tóm tắt ở tab Tổng quan — mỗi thẻ bấm là sang đúng tab.
+  const theTomTat: { ten: string; so: string; phu: string; den: string; canhBao?: boolean }[] = [
+    { ten: "Tiến độ", so: `${mocXong}/${mocHienThi.length}`, phu: "mốc đã xong", den: "tien-do-qc" },
+    {
+      ten: "QC",
+      so: qcMuc.length ? `${qcTom.dat}/${qcTom.tong}` : "—",
+      phu: qcMuc.length ? (qcTom.khongDat ? `${qcTom.khongDat} mục không đạt` : "mục đạt") : "chưa tạo",
+      den: "tien-do-qc",
+      canhBao: qcTom.khongDat > 0,
+    },
+    { ten: "Vật tư", so: String(project.materialSpecs.length), phu: "quy cách", den: "vat-tu-mua-hang" },
+    ...(canViewPurchase
+      ? [{ ten: "Đơn hàng", so: String(project.purchaseOrders.length), phu: "đơn mua hàng", den: "vat-tu-mua-hang" }]
+      : []),
+    canViewProfit
+      ? { ten: "Tài chính", so: formatPercent(profit.margin), phu: "biên lợi nhuận dự toán", den: "tai-chinh" }
+      : { ten: "Tài chính", so: "Xem", phu: "dự toán, hợp đồng, thanh toán", den: "tai-chinh" },
+    { ten: "Hồ sơ", so: String(docs.length), phu: "phiên bản", den: "ho-so-bao-hanh" },
+    {
+      ten: "Bảo hành",
+      so: String(baoHanhMo),
+      phu: baoHanhRows.length ? `đang mở / ${baoHanhRows.length} phiếu` : "chưa có phiếu",
+      den: "ho-so-bao-hanh",
+      canhBao: baoHanhMo > 0,
+    },
+    { ten: "Nhật ký", so: String(notes.length), phu: "ghi chép", den: "nhat-ky-lich-su" },
+  ];
   const so = (id: string) => cacMuc.find((m) => m.id === id)?.so ?? 0;
   const nutMo = (href: string, icon: React.ReactNode, text: string) => (
     <Link
@@ -514,7 +549,6 @@ export default async function ProjectDetailPage({
   return (
     // trang-rong: bỏ giới hạn 1280px của khung app — 3 cột cần cả bề ngang màn hình.
     <div className="trang-rong space-y-4">
-      <MoMucTheoHash />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Link
@@ -542,6 +576,7 @@ export default async function ProjectDetailPage({
       <ChuYDuAn tin={chuY} />
 
       {/* Rộng: trái = danh mục quy trình, giữa = các mục, phải = trao đổi dự án. Hẹp: xếp chồng. */}
+      <KhungTab tabs={tabMeta}>
       <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)_320px]">
         {/* Cột trái chỉ có ở màn hình rộng; hẹp thì dùng mục Quy trình + thanh mục lục ngang. */}
         <aside className="hidden space-y-3 xl:sticky xl:top-4 xl:block xl:max-h-[calc(100vh-7rem)] xl:self-start xl:overflow-y-auto">
@@ -555,11 +590,13 @@ export default async function ProjectDetailPage({
             canEdit={canEdit}
             nowMs={nowMs}
           />
-          <MucLucDoc muc={cacMuc.filter((m) => m.id !== "quy-trinh")} />
+          <DanhSachTab doc />
         </aside>
 
         <div className="min-w-0 space-y-4">
-      <MucLuc muc={cacMuc} className="xl:hidden" />
+      <div className="xl:hidden">
+        <DanhSachTab />
+      </div>
 
       <MucDuAn id="quy-trinh" so={so("quy-trinh")} tieuDe="Quy trình dự án" className="xl:hidden">
         <QuyTrinhPanel
@@ -573,10 +610,24 @@ export default async function ProjectDetailPage({
           nowMs={nowMs}
         />
       </MucDuAn>
+        <TabNoiDung id="tong-quan">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:grid-cols-4">
+            {theTomTat.map((t) => (
+              <NutTab
+                key={t.ten}
+                den={t.den}
+                className="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-blue-300 hover:shadow"
+              >
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t.ten}</p>
+                <p className={`mt-1 text-xl font-semibold ${t.canhBao ? "text-red-600" : "text-slate-900"}`}>{t.so}</p>
+                <p className="mt-0.5 truncate text-xs text-slate-500">{t.phu}</p>
+              </NutTab>
+            ))}
+          </div>
 
-      <MucDuAn
+      <MucDuAn mo
         id="tong-quan"
-        so={so("tong-quan")}
+        so={0}
         tieuDe="Thông tin chung"
         tomTat={`${project.customer?.name ?? "Chưa có CĐT"} · ${project.contacts.length} người liên hệ`}
       >
@@ -670,10 +721,12 @@ export default async function ProjectDetailPage({
           </div>
         )}
       </MucDuAn>
+        </TabNoiDung>
+        <TabNoiDung id="tien-do-qc">
 
-      <MucDuAn
+      <MucDuAn mo
         id="tien-do"
-        so={so("tien-do")}
+        so={0}
         tieuDe="Tiến độ thực hiện"
         tomTat={`${mocXong}/${mocHienThi.length} mốc xong`}
       >
@@ -699,9 +752,9 @@ export default async function ProjectDetailPage({
 
       <MucDuAn
         id="qc"
-        so={so("qc")}
+        so={0}
         tieuDe="QC theo giai đoạn"
-        mo={false}
+        mo
         tomTat={
           qcMuc.length === 0 ? (
             "Chưa tạo"
@@ -728,10 +781,12 @@ export default async function ProjectDetailPage({
           taiLieuApp={taiLieuApp}
         />
       </MucDuAn>
+        </TabNoiDung>
+        <TabNoiDung id="vat-tu-mua-hang">
 
-      <MucDuAn
+      <MucDuAn mo
         id="vat-tu"
-        so={so("vat-tu")}
+        so={0}
         tieuDe="Vật tư & nhà cung cấp"
         tomTat={`${project.materialSpecs.length} quy cách`}
       >
@@ -782,10 +837,57 @@ export default async function ProjectDetailPage({
           </div>
         </div>
       </MucDuAn>
+      {canViewPurchase && (
+        <MucDuAn mo
+          id="mua-hang"
+          so={0}
+          tieuDe="Đơn hàng & mua hàng"
+          tomTat={`${project.purchaseOrders.length} đơn`}
+          hanhDong={nutMo(
+            `/projects/${project.id}/purchase`,
+            <ShoppingCart className="h-3.5 w-3.5" />,
+            "Mở đơn hàng",
+          )}
+        >
+          {project.purchaseOrders.length === 0 ? (
+            <p className="text-sm text-slate-400">Chưa có đơn đặt hàng</p>
+          ) : (
+            <div className="space-y-2">
+              {project.purchaseOrders.map((o) => {
+                const cat = PO_CATEGORY_MAP[o.category];
+                const st = PO_STATUS_MAP[o.status];
+                return (
+                  <div
+                    key={o.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Badge tone={cat?.tone ?? "slate"}>{cat?.label ?? o.category}</Badge>
+                      <Badge tone={st?.tone ?? "slate"}>{st?.label ?? o.status}</Badge>
+                      <span className="text-sm text-slate-600">
+                        {o.supplier?.name ?? "Chưa gán NCC"}
+                      </span>
+                    </div>
+                    <div className="text-sm text-slate-600">
+                      {o._count.items} dòng
+                      <span className="mx-1.5 text-slate-300">·</span>
+                      <span className="font-medium text-blue-600">
+                        {formatNumber(o.totalWeight)} kg
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </MucDuAn>
+      )}
+        </TabNoiDung>
+        <TabNoiDung id="tai-chinh">
 
-      <MucDuAn
+      <MucDuAn mo
         id="tai-chinh"
-        so={so("tai-chinh")}
+        so={0}
         tieuDe="Dự toán & tài chính"
         hanhDong={nutMo(
           `/projects/${project.id}/estimate`,
@@ -905,59 +1007,15 @@ export default async function ProjectDetailPage({
           )}
         </div>
       </MucDuAn>
-
-      {canViewPurchase && (
-        <MucDuAn
-          id="mua-hang"
-          so={so("mua-hang")}
-          tieuDe="Đơn hàng & mua hàng"
-          tomTat={`${project.purchaseOrders.length} đơn`}
-          hanhDong={nutMo(
-            `/projects/${project.id}/purchase`,
-            <ShoppingCart className="h-3.5 w-3.5" />,
-            "Mở đơn hàng",
-          )}
-        >
-          {project.purchaseOrders.length === 0 ? (
-            <p className="text-sm text-slate-400">Chưa có đơn đặt hàng</p>
-          ) : (
-            <div className="space-y-2">
-              {project.purchaseOrders.map((o) => {
-                const cat = PO_CATEGORY_MAP[o.category];
-                const st = PO_STATUS_MAP[o.status];
-                return (
-                  <div
-                    key={o.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Badge tone={cat?.tone ?? "slate"}>{cat?.label ?? o.category}</Badge>
-                      <Badge tone={st?.tone ?? "slate"}>{st?.label ?? o.status}</Badge>
-                      <span className="text-sm text-slate-600">
-                        {o.supplier?.name ?? "Chưa gán NCC"}
-                      </span>
-                    </div>
-                    <div className="text-sm text-slate-600">
-                      {o._count.items} dòng
-                      <span className="mx-1.5 text-slate-300">·</span>
-                      <span className="font-medium text-blue-600">
-                        {formatNumber(o.totalWeight)} kg
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </MucDuAn>
-      )}
+        </TabNoiDung>
+        <TabNoiDung id="ho-so-bao-hanh">
 
       <MucDuAn
         id="ho-so"
-        so={so("ho-so")}
+        so={0}
         tieuDe="Hồ sơ & phiên bản"
         tomTat={`${docs.length} bản`}
-        mo={false}
+        mo
       >
         <DocVersions
           projectId={project.id}
@@ -969,10 +1027,10 @@ export default async function ProjectDetailPage({
 
       <MucDuAn
         id="bao-hanh"
-        so={so("bao-hanh")}
+        so={0}
         tieuDe="Bảo hành"
         tomTat={baoHanhRows.length ? `${baoHanhMo} đang mở / ${baoHanhRows.length} phiếu` : "Chưa có phiếu"}
-        mo={false}
+        mo
       >
         <BaoHanh
           projectId={project.id}
@@ -984,13 +1042,15 @@ export default async function ProjectDetailPage({
           nowMs={nowMs}
         />
       </MucDuAn>
+        </TabNoiDung>
+        <TabNoiDung id="nhat-ky-lich-su">
 
       <MucDuAn
         id="nhat-ky"
-        so={so("nhat-ky")}
+        so={0}
         tieuDe="Nhật ký dự án"
         tomTat={`${notes.length} ghi chép`}
-        mo={false}
+        mo
       >
         <ProjectNotes
           projectId={project.id}
@@ -999,9 +1059,8 @@ export default async function ProjectDetailPage({
           canDelete={session.role === "ADMIN"}
         />
       </MucDuAn>
-
       {canViewProfit && (
-        <MucDuAn id="lich-su" so={so("lich-su")} tieuDe="Lịch sử thay đổi" mo={false}>
+        <MucDuAn id="lich-su" so={0} tieuDe="Lịch sử thay đổi" mo>
           <AuditEntries rows={auditLog} />
           {auditLog.length === 30 && (
             <p className="pt-2 text-xs text-slate-400">
@@ -1011,6 +1070,8 @@ export default async function ProjectDetailPage({
           )}
         </MucDuAn>
       )}
+        </TabNoiDung>
+
         </div>
 
         <aside
@@ -1035,6 +1096,7 @@ export default async function ProjectDetailPage({
           </div>
         </aside>
       </div>
+      </KhungTab>
 
       {/* Màn hình hẹp: trao đổi nằm cuối trang — nút nổi để nhảy tới. */}
       <a

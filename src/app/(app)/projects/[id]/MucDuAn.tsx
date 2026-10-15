@@ -62,9 +62,12 @@ export function MucDuAn({
       className={`${className} group scroll-mt-32 rounded-xl border border-slate-200 bg-white shadow-sm`}
     >
       <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-4 py-3 hover:bg-slate-50 group-open:rounded-b-none group-open:border-b group-open:border-slate-100 [&::-webkit-details-marker]:hidden">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold tabular-nums text-white">
-          {so}
-        </span>
+        {/* so = 0: mục nằm trong tab, không đánh số. */}
+        {so > 0 && (
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold tabular-nums text-white">
+            {so}
+          </span>
+        )}
         <span className="min-w-0 flex-1">
           <span className="font-semibold text-slate-900">{tieuDe}</span>
           {tomTat && (
