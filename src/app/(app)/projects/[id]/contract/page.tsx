@@ -30,6 +30,8 @@ export default async function ContractPage({
     id: c.id,
     contractNo: c.contractNo,
     signDate: c.signDate?.toISOString() ?? null,
+    effectiveDate: c.effectiveDate?.toISOString() ?? null,
+    durationDays: c.durationDays,
     subject: c.subject,
     partyAName: c.partyAName,
     partyAInfo: c.partyAInfo,

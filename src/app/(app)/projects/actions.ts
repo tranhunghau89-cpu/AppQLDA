@@ -11,9 +11,12 @@ import { docVersionDb } from "@/lib/doc-versions";
 import { paymentDb } from "@/lib/payments";
 import { tinhBieuThuc } from "@/lib/bieuThuc";
 import { contractSalePriceOf } from "@/lib/contractSalePrice";
+import { lapKeHoach } from "@/lib/tienDo";
+import { can, type Role } from "@/lib/rbac";
 import {
   PROJECT_STATUS_MAP,
   PROJECT_COMPONENT_MAP,
+  MILESTONE_TYPE,
   MILESTONE_TYPE_MAP,
   DOC_STATUS_MAP,
 } from "@/lib/constants";
@@ -315,6 +318,93 @@ export async function upsertMilestone(
     update: data,
     create: { projectId, type, ...data },
   });
+  revalidatePath(`/projects/${projectId}`);
+  return { ok: true };
+}
+
+const soNgayKhongAm = z
+  .union([z.string(), z.number(), z.null()])
+  .transform((v) => (v === "" || v == null ? null : Number(v)))
+  .refine((v) => v === null || (Number.isInteger(v) && v >= 0), "Số ngày phải là số nguyên không âm");
+const ngay = z.string().trim().refine((v) => v === "" || !Number.isNaN(Date.parse(v)), "Ngày không hợp lệ");
+const tienDoSchema = z.object({
+  // Ngày hiệu lực / thời hạn ghi vào HĐ đang dùng làm căn cứ (null = không sửa HĐ).
+  contractId: z.string().nullable(),
+  effectiveDate: ngay,
+  contractDays: soNgayKhongAm,
+  rows: z.array(
+    z.object({
+      type: z.string().refine((v) => v in MILESTONE_TYPE_MAP, "Loại mốc không hợp lệ"),
+      durationDays: soNgayKhongAm,
+      overlapDays: soNgayKhongAm,
+      planDate: ngay,
+      actualDate: ngay,
+      done: z.boolean(),
+    })
+  ),
+});
+export type TienDoInput = z.input<typeof tienDoSchema>;
+
+/**
+ * Lưu cả bảng tiến độ một lần. planDate của mốc có số ngày do server tính lại từ
+ * ngày hiệu lực (không tin giá trị client gửi); mốc không có số ngày giữ ngày nhập tay.
+ */
+export async function saveTienDo(projectId: string, input: TienDoInput): Promise<ActionResult> {
+  const denied = await denyProject("progress", "edit", projectId, "Bạn không có quyền cập nhật tiến độ.");
+  if (denied) return denied;
+  const parsed = tienDoSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const v = parsed.data;
+  const toDate = (s: string) => (s ? new Date(s) : null);
+
+  if (v.contractId) {
+    const session = await requireSession();
+    if (!can(session.role as Role, "contract", "edit"))
+      return { ok: false, error: "Bạn không có quyền sửa ngày hiệu lực / thời hạn HĐ." };
+    const c = await db.contract.findUnique({ where: { id: v.contractId }, select: { projectId: true } });
+    if (!c || c.projectId !== projectId) return { ok: false, error: "Hợp đồng không thuộc dự án này." };
+  }
+
+  const theoThuTu = MILESTONE_TYPE.map((m) => v.rows.find((r) => r.type === m.value)).filter(
+    (r): r is (typeof v.rows)[number] => !!r
+  );
+  const hieuLuc = toDate(v.effectiveDate);
+  const keHoach = lapKeHoach(
+    hieuLuc,
+    theoThuTu.map((r) => ({
+      type: r.type,
+      durationDays: r.durationDays,
+      overlapDays: r.overlapDays,
+      planDate: toDate(r.planDate),
+      actualDate: toDate(r.actualDate),
+      done: r.done,
+    }))
+  );
+
+  await db.$transaction([
+    ...(v.contractId
+      ? [
+          db.contract.update({
+            where: { id: v.contractId },
+            data: { effectiveDate: hieuLuc, durationDays: v.contractDays },
+          }),
+        ]
+      : []),
+    ...theoThuTu.map((r, i) => {
+      const data = {
+        durationDays: r.durationDays,
+        overlapDays: r.overlapDays,
+        planDate: keHoach[i].ketThuc,
+        actualDate: toDate(r.actualDate),
+        done: r.done,
+      };
+      return db.milestone.upsert({
+        where: { projectId_type: { projectId, type: r.type } },
+        update: data,
+        create: { projectId, type: r.type, ...data },
+      });
+    }),
+  ]);
   revalidatePath(`/projects/${projectId}`);
   return { ok: true };
 }

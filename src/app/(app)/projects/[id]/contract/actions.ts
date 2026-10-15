@@ -15,6 +15,8 @@ export type ActionResult = { ok: true } | { ok: false; error: string };
 const CONTRACT_AUDIT_FIELDS = [
   "contractNo",
   "signDate",
+  "effectiveDate",
+  "durationDays",
   "subject",
   "partyAName",
   "status",
@@ -54,6 +56,8 @@ async function recompute(contractId: string) {
 const contractSchema = z.object({
   contractNo: z.string().trim().min(1, "Chưa nhập số hợp đồng"),
   signDate: z.string().trim().optional(),
+  effectiveDate: z.string().trim().optional(),
+  durationDays: num.refine((v) => v === null || (Number.isInteger(v) && v >= 0), "Thời hạn phải là số ngày nguyên"),
   subject: z.string().trim().min(1, "Chưa nhập trích yếu (V/v)"),
   partyAName: z.string().trim().min(1, "Chưa nhập chủ đầu tư (Bên A)"),
   partyAInfo: z.string().trim().optional(),
@@ -98,6 +102,8 @@ export async function saveContract(
   const parsed = contractSchema.safeParse({
     contractNo: String(form.get("contractNo") ?? ""),
     signDate: String(form.get("signDate") ?? ""),
+    effectiveDate: String(form.get("effectiveDate") ?? ""),
+    durationDays: String(form.get("durationDays") ?? ""),
     subject: String(form.get("subject") ?? ""),
     partyAName: String(form.get("partyAName") ?? ""),
     partyAInfo: String(form.get("partyAInfo") ?? ""),
@@ -112,6 +118,8 @@ export async function saveContract(
   const data = {
     contractNo: d.contractNo || null,
     signDate: d.signDate ? new Date(d.signDate) : null,
+    effectiveDate: d.effectiveDate ? new Date(d.effectiveDate) : null,
+    durationDays: d.durationDays,
     subject: d.subject || null,
     partyAName: d.partyAName || null,
     partyAInfo: d.partyAInfo || null,

@@ -142,8 +142,15 @@ export default async function ProjectDetailPage({
       actualDate: m.actualDate?.toISOString() ?? null,
       done: m.done,
       note: m.note,
+      durationDays: m.durationDays,
+      overlapDays: m.overlapDays,
     };
   }
+  // HĐ làm căn cứ tiến độ: HĐ đã ký ký muộn nhất, chưa có thì HĐ tạo sau cùng.
+  const hdDaKy = project.contracts
+    .filter((c) => c.status === "SIGNED")
+    .sort((a, b) => (b.signDate?.getTime() ?? 0) - (a.signDate?.getTime() ?? 0));
+  const hdCanCu = hdDaKy[0] ?? project.contracts[project.contracts.length - 1] ?? null;
 
   // ----- Quy trình dự án -----
   const [tinBuocRows, nguoiDungRows] = await Promise.all([
@@ -546,6 +553,17 @@ export default async function ProjectDetailPage({
           projectId={project.id}
           milestones={milestoneMap}
           canEdit={canEditProgress}
+          canEditContract={can(session.role, "contract", "edit")}
+          hopDong={
+            hdCanCu && {
+              id: hdCanCu.id,
+              ten: hdCanCu.contractNo ?? hdCanCu.subject ?? "Hợp đồng",
+              daKy: hdCanCu.status === "SIGNED",
+              signDate: hdCanCu.signDate?.toISOString() ?? null,
+              effectiveDate: hdCanCu.effectiveDate?.toISOString() ?? null,
+              durationDays: hdCanCu.durationDays,
+            }
+          }
           nowMs={nowMs}
         />
       </MucDuAn>

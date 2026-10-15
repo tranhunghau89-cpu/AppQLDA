@@ -54,6 +54,8 @@ export interface ContractView {
   id: string;
   contractNo: string | null;
   signDate: string | null;
+  effectiveDate: string | null;
+  durationDays: number | null;
   subject: string | null;
   partyAName: string | null;
   partyAInfo: string | null;
@@ -421,6 +423,26 @@ export function ContractEditor({
                 defaultValue={
                   cEditing?.signDate ? cEditing.signDate.slice(0, 10) : ""
                 }
+              />
+            </Field>
+            <Field label="Ngày HĐ có hiệu lực">
+              <Input
+                name="effectiveDate"
+                type="date"
+                className={O_DIEN_TAY}
+                defaultValue={
+                  cEditing?.effectiveDate ? cEditing.effectiveDate.slice(0, 10) : ""
+                }
+              />
+            </Field>
+            <Field label="Thời hạn thực hiện (ngày)">
+              <Input
+                name="durationDays"
+                type="number"
+                min={0}
+                step={1}
+                className={O_DIEN_TAY}
+                defaultValue={cEditing?.durationDays ?? ""}
               />
             </Field>
           </div>
