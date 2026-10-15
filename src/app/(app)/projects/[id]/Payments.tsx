@@ -47,6 +47,8 @@ function StatusChip({ p, now }: { p: PaymentItem; now: number }) {
   return (
     <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
       chờ {p.direction === "THU" ? "thu" : "trả"}
+      {/* Không có hạn thì không bao giờ báo quá hạn — nhắc nhập hạn. */}
+      {!p.dueDate && <span className="font-normal text-amber-500"> · chưa có hạn</span>}
     </span>
   );
 }
@@ -155,10 +157,11 @@ function Section({
                   <button
                     onClick={() => setDangGhiNhan(p)}
                     disabled={pending}
-                    className="inline-flex items-center gap-1 rounded-md bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 hover:bg-green-100 disabled:opacity-50"
+                    // Nút hành động, viền trắng — không dùng nền xanh để khỏi lẫn với nhãn "Đã thu".
+                    className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:border-green-400 hover:bg-green-50 hover:text-green-700 disabled:opacity-50"
                   >
                     <CircleDollarSign className="h-3.5 w-3.5" />
-                    {direction === "THU" ? "Đã thu" : "Đã trả"}
+                    {direction === "THU" ? "Ghi nhận đã thu" : "Ghi nhận đã trả"}
                   </button>
                 )}
                 <button
