@@ -8,6 +8,7 @@ import { serverNow } from "@/lib/now";
 import { can } from "@/lib/rbac";
 import { formatVND, formatDate, formatNumber } from "@/lib/utils";
 import { StatusChanger, SupplierAssigner } from "./ProjectDetail";
+import { ThongBaoNhanh } from "./ThongBaoNhanh";
 import { ProjectMembers, type MemberUser } from "./ProjectMembers";
 import { Milestones, type DotTheoMoc, type MilestoneValue } from "./Milestones";
 import { danhSachMoc, tenMoc } from "@/lib/tienDo";
@@ -483,7 +484,10 @@ export default async function ProjectDetailPage({
             </p>
           </div>
         </div>
-        <StatusChanger projectId={project.id} status={project.status} canEdit={canEdit} />
+        <div className="flex items-center gap-2">
+          <ThongBaoNhanh projectId={project.id} nguoiDung={nguoiDungRows} />
+          <StatusChanger projectId={project.id} status={project.status} canEdit={canEdit} />
+        </div>
       </div>
 
       <HealthBanner muc={co.muc} lyDo={co.lyDo} {...chiSo} hienTien={canViewPayment} />

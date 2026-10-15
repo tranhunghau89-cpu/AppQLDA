@@ -5,13 +5,16 @@ import { canAccessProject } from "@/lib/scope";
 import type { Role } from "@/lib/rbac";
 import type { SessionUser } from "@/lib/session";
 
-export type NhomThayDoi = "HOP_DONG" | "THIET_KE" | "THANH_TOAN" | "DU_AN";
+export type NhomThayDoi = "HOP_DONG" | "THIET_KE" | "THANH_TOAN" | "DU_AN" | "VAT_TU" | "TIEN_DO" | "KHAC";
 
 export const TEN_NHOM_THAY_DOI: Record<NhomThayDoi, string> = {
   HOP_DONG: "Hợp đồng",
   THIET_KE: "Thiết kế",
   THANH_TOAN: "Thanh toán",
   DU_AN: "Thông tin dự án",
+  VAT_TU: "Vật tư",
+  TIEN_DO: "Tiến độ",
+  KHAC: "Thông báo",
 };
 
 /** Đuôi đường dẫn từ trang dự án tới chỗ thay đổi. */
@@ -20,6 +23,9 @@ export const MUC_NHOM_THAY_DOI: Record<NhomThayDoi, string> = {
   THIET_KE: "#ho-so",
   THANH_TOAN: "#tai-chinh",
   DU_AN: "#tong-quan",
+  VAT_TU: "#vat-tu",
+  TIEN_DO: "#tien-do",
+  KHAC: "#tong-quan",
 };
 
 /** Phòng nhận theo nhóm — cộng thêm thành viên dự án ở mọi nhóm. */
@@ -28,10 +34,39 @@ export const PHONG_NHAN: Record<NhomThayDoi, Role[]> = {
   THIET_KE: ["ENGINEERING"],
   THANH_TOAN: ["ACCOUNTING"],
   DU_AN: [],
+  VAT_TU: ["PROCUREMENT"],
+  TIEN_DO: ["ENGINEERING"],
+  KHAC: [],
 };
 
 export function laNhomThayDoi(x: string): x is NhomThayDoi {
   return x in TEN_NHOM_THAY_DOI;
+}
+
+/**
+ * Người nhận trong một dự án: các phòng + các người chỉ định, đang hoạt động, trừ người
+ * gửi, và CHỈ những ai xem được dự án — ngoài phạm vi thì không được đọc nội dung.
+ */
+export async function nguoiNhanDuAn(
+  projectId: string,
+  v: { phong: readonly string[]; ids: string[]; truId: string },
+): Promise<string[]> {
+  if (v.phong.length === 0 && v.ids.length === 0) return [];
+  const ung = await db.user.findMany({
+    where: {
+      active: true,
+      id: { not: v.truId },
+      OR: [
+        ...(v.ids.length ? [{ id: { in: v.ids } }] : []),
+        ...(v.phong.length ? [{ role: { in: [...v.phong] } }] : []),
+      ],
+    },
+    select: { id: true, role: true },
+  });
+  const xem = await Promise.all(
+    ung.map((u) => canAccessProject({ userId: u.id, role: u.role as Role } as SessionUser, projectId)),
+  );
+  return ung.filter((_, i) => xem[i]).map((u) => u.id);
 }
 
 /** Sửa liên tiếp trong cửa sổ này thì gộp vào tin chưa đọc cũ, khỏi dội chuông. */
@@ -54,23 +89,11 @@ export async function baoThayDoi(v: {
     });
     if (!p) return;
 
-    const phong = PHONG_NHAN[v.nhom];
-    const ung = await db.user.findMany({
-      where: {
-        active: true,
-        id: { not: v.tacGia.userId },
-        OR: [
-          { id: { in: p.members.map((m) => m.userId) } },
-          ...(phong.length ? [{ role: { in: phong } }] : []),
-        ],
-      },
-      select: { id: true, role: true },
+    const nhan = await nguoiNhanDuAn(v.projectId, {
+      phong: PHONG_NHAN[v.nhom],
+      ids: p.members.map((m) => m.userId),
+      truId: v.tacGia.userId,
     });
-    // Ngoài phạm vi dự án thì không được đọc nội dung — không nhắn.
-    const xem = await Promise.all(
-      ung.map((u) => canAccessProject({ userId: u.id, role: u.role as Role } as SessionUser, v.projectId)),
-    );
-    const nhan = ung.filter((_, i) => xem[i]).map((u) => u.id);
     if (nhan.length === 0) return;
 
     const cu = await db.traoDoi.findFirst({

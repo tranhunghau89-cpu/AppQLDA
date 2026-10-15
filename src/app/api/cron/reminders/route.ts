@@ -18,6 +18,7 @@ import {
 import { computeClientQuoteTotals } from "@/lib/clientQuote";
 import { CLIENT_QUOTE_OPEN } from "@/lib/constants";
 import { tenMoc } from "@/lib/tienDo";
+import { guiNhacTheoNguoi } from "@/lib/nhacTheoNguoi";
 
 export const dynamic = "force-dynamic";
 
@@ -95,7 +96,7 @@ export async function GET(req: Request) {
       select: {
         content: true,
         nextFollowUpDate: true,
-        khachHang: { select: { id: true, tenCty: true, ownerName: true } },
+        khachHang: { select: { id: true, tenCty: true, ownerName: true, ownerId: true } },
       },
     }),
   ]);
@@ -150,6 +151,15 @@ export async function GET(req: Request) {
   const banTin = buildReminderReport(moc, dot, now, SAP_TOI_NGAY, baoGia, hen);
   const noiDung = formatReminderText(banTin);
 
+  // Mỗi người một tin trên chuông — phần việc của riêng họ. Lỗi ở đây không chặn bản tin chung.
+  let soNguoiNhac = 0;
+  try {
+    const chuKhach = new Map(henRows.filter((n) => n.khachHang).map((n) => [n.khachHang!.id, n.khachHang!.ownerId]));
+    soNguoiNhac = await guiNhacTheoNguoi({ moc, dot, baoGia, hen, chuKhach }, now, SAP_TOI_NGAY);
+  } catch (e) {
+    console.error("[cron/reminders] nhắc theo người thất bại:", e);
+  }
+
   let daGui = false;
   let loiGui: string | null = null;
   const url = process.env.REMINDER_WEBHOOK_URL;
@@ -191,6 +201,7 @@ export async function GET(req: Request) {
     tongPhaiThuQuaHan: banTin.tongPhaiThuQuaHan,
     tongPhaiTraQuaHan: banTin.tongPhaiTraQuaHan,
     daGui,
+    soNguoiNhac,
     loiGui,
   });
 }

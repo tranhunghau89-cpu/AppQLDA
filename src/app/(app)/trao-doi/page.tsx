@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { LOAI_TRAO_DOI_LABEL, duocXemViec, duongDanViec } from "@/lib/traoDoi";
 import { khaNangDuyet } from "@/lib/duyetNhanh";
-import { TEN_NHOM_THAY_DOI } from "@/lib/baoThayDoi";
+import { TEN_NHOM_THAY_DOI, laNhomThayDoi } from "@/lib/baoThayDoi";
 import { DuyetNhanh } from "./DuyetNhanh";
 
 const TONE: Record<string, "slate" | "blue" | "amber" | "green"> = {
@@ -19,6 +19,7 @@ const TEN_VIEC: Record<string, string> = {
   QUOTE: "Dự toán chi tiết",
   BUOC: "Quy trình dự án",
   ...TEN_NHOM_THAY_DOI,
+  NHAC_VIEC: "Nhắc việc",
 };
 
 // Hộp thư: các tin người khác nhắn tới mình, chưa đọc lên đầu. Đọc là bấm vào việc —
@@ -69,7 +70,7 @@ export default async function TraoDoiPage() {
                 <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                   {!daDocLuc && <span className="h-2 w-2 rounded-full bg-blue-600" aria-label="Chưa đọc" />}
                   <span className="font-medium text-slate-800">{t.tacGiaTen}</span>
-                  {t.loai !== "GHI_CHU" && <Badge tone={TONE[t.loai]}>{LOAI_TRAO_DOI_LABEL[t.loai]}</Badge>}
+                  {t.loai !== "GHI_CHU" && <Badge tone={TONE[t.loai]}>{t.loai === "CAN_SUA" && laNhomThayDoi(t.doiTuong) ? "Cần xử lý" : LOAI_TRAO_DOI_LABEL[t.loai]}</Badge>}
                   <span>
                     {TEN_VIEC[t.doiTuong] ?? t.doiTuong}
                     {t.nhanDe ? `: ${t.nhanDe}` : ""}
