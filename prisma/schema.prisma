@@ -387,6 +387,10 @@ model Milestone {
   actualDate   DateTime?
   done         Boolean   @default(false)
   note         String?
+  // type: 8 mã chuẩn (constants MILESTONE_TYPE) hoặc "KHAC_xxx" = mốc tự thêm của dự án.
+  name         String? // tên riêng; null = tên chuẩn của mã
+  sortOrder    Int? // null = theo thứ tự chuẩn
+  hidden       Boolean   @default(false) // mốc chuẩn bị xóa khỏi dự án (mốc tự thêm thì xóa hẳn)
 
   @@unique([projectId, type])
 }
@@ -605,6 +609,10 @@ model Payment {
   paidDate    DateTime? // ngày thực thu / thực trả
   paidAmount  Float? // số tiền thực tế
   note        String?
+  // Hạn theo mốc tiến độ: dueDate = (thực tế nếu mốc xong, không thì KH) + offsetDays,
+  // tính lại mỗi khi lưu tiến độ. Lưu theo Milestone.type, không FK: mốc chuẩn có thể chưa có dòng.
+  milestoneType String?
+  offsetDays    Int?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

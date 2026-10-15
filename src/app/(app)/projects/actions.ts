@@ -11,12 +11,11 @@ import { docVersionDb } from "@/lib/doc-versions";
 import { paymentDb } from "@/lib/payments";
 import { tinhBieuThuc } from "@/lib/bieuThuc";
 import { contractSalePriceOf } from "@/lib/contractSalePrice";
-import { lapKeHoach } from "@/lib/tienDo";
+import { hanTheoMoc, lapKeHoach, laMaMocHopLe, tenMoc } from "@/lib/tienDo";
 import { can, type Role } from "@/lib/rbac";
 import {
   PROJECT_STATUS_MAP,
   PROJECT_COMPONENT_MAP,
-  MILESTONE_TYPE,
   MILESTONE_TYPE_MAP,
   DOC_STATUS_MAP,
 } from "@/lib/constants";
@@ -54,6 +53,8 @@ const PAYMENT_AUDIT_FIELDS = [
   "paidDate",
   "paidAmount",
   "note",
+  "milestoneType",
+  "offsetDays",
 ] as const;
 
 const PROJECT_AUDIT_SELECT = Object.fromEntries(
@@ -327,34 +328,63 @@ const soNgayKhongAm = z
   .transform((v) => (v === "" || v == null ? null : Number(v)))
   .refine((v) => v === null || (Number.isInteger(v) && v >= 0), "Số ngày phải là số nguyên không âm");
 const ngay = z.string().trim().refine((v) => v === "" || !Number.isNaN(Date.parse(v)), "Ngày không hợp lệ");
+const maMoc = z.string().refine(laMaMocHopLe, "Mã mốc không hợp lệ");
 const tienDoSchema = z.object({
   // Ngày hiệu lực / thời hạn ghi vào HĐ đang dùng làm căn cứ (null = không sửa HĐ).
   contractId: z.string().nullable(),
   effectiveDate: ngay,
   contractDays: soNgayKhongAm,
-  rows: z.array(
-    z.object({
-      type: z.string().refine((v) => v in MILESTONE_TYPE_MAP, "Loại mốc không hợp lệ"),
-      durationDays: soNgayKhongAm,
-      overlapDays: soNgayKhongAm,
-      planDate: ngay,
-      actualDate: ngay,
-      done: z.boolean(),
-    })
-  ),
+  // Đúng thứ tự hiển thị; mốc có trong `xoa` (và không còn trong rows) bị xóa.
+  rows: z
+    .array(
+      z.object({
+        type: maMoc,
+        name: z.string().trim().max(100),
+        durationDays: soNgayKhongAm,
+        overlapDays: soNgayKhongAm,
+        planDate: ngay,
+        actualDate: ngay,
+        done: z.boolean(),
+      })
+    )
+    .max(50),
+  xoa: z.array(maMoc).max(50),
 });
 export type TienDoInput = z.input<typeof tienDoSchema>;
+export type TienDoResult = { ok: true; nhac: string[] } | { ok: false; error: string };
+
+function ddmmyyyy(d: Date): string {
+  return d.toISOString().slice(0, 10).split("-").reverse().join("/");
+}
+
+/** Tính lại hạn các đợt thanh toán CHƯA thu/trả có gắn mốc của dự án. */
+async function dongBoHanThanhToan(projectId: string) {
+  const [mocs, dots] = await Promise.all([
+    db.milestone.findMany({ where: { projectId } }),
+    paymentDb.findMany({ where: { projectId, milestoneType: { not: null }, paidDate: null } }),
+  ]);
+  const theoMa = new Map(mocs.map((m) => [m.type, m]));
+  for (const p of dots) {
+    const moc = theoMa.get(p.milestoneType!);
+    const han = moc && !moc.hidden ? hanTheoMoc(moc, p.offsetDays) : null;
+    if ((han?.getTime() ?? null) !== (p.dueDate?.getTime() ?? null))
+      await paymentDb.update({ where: { id: p.id }, data: { dueDate: han } });
+  }
+}
 
 /**
- * Lưu cả bảng tiến độ một lần. planDate của mốc có số ngày do server tính lại từ
- * ngày hiệu lực (không tin giá trị client gửi); mốc không có số ngày giữ ngày nhập tay.
+ * Lưu cả bảng tiến độ một lần (tên, thứ tự, thêm, xóa mốc). planDate của mốc có số ngày
+ * do server tính lại từ ngày hiệu lực; mốc không có số ngày giữ ngày nhập tay. Sau đó
+ * tính lại hạn các đợt thanh toán gắn mốc và trả lời nhắc cho mốc vừa tick Xong.
  */
-export async function saveTienDo(projectId: string, input: TienDoInput): Promise<ActionResult> {
+export async function saveTienDo(projectId: string, input: TienDoInput): Promise<TienDoResult> {
   const denied = await denyProject("progress", "edit", projectId, "Bạn không có quyền cập nhật tiến độ.");
   if (denied) return denied;
   const parsed = tienDoSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const v = parsed.data;
+  if (new Set(v.rows.map((r) => r.type)).size !== v.rows.length)
+    return { ok: false, error: "Trùng mốc." };
   const toDate = (s: string) => (s ? new Date(s) : null);
 
   if (v.contractId) {
@@ -365,13 +395,13 @@ export async function saveTienDo(projectId: string, input: TienDoInput): Promise
     if (!c || c.projectId !== projectId) return { ok: false, error: "Hợp đồng không thuộc dự án này." };
   }
 
-  const theoThuTu = MILESTONE_TYPE.map((m) => v.rows.find((r) => r.type === m.value)).filter(
-    (r): r is (typeof v.rows)[number] => !!r
-  );
+  const truoc = await db.milestone.findMany({ where: { projectId }, select: { type: true, done: true } });
+  const daXong = new Set(truoc.filter((m) => m.done).map((m) => m.type));
+
   const hieuLuc = toDate(v.effectiveDate);
   const keHoach = lapKeHoach(
     hieuLuc,
-    theoThuTu.map((r) => ({
+    v.rows.map((r) => ({
       type: r.type,
       durationDays: r.durationDays,
       overlapDays: r.overlapDays,
@@ -380,6 +410,11 @@ export async function saveTienDo(projectId: string, input: TienDoInput): Promise
       done: r.done,
     }))
   );
+  const conLai = new Set(v.rows.map((r) => r.type));
+  const xoa = v.xoa.filter((t) => !conLai.has(t));
+  const xoaChuan = xoa.filter((t) => t in MILESTONE_TYPE_MAP);
+  const xoaRieng = xoa.filter((t) => !(t in MILESTONE_TYPE_MAP));
+  const anMoc = { hidden: true, planDate: null, actualDate: null, done: false, durationDays: null, overlapDays: null };
 
   await db.$transaction([
     ...(v.contractId
@@ -390,8 +425,12 @@ export async function saveTienDo(projectId: string, input: TienDoInput): Promise
           }),
         ]
       : []),
-    ...theoThuTu.map((r, i) => {
+    ...v.rows.map((r, i) => {
+      const tenChuan = MILESTONE_TYPE_MAP[r.type]?.label;
       const data = {
+        name: r.name && r.name !== tenChuan ? r.name : null,
+        sortOrder: i * 10,
+        hidden: false,
         durationDays: r.durationDays,
         overlapDays: r.overlapDays,
         planDate: keHoach[i].ketThuc,
@@ -404,9 +443,63 @@ export async function saveTienDo(projectId: string, input: TienDoInput): Promise
         create: { projectId, type: r.type, ...data },
       });
     }),
+    ...xoaChuan.map((type) =>
+      db.milestone.upsert({
+        where: { projectId_type: { projectId, type } },
+        update: anMoc,
+        create: { projectId, type, ...anMoc },
+      })
+    ),
+    db.milestone.deleteMany({ where: { projectId, type: { in: xoaRieng } } }),
+    // Đợt thanh toán gắn mốc vừa xóa: bỏ gắn, giữ nguyên hạn đang có.
+    paymentDb.updateMany({ where: { projectId, milestoneType: { in: xoa } }, data: { milestoneType: null } }),
   ]);
+  await dongBoHanThanhToan(projectId);
+
+  const vuaXong = v.rows.filter((r) => r.done && !daXong.has(r.type));
+  const nhac: string[] = [];
+  // Lời nhắc lộ tên đợt thu — chỉ trả cho người xem được thanh toán (như trang dự án).
+  const nguoiLuu = await requireSession();
+  const xemThanhToan =
+    can(nguoiLuu.role as Role, "debt", "view") || can(nguoiLuu.role as Role, "cost", "edit");
+  if (vuaXong.length > 0 && xemThanhToan) {
+    const dots = await paymentDb.findMany({
+      where: { projectId, direction: "THU", paidDate: null, milestoneType: { in: vuaXong.map((r) => r.type) } },
+      orderBy: { dueDate: "asc" },
+    });
+    for (const p of dots) {
+      const r = vuaXong.find((x) => x.type === p.milestoneType)!;
+      nhac.push(
+        `${tenMoc({ type: r.type, name: r.name })} đã xong — đề nghị CĐT thanh toán "${p.name}"${
+          p.dueDate ? `, hạn ${ddmmyyyy(p.dueDate)}` : ""
+        }.`
+      );
+    }
+  }
   revalidatePath(`/projects/${projectId}`);
-  return { ok: true };
+  revalidatePath("/");
+  return { ok: true, nhac };
+}
+
+/** Đọc ô "Theo mốc" / "Sau … ngày" của form đợt thanh toán; trả hạn tính theo mốc. */
+async function docMocThanhToan(
+  projectId: string,
+  form: FormData
+): Promise<
+  | { ok: false; error: string }
+  | { ok: true; milestoneType: string | null; offsetDays: number | null; han: Date | null }
+> {
+  const type = String(form.get("milestoneType") ?? "").trim();
+  if (!type) return { ok: true, milestoneType: null, offsetDays: null, han: null };
+  if (!laMaMocHopLe(type)) return { ok: false, error: "Mốc không hợp lệ." };
+  const raw = String(form.get("offsetDays") ?? "").trim();
+  const offsetDays = raw ? Number(raw) : 0;
+  if (!Number.isInteger(offsetDays) || offsetDays < 0)
+    return { ok: false, error: "Số ngày sau mốc phải là số nguyên không âm." };
+  const moc = await db.milestone.findUnique({ where: { projectId_type: { projectId, type } } });
+  if (moc?.hidden || (!moc && !(type in MILESTONE_TYPE_MAP)))
+    return { ok: false, error: "Mốc này đã bị xóa khỏi tiến độ." };
+  return { ok: true, milestoneType: type, offsetDays, han: hanTheoMoc(moc, offsetDays) };
 }
 
 export async function setProjectSupplier(
@@ -588,6 +681,8 @@ export async function addPayment(projectId: string, form: FormData): Promise<Act
 
   const project = await db.project.findUnique({ where: { id: projectId }, select: { id: true } });
   if (!project) return { ok: false, error: "Không tìm thấy dự án." };
+  const theoMoc = await docMocThanhToan(projectId, form);
+  if (!theoMoc.ok) return theoMoc;
 
   const taoMoi = await paymentDb.create({
     data: {
@@ -596,7 +691,9 @@ export async function addPayment(projectId: string, form: FormData): Promise<Act
       counterpart: counterpart || null,
       name,
       amount,
-      dueDate: dueRaw ? new Date(dueRaw) : null,
+      dueDate: theoMoc.milestoneType ? theoMoc.han : dueRaw ? new Date(dueRaw) : null,
+      milestoneType: theoMoc.milestoneType,
+      offsetDays: theoMoc.offsetDays,
       note: note || null,
     },
   });
@@ -692,12 +789,17 @@ export async function updatePayment(paymentId: string, form: FormData): Promise<
     return { ok: false, error: "Ngày không hợp lệ." };
   }
 
+  const theoMoc = await docMocThanhToan(found.projectId, form);
+  if (!theoMoc.ok) return theoMoc;
+
   const sau = await paymentDb.update({
     where: { id: paymentId },
     data: {
       name,
       amount,
-      dueDate: dueRaw ? new Date(dueRaw) : null,
+      dueDate: theoMoc.milestoneType ? theoMoc.han : dueRaw ? new Date(dueRaw) : null,
+      milestoneType: theoMoc.milestoneType,
+      offsetDays: theoMoc.offsetDays,
       counterpart: counterpart || null,
       note: note || null,
       paidDate,

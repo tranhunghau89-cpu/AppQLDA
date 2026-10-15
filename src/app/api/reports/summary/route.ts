@@ -13,6 +13,7 @@ import {
   PROPOSAL_STATUS_MAP,
 } from "@/lib/constants";
 import { paymentDb } from "@/lib/payments";
+import { tenMoc } from "@/lib/tienDo";
 import { proposalDb } from "@/lib/proposals";
 
 function d(x: Date | null | undefined): string {
@@ -80,7 +81,7 @@ export async function GET() {
     { header: "Kết thúc", key: "end", width: 12 },
   ];
   for (const p of projects) {
-    const doneCount = p.milestones.filter((m) => m.done).length;
+    const doneCount = p.milestones.filter((m) => m.done && m.type in MILESTONE_TYPE_MAP).length;
     const late = p.milestones.filter(
       (m) => !m.done && m.planDate && m.planDate.getTime() < now
     ).length;
@@ -112,7 +113,7 @@ export async function GET() {
       if (!m.done && m.planDate && m.planDate.getTime() < now) {
         ws2.addRow({
           code: p.code,
-          type: MILESTONE_TYPE_MAP[m.type]?.label ?? m.type,
+          type: tenMoc(m),
           plan: d(m.planDate),
           days: Math.floor((now - m.planDate.getTime()) / 86400000),
           note: m.note ?? "",

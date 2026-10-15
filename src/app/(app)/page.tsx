@@ -7,11 +7,12 @@ import { scopedByProjectWhere, scopedProjectWhere } from "@/lib/scope";
 import { serverNow } from "@/lib/now";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { PROJECT_STATUS, MILESTONE_TYPE, MILESTONE_TYPE_MAP } from "@/lib/constants";
+import { PROJECT_STATUS, MILESTONE_TYPE } from "@/lib/constants";
 import { computeProfit } from "@/lib/profit";
 import { formatVND, formatDate } from "@/lib/utils";
 import { StatusChart, CostSaleChart } from "./DashboardCharts";
 import { paymentDb } from "@/lib/payments";
+import { tenMoc } from "@/lib/tienDo";
 
 export default async function DashboardPage() {
   const session = await requireSession();
@@ -64,12 +65,13 @@ export default async function DashboardPage() {
     // Chỉ mốc CHƯA xong mới có thể trễ hạn — lọc ngay ở DB thay vì nạp hết về.
     db.milestone.findMany({
       where: { ...inScope, done: false, planDate: { lt: new Date(nowTs) } },
-      select: { projectId: true, type: true, planDate: true },
+      select: { projectId: true, type: true, name: true, planDate: true },
     }),
     // Chỉ cần SỐ mốc đã xong (để vẽ thanh tiến độ), không cần từng dòng.
     db.milestone.groupBy({
       by: ["projectId"],
-      where: { ...inScope, done: true },
+      // Chỉ 8 mốc chuẩn: thanh % chia cho MILESTONE_TYPE.length, mốc tự thêm không làm vượt 100%.
+      where: { ...inScope, done: true, type: { in: MILESTONE_TYPE.map((m) => m.value) } },
       _count: { _all: true },
     }),
     canViewDebt ? paymentDb.findMany({ where: inScope }) : Promise.resolve([]),
@@ -131,7 +133,7 @@ export default async function DashboardPage() {
     lateItems.push({
       code: p.code,
       id: p.id,
-      type: m.type,
+      type: tenMoc(m),
       days: Math.floor((nowTs - m.planDate.getTime()) / 86400000),
     });
   }
@@ -253,7 +255,7 @@ export default async function DashboardPage() {
                   className="rounded-lg bg-red-50 px-3 py-1.5 text-sm text-red-700 hover:bg-red-100"
                 >
                   <span className="font-mono font-semibold">{it.code}</span> ·{" "}
-                  {MILESTONE_TYPE_MAP[it.type]?.label ?? it.type} —{" "}
+                  {it.type} —{" "}
                   <span className="font-semibold">trễ {it.days} ngày</span>
                 </Link>
               ))}

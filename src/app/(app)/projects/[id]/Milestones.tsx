@@ -2,21 +2,32 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Check, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Check, CheckCircle2, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { MILESTONE_TYPE } from "@/lib/constants";
+import { useConfirm } from "@/components/ui/confirm";
+import { MILESTONE_TYPE, MILESTONE_TYPE_MAP } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
 import { trangThaiMoc, type TrangThaiMoc } from "@/lib/projectHealth";
-import { danhGiaThoiHan, lapKeHoach, MOC_NGOAI_THOI_HAN, type MocDauVao } from "@/lib/tienDo";
+import {
+  danhGiaThoiHan,
+  danhSachMoc,
+  lapKeHoach,
+  MOC_NGOAI_THOI_HAN,
+  tenMoc,
+  type MocDauVao,
+} from "@/lib/tienDo";
 import { saveTienDo } from "../actions";
 import { useToast } from "@/components/ui/toast";
 
 export interface MilestoneValue {
+  type: string;
+  name: string | null;
+  sortOrder: number | null;
+  hidden: boolean;
   planDate: string | null;
   actualDate: string | null;
   done: boolean;
-  note: string | null;
   durationDays: number | null;
   overlapDays: number | null;
 }
@@ -30,6 +41,15 @@ export interface HopDongCanCu {
   durationDays: number | null;
 }
 
+/** Đợt thanh toán gắn mốc — hiện cạnh mốc để biết mốc nào kéo theo tiền. */
+export interface DotTheoMoc {
+  milestoneType: string;
+  direction: string;
+  name: string;
+  offsetDays: number | null;
+  daThanhToan: boolean;
+}
+
 // Tô màu theo giá trị ĐÃ LƯU, không theo ô đang gõ.
 const MAU_MOC: Record<TrangThaiMoc, string> = {
   XONG: "border-l-green-500",
@@ -41,6 +61,7 @@ const MAU_MOC: Record<TrangThaiMoc, string> = {
 
 interface Dong {
   type: string;
+  name: string;
   durationDays: string;
   overlapDays: string;
   planDate: string; // chỉ dùng khi không có số ngày
@@ -56,6 +77,9 @@ function toNum(v: string): number | null {
 }
 function toDate(v: string): Date | null {
   return v ? new Date(`${v}T00:00:00Z`) : null;
+}
+function maMocMoi(): string {
+  return `KHAC_${(Math.random().toString(36).slice(2) + Date.now().toString(36)).slice(0, 12)}`;
 }
 
 function CanhBao({ vuot, nhan }: { vuot: number | null; nhan: string }) {
@@ -77,13 +101,15 @@ function CanhBao({ vuot, nhan }: { vuot: number | null; nhan: string }) {
 export function Milestones({
   projectId,
   milestones,
+  dotThanhToan,
   canEdit,
   canEditContract,
   hopDong,
   nowMs,
 }: {
   projectId: string;
-  milestones: Record<string, MilestoneValue>;
+  milestones: MilestoneValue[];
+  dotThanhToan: DotTheoMoc[];
   canEdit: boolean;
   canEditContract: boolean;
   hopDong: HopDongCanCu | null;
@@ -91,27 +117,69 @@ export function Milestones({
 }) {
   const router = useRouter();
   const toast = useToast();
+  const confirm = useConfirm();
   const [pending, start] = useTransition();
   const suaHD = canEdit && canEditContract && !!hopDong;
+  const daLuuTheoMa = useMemo(() => new Map(milestones.map((m) => [m.type, m])), [milestones]);
 
   const [hieuLuc, setHieuLuc] = useState(toInput(hopDong?.effectiveDate ?? null));
   const [thoiHan, setThoiHan] = useState(hopDong?.durationDays?.toString() ?? "");
   const [dongs, setDongs] = useState<Dong[]>(() =>
-    MILESTONE_TYPE.map((m) => {
-      const v = milestones[m.value];
-      return {
-        type: m.value,
-        durationDays: v?.durationDays?.toString() ?? "",
-        overlapDays: v?.overlapDays?.toString() ?? "",
-        planDate: toInput(v?.planDate ?? null),
-        actualDate: toInput(v?.actualDate ?? null),
-        done: v?.done ?? false,
-      };
-    })
+    danhSachMoc(milestones).map(({ type, row }) => ({
+      type,
+      name: tenMoc({ type, name: row?.name }),
+      durationDays: row?.durationDays?.toString() ?? "",
+      overlapDays: row?.overlapDays?.toString() ?? "",
+      planDate: toInput(row?.planDate ?? null),
+      actualDate: toInput(row?.actualDate ?? null),
+      done: row?.done ?? false,
+    }))
   );
+  const [xoa, setXoa] = useState<string[]>([]);
 
   const sua = (i: number, p: Partial<Dong>) =>
     setDongs((ds) => ds.map((d, j) => (j === i ? { ...d, ...p } : d)));
+  const doiCho = (i: number, j: number) =>
+    setDongs((ds) => {
+      if (j < 0 || j >= ds.length) return ds;
+      const n = [...ds];
+      [n[i], n[j]] = [n[j], n[i]];
+      return n;
+    });
+  const themMoc = () =>
+    setDongs((ds) => [
+      ...ds,
+      { type: maMocMoi(), name: "", durationDays: "", overlapDays: "", planDate: "", actualDate: "", done: false },
+    ]);
+  const khoiPhuc = (type: string) => {
+    setXoa((x) => x.filter((t) => t !== type));
+    setDongs((ds) => [
+      ...ds,
+      {
+        type,
+        name: MILESTONE_TYPE_MAP[type]?.label ?? "",
+        durationDays: "",
+        overlapDays: "",
+        planDate: "",
+        actualDate: "",
+        done: false,
+      },
+    ]);
+  };
+  async function xoaMoc(i: number) {
+    const d = dongs[i];
+    const gan = dotThanhToan.filter((p) => p.milestoneType === d.type && !p.daThanhToan);
+    const ok = await confirm(
+      `Xóa mốc "${d.name || "Mốc mới"}" khỏi tiến độ?${
+        gan.length > 0 ? ` ${gan.length} đợt thanh toán đang gắn mốc này sẽ bỏ gắn (giữ nguyên hạn hiện có).` : ""
+      } Bấm "Lưu tiến độ" để áp dụng.`
+    );
+    if (!ok) return;
+    setDongs((ds) => ds.filter((_, j) => j !== i));
+    if (daLuuTheoMa.has(d.type) || d.type in MILESTONE_TYPE_MAP) setXoa((x) => [...x, d.type]);
+  }
+
+  const chuanDaXoa = MILESTONE_TYPE.filter((m) => !dongs.some((d) => d.type === m.value));
 
   const { keHoach, danhGia } = useMemo(() => {
     const hl = toDate(hieuLuc);
@@ -132,6 +200,10 @@ export function Milestones({
     .reduce((s, d) => s + (toNum(d.durationDays) ?? 0) - (toNum(d.overlapDays) ?? 0), 0);
 
   function save() {
+    if (dongs.some((d) => !d.name.trim())) {
+      toast.error("Còn mốc chưa đặt tên.");
+      return;
+    }
     start(async () => {
       const res = await saveTienDo(projectId, {
         contractId: suaHD ? hopDong!.id : null,
@@ -139,16 +211,20 @@ export function Milestones({
         contractDays: thoiHan,
         rows: dongs.map((d) => ({
           type: d.type,
+          name: d.name,
           durationDays: d.durationDays,
           overlapDays: d.overlapDays,
           planDate: d.planDate,
           actualDate: d.actualDate,
           done: d.done,
         })),
+        xoa,
       });
       if (!res.ok) toast.error(res.error);
       else {
         toast.success("Đã lưu tiến độ.");
+        for (const n of res.nhac) toast.info(n);
+        setXoa([]);
         router.refresh();
       }
     });
@@ -225,7 +301,7 @@ export function Milestones({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-sm">
+        <table className="w-full min-w-[900px] text-sm">
           <thead>
             <tr className="text-left text-xs font-medium uppercase text-slate-400">
               <th className="py-1 pl-3">Mốc</th>
@@ -235,13 +311,13 @@ export function Milestones({
               <th className="py-1">Kết thúc KH</th>
               <th className="py-1">Thực tế</th>
               <th className="py-1">Trạng thái</th>
+              {canEdit && <th className="py-1" />}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {MILESTONE_TYPE.map((m, i) => {
-              const d = dongs[i];
+            {dongs.map((d, i) => {
               const kh = keHoach[i];
-              const daLuu = milestones[m.value];
+              const daLuu = daLuuTheoMa.get(d.type);
               const mau =
                 MAU_MOC[
                   trangThaiMoc(
@@ -253,15 +329,37 @@ export function Milestones({
                 kh.ketThuc && d.actualDate && toDate(d.actualDate)! > kh.ketThuc
                   ? Math.round((toDate(d.actualDate)!.getTime() - kh.ketThuc.getTime()) / 86400000)
                   : 0;
+              const dots = dotThanhToan.filter((p) => p.milestoneType === d.type);
               return (
-                <tr key={m.value} className={`border-l-4 ${mau}`}>
-                  <td className="py-2 pl-2 font-medium text-slate-600">
-                    {m.label}
-                    {MOC_NGOAI_THOI_HAN.has(m.value) && (
+                <tr key={d.type} className={`border-l-4 ${mau}`}>
+                  <td className="py-2 pl-2 pr-2 align-top">
+                    {canEdit ? (
+                      <Input
+                        className="h-9 w-44 font-medium"
+                        value={d.name}
+                        placeholder="Tên mốc"
+                        onChange={(e) => sua(i, { name: e.target.value })}
+                      />
+                    ) : (
+                      <span className="font-medium text-slate-600">{d.name}</span>
+                    )}
+                    {MOC_NGOAI_THOI_HAN.has(d.type) && (
                       <span className="block text-xs font-normal text-slate-400">ngoài thời hạn HĐ</span>
                     )}
+                    {dots.map((p, k) => (
+                      <span
+                        key={k}
+                        className={`mt-1 block text-xs ${
+                          p.daThanhToan ? "text-green-600" : p.direction === "THU" ? "text-blue-700" : "text-slate-500"
+                        }`}
+                      >
+                        {p.direction === "THU" ? "Thu" : "Chi"}: {p.name}
+                        {p.offsetDays ? ` (+${p.offsetDays} ngày)` : ""}
+                        {p.daThanhToan ? " ✓" : ""}
+                      </span>
+                    ))}
                   </td>
-                  <td className="py-2 pr-2">
+                  <td className="py-2 pr-2 align-top">
                     {canEdit ? (
                       <Input
                         className="h-9 w-20"
@@ -274,7 +372,7 @@ export function Milestones({
                       d.durationDays || "—"
                     )}
                   </td>
-                  <td className="py-2 pr-2">
+                  <td className="py-2 pr-2 align-top">
                     {canEdit ? (
                       <Input
                         className="h-9 w-16"
@@ -288,10 +386,12 @@ export function Milestones({
                       d.overlapDays || "—"
                     )}
                   </td>
-                  <td className="py-2 pr-2 text-slate-600">{kh.batDau ? formatDate(kh.batDau) : "—"}</td>
-                  <td className="py-2 pr-2">
+                  <td className="py-2 pr-2 align-top leading-9 text-slate-600">
+                    {kh.batDau ? formatDate(kh.batDau) : "—"}
+                  </td>
+                  <td className="py-2 pr-2 align-top">
                     {kh.tuTinh || !canEdit ? (
-                      <span className={kh.tuTinh ? "font-medium" : ""}>
+                      <span className={`leading-9 ${kh.tuTinh ? "font-medium" : ""}`}>
                         {kh.ketThuc ? formatDate(kh.ketThuc) : "—"}
                       </span>
                     ) : (
@@ -304,7 +404,7 @@ export function Milestones({
                       />
                     )}
                   </td>
-                  <td className="py-2 pr-2">
+                  <td className="py-2 pr-2 align-top">
                     {canEdit ? (
                       <Input
                         className="h-9 w-40"
@@ -319,9 +419,9 @@ export function Milestones({
                       <span className="block text-xs text-red-600">trễ {treSoVoiKH} ngày so với KH</span>
                     )}
                   </td>
-                  <td className="py-2">
+                  <td className="py-2 align-top leading-9">
                     {canEdit ? (
-                      <label className="flex items-center gap-2 text-slate-600">
+                      <label className="flex h-9 items-center gap-2 text-slate-600">
                         <input
                           type="checkbox"
                           checked={d.done}
@@ -338,6 +438,36 @@ export function Milestones({
                       <span className="text-slate-400">Chưa</span>
                     )}
                   </td>
+                  {canEdit && (
+                    <td className="whitespace-nowrap py-2 pr-1 text-right align-top">
+                      <button
+                        type="button"
+                        onClick={() => doiCho(i, i - 1)}
+                        disabled={i === 0}
+                        className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30"
+                        title="Lên" aria-label="Lên"
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => doiCho(i, i + 1)}
+                        disabled={i === dongs.length - 1}
+                        className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-30"
+                        title="Xuống" aria-label="Xuống"
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => xoaMoc(i)}
+                        className="rounded p-1.5 text-slate-300 hover:bg-red-50 hover:text-red-500"
+                        title="Xóa mốc" aria-label="Xóa mốc"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -346,7 +476,17 @@ export function Milestones({
       </div>
 
       {canEdit && (
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" onClick={themMoc}>
+              <Plus className="h-4 w-4" /> Thêm mốc
+            </Button>
+            {chuanDaXoa.map((m) => (
+              <Button key={m.value} variant="outline" size="sm" onClick={() => khoiPhuc(m.value)}>
+                <RotateCcw className="h-4 w-4" /> Khôi phục {m.label}
+              </Button>
+            ))}
+          </div>
           <Button onClick={save} disabled={pending}>
             {pending ? "Đang lưu…" : "Lưu tiến độ"}
           </Button>

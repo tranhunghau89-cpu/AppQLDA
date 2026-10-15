@@ -17,6 +17,55 @@ export interface PaymentItem {
   paidDate: string | null;
   paidAmount: number | null;
   note: string | null;
+  milestoneType: string | null;
+  offsetDays: number | null;
+}
+
+/** Mốc tiến độ chọn được để gắn hạn thanh toán. */
+export interface MocLuaChon {
+  type: string;
+  ten: string;
+}
+
+/** Ô "Theo mốc" + "Sau … ngày": chọn mốc thì hạn tự tính, ô Hạn bị khóa. */
+function OTheoMoc({
+  mocs,
+  macDinh,
+  onChange,
+  o,
+}: {
+  mocs: MocLuaChon[];
+  macDinh: { milestoneType: string | null; offsetDays: number | null } | null;
+  onChange: (coMoc: boolean) => void;
+  o: string;
+}) {
+  return (
+    <>
+      <select
+        name="milestoneType"
+        defaultValue={macDinh?.milestoneType ?? ""}
+        onChange={(e) => onChange(e.target.value !== "")}
+        className={o}
+        title="Hạn tính theo mốc tiến độ"
+      >
+        <option value="">Hạn nhập tay</option>
+        {mocs.map((m) => (
+          <option key={m.type} value={m.type}>
+            Theo mốc: {m.ten}
+          </option>
+        ))}
+      </select>
+      <input
+        name="offsetDays"
+        type="number"
+        min={0}
+        defaultValue={macDinh?.offsetDays ?? ""}
+        placeholder="Sau … ngày"
+        title="Số ngày sau mốc"
+        className={o}
+      />
+    </>
+  );
 }
 
 function vnd(v: number | null): string {
@@ -64,6 +113,7 @@ function Section({
   startTransition,
   counterpartPlaceholder,
   now,
+  mocs,
 }: {
   title: string;
   direction: "THU" | "CHI";
@@ -75,8 +125,11 @@ function Section({
   startTransition: (fn: () => Promise<void>) => void;
   counterpartPlaceholder: string;
   now: number;
+  mocs: MocLuaChon[];
 }) {
   const confirm = useConfirm();
+  const [themCoMoc, setThemCoMoc] = useState(false);
+  const tenMocCua = (t: string | null) => mocs.find((m) => m.type === t)?.ten ?? null;
   const formRef = useRef<HTMLFormElement>(null);
   // Đợt đang xác nhận đã thu/đã trả — mở form trong modal thay vì 2 hộp prompt
   // của trình duyệt (trên điện thoại prompt rất khó dùng và không nhập được ngày).
@@ -91,7 +144,10 @@ function Section({
     startTransition(async () => {
       const res = await addPayment(projectId, form);
       if (!res.ok) onError(res.error);
-      else formRef.current?.reset();
+      else {
+        formRef.current?.reset();
+        setThemCoMoc(false);
+      }
     });
   };
 
@@ -147,6 +203,9 @@ function Section({
                 {vnd(p.amount)}
                 {p.paidAmount != null && p.paidAmount !== p.amount ? ` (thực: ${vnd(p.paidAmount)})` : ""}
                 {p.dueDate ? ` · hạn ${d(p.dueDate)}` : ""}
+                {p.milestoneType
+                  ? ` (theo ${tenMocCua(p.milestoneType) ?? "mốc"}${p.offsetDays ? ` +${p.offsetDays} ngày` : ""})`
+                  : ""}
                 {p.counterpart ? ` · ${p.counterpart}` : ""}
                 {p.note ? ` · ${p.note}` : ""}
               </div>
@@ -186,10 +245,11 @@ function Section({
       </div>
 
       {canEdit && (
-        <form ref={formRef} action={submit} className="grid grid-cols-2 gap-2 border-t border-slate-100 bg-slate-50/60 p-2 sm:grid-cols-5">
+        <form ref={formRef} action={submit} className="grid grid-cols-2 gap-2 border-t border-slate-100 bg-slate-50/60 p-2 sm:grid-cols-4">
           <input name="name" required placeholder="Tên đợt (Tạm ứng...)" className="rounded-md border border-slate-200 px-2 py-1 text-xs" />
           <input name="amount" inputMode="numeric" placeholder="Số tiền (₫)" className="rounded-md border border-slate-200 px-2 py-1 text-xs" />
-          <input name="dueDate" type="date" className="rounded-md border border-slate-200 px-2 py-1 text-xs" title="Hạn" />
+          <input name="dueDate" type="date" disabled={themCoMoc} className="rounded-md border border-slate-200 px-2 py-1 text-xs disabled:opacity-40" title={themCoMoc ? "Hạn tự tính theo mốc" : "Hạn"} />
+          <OTheoMoc mocs={mocs} macDinh={null} onChange={setThemCoMoc} o="rounded-md border border-slate-200 px-2 py-1 text-xs" />
           <input name="counterpart" placeholder={counterpartPlaceholder} className="rounded-md border border-slate-200 px-2 py-1 text-xs" />
           <button type="submit" disabled={pending} className="rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50">
             {pending ? "..." : "+ Thêm đợt"}
@@ -206,6 +266,7 @@ function Section({
       <SuaDotThanhToan
         payment={dangSua}
         direction={direction}
+        mocs={mocs}
         onClose={() => setDangSua(null)}
         onSubmit={saveEdit}
       />
@@ -224,17 +285,22 @@ function isoNgay(iso: string | null): string {
 function SuaDotThanhToan({
   payment,
   direction,
+  mocs,
   onClose,
   onSubmit,
 }: {
   payment: PaymentItem | null;
   direction: "THU" | "CHI";
+  mocs: MocLuaChon[];
   onClose: () => void;
   onSubmit: (p: PaymentItem, form: FormData) => void;
 }) {
   const nhan = direction === "THU" ? "thu" : "trả";
   const o = "w-full rounded-md border border-slate-300 px-3 py-2 text-sm";
   const l = "mb-1 block text-sm font-medium text-slate-700";
+  // Gắn với id đợt: mở đợt khác thì quay về giá trị đã lưu của đợt đó.
+  const [coMoc, setCoMoc] = useState<{ id: string; v: boolean } | null>(null);
+  const theoMoc = payment && coMoc?.id === payment.id ? coMoc.v : !!payment?.milestoneType;
   return (
     <Modal
       open={payment !== null}
@@ -254,8 +320,25 @@ function SuaDotThanhToan({
             </div>
             <div>
               <label htmlFor="sd-due" className={l}>Hạn</label>
-              <input id="sd-due" name="dueDate" type="date" defaultValue={isoNgay(payment.dueDate)} className={o} />
+              <input
+                id="sd-due"
+                name="dueDate"
+                type="date"
+                disabled={theoMoc}
+                defaultValue={isoNgay(payment.dueDate)}
+                className={`${o} disabled:bg-slate-50 disabled:text-slate-400`}
+              />
+              {theoMoc && <p className="mt-1 text-xs text-slate-400">Tự tính theo mốc khi lưu.</p>}
             </div>
+          </div>
+          <div>
+            <span className={l}>Hạn theo mốc tiến độ</span>
+            <div className="grid grid-cols-2 gap-3">
+              <OTheoMoc mocs={mocs} macDinh={payment} onChange={(v) => setCoMoc({ id: payment.id, v })} o={o} />
+            </div>
+            <p className="mt-1 text-xs text-slate-400">
+              Hạn = ngày thực tế của mốc (nếu đã xong, không thì ngày kết thúc KH) + số ngày; tự cập nhật khi lưu tiến độ.
+            </p>
           </div>
           <div>
             <label htmlFor="sd-cp" className={l}>{direction === "THU" ? "Chủ đầu tư" : "NCC / thầu phụ"}</label>
@@ -354,11 +437,13 @@ function GhiNhanThanhToan({
 export function ProjectPayments({
   projectId,
   payments,
+  mocs,
   canEdit,
   now,
 }: {
   projectId: string;
   payments: PaymentItem[];
+  mocs: MocLuaChon[];
   canEdit: boolean;
   /** Mốc thời gian lấy ở server — client KHÔNG tự đọc đồng hồ khi render
    *  (tránh lệch hydration và vi phạm react-hooks/purity). */
@@ -382,6 +467,7 @@ export function ProjectPayments({
           startTransition={startTransition}
           counterpartPlaceholder="Tên CĐT (tùy chọn)"
           now={now}
+          mocs={mocs}
         />
         <Section
           title="CHI — cho NCC / thầu phụ"
@@ -394,6 +480,7 @@ export function ProjectPayments({
           startTransition={startTransition}
           counterpartPlaceholder="Tên NCC (tùy chọn)"
           now={now}
+          mocs={mocs}
         />
       </div>
     </div>

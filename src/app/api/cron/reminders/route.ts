@@ -16,7 +16,8 @@ import {
   type MocTreInput,
 } from "@/lib/reminders";
 import { computeClientQuoteTotals } from "@/lib/clientQuote";
-import { CLIENT_QUOTE_OPEN, MILESTONE_TYPE_MAP } from "@/lib/constants";
+import { CLIENT_QUOTE_OPEN } from "@/lib/constants";
+import { tenMoc } from "@/lib/tienDo";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ export async function GET(req: Request) {
       where: { done: false, planDate: { lt: new Date(now) } },
       select: {
         type: true,
+        name: true,
         planDate: true,
         project: { select: { id: true, code: true, name: true, status: true } },
       },
@@ -105,7 +107,7 @@ export async function GET(req: Request) {
       projectId: m.project.id,
       projectCode: m.project.code,
       projectName: m.project.name,
-      type: MILESTONE_TYPE_MAP[m.type]?.label ?? m.type,
+      type: tenMoc(m),
       planDate: m.planDate as Date,
     }));
 

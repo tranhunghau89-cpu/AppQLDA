@@ -9,7 +9,8 @@ import { can } from "@/lib/rbac";
 import { formatVND, formatDate, formatNumber } from "@/lib/utils";
 import { StatusChanger, SupplierAssigner } from "./ProjectDetail";
 import { ProjectMembers, type MemberUser } from "./ProjectMembers";
-import { Milestones, type MilestoneValue } from "./Milestones";
+import { Milestones, type DotTheoMoc, type MilestoneValue } from "./Milestones";
+import { danhSachMoc, tenMoc } from "@/lib/tienDo";
 import { ProjectNotes } from "./Notes";
 import { DocVersions } from "./DocVersions";
 import { docVersionDb } from "@/lib/doc-versions";
@@ -22,7 +23,7 @@ import { computeContractTotals } from "@/lib/contract";
 import { docGiaTriGiaiDoan } from "@/lib/giaTriGiaiDoanDuAn";
 import { BangGiaiDoan } from "@/components/BangGiaiDoan";
 import { Badge } from "@/components/ui/badge";
-import { CONTRACT_STATUS_MAP, MILESTONE_TYPE, PO_CATEGORY_MAP, PO_STATUS_MAP } from "@/lib/constants";
+import { CONTRACT_STATUS_MAP, PO_CATEGORY_MAP, PO_STATUS_MAP } from "@/lib/constants";
 import { Calculator, FileSignature, ShoppingCart, Wallet } from "lucide-react";
 import { tinhChiSo, tinhCo } from "@/lib/projectHealth";
 import { HealthBanner } from "./HealthBanner";
@@ -139,17 +140,31 @@ export default async function ProjectDetailPage({
   const chiSo = tinhChiSo(healthInput);
   const profit = computeProfit(project.estimateItems, project.salePrice, project.area);
   const giaiDoan = await docGiaTriGiaiDoan(project.id);
-  const milestoneMap: Record<string, MilestoneValue> = {};
-  for (const m of project.milestones) {
-    milestoneMap[m.type] = {
-      planDate: m.planDate?.toISOString() ?? null,
-      actualDate: m.actualDate?.toISOString() ?? null,
-      done: m.done,
-      note: m.note,
-      durationDays: m.durationDays,
-      overlapDays: m.overlapDays,
-    };
-  }
+  const milestoneRows: MilestoneValue[] = project.milestones.map((m) => ({
+    type: m.type,
+    name: m.name,
+    sortOrder: m.sortOrder,
+    hidden: m.hidden,
+    planDate: m.planDate?.toISOString() ?? null,
+    actualDate: m.actualDate?.toISOString() ?? null,
+    done: m.done,
+    durationDays: m.durationDays,
+    overlapDays: m.overlapDays,
+  }));
+  const mocHienThi = danhSachMoc(project.milestones);
+  // Chỉ người xem được thanh toán mới thấy đợt nào gắn mốc nào.
+  const dotTheoMoc: DotTheoMoc[] = canViewPayment
+    ? paymentRows
+        .filter((x) => x.milestoneType)
+        .map((x) => ({
+          milestoneType: x.milestoneType!,
+          direction: x.direction,
+          name: x.name,
+          offsetDays: x.offsetDays,
+          daThanhToan: !!x.paidDate,
+        }))
+    : [];
+  const mocChoThanhToan = mocHienThi.map(({ type, row }) => ({ type, ten: tenMoc({ type, name: row?.name }) }));
   // HĐ làm căn cứ tiến độ: HĐ đã ký ký muộn nhất, chưa có thì HĐ tạo sau cùng.
   const hdDaKy = project.contracts
     .filter((c) => c.status === "SIGNED")
@@ -327,6 +342,8 @@ export default async function ProjectDetailPage({
     paidDate: x.paidDate?.toISOString() ?? null,
     paidAmount: x.paidAmount,
     note: x.note,
+    milestoneType: x.milestoneType,
+    offsetDays: x.offsetDays,
   }));
   const auditLog: AuditRow[] = auditRows.map((r) => ({
     id: r.id,
@@ -420,7 +437,7 @@ export default async function ProjectDetailPage({
   ];
 
   const qcTom = tomTatGiaiDoan(qcMuc);
-  const mocXong = project.milestones.filter((m) => m.done).length;
+  const mocXong = mocHienThi.filter((m) => m.row?.done).length;
   // Thứ tự mục = thứ tự đánh số; mục không có quyền xem thì bỏ, số tự dồn lên.
   const cacMuc = [
     { id: "quy-trinh", tieuDe: "Quy trình" },
@@ -586,11 +603,12 @@ export default async function ProjectDetailPage({
         id="tien-do"
         so={so("tien-do")}
         tieuDe="Tiến độ thực hiện"
-        tomTat={`${mocXong}/${MILESTONE_TYPE.length} mốc xong`}
+        tomTat={`${mocXong}/${mocHienThi.length} mốc xong`}
       >
         <Milestones
           projectId={project.id}
-          milestones={milestoneMap}
+          milestones={milestoneRows}
+          dotThanhToan={dotTheoMoc}
           canEdit={canEditProgress}
           canEditContract={can(session.role, "contract", "edit")}
           hopDong={
@@ -776,6 +794,7 @@ export default async function ProjectDetailPage({
               <ProjectPayments
                 projectId={project.id}
                 payments={payments}
+                mocs={mocChoThanhToan}
                 canEdit={canEditPayment}
                 now={nowMs}
               />

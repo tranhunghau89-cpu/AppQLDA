@@ -7,6 +7,7 @@ import {
   MILESTONE_TYPE_MAP,
   PO_CATEGORY_MAP,
 } from "@/lib/constants";
+import { tenMoc } from "@/lib/tienDo";
 import {
   pickContractValue,
   type ContractValueInput,
@@ -30,7 +31,7 @@ export interface LyDo {
 }
 
 export interface HealthInput {
-  milestones: { type: string; planDate: Date | null; done: boolean }[];
+  milestones: { type: string; name?: string | null; planDate: Date | null; done: boolean }[];
   payments: {
     direction: string;
     name: string;
@@ -83,7 +84,7 @@ export function tinhCo(
     if (m.done || !m.planDate) continue;
     const p = phanLoaiHan(m.planDate, nowMs);
     if (!p) continue;
-    const ten = MILESTONE_TYPE_MAP[m.type]?.label ?? m.type;
+    const ten = tenMoc(m);
     lyDo.push({
       muc: p.muc,
       loai: "TIEN_DO",

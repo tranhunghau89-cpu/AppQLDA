@@ -5,6 +5,8 @@
 // - Mốc không có số ngày giữ ngày kế hoạch nhập tay (dữ liệu cũ) và làm mốc neo cho
 //   giai đoạn sau nó.
 
+import { MILESTONE_TYPE, MILESTONE_TYPE_MAP } from "./constants";
+
 const NGAY = 86400000;
 
 export const MOC_NGOAI_THOI_HAN = new Set(["HS_QT"]); // quyết toán không tính vào thời hạn HĐ
@@ -92,4 +94,49 @@ export function danhGiaThoiHan(
   // Chưa xong mà chưa tới hạn thì không có gì để nói về "thực tế vượt".
   if (!xongHet && vuotTT != null && vuotTT <= 0) vuotTT = null;
   return { hanHD, ketThucKH, vuotKH, ketThucTT, xongHet, vuotTT };
+}
+
+// ----- Danh sách mốc của dự án: 8 mốc chuẩn (sửa tên/thứ tự/xóa được) + mốc tự thêm -----
+
+
+export const MA_MOC_RIENG = /^KHAC_[a-z0-9]{6,24}$/;
+
+export function laMaMocHopLe(type: string): boolean {
+  return type in MILESTONE_TYPE_MAP || MA_MOC_RIENG.test(type);
+}
+
+export function tenMoc(m: { type: string; name?: string | null }): string {
+  return m.name?.trim() || MILESTONE_TYPE_MAP[m.type]?.label || "Mốc";
+}
+
+export interface DongMoc {
+  type: string;
+  name?: string | null;
+  sortOrder?: number | null;
+  hidden?: boolean;
+}
+
+/** Mốc hiện trên bảng, theo thứ tự; mốc chuẩn chưa có dòng trong CSDL vẫn hiện. */
+export function danhSachMoc<T extends DongMoc>(rows: T[]): { type: string; row: T | null }[] {
+  const theoMa = new Map(rows.map((r) => [r.type, r]));
+  const thuTuChuan = (t: string) => MILESTONE_TYPE.findIndex((m) => m.value === t);
+  const ds: { type: string; row: T | null; thuTu: number }[] = [];
+  MILESTONE_TYPE.forEach((m, i) => {
+    const r = theoMa.get(m.value) ?? null;
+    if (r?.hidden) return;
+    ds.push({ type: m.value, row: r, thuTu: r?.sortOrder ?? i * 10 });
+  });
+  for (const r of rows)
+    if (thuTuChuan(r.type) < 0 && !r.hidden) ds.push({ type: r.type, row: r, thuTu: r.sortOrder ?? 1e6 });
+  return ds.sort((a, b) => a.thuTu - b.thuTu).map(({ type, row }) => ({ type, row }));
+}
+
+/** Hạn thanh toán theo mốc: ngày thực tế nếu mốc đã xong, chưa xong thì ngày kết thúc KH, + N ngày. */
+export function hanTheoMoc(
+  moc: { planDate: Date | null; actualDate: Date | null; done: boolean } | null,
+  offsetDays: number | null
+): Date | null {
+  if (!moc) return null;
+  const goc = moc.done && moc.actualDate ? moc.actualDate : moc.planDate;
+  return goc ? cong(ngayUTC(goc), offsetDays ?? 0) : null;
 }

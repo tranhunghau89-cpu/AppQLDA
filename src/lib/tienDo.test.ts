@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { danhGiaThoiHan, lapKeHoach, type MocDauVao } from "./tienDo";
+import {
+  danhGiaThoiHan,
+  danhSachMoc,
+  hanTheoMoc,
+  lapKeHoach,
+  laMaMocHopLe,
+  tenMoc,
+  type MocDauVao,
+} from "./tienDo";
 
 const d = (s: string) => new Date(`${s}T00:00:00Z`);
 const iso = (x: Date | null) => (x ? x.toISOString().slice(0, 10) : null);
@@ -101,5 +109,46 @@ describe("danhGiaThoiHan", () => {
     const r = danhGiaThoiHan(null, 30, mocs, lapKeHoach(null, mocs), now);
     expect(r.hanHD).toBeNull();
     expect(r.vuotKH).toBeNull();
+  });
+});
+
+describe("danhSachMoc / tenMoc / hanTheoMoc", () => {
+  it("dự án cũ không có dòng nào vẫn đủ 8 mốc chuẩn theo thứ tự", () => {
+    expect(danhSachMoc([]).map((m) => m.type)).toEqual([
+      "BV_KT", "SHOP", "MUA_HANG", "GIA_CONG", "LAP_DUNG", "LOP_TON", "HS_NT", "HS_QT",
+    ]);
+  });
+
+  it("ẩn mốc chuẩn, thêm mốc riêng, sắp lại thứ tự", () => {
+    const ds = danhSachMoc([
+      { type: "SHOP", hidden: true },
+      { type: "KHAC_abc123", name: "Đổ móng", sortOrder: 15 },
+      { type: "HS_QT", sortOrder: 5 },
+    ]);
+    expect(ds.map((m) => m.type)).toEqual([
+      "BV_KT", "HS_QT", "KHAC_abc123", "MUA_HANG", "GIA_CONG", "LAP_DUNG", "LOP_TON", "HS_NT",
+    ]);
+  });
+
+  it("tên riêng ưu tiên tên chuẩn", () => {
+    expect(tenMoc({ type: "SHOP" })).toBe("Shop");
+    expect(tenMoc({ type: "SHOP", name: "Bản vẽ shop" })).toBe("Bản vẽ shop");
+    expect(tenMoc({ type: "KHAC_abc123", name: "Đổ móng" })).toBe("Đổ móng");
+  });
+
+  it("mã mốc hợp lệ", () => {
+    expect(laMaMocHopLe("LAP_DUNG")).toBe(true);
+    expect(laMaMocHopLe("KHAC_abc123")).toBe(true);
+    expect(laMaMocHopLe("KHAC_")).toBe(false);
+    expect(laMaMocHopLe("XYZ")).toBe(false);
+  });
+
+  it("hạn thanh toán: thực tế nếu xong, không thì kế hoạch, + N ngày", () => {
+    const m = { planDate: d("2026-11-01"), actualDate: d("2026-11-05"), done: false };
+    expect(iso(hanTheoMoc(m, 7))).toBe("2026-11-08");
+    expect(iso(hanTheoMoc({ ...m, done: true }, 7))).toBe("2026-11-12");
+    expect(iso(hanTheoMoc({ ...m, done: true, actualDate: null }, 0))).toBe("2026-11-01");
+    expect(hanTheoMoc({ planDate: null, actualDate: null, done: false }, 7)).toBeNull();
+    expect(hanTheoMoc(null, 7)).toBeNull();
   });
 });
