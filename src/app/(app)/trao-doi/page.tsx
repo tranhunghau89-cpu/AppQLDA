@@ -3,6 +3,8 @@ import { requireSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { LOAI_TRAO_DOI_LABEL, duocXemViec, duongDanViec } from "@/lib/traoDoi";
+import { khaNangDuyet } from "@/lib/duyetNhanh";
+import { DuyetNhanh } from "./DuyetNhanh";
 
 const TONE: Record<string, "slate" | "blue" | "amber" | "green"> = {
   GHI_CHU: "slate",
@@ -31,13 +33,23 @@ export default async function TraoDoiPage() {
   const xem = await Promise.all(tatCa.map((n) => duocXemViec(session, n.traoDoi)));
   const nhan = tatCa.filter((_, i) => xem[i]);
   const chuaDoc = nhan.filter((n) => !n.daDocLuc).length;
+  // Tin xin duyệt còn chờ mà mình quyết được → hiện nút duyệt ngay trong hộp thư.
+  const duyetDuoc = new Set(
+    (
+      await Promise.all(
+        nhan
+          .filter((n) => n.traoDoi.loai === "XIN_DUYET")
+          .map(async (n) => ((await khaNangDuyet(session, n.traoDoi)).duoc ? n.traoDoi.id : null)),
+      )
+    ).filter((x): x is string => !!x),
+  );
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Trao đổi công việc</h1>
         <p className="text-sm text-slate-500">
-          Tin nhắn về báo giá, dự toán gửi tới bạn · {chuaDoc} chưa đọc
+          Tin nhắn về báo giá, dự toán, quy trình gửi tới bạn · {chuaDoc} chưa đọc
         </p>
       </div>
       {nhan.length === 0 ? (
@@ -64,6 +76,7 @@ export default async function TraoDoiPage() {
                 </div>
                 <p className="mt-1 line-clamp-2 text-sm text-slate-700">{t.noiDung}</p>
               </Link>
+              {duyetDuoc.has(t.id) && <DuyetNhanh traoDoiId={t.id} />}
             </li>
           ))}
         </ul>
