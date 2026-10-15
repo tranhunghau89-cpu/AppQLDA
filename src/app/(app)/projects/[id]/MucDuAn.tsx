@@ -1,5 +1,5 @@
 // Khung "mục" của trang dự án: đánh số, thu gọn được (<details> gốc — chạy cả khi JS chưa tải),
-// kèm mục lục nhảy nhanh. Server component; phần tự mở theo #hash nằm ở MoMucTheoHash.
+// kèm mục lục nhảy nhanh. Mặc định THU GỌN; phần tự mở theo #hash nằm ở MoMucTheoHash.
 import * as React from "react";
 import { ChevronDown } from "lucide-react";
 
@@ -40,7 +40,7 @@ export function MucDuAn({
   tieuDe,
   tomTat,
   hanhDong,
-  mo = true,
+  mo = false,
   children,
 }: {
   id: string;
