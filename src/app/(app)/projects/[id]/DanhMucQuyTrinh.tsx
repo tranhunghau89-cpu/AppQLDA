@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { TRANG_THAI_BUOC } from "@/lib/quyTrinh";
@@ -24,19 +25,35 @@ export function DanhMucQuyTrinh(props: {
 }) {
   const { buoc, nowMs } = props;
   const [mo, setMo] = useState<string | null>(null);
+  // Mặc định thu gọn: chỉ hiện bước đang làm + thanh tiến độ, bấm tiêu đề để xem đủ.
+  const [rong, setRong] = useState(false);
   const xong = buoc.filter((b) => b.trangThai === "DA_DUYET" || b.trangThai === "BO_QUA").length;
   const dangMoBuoc = buoc.find((b) => b.buoc === mo);
 
   return (
     <nav id="danh-muc-quy-trinh" className="rounded-lg border border-slate-200 bg-white p-3 text-sm" aria-label="Danh mục quy trình">
-      <div className="mb-2 flex items-baseline justify-between">
-        <p className="font-semibold text-slate-900">Quy trình</p>
-        <span className="text-xs text-slate-500">
+      <button
+        type="button"
+        onClick={() => setRong(!rong)}
+        aria-expanded={rong}
+        className="mb-2 flex w-full items-center gap-2 text-left"
+      >
+        <span className="font-semibold text-slate-900">Quy trình</span>
+        <span className="ml-auto text-xs text-slate-500">
           {xong}/{buoc.length} bước
         </span>
-      </div>
+        <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${rong ? "rotate-180" : ""}`} />
+      </button>
+      {!rong && (
+        <div className="mb-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+          <div className="h-full bg-green-500" style={{ width: `${buoc.length ? (xong / buoc.length) * 100 : 0}%` }} />
+        </div>
+      )}
       <ol className="space-y-1">
         {buoc.map((b, i) => {
+          const dangLamBuoc = b.trangThai !== "DA_DUYET" && b.trangThai !== "BO_QUA" && b.trangThai !== "CHUA_MO";
+          // Thu gọn: chỉ giữ các bước đang làm / chờ duyệt / trả lại.
+          if (!rong && !dangLamBuoc) return null;
           const tt = TRANG_THAI_BUOC[b.trangThai];
           const dangLam = b.trangThai !== "DA_DUYET" && b.trangThai !== "BO_QUA" && b.trangThai !== "CHUA_MO";
           const tre = dangLam && b.han && new Date(b.han).getTime() < nowMs;
@@ -77,6 +94,11 @@ export function DanhMucQuyTrinh(props: {
           );
         })}
       </ol>
+      {!rong && buoc.every((b) => b.trangThai === "DA_DUYET" || b.trangThai === "BO_QUA" || b.trangThai === "CHUA_MO") && (
+        <p className="px-2 text-xs text-slate-500">
+          {xong === buoc.length ? "Đã hoàn thành mọi bước." : "Chưa có bước nào đang làm."}
+        </p>
+      )}
       {/* Gắn vào body: cột trái là khối sticky có cuộn riêng, để hộp trong đó thì cột phải vẽ đè lên. */}
       {dangMoBuoc &&
         createPortal(
