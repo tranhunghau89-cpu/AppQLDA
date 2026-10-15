@@ -11,6 +11,7 @@ import { StatusChanger, SupplierAssigner } from "./ProjectDetail";
 import { ThongBaoNhanh } from "./ThongBaoNhanh";
 import { BaoHanh } from "./BaoHanh";
 import { ChuYDuAn, ThaoLuan } from "./ThaoLuan";
+import { DanhMucQuyTrinh } from "./DanhMucQuyTrinh";
 import { BAO_HANH_MO } from "@/lib/baoHanh";
 import { ProjectMembers, type MemberUser } from "./ProjectMembers";
 import { Milestones, type DotTheoMoc, type MilestoneValue } from "./Milestones";
@@ -483,7 +484,6 @@ export default async function ProjectDetailPage({
   // Thứ tự mục = thứ tự đánh số; mục không có quyền xem thì bỏ, số tự dồn lên.
   const cacMuc = [
     { id: "quy-trinh", tieuDe: "Quy trình" },
-    { id: "thao-luan", tieuDe: "Trao đổi", canChuY: chuY.length > 0 },
     { id: "tong-quan", tieuDe: "Thông tin chung" },
     { id: "tien-do", tieuDe: "Tiến độ" },
     { id: "qc", tieuDe: "QC giai đoạn", canChuY: qcTom.khongDat > 0 },
@@ -537,6 +537,13 @@ export default async function ProjectDetailPage({
 
       <ChuYDuAn tin={chuY} />
 
+      {/* Rộng: trái = danh mục quy trình, giữa = các mục, phải = trao đổi dự án. Hẹp: xếp chồng. */}
+      <div className="grid gap-4 xl:grid-cols-[230px_minmax(0,1fr)_340px]">
+        <aside className="xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto">
+          <DanhMucQuyTrinh buoc={quyTrinh} nowMs={nowMs} />
+        </aside>
+
+        <div className="min-w-0 space-y-4">
       <MucLuc muc={cacMuc} />
 
       <MucDuAn id="quy-trinh" so={so("quy-trinh")} tieuDe="Quy trình dự án">
@@ -549,21 +556,6 @@ export default async function ProjectDetailPage({
           vaiTro={session.role}
           canEdit={canEdit}
           nowMs={nowMs}
-        />
-      </MucDuAn>
-
-      <MucDuAn
-        id="thao-luan"
-        so={so("thao-luan")}
-        tieuDe="Trao đổi dự án"
-        tomTat={thaoLuan.length ? `${thaoLuan.length} tin${chuY.length ? ` · ${chuY.length} chú ý` : ""}` : "Chưa có tin"}
-      >
-        <ThaoLuan
-          projectId={project.id}
-          tin={thaoLuan}
-          toiLa={session.userId}
-          laQuanTri={session.role === "ADMIN"}
-          canEdit={canEdit}
         />
       </MucDuAn>
 
@@ -1004,6 +996,29 @@ export default async function ProjectDetailPage({
           )}
         </MucDuAn>
       )}
+        </div>
+
+        <aside
+          id="thao-luan"
+          className="scroll-mt-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto"
+        >
+          <div className="rounded-lg border border-slate-200 bg-white p-3">
+            <div className="mb-2 flex items-baseline justify-between">
+              <p className="font-semibold text-slate-900">Trao đổi dự án</p>
+              <span className="text-xs text-slate-500">
+                {thaoLuan.length} tin{chuY.length ? ` · ${chuY.length} chú ý` : ""}
+              </span>
+            </div>
+            <ThaoLuan
+              projectId={project.id}
+              tin={thaoLuan}
+              toiLa={session.userId}
+              laQuanTri={session.role === "ADMIN"}
+              canEdit={canEdit}
+            />
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }
