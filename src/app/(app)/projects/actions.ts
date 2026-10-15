@@ -567,6 +567,68 @@ export async function markPaymentPaid(
   return { ok: true };
 }
 
+/** Sửa mọi trường của một đợt (tên, số tiền, hạn, CĐT/NCC, ghi chú, ngày/số tiền thực tế).
+ *  Xóa trống "ngày thực tế" = bỏ ghi nhận đã thu/đã trả. */
+export async function updatePayment(paymentId: string, form: FormData): Promise<ActionResult> {
+  const found = await paymentDb.findUnique({ where: { id: paymentId } });
+  if (!found) return { ok: false, error: "Không tìm thấy đợt thanh toán." };
+  // Lấy projectId từ chính bản ghi, không tin tham số từ client.
+  const denied = await denyProject(
+    "cost",
+    "edit",
+    found.projectId,
+    "Bạn không có quyền sửa đợt thanh toán."
+  );
+  if (denied) return denied;
+
+  const name = String(form.get("name") ?? "").trim();
+  if (!name) return { ok: false, error: "Nhập tên đợt (Tạm ứng, Đợt 1...)." };
+  const soTien = (key: string): number | null | "loi" => {
+    const raw = String(form.get(key) ?? "").replace(/[.,\s]/g, "");
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 ? n : "loi";
+  };
+  const amount = soTien("amount");
+  if (amount === "loi") return { ok: false, error: "Số tiền không hợp lệ." };
+  const paidRaw = soTien("paidAmount");
+  if (paidRaw === "loi") return { ok: false, error: "Số tiền thực tế không hợp lệ." };
+  const dueRaw = String(form.get("dueDate") ?? "").trim();
+  const paidDateRaw = String(form.get("paidDate") ?? "").trim();
+  const counterpart = String(form.get("counterpart") ?? "").trim();
+  const note = String(form.get("note") ?? "").trim();
+  const paidDate = paidDateRaw ? new Date(paidDateRaw) : null;
+  if ((dueRaw && Number.isNaN(new Date(dueRaw).getTime())) || (paidDate && Number.isNaN(paidDate.getTime()))) {
+    return { ok: false, error: "Ngày không hợp lệ." };
+  }
+
+  const sau = await paymentDb.update({
+    where: { id: paymentId },
+    data: {
+      name,
+      amount,
+      dueDate: dueRaw ? new Date(dueRaw) : null,
+      counterpart: counterpart || null,
+      note: note || null,
+      paidDate,
+      // Chưa ghi nhận thì không có số thực tế; đã ghi nhận mà bỏ trống = đúng kế hoạch.
+      paidAmount: paidDate ? (paidRaw ?? amount) : null,
+    },
+  });
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "Payment",
+    entityId: paymentId,
+    entityLabel: `${found.direction === "THU" ? "Thu" : "Chi"} — ${name}`,
+    projectId: found.projectId,
+    action: "UPDATE",
+    changes: diffFields(found, sau, PAYMENT_AUDIT_FIELDS),
+  });
+  revalidatePath(`/projects/${found.projectId}`);
+  revalidatePath("/");
+  return { ok: true };
+}
+
 export async function deletePayment(paymentId: string, projectId: string): Promise<ActionResult> {
   const found = await paymentDb.findUnique({ where: { id: paymentId } });
   if (!found) return { ok: false, error: "Không tìm thấy đợt thanh toán." };

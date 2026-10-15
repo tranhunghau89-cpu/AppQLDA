@@ -1,11 +1,11 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Trash2, CircleDollarSign } from "lucide-react";
+import { Trash2, CircleDollarSign, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm";
 import { Modal } from "@/components/ui/modal";
-import { addPayment, markPaymentPaid, deletePayment } from "../actions";
+import { addPayment, markPaymentPaid, deletePayment, updatePayment } from "../actions";
 
 export interface PaymentItem {
   id: string;
@@ -79,6 +79,7 @@ function Section({
   // Đợt đang xác nhận đã thu/đã trả — mở form trong modal thay vì 2 hộp prompt
   // của trình duyệt (trên điện thoại prompt rất khó dùng và không nhập được ngày).
   const [dangGhiNhan, setDangGhiNhan] = useState<PaymentItem | null>(null);
+  const [dangSua, setDangSua] = useState<PaymentItem | null>(null);
   const totalPlan = items.reduce((s, i) => s + (i.amount ?? 0), 0);
   const totalPaid = items.reduce((s, i) => s + (i.paidAmount ?? 0), 0);
 
@@ -96,6 +97,15 @@ function Section({
     setDangGhiNhan(null);
     startTransition(async () => {
       const res = await markPaymentPaid(p.id, projectId, date.trim(), amt.trim());
+      if (!res.ok) onError(res.error);
+    });
+  };
+
+  const saveEdit = (p: PaymentItem, form: FormData) => {
+    onError(null);
+    setDangSua(null);
+    startTransition(async () => {
+      const res = await updatePayment(p.id, form);
       if (!res.ok) onError(res.error);
     });
   };
@@ -152,6 +162,14 @@ function Section({
                   </button>
                 )}
                 <button
+                  onClick={() => setDangSua(p)}
+                  disabled={pending}
+                  className="rounded p-1 text-slate-300 hover:bg-blue-50 hover:text-blue-600 disabled:opacity-50"
+                  title="Sửa" aria-label="Sửa"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
                   onClick={() => remove(p)}
                   className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500"
                   title="Xóa" aria-label="Xóa"
@@ -182,7 +200,87 @@ function Section({
         onClose={() => setDangGhiNhan(null)}
         onSubmit={markPaid}
       />
+      <SuaDotThanhToan
+        payment={dangSua}
+        direction={direction}
+        onClose={() => setDangSua(null)}
+        onSubmit={saveEdit}
+      />
     </div>
+  );
+}
+
+/** Giá trị yyyy-mm-dd cho input type=date (theo giờ địa phương). */
+function isoNgay(iso: string | null): string {
+  if (!iso) return "";
+  const x = new Date(iso);
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+}
+
+/** Form sửa mọi trường của một đợt thu/chi. */
+function SuaDotThanhToan({
+  payment,
+  direction,
+  onClose,
+  onSubmit,
+}: {
+  payment: PaymentItem | null;
+  direction: "THU" | "CHI";
+  onClose: () => void;
+  onSubmit: (p: PaymentItem, form: FormData) => void;
+}) {
+  const nhan = direction === "THU" ? "thu" : "trả";
+  const o = "w-full rounded-md border border-slate-300 px-3 py-2 text-sm";
+  const l = "mb-1 block text-sm font-medium text-slate-700";
+  return (
+    <Modal
+      open={payment !== null}
+      onClose={onClose}
+      title={`Sửa đợt ${direction === "THU" ? "thu" : "chi"}${payment ? ` — ${payment.name}` : ""}`}
+    >
+      {payment && (
+        <form key={payment.id} action={(form: FormData) => onSubmit(payment, form)} className="space-y-4">
+          <div>
+            <label htmlFor="sd-name" className={l}>Tên đợt</label>
+            <input id="sd-name" name="name" required defaultValue={payment.name} className={o} />
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label htmlFor="sd-amount" className={l}>Số tiền kế hoạch (₫)</label>
+              <input id="sd-amount" name="amount" inputMode="numeric" defaultValue={payment.amount ?? ""} className={o} />
+            </div>
+            <div>
+              <label htmlFor="sd-due" className={l}>Hạn</label>
+              <input id="sd-due" name="dueDate" type="date" defaultValue={isoNgay(payment.dueDate)} className={o} />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="sd-cp" className={l}>{direction === "THU" ? "Chủ đầu tư" : "NCC / thầu phụ"}</label>
+            <input id="sd-cp" name="counterpart" defaultValue={payment.counterpart ?? ""} className={o} />
+          </div>
+          <div>
+            <label htmlFor="sd-note" className={l}>Ghi chú</label>
+            <input id="sd-note" name="note" defaultValue={payment.note ?? ""} className={o} />
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label htmlFor="sd-paid" className={l}>Ngày thực {nhan}</label>
+              <input id="sd-paid" name="paidDate" type="date" defaultValue={isoNgay(payment.paidDate)} className={o} />
+              <p className="mt-1 text-xs text-slate-400">Bỏ trống = chưa {nhan}.</p>
+            </div>
+            <div>
+              <label htmlFor="sd-paidamt" className={l}>Số tiền thực tế (₫)</label>
+              <input id="sd-paidamt" name="paidAmount" inputMode="numeric" defaultValue={payment.paidAmount ?? ""} className={o} />
+              <p className="mt-1 text-xs text-slate-400">Bỏ trống = đúng kế hoạch.</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2 pt-1">
+            <Button type="button" variant="outline" onClick={onClose}>Hủy</Button>
+            <Button type="submit">Lưu</Button>
+          </div>
+        </form>
+      )}
+    </Modal>
   );
 }
 
