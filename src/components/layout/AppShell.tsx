@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Sidebar } from "./Sidebar";
+import { Sidebar, thuGonMenu } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { ConfirmProvider } from "@/components/ui/confirm";
 import { ToastProvider } from "@/components/ui/toast";
@@ -76,6 +76,7 @@ function AppFrame({
   chuaDoc: number;
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
   return (
     <div className="flex min-h-dvh w-full bg-slate-50">
       {open && (
@@ -87,6 +88,8 @@ function AppFrame({
       )}
 
       <Sidebar role={role} open={open} onClose={() => setOpen(false)} />
+      {/* Menu thu gọn nằm "fixed" — chừa đúng bề rộng dải biểu tượng. */}
+      {thuGonMenu(pathname) && <div className="hidden w-16 shrink-0 lg:block" aria-hidden="true" />}
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar name={name} role={role} chuaDoc={chuaDoc} onOpenMenu={() => setOpen(true)} />

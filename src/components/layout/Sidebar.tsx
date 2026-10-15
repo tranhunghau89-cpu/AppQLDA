@@ -237,6 +237,14 @@ function dangO(pathname: string, item: NavItem): boolean {
   return duongDan.some((p) => pathname.startsWith(p));
 }
 
+/**
+ * Trang chi tiết dự án cần chỗ cho 3 cột → menu tự thu thành dải biểu tượng (desktop),
+ * rê chuột vào thì bung ra đè lên nội dung.
+ */
+export function thuGonMenu(pathname: string): boolean {
+  return /^\/projects\/[^/]+$/.test(pathname) && pathname !== "/projects/new";
+}
+
 export function Sidebar({
   role,
   open,
@@ -248,6 +256,9 @@ export function Sidebar({
   onClose: () => void;
 }) {
   const pathname = usePathname();
+  const gon = thuGonMenu(pathname);
+  // Chữ chỉ hiện khi menu bung (rê chuột) nếu đang thu gọn.
+  const chu = gon ? "lg:hidden lg:group-hover/sb:inline" : "";
   // Lần dựng ở máy chủ: chưa gập nhóm nào. Trình duyệt đọc tiếp từ localStorage.
   const dong = useSyncExternalStore(theoDoi, docNhomDong, () => RONG);
 
@@ -267,13 +278,15 @@ export function Sidebar({
         "fixed inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white transition-transform duration-200 ease-out",
         open ? "translate-x-0" : "-translate-x-full",
         // Desktop: cột cố định như cũ, luôn hiện.
-        "lg:sticky lg:top-0 lg:h-dvh lg:w-60 lg:translate-x-0"
+        gon
+          ? "group/sb lg:fixed lg:top-0 lg:h-dvh lg:w-16 lg:translate-x-0 lg:overflow-hidden lg:transition-[width] lg:hover:w-60 lg:hover:shadow-xl"
+          : "lg:sticky lg:top-0 lg:h-dvh lg:w-60 lg:translate-x-0"
       )}
     >
       <div className="flex h-16 shrink-0 items-center gap-2 border-b border-slate-100 px-5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.png" alt="Xây Dựng Dubai" className="h-10 w-10 object-contain" />
-        <div className="min-w-0 leading-tight">
+        <div className={cn("min-w-0 leading-tight", chu)}>
           <div className="truncate text-sm font-bold text-blue-600">XÂY DỰNG DUBAI</div>
           <div className="text-[11px] text-slate-400">Trao giá trị vững bền</div>
         </div>
@@ -327,7 +340,7 @@ export function Sidebar({
                     )}
                     aria-hidden="true"
                   />
-                  {nhom.ten}
+                  <span className={chu}>{nhom.ten}</span>
                 </button>
               )}
 
@@ -349,7 +362,7 @@ export function Sidebar({
                       )}
                     >
                       <Icon className="h-4 w-4 shrink-0" />
-                      {item.label}
+                      <span className={cn("truncate", chu)}>{item.label}</span>
                     </Link>
                   );
                 })}

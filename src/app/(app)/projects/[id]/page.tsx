@@ -512,7 +512,8 @@ export default async function ProjectDetailPage({
   );
 
   return (
-    <div className="space-y-4">
+    // trang-rong: bỏ giới hạn 1280px của khung app — 3 cột cần cả bề ngang màn hình.
+    <div className="trang-rong space-y-4">
       <MoMucTheoHash />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -541,7 +542,7 @@ export default async function ProjectDetailPage({
       <ChuYDuAn tin={chuY} />
 
       {/* Rộng: trái = danh mục quy trình, giữa = các mục, phải = trao đổi dự án. Hẹp: xếp chồng. */}
-      <div className="grid gap-4 xl:grid-cols-[230px_minmax(0,1fr)_340px]">
+      <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)_320px]">
         {/* Cột trái chỉ có ở màn hình rộng; hẹp thì dùng mục Quy trình + thanh mục lục ngang. */}
         <aside className="hidden space-y-3 xl:sticky xl:top-4 xl:block xl:max-h-[calc(100vh-7rem)] xl:self-start xl:overflow-y-auto">
           <DanhMucQuyTrinh
