@@ -577,7 +577,8 @@ export default async function ProjectDetailPage({
 
       {/* Rộng: trái = danh mục quy trình, giữa = các mục, phải = trao đổi dự án. Hẹp: xếp chồng. */}
       <KhungTab tabs={tabMeta}>
-      <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)_320px]">
+      {/* Cột giữa tối đa 80rem — bằng bảng dự toán (EstimateEditor); màn hình rộng hơn thì cả cụm ra giữa. */}
+      <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,80rem)_320px] xl:justify-center">
         {/* Cột trái chỉ có ở màn hình rộng; hẹp thì dùng mục Quy trình + thanh mục lục ngang. */}
         <aside className="hidden space-y-3 xl:sticky xl:top-4 xl:block xl:max-h-[calc(100vh-7rem)] xl:self-start xl:overflow-y-auto">
           <DanhMucQuyTrinh
