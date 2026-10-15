@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { TRANG_THAI_BUOC } from "@/lib/quyTrinh";
@@ -76,11 +77,14 @@ export function DanhMucQuyTrinh(props: {
           );
         })}
       </ol>
-      {dangMoBuoc && (
-        <Modal open onClose={() => setMo(null)} title="Quy trình dự án" size="xl">
-          <QuyTrinhPanel {...props} chonDau={dangMoBuoc.buoc} />
-        </Modal>
-      )}
+      {/* Gắn vào body: cột trái là khối sticky có cuộn riêng, để hộp trong đó thì cột phải vẽ đè lên. */}
+      {dangMoBuoc &&
+        createPortal(
+          <Modal open onClose={() => setMo(null)} title="Quy trình dự án" size="xl">
+            <QuyTrinhPanel {...props} chonDau={dangMoBuoc.buoc} />
+          </Modal>,
+          document.body,
+        )}
     </nav>
   );
 }
