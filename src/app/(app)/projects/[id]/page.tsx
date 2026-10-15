@@ -25,7 +25,7 @@ import { docGiaTriGiaiDoan } from "@/lib/giaTriGiaiDoanDuAn";
 import { BangGiaiDoan } from "@/components/BangGiaiDoan";
 import { Badge } from "@/components/ui/badge";
 import { CONTRACT_STATUS_MAP, PO_CATEGORY_MAP, PO_STATUS_MAP } from "@/lib/constants";
-import { Calculator, FileSignature, ShoppingCart, Wallet } from "lucide-react";
+import { Calculator, FileSignature, Printer, ShoppingCart, Wallet } from "lucide-react";
 import { tinhChiSo, tinhCo } from "@/lib/projectHealth";
 import { HealthBanner } from "./HealthBanner";
 import { ProjectContacts } from "./ProjectContacts";
@@ -513,8 +513,9 @@ export default async function ProjectDetailPage({
         tieuDe="Thông tin chung"
         tomTat={`${project.customer?.name ?? "Chưa có CĐT"} · ${project.contacts.length} người liên hệ`}
       >
-        {canEdit && (
-          <div className="-mt-1 mb-3 flex justify-end">
+        <div className="-mt-1 mb-3 flex justify-end gap-2">
+          {nutMo(`/projects/${project.id}/info/print`, <Printer className="h-3.5 w-3.5" />, "In / PDF")}
+          {canEdit && (
             <SuaThongTinDuAn
               duAn={{
                 id: project.id,
@@ -538,8 +539,8 @@ export default async function ProjectDetailPage({
               khuVucs={dsKhuVuc}
               giaBanKhoa={salePriceFromContracts(project.contracts).locked}
             />
-          </div>
-        )}
+          )}
+        </div>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div>
             <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
