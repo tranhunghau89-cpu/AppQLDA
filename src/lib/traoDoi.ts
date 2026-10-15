@@ -19,7 +19,7 @@ export async function duocXemViec(
   // Bước quy trình dự án: ai xem được dự án là xem được, không cần quyền báo giá.
   // Nhắc việc chỉ đọc được qua dòng nhận của chính mình — không có việc gốc để kiểm.
   if (chu.doiTuong === "NHAC_VIEC") return true;
-  if (chu.doiTuong === "BUOC" || (chu.doiTuong && laNhomThayDoi(chu.doiTuong))) return !!chu.projectId && canAccessProject(s, chu.projectId);
+  if (chu.doiTuong === "BUOC" || chu.doiTuong === "THAO_LUAN" || (chu.doiTuong && laNhomThayDoi(chu.doiTuong))) return !!chu.projectId && canAccessProject(s, chu.projectId);
   if (!can(ai.role as Role, "quote", "view")) return false;
   if (chu.projectId) return canAccessProject(s, chu.projectId);
   if (chu.coHoiId) return canAccessCoHoi(s, chu.coHoiId);
@@ -40,6 +40,7 @@ export function duongDanViec(t: {
   coHoiId: string | null;
 }): string {
   if (t.doiTuong === "NHAC_VIEC") return "/";
+  if (t.doiTuong === "THAO_LUAN") return `/projects/${t.projectId}#thao-luan`;
   if (t.doiTuong === "BUOC") return `/projects/${t.projectId}#quy-trinh`;
   if (laNhomThayDoi(t.doiTuong)) return `/projects/${t.projectId}${MUC_NHOM_THAY_DOI[t.doiTuong]}`;
   const goc = t.projectId ? `/projects/${t.projectId}` : `/co-hoi/${t.coHoiId}`;

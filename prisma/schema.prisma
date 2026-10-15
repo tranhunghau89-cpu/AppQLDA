@@ -1699,10 +1699,13 @@ model TraoDoi {
   tacGiaId    String
   tacGiaTen   String
   createdAt   DateTime @default(now())
+  // Trao đổi dự án (doiTuong THAO_LUAN): tin "Chú ý" ghim lên đầu trang dự án.
+  ghim        Boolean  @default(false)
 
   nguoiNhan TraoDoiNhan[]
 
   @@index([doiTuong, doiTuongId, createdAt])
+  @@index([projectId, doiTuong, createdAt])
 }
 
 // Người được nhắn trong một tin — cũng là hộp thư "chưa đọc" của họ.

@@ -10,6 +10,7 @@ import { formatVND, formatDate, formatNumber } from "@/lib/utils";
 import { StatusChanger, SupplierAssigner } from "./ProjectDetail";
 import { ThongBaoNhanh } from "./ThongBaoNhanh";
 import { BaoHanh } from "./BaoHanh";
+import { ChuYDuAn, ThaoLuan } from "./ThaoLuan";
 import { BAO_HANH_MO } from "@/lib/baoHanh";
 import { ProjectMembers, type MemberUser } from "./ProjectMembers";
 import { Milestones, type DotTheoMoc, type MilestoneValue } from "./Milestones";
@@ -452,10 +453,37 @@ export default async function ProjectDetailPage({
     hanXuLy: b.hanXuLy?.toISOString() ?? null, trangThai: b.trangThai, ketQua: b.ketQua, taoBoiTen: b.taoBoiTen,
   }));
   const baoHanhMo = baoHanhRows.filter((b) => BAO_HANH_MO.includes(b.trangThai)).length;
+
+  // Trao đổi dự án: 50 tin gần nhất + mọi tin ghim. Mở trang là coi như đã đọc.
+  const [thaoLuanRows] = await Promise.all([
+    db.traoDoi.findMany({
+      where: { projectId: project.id, doiTuong: "THAO_LUAN" },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: { id: true, noiDung: true, tacGiaId: true, tacGiaTen: true, createdAt: true, ghim: true },
+    }),
+    db.traoDoiNhan.updateMany({
+      where: { userId: session.userId, daDocLuc: null, traoDoi: { projectId: project.id, doiTuong: "THAO_LUAN" } },
+      data: { daDocLuc: new Date() },
+    }),
+  ]);
+  const ghimCu = await db.traoDoi.findMany({
+    where: { projectId: project.id, doiTuong: "THAO_LUAN", ghim: true, id: { notIn: thaoLuanRows.map((t) => t.id) } },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, noiDung: true, tacGiaId: true, tacGiaTen: true, createdAt: true, ghim: true },
+  });
+  const vaiTro = new Map(nguoiDungRows.map((u) => [u.id, u.role]));
+  const thaoLuan = [...thaoLuanRows, ...ghimCu].map((t) => ({
+    ...t,
+    createdAt: t.createdAt.toISOString(),
+    boPhan: vaiTro.get(t.tacGiaId) ?? null,
+  }));
+  const chuY = thaoLuan.filter((t) => t.ghim);
   const mocXong = mocHienThi.filter((m) => m.row?.done).length;
   // Thứ tự mục = thứ tự đánh số; mục không có quyền xem thì bỏ, số tự dồn lên.
   const cacMuc = [
     { id: "quy-trinh", tieuDe: "Quy trình" },
+    { id: "thao-luan", tieuDe: "Trao đổi", canChuY: chuY.length > 0 },
     { id: "tong-quan", tieuDe: "Thông tin chung" },
     { id: "tien-do", tieuDe: "Tiến độ" },
     { id: "qc", tieuDe: "QC giai đoạn", canChuY: qcTom.khongDat > 0 },
@@ -507,6 +535,8 @@ export default async function ProjectDetailPage({
 
       <HealthBanner muc={co.muc} lyDo={co.lyDo} {...chiSo} hienTien={canViewPayment} />
 
+      <ChuYDuAn tin={chuY} />
+
       <MucLuc muc={cacMuc} />
 
       <MucDuAn id="quy-trinh" so={so("quy-trinh")} tieuDe="Quy trình dự án">
@@ -519,6 +549,21 @@ export default async function ProjectDetailPage({
           vaiTro={session.role}
           canEdit={canEdit}
           nowMs={nowMs}
+        />
+      </MucDuAn>
+
+      <MucDuAn
+        id="thao-luan"
+        so={so("thao-luan")}
+        tieuDe="Trao đổi dự án"
+        tomTat={thaoLuan.length ? `${thaoLuan.length} tin${chuY.length ? ` · ${chuY.length} chú ý` : ""}` : "Chưa có tin"}
+      >
+        <ThaoLuan
+          projectId={project.id}
+          tin={thaoLuan}
+          toiLa={session.userId}
+          laQuanTri={session.role === "ADMIN"}
+          canEdit={canEdit}
         />
       </MucDuAn>
 

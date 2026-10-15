@@ -20,6 +20,7 @@ const TEN_VIEC: Record<string, string> = {
   BUOC: "Quy trình dự án",
   ...TEN_NHOM_THAY_DOI,
   NHAC_VIEC: "Nhắc việc",
+  THAO_LUAN: "Trao đổi dự án",
 };
 
 // Hộp thư: các tin người khác nhắn tới mình, chưa đọc lên đầu. Đọc là bấm vào việc —
