@@ -11,11 +11,11 @@ export interface MucLucItem {
   canChuY?: boolean;
 }
 
-export function MucLuc({ muc }: { muc: MucLucItem[] }) {
+export function MucLuc({ muc, className = "" }: { muc: MucLucItem[]; className?: string }) {
   return (
     <nav
       aria-label="Mục lục dự án"
-      className="sticky top-16 z-10 -mx-1 flex gap-1.5 overflow-x-auto rounded-xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border border-slate-200 bg-white/95 px-2 py-2 shadow-sm backdrop-blur"
+      className={`${className} sticky top-16 z-10 -mx-1 flex gap-1.5 overflow-x-auto rounded-xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border border-slate-200 bg-white/95 px-2 py-2 shadow-sm backdrop-blur`}
     >
       {muc.map((m) => (
         <a
@@ -41,6 +41,7 @@ export function MucDuAn({
   tomTat,
   hanhDong,
   mo = false,
+  className = "",
   children,
 }: {
   id: string;
@@ -51,13 +52,14 @@ export function MucDuAn({
   /** Nút / liên kết bên phải tiêu đề (bấm không làm đóng mở mục). */
   hanhDong?: React.ReactNode;
   mo?: boolean;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
     <details
       id={id}
       open={mo}
-      className="group scroll-mt-32 rounded-xl border border-slate-200 bg-white shadow-sm"
+      className={`${className} group scroll-mt-32 rounded-xl border border-slate-200 bg-white shadow-sm`}
     >
       <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-4 py-3 hover:bg-slate-50 group-open:rounded-b-none group-open:border-b group-open:border-slate-100 [&::-webkit-details-marker]:hidden">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold tabular-nums text-white">
@@ -92,5 +94,27 @@ export function OThongTin({
       <dt className="text-xs text-slate-500">{nhan}</dt>
       <dd className="mt-0.5 text-sm font-medium text-slate-900">{children}</dd>
     </div>
+  );
+}
+
+/** Mục lục dạng dọc cho cột trái (màn hình rộng). */
+export function MucLucDoc({ muc }: { muc: MucLucItem[] }) {
+  return (
+    <nav aria-label="Mục lục dự án" className="rounded-lg border border-slate-200 bg-white p-2 text-sm">
+      <p className="px-2 pb-1 pt-1 font-semibold text-slate-900">Mục</p>
+      {muc.map((m) => (
+        <a
+          key={m.id}
+          href={`#${m.id}`}
+          className="flex items-center gap-2 rounded-md px-2 py-1 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+        >
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold tabular-nums">
+            {m.so}
+          </span>
+          <span className="min-w-0 flex-1 truncate">{m.tieuDe}</span>
+          {m.canChuY && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />}
+        </a>
+      ))}
+    </nav>
   );
 }

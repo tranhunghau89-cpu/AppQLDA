@@ -71,7 +71,7 @@ export default async function TraoDoiPage() {
                 <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                   {!daDocLuc && <span className="h-2 w-2 rounded-full bg-blue-600" aria-label="Chưa đọc" />}
                   <span className="font-medium text-slate-800">{t.tacGiaTen}</span>
-                  {t.loai !== "GHI_CHU" && <Badge tone={TONE[t.loai]}>{t.loai === "CAN_SUA" && laNhomThayDoi(t.doiTuong) ? "Cần xử lý" : LOAI_TRAO_DOI_LABEL[t.loai]}</Badge>}
+                  {t.loai !== "GHI_CHU" && <Badge tone={TONE[t.loai]}>{t.loai === "CAN_SUA" && (laNhomThayDoi(t.doiTuong) || t.doiTuong === "THAO_LUAN") ? "Cần xử lý" : LOAI_TRAO_DOI_LABEL[t.loai]}</Badge>}
                   <span>
                     {TEN_VIEC[t.doiTuong] ?? t.doiTuong}
                     {t.nhanDe ? `: ${t.nhanDe}` : ""}

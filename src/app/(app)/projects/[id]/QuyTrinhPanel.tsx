@@ -37,8 +37,11 @@ export function QuyTrinhPanel({
   vaiTro,
   canEdit,
   nowMs,
+  chonDau,
 }: {
   projectId: string;
+  /** Bước mở sẵn (bấm từ danh mục cột trái); trống = bước hiện tại. */
+  chonDau?: string;
   buoc: BuocView[];
   tin: TinBuoc[];
   nguoiDung: { id: string; name: string; role: string }[];
@@ -50,7 +53,7 @@ export function QuyTrinhPanel({
   const toast = useToast();
   const [pending, start] = useTransition();
   const hienTai = buocHienTai(buoc);
-  const [chon, setChon] = useState<string>(hienTai ?? buoc[buoc.length - 1].buoc);
+  const [chon, setChon] = useState<string>(chonDau ?? hienTai ?? buoc[buoc.length - 1].buoc);
   const [ghiChu, setGhiChu] = useState("");
   const b = buoc.find((x) => x.buoc === chon)!;
   const tinBuoc = tin.filter((t) => t.buocId === b.id);

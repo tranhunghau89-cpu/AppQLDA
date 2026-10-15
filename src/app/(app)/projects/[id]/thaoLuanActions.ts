@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { denyProject, getSession } from "@/lib/auth";
 import { canAccessProject } from "@/lib/scope";
 import { ROLES } from "@/lib/rbac";
-import { nguoiNhanDuAn } from "@/lib/baoThayDoi";
+import { TEN_NHOM_THAY_DOI, nguoiNhanDuAn } from "@/lib/baoThayDoi";
 
 type KetQua = { ok: true } | { ok: false; error: string };
 
@@ -19,6 +19,9 @@ const lamMoi = (projectId: string) => {
 const dangSchema = z.object({
   noiDung: z.string().trim().min(1, "Nhập nội dung.").max(4000, "Tối đa 4000 ký tự."),
   chuY: z.boolean(),
+  /** Chủ đề (vật tư, tiến độ…) — trống = trao đổi chung. */
+  chuDe: z.enum(["VAT_TU", "TIEN_DO", "THIET_KE", "HOP_DONG", "THANH_TOAN", "BAO_HANH"]).nullable().optional(),
+  canXuLy: z.boolean().optional(),
   phong: z.array(z.enum(ROLES)).max(ROLES.length),
 });
 
@@ -56,8 +59,9 @@ export async function dangThaoLuan(projectId: string, input: z.input<typeof dang
       doiTuong: "THAO_LUAN",
       doiTuongId: projectId,
       projectId,
-      nhanDe: `${duAn.code} · Trao đổi dự án`,
-      loai: "GHI_CHU",
+      nhanDe: `${duAn.code} · ${v.chuDe ? TEN_NHOM_THAY_DOI[v.chuDe] : "Trao đổi dự án"}`,
+      // "Cần sửa" hiện là "Cần xử lý" trong hộp thư: người nhận phải làm, không chỉ đọc.
+      loai: v.canXuLy ? "CAN_SUA" : "GHI_CHU",
       noiDung: v.noiDung,
       tacGiaId: session.userId,
       tacGiaTen: session.name,

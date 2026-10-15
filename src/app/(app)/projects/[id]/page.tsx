@@ -8,7 +8,6 @@ import { serverNow } from "@/lib/now";
 import { can } from "@/lib/rbac";
 import { formatVND, formatDate, formatNumber } from "@/lib/utils";
 import { StatusChanger, SupplierAssigner } from "./ProjectDetail";
-import { ThongBaoNhanh } from "./ThongBaoNhanh";
 import { BaoHanh } from "./BaoHanh";
 import { ChuYDuAn, ThaoLuan } from "./ThaoLuan";
 import { DanhMucQuyTrinh } from "./DanhMucQuyTrinh";
@@ -40,7 +39,8 @@ import { napQuyTrinh, quyTrinhChoCo } from "@/lib/quyTrinhDb";
 import type { SoSanhData } from "./QcSoSanhVatTu";
 import { isStorageConfigured } from "@/lib/storage";
 import { tomTatGiaiDoan } from "@/lib/qc";
-import { MucDuAn, MucLuc, OThongTin } from "./MucDuAn";
+import { MucDuAn, MucLuc, MucLucDoc, OThongTin } from "./MucDuAn";
+import { TEN_NHOM_THAY_DOI } from "@/lib/baoThayDoi";
 import { MoMucTheoHash } from "./MoMucTheoHash";
 import { SuaThongTinDuAn } from "./SuaThongTinDuAn";
 import { salePriceFromContracts } from "@/lib/contract";
@@ -461,7 +461,7 @@ export default async function ProjectDetailPage({
       where: { projectId: project.id, doiTuong: "THAO_LUAN" },
       orderBy: { createdAt: "desc" },
       take: 50,
-      select: { id: true, noiDung: true, tacGiaId: true, tacGiaTen: true, createdAt: true, ghim: true },
+      select: { id: true, noiDung: true, tacGiaId: true, tacGiaTen: true, createdAt: true, ghim: true, nhanDe: true, loai: true },
     }),
     db.traoDoiNhan.updateMany({
       where: { userId: session.userId, daDocLuc: null, traoDoi: { projectId: project.id, doiTuong: "THAO_LUAN" } },
@@ -471,13 +471,17 @@ export default async function ProjectDetailPage({
   const ghimCu = await db.traoDoi.findMany({
     where: { projectId: project.id, doiTuong: "THAO_LUAN", ghim: true, id: { notIn: thaoLuanRows.map((t) => t.id) } },
     orderBy: { createdAt: "desc" },
-    select: { id: true, noiDung: true, tacGiaId: true, tacGiaTen: true, createdAt: true, ghim: true },
+    select: { id: true, noiDung: true, tacGiaId: true, tacGiaTen: true, createdAt: true, ghim: true, nhanDe: true, loai: true },
   });
   const vaiTro = new Map(nguoiDungRows.map((u) => [u.id, u.role]));
-  const thaoLuan = [...thaoLuanRows, ...ghimCu].map((t) => ({
+  // Chủ đề lưu trong nhãn "MÃ · Vật tư" — đọc ngược ra mã chủ đề.
+  const maChuDe = new Map(Object.entries(TEN_NHOM_THAY_DOI).map(([ma, ten]) => [ten, ma]));
+  const thaoLuan = [...thaoLuanRows, ...ghimCu].map(({ nhanDe, loai, ...t }) => ({
     ...t,
     createdAt: t.createdAt.toISOString(),
     boPhan: vaiTro.get(t.tacGiaId) ?? null,
+    chuDe: maChuDe.get(nhanDe?.split(" · ").pop() ?? "") ?? null,
+    canXuLy: loai === "CAN_SUA",
   }));
   const chuY = thaoLuan.filter((t) => t.ghim);
   const mocXong = mocHienThi.filter((m) => m.row?.done).length;
@@ -528,7 +532,6 @@ export default async function ProjectDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <ThongBaoNhanh projectId={project.id} nguoiDung={nguoiDungRows} />
           <StatusChanger projectId={project.id} status={project.status} canEdit={canEdit} />
         </div>
       </div>
@@ -539,14 +542,25 @@ export default async function ProjectDetailPage({
 
       {/* Rộng: trái = danh mục quy trình, giữa = các mục, phải = trao đổi dự án. Hẹp: xếp chồng. */}
       <div className="grid gap-4 xl:grid-cols-[230px_minmax(0,1fr)_340px]">
-        <aside className="xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto">
-          <DanhMucQuyTrinh buoc={quyTrinh} nowMs={nowMs} />
+        {/* Cột trái chỉ có ở màn hình rộng; hẹp thì dùng mục Quy trình + thanh mục lục ngang. */}
+        <aside className="hidden space-y-3 xl:sticky xl:top-4 xl:block xl:max-h-[calc(100vh-7rem)] xl:self-start xl:overflow-y-auto">
+          <DanhMucQuyTrinh
+            projectId={project.id}
+            buoc={quyTrinh}
+            tin={tinBuoc}
+            nguoiDung={nguoiDungRows}
+            toiLa={session.userId}
+            vaiTro={session.role}
+            canEdit={canEdit}
+            nowMs={nowMs}
+          />
+          <MucLucDoc muc={cacMuc.filter((m) => m.id !== "quy-trinh")} />
         </aside>
 
         <div className="min-w-0 space-y-4">
-      <MucLuc muc={cacMuc} />
+      <MucLuc muc={cacMuc} className="xl:hidden" />
 
-      <MucDuAn id="quy-trinh" so={so("quy-trinh")} tieuDe="Quy trình dự án">
+      <MucDuAn id="quy-trinh" so={so("quy-trinh")} tieuDe="Quy trình dự án" className="xl:hidden">
         <QuyTrinhPanel
           projectId={project.id}
           buoc={quyTrinh}
@@ -1000,7 +1014,8 @@ export default async function ProjectDetailPage({
 
         <aside
           id="thao-luan"
-          className="scroll-mt-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto"
+          // Chừa đáy cho nút nổi "Nhập nhanh" — không đè lên khung trao đổi.
+          className="scroll-mt-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-7rem)] xl:self-start xl:overflow-y-auto"
         >
           <div className="rounded-lg border border-slate-200 bg-white p-3">
             <div className="mb-2 flex items-baseline justify-between">
@@ -1019,6 +1034,14 @@ export default async function ProjectDetailPage({
           </div>
         </aside>
       </div>
+
+      {/* Màn hình hẹp: trao đổi nằm cuối trang — nút nổi để nhảy tới. */}
+      <a
+        href="#thao-luan"
+        className="fixed bottom-24 right-5 z-30 flex h-11 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-lg hover:bg-slate-50 sm:right-6 xl:hidden"
+      >
+        Trao đổi{thaoLuan.length ? ` (${thaoLuan.length})` : ""}
+      </a>
     </div>
   );
 }
