@@ -77,7 +77,11 @@ export default async function ProjectDetailPage({
         costSummary: { select: { id: true, revenue: true, cost: true, profit: true } },
         contacts: { orderBy: { sortOrder: "asc" } },
         materialSpecs: { orderBy: { sortOrder: "asc" } },
-        clientQuotes: { select: { id: true } },
+        clientQuotes: {
+          select: { id: true, quoteNo: true, title: true },
+          orderBy: { createdAt: "desc" },
+        },
+        quotes: { select: { id: true, title: true }, orderBy: { createdAt: "desc" } },
         qcMuc: { select: { giaiDoan: true, ketQua: true } },
       },
     }),
@@ -204,6 +208,8 @@ export default async function ProjectDetailPage({
       ketQua: l.ketQua,
       ghiChu: l.ghiChu,
       nguoiTen: l.nguoiTen,
+      lienKet: l.lienKet,
+      lienKetTen: l.lienKetTen,
       createdAt: l.createdAt.toISOString(),
       tep: l.tep.map((t) => ({ ten: t.ten, url: qcTepUrls.get(t.key) ?? null })),
     })),
@@ -379,6 +385,39 @@ export default async function ProjectDetailPage({
         }),
       ])
     : [[], []];
+
+  // Tài liệu đang có ngay trong app — chọn nhanh làm bằng chứng cho mục "Hồ sơ cần có"
+  // thay vì xuất file rồi đính kèm (bản đính kèm sẽ cũ đi khi dữ liệu trong app đổi).
+  const goc = `/projects/${project.id}`;
+  const taiLieuApp = [
+    ...(project.clientQuotes.length > 0
+      ? [
+          {
+            nhan: `Báo giá gửi khách${project.clientQuotes[0].quoteNo ? ` ${project.clientQuotes[0].quoteNo}` : ""}${
+              project.clientQuotes.length > 1 ? ` (${project.clientQuotes.length} bản)` : ""
+            }`,
+            href: `${goc}/client-quote`,
+          },
+        ]
+      : []),
+    ...(project.quotes.length > 0
+      ? [{ nhan: `Dự toán chào giá — ${project.quotes[0].title}`, href: `${goc}/quote` }]
+      : []),
+    ...(project.estimateItems.length > 0
+      ? [{ nhan: `Dự toán thi công (${formatVND(profit.totalCost)})`, href: `${goc}/estimate` }]
+      : []),
+    ...(project.contracts.length > 0
+      ? [
+          {
+            nhan: `Hợp đồng ${project.contracts
+              .map((c) => c.contractNo ?? c.subject ?? "")
+              .filter(Boolean)
+              .join(", ")}`.trim(),
+            href: `${goc}/contract`,
+          },
+        ]
+      : []),
+  ];
 
   const qcTom = tomTatGiaiDoan(qcMuc);
   const mocXong = project.milestones.filter((m) => m.done).length;
@@ -596,6 +635,7 @@ export default async function ProjectDetailPage({
           coKho={isStorageConfigured()}
           soSanh={soSanh}
           soViecHoSoThieu={soViecHoSoThieu}
+          taiLieuApp={taiLieuApp}
         />
       </MucDuAn>
 

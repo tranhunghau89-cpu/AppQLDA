@@ -6,6 +6,7 @@ import {
   ChevronRight,
   ClipboardCheck,
   History,
+  Link2,
   Pencil,
   Plus,
   Scale,
@@ -43,6 +44,8 @@ export interface QcLanKiemView {
   ketQua: string;
   ghiChu: string | null;
   nguoiTen: string;
+  lienKet: string | null;
+  lienKetTen: string | null;
   createdAt: string;
   tep: { ten: string; url: string | null }[];
 }
@@ -71,6 +74,35 @@ type Draft = {
   tieuChi: string | null;
 };
 
+export interface TaiLieuApp {
+  nhan: string;
+  href: string;
+}
+
+/** Liên kết bằng chứng: trang trong app mở cùng tab, link ngoài mở tab mới. */
+function LienKetBangChung({
+  href,
+  ten,
+  className = "",
+}: {
+  href: string;
+  ten: string | null;
+  className?: string;
+}) {
+  const ngoai = !href.startsWith("/");
+  return (
+    <a
+      href={href}
+      {...(ngoai ? { target: "_blank", rel: "noreferrer" } : {})}
+      className={`inline-flex items-center gap-1 text-blue-600 hover:underline ${className}`}
+      title={href}
+    >
+      <Link2 className="h-3.5 w-3.5" />
+      {ten ?? href}
+    </a>
+  );
+}
+
 const NUT_DANH: Record<string, string> = {
   VIEC: "Cập nhật",
   HO_SO: "Nộp hồ sơ",
@@ -90,6 +122,7 @@ export function QcPanel({
   coKho,
   soSanh,
   soViecHoSoThieu,
+  taiLieuApp,
 }: {
   projectId: string;
   muc: QcMucView[];
@@ -98,6 +131,8 @@ export function QcPanel({
   coKho: boolean;
   soSanh: SoSanhData | null;
   soViecHoSoThieu: number;
+  /** Tài liệu đang có trong app (báo giá, dự toán, hợp đồng) — chọn nhanh làm bằng chứng. */
+  taiLieuApp: TaiLieuApp[];
 }) {
   const toast = useToast();
   const confirm = useConfirm();
@@ -409,6 +444,7 @@ export function QcPanel({
                             duocDanh={duocDanhQc(role, m.boPhan)}
                             canEdit={canEdit}
                             coKho={coKho}
+                            taiLieuApp={taiLieuApp}
                             soSanh={soSanh}
                             pending={pending}
                             onSua={() =>
@@ -458,6 +494,7 @@ function QcDong({
   duocDanh,
   canEdit,
   coKho,
+  taiLieuApp,
   soSanh,
   pending,
   onSua,
@@ -468,6 +505,7 @@ function QcDong({
   duocDanh: boolean;
   canEdit: boolean;
   coKho: boolean;
+  taiLieuApp: TaiLieuApp[];
   soSanh: SoSanhData | null;
   pending: boolean;
   onSua: () => void;
@@ -476,6 +514,7 @@ function QcDong({
   const toast = useToast();
   const [mo, setMo] = useState<null | "danh" | "lichSu" | "soSanh">(null);
   const [ketQua, setKetQua] = useState<string>("DAT");
+  const [lienKet, setLienKet] = useState({ href: "", ten: "" });
   const [dangLuu, start] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
   const kq = nhanKetQua(m.nhom, m.ketQua);
@@ -492,12 +531,14 @@ function QcDong({
       const r = await danhGiaQc(projectId, m.id, fd);
       if (!r.ok) return toast.error(r.error);
       setMo(null);
+      setLienKet({ href: "", ten: "" });
     });
   }
 
   const bat = (k: "danh" | "lichSu" | "soSanh") =>
     setMo((x) => (x === k ? null : k));
   const tepMoiNhat = m.lanKiem[0]?.tep ?? [];
+  const lkMoiNhat = m.lanKiem[0]?.lienKet ?? null;
 
   return (
     <div className="space-y-1.5 px-4 py-2 text-sm">
@@ -550,8 +591,14 @@ function QcDong({
               {m.ghiChu}
             </div>
           )}
-          {tepMoiNhat.length > 0 && (
-            <div className="mt-1 flex flex-wrap gap-2">
+          {(tepMoiNhat.length > 0 || lkMoiNhat) && (
+            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+              {lkMoiNhat && (
+                <LienKetBangChung
+                  href={lkMoiNhat}
+                  ten={m.lanKiem[0].lienKetTen}
+                />
+              )}
               {tepMoiNhat.map((f, i) =>
                 f.url ? (
                   <a
@@ -656,29 +703,61 @@ function QcDong({
             }
             required={ketQua === "KHONG_DAT"}
           />
-          {coKho ? (
-            <div>
-              {laHoSo && ketQua === "DAT" && (
-                <p className="mb-1 text-xs font-medium text-purple-700">
-                  Đính kèm bản hồ sơ (ảnh hoặc PDF) — bắt buộc để đánh Đủ.
-                </p>
-              )}
-              <input
-                type="file"
-                name="tep"
-                multiple
-                required={laHoSo && ketQua === "DAT"}
-                accept="image/*,application/pdf"
-                className="block text-sm text-slate-600"
+          {laHoSo && ketQua === "DAT" && (
+            <p className="text-xs font-medium text-purple-700">
+              Cần bằng chứng để đánh Đủ: đính kèm tệp (ảnh / PDF) hoặc chọn liên
+              kết bên dưới.
+            </p>
+          )}
+          {coKho && (
+            <input
+              type="file"
+              name="tep"
+              multiple
+              accept="image/*,application/pdf"
+              className="block text-sm text-slate-600 file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-blue-700"
+            />
+          )}
+          <div className="space-y-1.5">
+            <input type="hidden" name="lienKet" value={lienKet.href} />
+            <input type="hidden" name="lienKetTen" value={lienKet.ten} />
+            {taiLieuApp.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-slate-500">
+                  Tài liệu trong app:
+                </span>
+                {taiLieuApp.map((t) => (
+                  <button
+                    key={t.href}
+                    type="button"
+                    onClick={() =>
+                      setLienKet((cu) =>
+                        cu.href === t.href
+                          ? { href: "", ten: "" }
+                          : { href: t.href, ten: t.nhan },
+                      )
+                    }
+                    className={`rounded-md px-2 py-1 text-xs ring-1 ring-inset ${
+                      lienKet.href === t.href
+                        ? "bg-blue-600 text-white ring-blue-600"
+                        : "bg-white text-slate-700 ring-slate-300 hover:bg-slate-100"
+                    }`}
+                  >
+                    {t.nhan}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Link2 className="h-4 w-4 shrink-0 text-slate-400" />
+              <Input
+                value={lienKet.href}
+                onChange={(e) => setLienKet({ href: e.target.value, ten: "" })}
+                placeholder="Hoặc dán link ngoài (Google Drive, OneDrive…)"
+                className="h-8 text-sm"
               />
             </div>
-          ) : (
-            laHoSo && (
-              <p className="text-xs text-amber-700">
-                Chưa cấu hình kho lưu tệp nên chưa đánh Đủ hồ sơ được.
-              </p>
-            )
-          )}
+          </div>
           <div className="flex gap-2">
             <Button size="sm" type="submit" disabled={dangLuu}>
               Lưu kết quả
@@ -707,6 +786,13 @@ function QcDong({
               {l.nguoiTen} · {formatDate(l.createdAt)}
               {l.ghiChu && (
                 <span className="text-slate-800"> — {l.ghiChu}</span>
+              )}
+              {l.lienKet && (
+                <LienKetBangChung
+                  href={l.lienKet}
+                  ten={l.lienKetTen}
+                  className="ml-2"
+                />
               )}
               {l.tep.map((f, i) =>
                 f.url ? (

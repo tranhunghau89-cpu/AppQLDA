@@ -8,7 +8,7 @@ import { canAccessProject } from "@/lib/scope";
 import { isStorageConfigured, uploadFile } from "@/lib/storage";
 import { QC_GIAI_DOAN_MAP, QC_LOAI_MAP, QC_NHOM_MAP } from "@/lib/constants";
 import { ROLES } from "@/lib/rbac";
-import { chuanTieuChi, dongTieuChi, duocDanhQc, kiemTraDanhGia } from "@/lib/qc";
+import { chuanLienKet, chuanTieuChi, dongTieuChi, duocDanhQc, kiemTraDanhGia } from "@/lib/qc";
 import { moLaiBuocQc } from "@/lib/quyTrinhDb";
 import type { ActionResult } from "../actions";
 
@@ -220,7 +220,20 @@ export async function danhGiaQc(
   const tep = form
     .getAll("tep")
     .filter((f): f is File => f instanceof File && f.size > 0);
-  const loi = kiemTraDanhGia({ ketQua, ghiChu, nhom: muc.nhom, soTep: tep.length });
+  let lienKet: string | null;
+  try {
+    lienKet = chuanLienKet(String(form.get("lienKet") ?? ""));
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+  const lienKetTen = lienKet ? String(form.get("lienKetTen") ?? "").trim().slice(0, 200) || null : null;
+  const loi = kiemTraDanhGia({
+    ketQua,
+    ghiChu,
+    nhom: muc.nhom,
+    soTep: tep.length,
+    coLienKet: lienKet != null,
+  });
   if (loi) return { ok: false, error: loi };
   if (ghiChu.length > 2000)
     return { ok: false, error: "Ghi chú quá dài (tối đa 2000 ký tự)." };
@@ -262,6 +275,8 @@ export async function danhGiaQc(
         nguoiId: session.userId,
         nguoiTen: session.name,
         nguoiVai: session.role,
+        lienKet,
+        lienKetTen,
         createdAt: now,
         tep: { create: daTai },
       },

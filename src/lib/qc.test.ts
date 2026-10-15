@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { duocDanhQc, kiemTraDanhGia, lyDoQc, nhanKetQua, sapXepViecQc, tomTatGiaiDoan } from "./qc";
+import { chuanLienKet, duocDanhQc, kiemTraDanhGia, lyDoQc, nhanKetQua, sapXepViecQc, tomTatGiaiDoan } from "./qc";
 
 // 12/10/2026 09:00 giờ VN
 const NOW = Date.parse("2026-10-12T02:00:00Z");
@@ -32,10 +32,26 @@ describe("kiemTraDanhGia theo nhóm", () => {
     expect(kiemTraDanhGia({ ketQua: "KHONG_DAT", ghiChu: "x", nhom: "HO_SO" })).not.toBeNull();
     expect(kiemTraDanhGia({ ketQua: "DAT", ghiChu: "", nhom: "VIEC" })).toBeNull();
   });
-  it("hồ sơ Đủ bắt buộc có tệp; Không áp dụng thì không cần", () => {
+  it("hồ sơ Đủ bắt buộc có tệp hoặc liên kết; Không áp dụng thì không cần", () => {
     expect(kiemTraDanhGia({ ketQua: "DAT", ghiChu: "", nhom: "HO_SO", soTep: 0 })).toMatch(/tệp/);
+    expect(
+      kiemTraDanhGia({ ketQua: "DAT", ghiChu: "", nhom: "HO_SO", soTep: 0, coLienKet: true }),
+    ).toBeNull();
     expect(kiemTraDanhGia({ ketQua: "DAT", ghiChu: "", nhom: "HO_SO", soTep: 1 })).toBeNull();
     expect(kiemTraDanhGia({ ketQua: "KHONG_AP_DUNG", ghiChu: "", nhom: "HO_SO" })).toBeNull();
+  });
+});
+
+describe("chuanLienKet", () => {
+  it("nhận trang trong app và http(s); rỗng = null", () => {
+    expect(chuanLienKet("  ")).toBeNull();
+    expect(chuanLienKet("/projects/abc/estimate")).toBe("/projects/abc/estimate");
+    expect(chuanLienKet("https://drive.google.com/x")).toBe("https://drive.google.com/x");
+  });
+  it("từ chối giao thức lạ và //host", () => {
+    expect(() => chuanLienKet("javascript:alert(1)")).toThrow();
+    expect(() => chuanLienKet("//evil.com/x")).toThrow();
+    expect(() => chuanLienKet("drive.google.com")).toThrow();
   });
 });
 

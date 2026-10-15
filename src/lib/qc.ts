@@ -53,19 +53,36 @@ export function duocDanhQc(role: string, boPhan: string): boolean {
 }
 
 /**
+ * Liên kết làm bằng chứng: đường dẫn trong app ("/projects/…") hoặc http(s) ngoài.
+ * Trả chuỗi đã chuẩn hoá, null = rỗng; ném lỗi chữ khi không hợp lệ.
+ */
+export function chuanLienKet(tho: string | null | undefined): string | null {
+  const s = (tho ?? "").trim();
+  if (!s) return null;
+  if (s.length > 1000) throw new Error("Liên kết quá dài.");
+  if (s.startsWith("/") && !s.startsWith("//")) return s;
+  try {
+    const u = new URL(s);
+    if (u.protocol === "http:" || u.protocol === "https:") return u.toString();
+  } catch {}
+  throw new Error("Liên kết phải là trang trong app hoặc địa chỉ http(s)://…");
+}
+
+/**
  * null = hợp lệ; chuỗi = lỗi để hiện cho người dùng.
- * Hồ sơ đánh "Đủ" phải kèm tệp ngay trong lần đánh đó (`soTep`).
+ * Hồ sơ đánh "Đủ" phải có bằng chứng ngay trong lần đánh đó: tệp (`soTep`) hoặc liên kết.
  */
 export function kiemTraDanhGia(v: {
   ketQua: string;
   ghiChu: string;
   nhom?: string;
   soTep?: number;
+  coLienKet?: boolean;
 }): string | null {
   const nhom = v.nhom ?? "KIEM_TRA";
   if (!(KET_QUA_THEO_NHOM[nhom] ?? []).includes(v.ketQua)) return "Kết quả không hợp lệ.";
-  if (nhom === "HO_SO" && v.ketQua === "DAT" && !v.soTep)
-    return "Hồ sơ phải đính kèm tệp (ảnh hoặc PDF) mới đánh Đủ được.";
+  if (nhom === "HO_SO" && v.ketQua === "DAT" && !v.soTep && !v.coLienKet)
+    return "Hồ sơ phải đính kèm tệp hoặc liên kết mới đánh Đủ được.";
   if (v.ketQua === "KHONG_DAT" && !v.ghiChu.trim())
     return "Không đạt thì phải ghi chú lỗi và hướng xử lý.";
   return null;

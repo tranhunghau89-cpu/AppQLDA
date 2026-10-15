@@ -501,6 +501,10 @@ model QcLanKiem {
   nguoiId   String
   nguoiTen  String
   nguoiVai  String
+  // Bằng chứng dạng liên kết thay / kèm tệp: trang trong app (/projects/…/estimate) hoặc
+  // link ngoài (Drive, OneDrive…). lienKetTen = nhãn hiện ra, null thì hiện chính link.
+  lienKet    String?
+  lienKetTen String?
   createdAt DateTime @default(now())
   tep       QcTep[]
 
