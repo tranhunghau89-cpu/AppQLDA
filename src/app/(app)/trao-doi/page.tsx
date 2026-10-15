@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { LOAI_TRAO_DOI_LABEL, duocXemViec, duongDanViec } from "@/lib/traoDoi";
 import { khaNangDuyet } from "@/lib/duyetNhanh";
+import { TEN_NHOM_THAY_DOI } from "@/lib/baoThayDoi";
 import { DuyetNhanh } from "./DuyetNhanh";
 
 const TONE: Record<string, "slate" | "blue" | "amber" | "green"> = {
@@ -17,6 +18,7 @@ const TEN_VIEC: Record<string, string> = {
   CLIENT_QUOTE: "Báo giá gửi khách",
   QUOTE: "Dự toán chi tiết",
   BUOC: "Quy trình dự án",
+  ...TEN_NHOM_THAY_DOI,
 };
 
 // Hộp thư: các tin người khác nhắn tới mình, chưa đọc lên đầu. Đọc là bấm vào việc —
@@ -74,7 +76,7 @@ export default async function TraoDoiPage() {
                   </span>
                   <span className="ml-auto">{t.createdAt.toLocaleString("vi-VN")}</span>
                 </div>
-                <p className="mt-1 line-clamp-2 text-sm text-slate-700">{t.noiDung}</p>
+                <p className="mt-1 line-clamp-3 whitespace-pre-line text-sm text-slate-700">{t.noiDung}</p>
               </Link>
               {duyetDuoc.has(t.id) && <DuyetNhanh traoDoiId={t.id} />}
             </li>

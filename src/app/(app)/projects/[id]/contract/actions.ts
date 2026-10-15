@@ -1,5 +1,6 @@
 "use server";
 
+import { baoThayDoi } from "@/lib/baoThayDoi";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
@@ -151,6 +152,12 @@ export async function saveContract(
     changes: diffFields(truoc, data, CONTRACT_AUDIT_FIELDS),
   });
   await syncSalePriceFromContracts(projectId, await requireSession());
+  const doi = diffFields(truoc, data, CONTRACT_AUDIT_FIELDS);
+  if (!contractId || (doi && Object.keys(doi).length))
+    await baoThayDoi({
+      projectId, nhom: "HOP_DONG", tacGia: await requireSession(),
+      noiDung: `${contractId ? "Sửa" : "Thêm"} hợp đồng ${d.contractNo || d.subject || ""}`.trim() + ".",
+    });
   revalidatePath(`/projects/${projectId}/contract`);
   revalidatePath("/contracts");
   return { ok: true };
@@ -167,6 +174,10 @@ export async function deleteContract(
     select: CONTRACT_AUDIT_SELECT,
   });
   await db.contract.delete({ where: { id: contractId } });
+  await baoThayDoi({
+    projectId, nhom: "HOP_DONG", tacGia: await requireSession(),
+    noiDung: `Xóa hợp đồng ${truoc?.contractNo ?? truoc?.subject ?? ""}`.trim() + ".",
+  });
   await recordAudit({
     actor: await requireSession(),
     entity: "Contract",
@@ -237,6 +248,12 @@ export async function saveContractItem(
     changes: diffFields(truocItem, data, ITEM_AUDIT_FIELDS),
   });
   await syncSalePriceFromContracts(projectId, await requireSession());
+  const doiItem = diffFields(truocItem, data, ITEM_AUDIT_FIELDS);
+  if (!itemId || (doiItem && Object.keys(doiItem).length))
+    await baoThayDoi({
+      projectId, nhom: "HOP_DONG", tacGia: await requireSession(),
+      noiDung: `${itemId ? "Sửa" : "Thêm"} hạng mục HĐ "${d.name}".`,
+    });
   revalidatePath(`/projects/${projectId}/contract`);
   revalidatePath("/contracts");
   return { ok: true };
@@ -262,6 +279,10 @@ export async function deleteContractItem(
     projectId,
     action: "DELETE",
     changes: diffFields(truocItem, null, ITEM_AUDIT_FIELDS),
+  });
+  await baoThayDoi({
+    projectId, nhom: "HOP_DONG", tacGia: await requireSession(),
+    noiDung: `Xóa hạng mục HĐ "${truocItem?.name ?? ""}".`,
   });
   await recompute(contractId);
   await syncSalePriceFromContracts(projectId, await requireSession());

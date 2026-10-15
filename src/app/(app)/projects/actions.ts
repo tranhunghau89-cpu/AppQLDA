@@ -1,5 +1,6 @@
 "use server";
 
+import { baoThayDoi } from "@/lib/baoThayDoi";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
@@ -19,6 +20,8 @@ import {
   MILESTONE_TYPE_MAP,
   DOC_STATUS_MAP,
 } from "@/lib/constants";
+
+const tienVnd = (v: number | null) => (v == null ? "—" : v.toLocaleString("vi-VN") + " ₫");
 
 export type ActionResult =
   | { ok: true; id?: string }
@@ -172,6 +175,12 @@ export async function saveProject(
         action: "UPDATE",
         changes: diffFields(truoc, data, PROJECT_AUDIT_FIELDS),
       });
+      const doi = diffFields(truoc, data, PROJECT_AUDIT_FIELDS);
+      if (doi && Object.keys(doi).length)
+        await baoThayDoi({
+          projectId: id, nhom: "DU_AN", tacGia: session,
+          noiDung: `${session.name} sửa thông tin dự án.`,
+        });
     } else {
       const created = await db.project.create({ data });
       await recordAudit({
@@ -292,6 +301,11 @@ export async function updateStatus(
     action: "UPDATE",
     changes: diffFields(truoc, { status }, ["status"]),
   });
+  if (truoc?.status !== status)
+    await baoThayDoi({
+      projectId: id, nhom: "DU_AN", tacGia: session,
+      noiDung: `Trạng thái dự án: ${PROJECT_STATUS_MAP[truoc?.status ?? ""]?.label ?? truoc?.status ?? "—"} → ${PROJECT_STATUS_MAP[status]?.label ?? status}.`,
+    });
   revalidatePath("/projects");
   revalidatePath(`/projects/${id}`);
   return { ok: true };
@@ -635,6 +649,11 @@ export async function addDocVersion(
       authorName: session.name,
     },
   });
+  if (docType === "SHOP_DRAWING" || docType === "HOP_DONG")
+    await baoThayDoi({
+      projectId, nhom: docType === "SHOP_DRAWING" ? "THIET_KE" : "HOP_DONG", tacGia: session,
+      noiDung: `Phiên bản mới ${docType === "SHOP_DRAWING" ? "bản vẽ" : "hợp đồng"} ${version}${note ? ` — ${note}` : ""}.`,
+    });
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/weekly");
   return { ok: true };
@@ -706,6 +725,10 @@ export async function addPayment(projectId: string, form: FormData): Promise<Act
     action: "CREATE",
     changes: diffFields(null, taoMoi, PAYMENT_AUDIT_FIELDS),
   });
+  await baoThayDoi({
+    projectId, nhom: "THANH_TOAN", tacGia: await requireSession(),
+    noiDung: `Thêm đợt ${direction === "THU" ? "thu" : "chi"} "${name}": ${tienVnd(amount)}.`,
+  });
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/");
   return { ok: true };
@@ -748,6 +771,10 @@ export async function markPaymentPaid(
     projectId: found.projectId,
     action: "UPDATE",
     changes: diffFields(found, sau, PAYMENT_AUDIT_FIELDS),
+  });
+  await baoThayDoi({
+    projectId: found.projectId, nhom: "THANH_TOAN", tacGia: await requireSession(),
+    noiDung: `Đã ${found.direction === "THU" ? "thu" : "trả"} "${found.name}": ${tienVnd(paidAmount)}.`,
   });
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/");
@@ -816,6 +843,10 @@ export async function updatePayment(paymentId: string, form: FormData): Promise<
     action: "UPDATE",
     changes: diffFields(found, sau, PAYMENT_AUDIT_FIELDS),
   });
+  await baoThayDoi({
+    projectId: found.projectId, nhom: "THANH_TOAN", tacGia: await requireSession(),
+    noiDung: `Sửa đợt ${found.direction === "THU" ? "thu" : "chi"} "${name}": ${tienVnd(amount)}${paidDate ? `, đã ghi nhận ${tienVnd(sau.paidAmount)}` : ""}.`,
+  });
   revalidatePath(`/projects/${found.projectId}`);
   revalidatePath("/");
   return { ok: true };
@@ -832,6 +863,10 @@ export async function deletePayment(paymentId: string, projectId: string): Promi
   );
   if (denied) return denied;
   await paymentDb.delete({ where: { id: paymentId } });
+  await baoThayDoi({
+    projectId: found.projectId, nhom: "THANH_TOAN", tacGia: await requireSession(),
+    noiDung: `Xóa đợt ${found.direction === "THU" ? "thu" : "chi"} "${found.name}" (${tienVnd(found.amount)}).`,
+  });
   await recordAudit({
     actor: await requireSession(),
     entity: "Payment",

@@ -5,6 +5,7 @@ import { can, type Role } from "@/lib/rbac";
 import { canAccessProject } from "@/lib/scope";
 import { canAccessCoHoi } from "@/lib/coHoiAccess";
 import type { SessionUser } from "@/lib/session";
+import { MUC_NHOM_THAY_DOI, laNhomThayDoi } from "@/lib/baoThayDoi";
 
 /** Chủ của việc mà tin trao đổi gắn vào. */
 export type ChuViec = { projectId: string | null; coHoiId: string | null; doiTuong?: string };
@@ -16,7 +17,7 @@ export async function duocXemViec(
 ): Promise<boolean> {
   const s = ai as SessionUser;
   // Bước quy trình dự án: ai xem được dự án là xem được, không cần quyền báo giá.
-  if (chu.doiTuong === "BUOC") return !!chu.projectId && canAccessProject(s, chu.projectId);
+  if (chu.doiTuong === "BUOC" || (chu.doiTuong && laNhomThayDoi(chu.doiTuong))) return !!chu.projectId && canAccessProject(s, chu.projectId);
   if (!can(ai.role as Role, "quote", "view")) return false;
   if (chu.projectId) return canAccessProject(s, chu.projectId);
   if (chu.coHoiId) return canAccessCoHoi(s, chu.coHoiId);
@@ -37,6 +38,7 @@ export function duongDanViec(t: {
   coHoiId: string | null;
 }): string {
   if (t.doiTuong === "BUOC") return `/projects/${t.projectId}#quy-trinh`;
+  if (laNhomThayDoi(t.doiTuong)) return `/projects/${t.projectId}${MUC_NHOM_THAY_DOI[t.doiTuong]}`;
   const goc = t.projectId ? `/projects/${t.projectId}` : `/co-hoi/${t.coHoiId}`;
   return t.doiTuong === "CLIENT_QUOTE"
     ? `${goc}/client-quote?mo=${t.doiTuongId}#trao-doi`
