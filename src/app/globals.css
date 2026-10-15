@@ -20,6 +20,12 @@ body {
   height: 100%;
 }
 
+/* Luôn chừa chỗ thanh cuộn dọc: trang ngắn/dài (vd. đổi tab ở trang dự án) không làm
+   bề rộng nội dung nhảy ~15px. */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   background: #f8fafc;
   color: #0f172a;
