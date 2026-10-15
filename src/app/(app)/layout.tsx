@@ -1,5 +1,6 @@
 import { requireSession } from "@/lib/auth";
 import { can } from "@/lib/rbac";
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { demChuaDoc } from "@/lib/traoDoi";
 import { myProjects } from "@/lib/scope";
@@ -12,6 +13,13 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const session = await requireSession();
+
+  // Mật khẩu do quản trị đặt: chặn mọi trang cho đến khi người dùng tự đổi.
+  const me = await db.user.findUnique({
+    where: { id: session.userId },
+    select: { mustChangePassword: true },
+  });
+  if (me?.mustChangePassword) redirect("/doi-mat-khau");
 
   const [projects, suppliers, chuaDoc] = await Promise.all([
     myProjects(session),

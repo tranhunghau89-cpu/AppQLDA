@@ -65,6 +65,7 @@ export async function saveUser(
         if (d.password.length < 6)
           return { ok: false, error: "Mật khẩu tối thiểu 6 ký tự." };
         data.passwordHash = await hashPassword(d.password);
+        data.mustChangePassword = true;
       }
 
       // Đổi mật khẩu / đổi vai trò / khóa tài khoản phải cắt luôn các phiên đang mở.
@@ -85,6 +86,7 @@ export async function saveUser(
           active: d.active,
           duocDuyet: d.duocDuyet,
           passwordHash: await hashPassword(d.password),
+          mustChangePassword: true,
         },
       });
     }

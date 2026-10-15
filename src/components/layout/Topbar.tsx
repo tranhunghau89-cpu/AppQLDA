@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, LogOut, Menu } from "lucide-react";
+import { Bell, KeyRound, LogOut, Menu } from "lucide-react";
 import { ROLE_LABEL, type Role } from "@/lib/rbac";
 import { GlobalSearch } from "./GlobalSearch";
 
@@ -49,6 +49,14 @@ export function Topbar({
               {chuaDoc > 99 ? "99+" : chuaDoc}
             </span>
           )}
+        </Link>
+        <Link
+          href="/doi-mat-khau"
+          aria-label="Đổi mật khẩu"
+          title="Đổi mật khẩu"
+          className="rounded-md p-2 text-slate-600 hover:bg-slate-100"
+        >
+          <KeyRound className="h-5 w-5" />
         </Link>
         <form action="/api/auth/logout" method="post">
           <button

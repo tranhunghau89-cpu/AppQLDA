@@ -33,6 +33,9 @@ model User {
   // Tăng lên mỗi khi cần vô hiệu hóa mọi phiên đang mở của user
   // (đổi mật khẩu, đổi vai trò, khóa tài khoản). Token cũ mang version cũ -> bị từ chối.
   tokenVersion Int      @default(0)
+  // Quản trị đặt / đặt lại mật khẩu -> người dùng phải tự đổi ở lần đăng nhập kế tiếp,
+  // để quản trị không giữ mật khẩu thật của ai.
+  mustChangePassword Boolean @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
