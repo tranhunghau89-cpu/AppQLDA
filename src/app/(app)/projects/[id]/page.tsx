@@ -9,6 +9,8 @@ import { can } from "@/lib/rbac";
 import { formatVND, formatDate, formatNumber } from "@/lib/utils";
 import { StatusChanger, SupplierAssigner } from "./ProjectDetail";
 import { ThongBaoNhanh } from "./ThongBaoNhanh";
+import { BaoHanh } from "./BaoHanh";
+import { BAO_HANH_MO } from "@/lib/baoHanh";
 import { ProjectMembers, type MemberUser } from "./ProjectMembers";
 import { Milestones, type DotTheoMoc, type MilestoneValue } from "./Milestones";
 import { danhSachMoc, tenMoc } from "@/lib/tienDo";
@@ -438,6 +440,18 @@ export default async function ProjectDetailPage({
   ];
 
   const qcTom = tomTatGiaiDoan(qcMuc);
+  const baoHanhRows = await db.phieuBaoHanh.findMany({
+    where: { projectId: project.id },
+    orderBy: [{ trangThai: "asc" }, { ngayBao: "desc" }],
+  });
+  const tenNguoi = new Map(nguoiDungRows.map((u) => [u.id, u.name]));
+  const baoHanh = baoHanhRows.map((b) => ({
+    id: b.id, tieuDe: b.tieuDe, moTa: b.moTa, viTri: b.viTri, nguoiBao: b.nguoiBao,
+    ngayBao: b.ngayBao.toISOString(), mucDo: b.mucDo, phuTrachId: b.phuTrachId,
+    phuTrachTen: b.phuTrachId ? (tenNguoi.get(b.phuTrachId) ?? "(đã khóa)") : null,
+    hanXuLy: b.hanXuLy?.toISOString() ?? null, trangThai: b.trangThai, ketQua: b.ketQua, taoBoiTen: b.taoBoiTen,
+  }));
+  const baoHanhMo = baoHanhRows.filter((b) => BAO_HANH_MO.includes(b.trangThai)).length;
   const mocXong = mocHienThi.filter((m) => m.row?.done).length;
   // Thứ tự mục = thứ tự đánh số; mục không có quyền xem thì bỏ, số tự dồn lên.
   const cacMuc = [
@@ -449,6 +463,7 @@ export default async function ProjectDetailPage({
     { id: "tai-chinh", tieuDe: "Dự toán & tài chính" },
     canViewPurchase && { id: "mua-hang", tieuDe: "Đơn hàng" },
     { id: "ho-so", tieuDe: "Hồ sơ" },
+    { id: "bao-hanh", tieuDe: "Bảo hành", canChuY: baoHanhMo > 0 },
     { id: "nhat-ky", tieuDe: "Nhật ký" },
     canViewProfit && { id: "lich-su", tieuDe: "Lịch sử" },
   ]
@@ -897,6 +912,24 @@ export default async function ProjectDetailPage({
           docs={docs}
           canEditTypes={canEditTypes}
           canDelete={session.role === "ADMIN"}
+        />
+      </MucDuAn>
+
+      <MucDuAn
+        id="bao-hanh"
+        so={so("bao-hanh")}
+        tieuDe="Bảo hành"
+        tomTat={baoHanhRows.length ? `${baoHanhMo} đang mở / ${baoHanhRows.length} phiếu` : "Chưa có phiếu"}
+        mo={false}
+      >
+        <BaoHanh
+          projectId={project.id}
+          phieu={baoHanh}
+          nguoiDung={nguoiDungRows}
+          toiLa={session.userId}
+          canEdit={canEdit}
+          canDelete={session.role === "ADMIN"}
+          nowMs={nowMs}
         />
       </MucDuAn>
 

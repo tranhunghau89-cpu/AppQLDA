@@ -5,7 +5,7 @@ import { canAccessProject } from "@/lib/scope";
 import type { Role } from "@/lib/rbac";
 import type { SessionUser } from "@/lib/session";
 
-export type NhomThayDoi = "HOP_DONG" | "THIET_KE" | "THANH_TOAN" | "DU_AN" | "VAT_TU" | "TIEN_DO" | "KHAC";
+export type NhomThayDoi = "HOP_DONG" | "THIET_KE" | "THANH_TOAN" | "DU_AN" | "VAT_TU" | "TIEN_DO" | "KHAC" | "BAO_HANH";
 
 export const TEN_NHOM_THAY_DOI: Record<NhomThayDoi, string> = {
   HOP_DONG: "Hợp đồng",
@@ -15,6 +15,7 @@ export const TEN_NHOM_THAY_DOI: Record<NhomThayDoi, string> = {
   VAT_TU: "Vật tư",
   TIEN_DO: "Tiến độ",
   KHAC: "Thông báo",
+  BAO_HANH: "Bảo hành",
 };
 
 /** Đuôi đường dẫn từ trang dự án tới chỗ thay đổi. */
@@ -26,6 +27,7 @@ export const MUC_NHOM_THAY_DOI: Record<NhomThayDoi, string> = {
   VAT_TU: "#vat-tu",
   TIEN_DO: "#tien-do",
   KHAC: "#tong-quan",
+  BAO_HANH: "#bao-hanh",
 };
 
 /** Phòng nhận theo nhóm — cộng thêm thành viên dự án ở mọi nhóm. */
@@ -37,6 +39,7 @@ export const PHONG_NHAN: Record<NhomThayDoi, Role[]> = {
   VAT_TU: ["PROCUREMENT"],
   TIEN_DO: ["ENGINEERING"],
   KHAC: [],
+  BAO_HANH: ["ENGINEERING"],
 };
 
 export function laNhomThayDoi(x: string): x is NhomThayDoi {

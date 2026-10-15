@@ -155,7 +155,14 @@ export async function GET(req: Request) {
   let soNguoiNhac = 0;
   try {
     const chuKhach = new Map(henRows.filter((n) => n.khachHang).map((n) => [n.khachHang!.id, n.khachHang!.ownerId]));
-    soNguoiNhac = await guiNhacTheoNguoi({ moc, dot, baoGia, hen, chuKhach }, now, SAP_TOI_NGAY);
+    const phieu = await db.phieuBaoHanh.findMany({
+      where: { trangThai: { in: ["MOI", "DANG_XU_LY"] }, hanXuLy: { not: null, lte: hanSap } },
+      select: { tieuDe: true, mucDo: true, phuTrachId: true, hanXuLy: true, project: { select: { code: true } } },
+    });
+    const baoHanh = phieu.map((p) => ({
+      projectCode: p.project.code, tieuDe: p.tieuDe, mucDo: p.mucDo, phuTrachId: p.phuTrachId, hanXuLy: p.hanXuLy as Date,
+    }));
+    soNguoiNhac = await guiNhacTheoNguoi({ moc, dot, baoGia, hen, chuKhach, baoHanh }, now, SAP_TOI_NGAY);
   } catch (e) {
     console.error("[cron/reminders] nhắc theo người thất bại:", e);
   }

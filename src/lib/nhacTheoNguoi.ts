@@ -24,6 +24,35 @@ export interface DuLieuNhac {
   hen: HenLienHeInput[];
   /** khachHangId → người phụ trách khách. */
   chuKhach: Map<string, string | null>;
+  /** Phiếu bảo hành còn mở có hạn tới trong cửa sổ nhắc (hoặc đã quá hạn). */
+  baoHanh?: PhieuNhac[];
+}
+
+export interface PhieuNhac {
+  projectCode: string;
+  tieuDe: string;
+  mucDo: string;
+  phuTrachId: string | null;
+  hanXuLy: Date;
+}
+
+/** Phiếu bảo hành của một người: phụ trách phiếu; Ban giám đốc thấy cả phiếu chưa giao. */
+export function phieuCuaNguoi(u: Pick<NguoiNhac, "id" | "role">, ds: PhieuNhac[]): PhieuNhac[] {
+  return ds.filter((p) => p.phuTrachId === u.id || (u.role === "ADMIN" && !p.phuTrachId));
+}
+
+/** Mục "BẢO HÀNH" của tin nhắc — hạn sớm nhất (quá hạn lâu nhất) đứng đầu. */
+export function dongBaoHanh(ds: PhieuNhac[], now: number): string {
+  if (ds.length === 0) return "";
+  const xep = [...ds].sort((a, b) => a.hanXuLy.getTime() - b.hanXuLy.getTime());
+  const d = [`BẢO HÀNH (${ds.length})`];
+  for (const p of xep.slice(0, 10)) {
+    const n = Math.floor((p.hanXuLy.getTime() - now) / 86_400_000);
+    const han = n < 0 ? `quá hạn ${-n} ngày` : n === 0 ? "hạn hôm nay" : `còn ${n} ngày`;
+    d.push(`  · ${p.mucDo === "KHAN" ? "[KHẨN] " : ""}${p.projectCode} — ${p.tieuDe}: ${han}${p.phuTrachId ? "" : " (chưa giao)"}`);
+  }
+  if (ds.length > 10) d.push(`  … và ${ds.length - 10} phiếu nữa`);
+  return d.join("\n");
 }
 
 /**
@@ -34,7 +63,7 @@ export interface DuLieuNhac {
  * - Báo giá sắp/đã hết hiệu lực: phòng kinh doanh.
  * - Hẹn liên hệ khách: người phụ trách khách.
  */
-export function phanViec(u: NguoiNhac, d: DuLieuNhac): Omit<DuLieuNhac, "chuKhach"> {
+export function phanViec(u: NguoiNhac, d: DuLieuNhac): Omit<DuLieuNhac, "chuKhach" | "baoHanh"> {
   if (u.role === "ADMIN") return { moc: d.moc, dot: d.dot, baoGia: d.baoGia, hen: d.hen };
   return {
     moc: d.moc.filter((m) => u.duAn.has(m.projectId)),
@@ -72,14 +101,16 @@ export async function guiNhacTheoNguoi(d: DuLieuNhac, now: number, sapToiNgay: n
     if (roi.has(u.id)) continue;
     const v = phanViec({ id: u.id, role: u.role, duAn: duAn.get(u.id) ?? new Set() }, d);
     const bt = buildReminderReport(v.moc, v.dot, now, sapToiNgay, v.baoGia, v.hen);
-    if (bt.rong) continue;
+    const bh = dongBaoHanh(phieuCuaNguoi(u, d.baoHanh ?? []), now);
+    if (bt.rong && !bh) continue;
+    const chinh = bt.rong ? "" : formatReminderText(bt).replace(/^\[QLDA\] Nhắc việc hôm nay\s*/, "");
     await db.traoDoi.create({
       data: {
         doiTuong: "NHAC_VIEC",
         doiTuongId: ngay,
         nhanDe: `Việc của bạn hôm nay`,
         loai: "GHI_CHU",
-        noiDung: formatReminderText(bt).replace(/^\[QLDA\] Nhắc việc hôm nay\s*/, ""),
+        noiDung: [chinh, bh].filter(Boolean).join("\n\n"),
         tacGiaId: "he-thong",
         tacGiaTen: "Hệ thống",
         nguoiNhan: { create: [{ userId: u.id }] },

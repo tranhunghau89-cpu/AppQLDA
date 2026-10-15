@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db", () => ({ db: {} }));
-import { khoaNgay, phanViec, type DuLieuNhac } from "./nhacTheoNguoi";
+import { dongBaoHanh, khoaNgay, phanViec, phieuCuaNguoi, type DuLieuNhac } from "./nhacTheoNguoi";
 
 const d: DuLieuNhac = {
   moc: [
@@ -52,5 +52,26 @@ describe("phanViec", () => {
 describe("khoaNgay", () => {
   it("theo giờ Việt Nam", () => {
     expect(khoaNgay(Date.UTC(2026, 9, 15, 18, 0))).toBe("2026-10-16");
+  });
+});
+
+describe("bảo hành trong nhắc việc", () => {
+  const NOW = Date.UTC(2026, 9, 15);
+  const ds = [
+    { projectCode: "A", tieuDe: "Thấm trần", mucDo: "KHAN", phuTrachId: "u1", hanXuLy: new Date(NOW - 2 * 86_400_000) },
+    { projectCode: "B", tieuDe: "Nứt tường", mucDo: "THUONG", phuTrachId: null, hanXuLy: new Date(NOW + 3 * 86_400_000) },
+  ];
+
+  it("người phụ trách thấy phiếu của mình; BGĐ thấy phiếu chưa giao", () => {
+    expect(phieuCuaNguoi({ id: "u1", role: "ENGINEERING" }, ds).map((p) => p.tieuDe)).toEqual(["Thấm trần"]);
+    expect(phieuCuaNguoi({ id: "x", role: "ADMIN" }, ds).map((p) => p.tieuDe)).toEqual(["Nứt tường"]);
+  });
+
+  it("ghi quá hạn và khẩn", () => {
+    const t = dongBaoHanh(ds, NOW);
+    expect(t).toContain("BẢO HÀNH (2)");
+    expect(t).toContain("[KHẨN] A — Thấm trần: quá hạn 2 ngày");
+    expect(t).toContain("B — Nứt tường: còn 3 ngày (chưa giao)");
+    expect(dongBaoHanh([], NOW)).toBe("");
   });
 });

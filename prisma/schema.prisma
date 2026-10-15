@@ -250,6 +250,7 @@ model Project {
   materialSpecs    ProjectMaterialSpec[]
   qcMuc            QcMuc[]
   buocQuyTrinh     BuocQuyTrinh[]
+  baoHanh          PhieuBaoHanh[]
   coHoi           CoHoi? // cơ hội chào giá đã sinh ra dự án này (nếu có)
 
   @@index([status])
@@ -1714,4 +1715,29 @@ model TraoDoiNhan {
 
   @@unique([traoDoiId, userId])
   @@index([userId, daDocLuc])
+}
+
+// Phiếu bảo hành: CĐT báo lỗi sau bàn giao → giao người xử lý → xong / từ chối.
+model PhieuBaoHanh {
+  id          String    @id @default(cuid())
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tieuDe      String
+  moTa        String?
+  viTri       String? // vị trí / hạng mục bị lỗi
+  nguoiBao    String? // ai bên CĐT báo, SĐT
+  ngayBao     DateTime  @default(now())
+  mucDo       String    @default("THUONG") // KHAN | THUONG
+  phuTrachId  String?
+  hanXuLy     DateTime?
+  trangThai   String    @default("MOI") // MOI | DANG_XU_LY | DA_XONG | TU_CHOI
+  ketQua      String? // đã làm gì / lý do từ chối
+  xongLuc     DateTime?
+  taoBoiId    String
+  taoBoiTen   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([projectId, trangThai])
+  @@index([trangThai, hanXuLy])
 }
