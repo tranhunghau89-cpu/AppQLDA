@@ -659,6 +659,11 @@ model EstimateItem {
   designQty      Float?
   actualQty      Float? // KL thực (mua hàng/thi công thực)
   actualUnitPrice Float? // đơn giá thực mua — null = chưa có giá thực
+  // Thành tiền thực CỘNG TỪ MỤC CON thực tế (cache). Null = tính KL × đơn giá thực như cũ.
+  actualAmount   Float?
+  // true = người dùng đã gõ tay KL/đơn giá thực trên dòng cha → mục con thực tế không
+  // ghi đè nữa. Xoá trắng cả hai ô thì cờ tắt và dòng cha lại cộng theo mục con.
+  thucTeGhiDe    Boolean          @default(false)
   unitPrice      Float?
   amount         Float?
   supplierId     String?
@@ -684,6 +689,7 @@ model EstimateItem {
   khuVuc      KhuVuc?        @relation(fields: [khuVucId], references: [id], onDelete: SetNull)
 
   chiTiet ChiTietKhoiLuong[]
+  mucCon  MucConDuToan[]
   donHang PurchaseOrderItem[]
 
   @@index([sectionId])
@@ -1743,4 +1749,23 @@ model PhieuBaoHanh {
 
   @@index([projectId, trangThai])
   @@index([trangThai, hanXuLy])
+}
+
+// Mục con của một đầu việc dự toán thi công: "Bulong liên kết" = M12×30 + M16×50…, mỗi
+// mã một giá. Hai phía SỐNG RIÊNG (loai): dự toán và thực tế được có danh sách mã khác
+// nhau — đối chiếu ở cấp đầu việc, không ở cấp mã. Dòng cha giữ tổng (designQty/amount
+// hoặc actualAmount) để mọi chỗ cộng tiền khác không phải biết tới bảng này.
+model MucConDuToan {
+  id             String       @id @default(cuid())
+  estimateItemId String
+  estimateItem   EstimateItem @relation(fields: [estimateItemId], references: [id], onDelete: Cascade)
+  loai           String // DU_TOAN | THUC_TE
+  ten            String // mã / quy cách: "M16×50"
+  donVi          String?
+  khoiLuong      Float?
+  donGia         Float?
+  ghiChu         String?
+  sortOrder      Int          @default(0)
+
+  @@index([estimateItemId, loai, sortOrder])
 }

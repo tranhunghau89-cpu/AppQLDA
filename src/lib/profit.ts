@@ -7,6 +7,8 @@ export interface EstimateLine {
   unitPrice: number | null;
   amount: number | null;
   actualUnitPrice?: number | null;
+  /** Thành tiền thực cộng từ mục con thực tế; có thì thắng phép nhân KL × đơn giá thực. */
+  actualAmount?: number | null;
 }
 
 /**
@@ -67,6 +69,7 @@ export function formatPercent(v: number | null): string {
 
 /** Thành tiền THỰC 1 dòng = (KL thực, trống thì KL dự toán) × đơn giá thực. Null = chưa có giá thực. */
 export function computeActualAmount(item: EstimateLine): number | null {
+  if (item.actualAmount != null) return item.actualAmount;
   if (item.actualUnitPrice == null) return null;
   return (item.actualQty ?? item.designQty ?? 0) * item.actualUnitPrice;
 }

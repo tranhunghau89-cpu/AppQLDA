@@ -19,6 +19,7 @@ export async function docGiaTriGiaiDoan(projectId: string): Promise<GiaTriGiaiDo
           actualQty: true,
           unitPrice: true,
           actualUnitPrice: true,
+          actualAmount: true,
           amount: true,
         },
       },

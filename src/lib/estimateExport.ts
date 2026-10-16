@@ -12,6 +12,7 @@ export interface ExportItem {
   actualQty: number | null;
   unitPrice: number | null;
   actualUnitPrice: number | null;
+  actualAmount?: number | null;
   amount: number | null;
   note: string | null;
   sortOrder: number;

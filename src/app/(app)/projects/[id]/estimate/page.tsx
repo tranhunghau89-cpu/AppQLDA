@@ -40,6 +40,18 @@ export default async function EstimatePage({
             // Chỉ ĐẾM dòng bảng bóc, không nạp nội dung: một đầu mục có thể có hàng trăm
             // dòng chi tiết, mà trang này chỉ cần biết "có hay không" để khoá ô.
             _count: { select: { chiTiet: true } },
+            mucCon: {
+              select: {
+                id: true,
+                loai: true,
+                ten: true,
+                donVi: true,
+                khoiLuong: true,
+                donGia: true,
+                ghiChu: true,
+              },
+              orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+            },
           },
           orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
         },
@@ -122,6 +134,10 @@ export default async function EstimatePage({
     designQty: it.designQty,
     actualQty: it.actualQty,
     actualUnitPrice: it.actualUnitPrice,
+    actualAmount: it.actualAmount,
+    thucTeGhiDe: it.thucTeGhiDe,
+    mucConDuToan: it.mucCon.filter((m) => m.loai === "DU_TOAN"),
+    mucConThucTe: it.mucCon.filter((m) => m.loai === "THUC_TE"),
     unitPrice: it.unitPrice,
     amount: it.amount,
     supplierId: it.supplierId,

@@ -57,6 +57,7 @@ export async function GET(
       designQty: it.designQty,
       actualQty: it.actualQty,
       actualUnitPrice: it.actualUnitPrice,
+      actualAmount: it.actualAmount,
       unitPrice: it.unitPrice,
       amount: it.amount,
       note: it.note,

@@ -8,6 +8,7 @@ import { recordAudit } from "@/lib/audit";
 import { laCongThuc, tinhBieuThuc } from "@/lib/bieuThuc";
 import { docBangChiTiet, type DongBoc } from "@/lib/import/bocChiTiet";
 import { dienGiaiCach, tongChiTiet } from "@/lib/khoiLuong/tongChiTiet";
+import { tongMucCon, type LoaiMucCon } from "@/lib/khoiLuong/mucCon";
 import { ESTIMATE_GROUP_MAP } from "@/lib/constants";
 import { chonDonGia, ngayTraGia } from "@/lib/thuVien/gia";
 import { computeTemplateLines, type TemplateLine } from "@/lib/estimateTemplate";
@@ -156,14 +157,30 @@ export async function saveEstimateItem(
   // gửi lên. Giao diện đã khoá ô, nhưng một biểu mẫu cũ còn mở trong tab khác vẫn gửi
   // được, và ghi đè ở đây thì bảng bóc với đầu mục lệch nhau mà không ai biết.
   if (id) {
-    const soChiTiet = await db.chiTietKhoiLuong.count({ where: { estimateItemId: id } });
-    if (soChiTiet > 0) {
-      const conLai = { ...data };
-      delete (conLai as { designQty?: number | null }).designQty;
-      await db.estimateItem.update({ where: { id }, data: { ...conLai, ...sortOrder } });
-    } else {
-      await db.estimateItem.update({ where: { id }, data: { ...data, ...sortOrder } });
+    const [soChiTiet, soConDuToan, cu] = await Promise.all([
+      db.chiTietKhoiLuong.count({ where: { estimateItemId: id } }),
+      db.mucConDuToan.count({ where: { estimateItemId: id, loai: "DU_TOAN" } }),
+      db.estimateItem.findUnique({
+        where: { id },
+        select: { actualQty: true, actualUnitPrice: true },
+      }),
+    ]);
+    const conLai: Record<string, unknown> = { ...data };
+    if (soChiTiet > 0) delete conLai.designQty;
+    // Có mục con dự toán thì KL, đơn giá và thành tiền là tổng của mục con.
+    if (soConDuToan > 0) {
+      delete conLai.designQty;
+      delete conLai.unitPrice;
+      delete conLai.amount;
     }
+    // Đổi KL thực trong biểu mẫu = ghi đè phần thực tế cộng từ mục con.
+    const doiThuc = cu != null && data.actualQty !== cu.actualQty;
+    if (doiThuc) {
+      conLai.thucTeGhiDe = data.actualQty != null || cu.actualUnitPrice != null;
+      conLai.actualAmount = null;
+    }
+    await db.estimateItem.update({ where: { id }, data: { ...conLai, ...sortOrder } });
+    if (doiThuc && conLai.thucTeGhiDe === false) await tinhLaiTuMucCon(id, "THUC_TE");
   }
   else await db.estimateItem.create({ data: { projectId, ...data, ...sortOrder } });
 
@@ -642,6 +659,8 @@ export async function luuBangBoc(
       data: { designQty: tong.tong, amount: thanhTien },
     }),
   ]);
+  // Đầu việc có mục con dự toán thì thành tiền vẫn là tổng mục con.
+  await tinhLaiTuMucCon(estimateItemId, "DU_TOAN");
 
   await recordAudit({
     actor: await requireSession(),
@@ -736,12 +755,18 @@ export async function suaOEstimate(
       actualQty: true,
       unitPrice: true,
       actualUnitPrice: true,
-      _count: { select: { chiTiet: true } },
+      _count: { select: { chiTiet: true, mucCon: { where: { loai: "DU_TOAN" } } } },
     },
   });
   if (!dong) return { ok: false, error: "Không tìm thấy đầu mục dự toán." };
 
   let { designQty, actualQty, unitPrice, actualUnitPrice } = dong;
+  if ((truong === "qty" || truong === "unitPrice") && dong._count.mucCon > 0) {
+    return {
+      ok: false,
+      error: `"${dong.name}" có ${dong._count.mucCon} mục con dự toán — sửa trong bảng mục con.`,
+    };
+  }
   if (truong === "qty") {
     // KL dự toán = KL thiết kế. Có bảng bóc thì nó là tổng bảng bóc — sửa ở đó.
     if (dong._count.chiTiet > 0) {
@@ -761,6 +786,10 @@ export async function suaOEstimate(
 
   // Thành tiền lưu sẵn là của DỰ TOÁN; phần thực tính lúc hiển thị.
   const kl = designQty;
+  const suaThuc = truong === "actualQty" || truong === "actualUnitPrice";
+  // Gõ tay ô thực tế = GHI ĐÈ phần cộng từ mục con thực tế. Xoá trắng cả hai ô thì
+  // bỏ ghi đè, dòng cha lại cộng theo mục con.
+  const ghiDe = actualQty != null || actualUnitPrice != null;
   await db.estimateItem.update({
     where: { id: itemId },
     data: {
@@ -770,8 +799,10 @@ export async function suaOEstimate(
       actualUnitPrice,
       // Thiếu một vế thì để trống chứ không ghi 0: 0 đồng là một khẳng định.
       amount: kl != null && unitPrice != null ? kl * unitPrice : null,
+      ...(suaThuc ? { thucTeGhiDe: ghiDe, actualAmount: null } : {}),
     },
   });
+  if (suaThuc && !ghiDe) await tinhLaiTuMucCon(itemId, "THUC_TE");
 
   revalidatePath(`/projects/${projectId}/estimate`);
   revalidatePath(`/projects/${projectId}`);
@@ -852,6 +883,140 @@ export async function suaCongViecEstimate(
     });
   }
 
+  revalidatePath(`/projects/${projectId}/estimate`);
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/estimates");
+  return { ok: true };
+}
+
+// ---------- Mục con (dự toán / thực tế) ----------
+
+/**
+ * Cộng mục con lên dòng cha và GHI tổng vào dòng cha, để mọi chỗ cộng tiền khác
+ * (`computeAmount`, `computeActualAmount`, xuất Excel, bảng giai đoạn) không phải biết
+ * tới bảng mục con.
+ *
+ * DỰ TOÁN: không còn mục con thì để nguyên số cuối cùng (như gỡ bảng bóc). Có thì thành
+ * tiền = tổng mục con; KL = tổng KL khi cùng đơn vị — khác đơn vị (bulong tính cái, cha
+ * tính kg) hoặc đã có bảng bóc thì giữ KL của cha; đơn giá = thành tiền ÷ KL.
+ *
+ * THỰC TẾ: người dùng đã gõ tay ô thực tế trên dòng cha (`thucTeGhiDe`) thì không đụng.
+ */
+async function tinhLaiTuMucCon(itemId: string, loai: LoaiMucCon) {
+  const cha = await db.estimateItem.findUnique({
+    where: { id: itemId },
+    select: {
+      unit: true,
+      designQty: true,
+      thucTeGhiDe: true,
+      _count: { select: { chiTiet: true } },
+      mucCon: {
+        where: { loai },
+        select: { ten: true, donVi: true, khoiLuong: true, donGia: true },
+      },
+    },
+  });
+  if (!cha) return;
+  const t = tongMucCon(cha.mucCon, cha.unit);
+
+  if (loai === "DU_TOAN") {
+    if (cha.mucCon.length === 0) return;
+    const kl = cha._count.chiTiet > 0 ? cha.designQty : (t.khoiLuong ?? cha.designQty);
+    await db.estimateItem.update({
+      where: { id: itemId },
+      data: {
+        designQty: kl,
+        amount: t.thanhTien,
+        unitPrice: kl && t.thanhTien != null ? t.thanhTien / kl : null,
+      },
+    });
+    return;
+  }
+
+  if (cha.thucTeGhiDe) return;
+  await db.estimateItem.update({
+    where: { id: itemId },
+    data:
+      cha.mucCon.length === 0
+        ? { actualQty: null, actualUnitPrice: null, actualAmount: null }
+        : { actualQty: t.khoiLuong, actualUnitPrice: t.donGia, actualAmount: t.thanhTien },
+  });
+}
+
+const mucConSchema = z.object({
+  ten: z.string().trim().min(1, "Mục con phải có tên / mã"),
+  donVi: z.string().trim().nullable(),
+  khoiLuong: z.number().min(0, "Khối lượng không được âm").nullable(),
+  donGia: z.number().min(0, "Đơn giá không được âm").nullable(),
+  ghiChu: z.string().trim().nullable(),
+});
+export type MucConGui = z.input<typeof mucConSchema>;
+
+/**
+ * Lưu TOÀN BỘ danh sách mục con một phía của đầu việc (thay danh sách cũ), rồi cộng lại
+ * lên dòng cha. Danh sách rỗng = gỡ hết mục con phía đó.
+ */
+export async function luuMucCon(
+  projectId: string,
+  itemId: string,
+  loai: LoaiMucCon,
+  payload: unknown
+): Promise<ActionResult> {
+  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa dự toán.", itemId);
+  if (denied) return denied;
+  if (loai !== "DU_TOAN" && loai !== "THUC_TE") {
+    return { ok: false, error: "Loại mục con không hợp lệ." };
+  }
+
+  const parsed = z.array(mucConSchema).safeParse(payload);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const ds = parsed.data;
+
+  const cha = await db.estimateItem.findUnique({ where: { id: itemId }, select: { name: true } });
+  if (!cha) return { ok: false, error: "Không tìm thấy đầu mục dự toán." };
+
+  await db.$transaction([
+    db.mucConDuToan.deleteMany({ where: { estimateItemId: itemId, loai } }),
+    db.mucConDuToan.createMany({
+      data: ds.map((m, i) => ({
+        ...m,
+        donVi: m.donVi || null,
+        ghiChu: m.ghiChu || null,
+        estimateItemId: itemId,
+        loai,
+        sortOrder: i,
+      })),
+    }),
+  ]);
+  await tinhLaiTuMucCon(itemId, loai);
+
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "EstimateItem",
+    entityId: itemId,
+    entityLabel: cha.name,
+    projectId,
+    action: "UPDATE",
+    changes: {
+      [loai === "DU_TOAN" ? "mucConDuToan" : "mucConThucTe"]: { truoc: null, sau: `${ds.length} mục` },
+    },
+  });
+
+  revalidatePath(`/projects/${projectId}/estimate`);
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/estimates");
+  return { ok: true };
+}
+
+/** Bỏ ghi đè thực tế: xoá số gõ tay, dòng cha lại cộng theo mục con thực tế. */
+export async function boGhiDeThucTe(projectId: string, itemId: string): Promise<ActionResult> {
+  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa dự toán.", itemId);
+  if (denied) return denied;
+  await db.estimateItem.update({
+    where: { id: itemId },
+    data: { thucTeGhiDe: false, actualQty: null, actualUnitPrice: null, actualAmount: null },
+  });
+  await tinhLaiTuMucCon(itemId, "THUC_TE");
   revalidatePath(`/projects/${projectId}/estimate`);
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/estimates");

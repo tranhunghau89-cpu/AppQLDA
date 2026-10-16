@@ -2,7 +2,7 @@
 
 import { Fragment, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronRight, Plus, Pencil, Table2, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, ListTree, Plus, Pencil, Table2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
@@ -29,9 +29,19 @@ import {
 } from "./actions";
 import { ApplyTemplate, type TemplateForClient } from "./ApplyTemplate";
 import { BangBocModal } from "./BangBocModal";
+import { MucConModal } from "./MucConModal";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
 import { updateSalePrice } from "../../actions";
+
+export interface MucConRow {
+  id: string;
+  ten: string;
+  donVi: string | null;
+  khoiLuong: number | null;
+  donGia: number | null;
+  ghiChu: string | null;
+}
 
 export interface EstimateRow {
   id: string;
@@ -44,6 +54,13 @@ export interface EstimateRow {
   actualQty: number | null;
   unitPrice: number | null;
   actualUnitPrice: number | null;
+  /** Thành tiền thực cộng từ mục con thực tế (cache). */
+  actualAmount: number | null;
+  /** Người dùng đã gõ tay ô thực tế → mục con thực tế không cộng lên. */
+  thucTeGhiDe: boolean;
+  /** Mục con: dự toán và thực tế là hai danh sách riêng, được khác mã nhau. */
+  mucConDuToan: MucConRow[];
+  mucConThucTe: MucConRow[];
   amount: number | null;
   supplierId: string | null;
   supplierName: string | null;
@@ -136,6 +153,16 @@ export function EstimateEditor({
       return moi;
     });
   const [bangBoc, setBangBoc] = useState<EstimateRow | null>(null);
+  const [mucCon, setMucCon] = useState<EstimateRow | null>(null);
+  // Đầu việc đang mở mục con ngay trên bảng.
+  const [moMucCon, setMoMucCon] = useState<Set<string>>(() => new Set());
+  const batMucCon = (id: string) =>
+    setMoMucCon((c) => {
+      const n = new Set(c);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const toast = useToast();
@@ -456,8 +483,13 @@ export function EstimateEditor({
                       </td>
                       {canEdit && <td />}
                     </tr>
-                        {grp.rows.map((r, ri) => (
-                          <Tr key={r.id}>
+                        {grp.rows.map((r, ri) => {
+                          const soCon = r.mucConDuToan.length + r.mucConThucTe.length;
+                          const coConDuToan = r.mucConDuToan.length > 0;
+                          const dangMo = moMucCon.has(r.id);
+                          return (
+                          <Fragment key={r.id}>
+                          <Tr>
                             <Td className="px-2 font-mono text-xs">
                               {r.maCV ? (
                                 <span className="text-slate-600">{r.maCV}</span>
@@ -467,7 +499,17 @@ export function EstimateEditor({
                                 </span>
                               )}
                             </Td>
-                            <Td className="pl-6 text-slate-800 break-words">
+                            <Td className="relative pl-6 text-slate-800 break-words">
+                              {soCon > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => batMucCon(r.id)}
+                                  title={`${dangMo ? "Ẩn" : "Hiện"} ${soCon} mục con`}
+                                  className="absolute left-0.5 top-2 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                >
+                                  {dangMo ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                </button>
+                              )}
                               {canEdit ? (
                                 <>
                                   {/* Gõ để đổi tên, hoặc chọn công tác khác của thư viện. */}
@@ -497,9 +539,13 @@ export function EstimateEditor({
                                   nhan={`Khối lượng — ${r.name}`}
                                   giaTri={r.designQty}
                                   dinhDang={formatQty}
-                                  khoa={r.soChiTiet > 0}
-                                  dauKhoa="▤"
-                                  lyDoKhoa={`Bằng tổng bảng bóc ${r.soChiTiet} dòng — sửa bằng nút bảng bóc`}
+                                  khoa={r.soChiTiet > 0 || coConDuToan}
+                                  dauKhoa={r.soChiTiet > 0 ? "▤" : "∑"}
+                                  lyDoKhoa={
+                                    r.soChiTiet > 0
+                                      ? `Bằng tổng bảng bóc ${r.soChiTiet} dòng — sửa bằng nút bảng bóc`
+                                      : `Tổng ${r.mucConDuToan.length} mục con dự toán — sửa bằng nút mục con`
+                                  }
                                   luu={(tho) => suaOEstimate(projectId, r.id, "qty", tho)}
                                 />
                               ) : (
@@ -523,7 +569,9 @@ export function EstimateEditor({
                                   nhan={`Đơn giá — ${r.name}`}
                                   giaTri={r.unitPrice}
                                   dinhDang={formatNumber}
-                                  khoa={false}
+                                  khoa={coConDuToan}
+                                  dauKhoa="∑"
+                                  lyDoKhoa={`Bình quân ${r.mucConDuToan.length} mục con dự toán — sửa bằng nút mục con`}
                                   luu={(tho) => suaOEstimate(projectId, r.id, "unitPrice", tho)}
                                 />
                               ) : (
@@ -563,10 +611,30 @@ export function EstimateEditor({
                               ) : (
                                 formatVND(computeActualAmount(r))
                               )}
+                              {r.mucConThucTe.length > 0 && (
+                                <div
+                                  className="text-[10px] font-normal text-slate-400"
+                                  title={
+                                    r.thucTeGhiDe
+                                      ? "Đang ghi đè bằng số gõ tay — mục con thực tế không cộng lên"
+                                      : `Tổng ${r.mucConThucTe.length} mục con thực tế`
+                                  }
+                                >
+                                  {r.thucTeGhiDe ? "ghi đè tay" : `∑ ${r.mucConThucTe.length} mục con`}
+                                </div>
+                              )}
                             </Td>
                             {canEdit && (
                               <Td className="text-right">
                                 <div className="flex justify-end gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    title="Mục con (dự toán / thực tế)"
+                                    onClick={() => setMucCon(r)}
+                                  >
+                                    <ListTree className={`h-4 w-4 ${soCon > 0 ? "text-blue-600" : ""}`} />
+                                  </Button>
                                   <Button
                                     variant="ghost"
                                     size="icon"
@@ -590,7 +658,50 @@ export function EstimateEditor({
                               </Td>
                             )}
                           </Tr>
-                        ))}
+                          {dangMo &&
+                            r.mucConDuToan.map((m) => (
+                              <tr key={m.id} className="bg-slate-50/40 text-xs text-slate-600">
+                                <td />
+                                <td className="py-1 pl-10 pr-3">
+                                  ↳ {m.ten}
+                                  {m.ghiChu ? <span className="text-slate-400"> · {m.ghiChu}</span> : null}
+                                </td>
+                                <td className="px-3 py-1 text-slate-400">{m.donVi ?? r.unit ?? ""}</td>
+                                <td className="px-3 py-1 text-right tabular-nums">{formatNumber(m.khoiLuong)}</td>
+                                <td className="px-3 py-1 text-right tabular-nums">{formatNumber(m.donGia)}</td>
+                                <td className="px-3 py-1 text-right tabular-nums">
+                                  {m.khoiLuong != null && m.donGia != null ? formatVND(m.khoiLuong * m.donGia) : "—"}
+                                </td>
+                                <td colSpan={3} className="border-l border-slate-100 bg-amber-50/20" />
+                                {canEdit && <td />}
+                              </tr>
+                            ))}
+                          {dangMo &&
+                            r.mucConThucTe.map((m) => (
+                              <tr key={m.id} className="bg-amber-50/20 text-xs text-slate-600">
+                                <td />
+                                <td className="py-1 pl-10 pr-3">
+                                  <span className="mr-1 rounded bg-amber-100 px-1 text-[10px] font-medium text-amber-800">
+                                    TT
+                                  </span>
+                                  {m.ten}
+                                  {m.ghiChu ? <span className="text-slate-400"> · {m.ghiChu}</span> : null}
+                                </td>
+                                <td className="px-3 py-1 text-slate-400">{m.donVi ?? r.unit ?? ""}</td>
+                                <td colSpan={3} />
+                                <td className="border-l border-slate-100 px-3 py-1 text-right tabular-nums">
+                                  {formatNumber(m.khoiLuong)}
+                                </td>
+                                <td className="px-3 py-1 text-right tabular-nums">{formatNumber(m.donGia)}</td>
+                                <td className="px-3 py-1 text-right tabular-nums text-amber-800">
+                                  {m.khoiLuong != null && m.donGia != null ? formatVND(m.khoiLuong * m.donGia) : "—"}
+                                </td>
+                                {canEdit && <td />}
+                              </tr>
+                            ))}
+                          </Fragment>
+                          );
+                        })}
                   </tbody>
                   </Fragment>
                 );
@@ -831,6 +942,10 @@ export function EstimateEditor({
           </div>
         </form>
       </Modal>
+
+      {mucCon && (
+        <MucConModal projectId={projectId} dong={mucCon} onClose={() => setMucCon(null)} />
+      )}
 
       {bangBoc && (
         <BangBocModal
