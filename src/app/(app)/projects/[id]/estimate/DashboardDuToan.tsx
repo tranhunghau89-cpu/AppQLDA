@@ -7,6 +7,7 @@
 // Hổ phách tương phản thấp trên nền trắng nên MỌI thanh đều có nhãn số bên cạnh.
 import { useState } from "react";
 import { formatVND } from "@/lib/utils";
+import { TheThuGon } from "@/components/ui/TheThuGon";
 import type { GiaTriGiaiDoan } from "@/lib/giaTriGiaiDoan";
 
 const MAU_DU_TOAN = "#2563eb";
@@ -111,8 +112,7 @@ export function DashboardDuToan({ g, nhom }: { g: GiaTriGiaiDoan; nhom: NhomSoSa
   return (
     <div className="space-y-4">
       {/* Dự toán ↔ thực tế: con số chính */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5">
-        <h3 className="mb-3 text-base font-semibold text-slate-900">Dự toán và thực tế</h3>
+      <TheThuGon khoa="du-toan-thuc-te" tieuDe="Dự toán và thực tế">
         <div className="grid grid-cols-2 gap-3">
           <div>
             <div className="flex items-center gap-1.5 text-xs text-slate-500">
@@ -152,14 +152,14 @@ export function DashboardDuToan({ g, nhom }: { g: GiaTriGiaiDoan; nhom: NhomSoSa
             )}
           </div>
         )}
-      </div>
+      </TheThuGon>
 
       {/* Năm giai đoạn trên cùng một thang */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5">
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <h3 className="text-base font-semibold text-slate-900">Biểu đồ giai đoạn</h3>
-          <ChonCheDo cheDo={cheDo} doi={setCheDo} />
-        </div>
+      <TheThuGon
+        khoa="bieu-do-giai-doan"
+        tieuDe="Biểu đồ giai đoạn"
+        phai={<ChonCheDo cheDo={cheDo} doi={setCheDo} />}
+      >
         <p className="mb-3 text-xs text-slate-400">
           {laPT ? `% so với ${tenGoc} · chưa VAT` : "Chưa VAT · cùng một thang"}
         </p>
@@ -178,15 +178,15 @@ export function DashboardDuToan({ g, nhom }: { g: GiaTriGiaiDoan; nhom: NhomSoSa
             </div>
           ))}
         </dl>
-      </div>
+      </TheThuGon>
 
       {/* Theo nhóm: dự toán và thực tế cạnh nhau */}
       {nhom.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-slate-900">Theo nhóm</h3>
-            <ChonCheDo cheDo={cheDo} doi={setCheDo} />
-          </div>
+        <TheThuGon
+          khoa="theo-nhom"
+          tieuDe="Theo nhóm"
+          phai={<ChonCheDo cheDo={cheDo} doi={setCheDo} />}
+        >
           {laPT ? (
             <CoCauNhom nhom={nhom} tongDT={tongDT} tongTT={tongTT} />
           ) : (
@@ -227,7 +227,7 @@ export function DashboardDuToan({ g, nhom }: { g: GiaTriGiaiDoan; nhom: NhomSoSa
           </ul>
           </>
           )}
-        </div>
+        </TheThuGon>
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 // Bảng tổng hợp giá trị dự án qua 5 giai đoạn + lợi nhuận dự kiến / thực tế.
 import type { ReactNode } from "react";
 import { formatVND } from "@/lib/utils";
+import { TheThuGon } from "@/components/ui/TheThuGon";
 import { formatPercent } from "@/lib/profit";
 import { loiNhuanGiaiDoan, type GiaTriGiaiDoan } from "@/lib/giaTriGiaiDoan";
 
@@ -58,8 +59,7 @@ export function BangGiaiDoan({
 }) {
   const ln = loiNhuanGiaiDoan(g);
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5">
-      <h3 className="mb-3 text-base font-semibold text-slate-900">Giá trị theo giai đoạn</h3>
+    <TheThuGon khoa="gia-tri-giai-doan" tieuDe="Giá trị theo giai đoạn">
       <p className="mb-3 text-xs text-slate-400">Tất cả chưa VAT</p>
       <dl className="space-y-2 text-sm">
         <Dong nhan="1. Báo giá" giaTri={g.baoGia} />
@@ -91,6 +91,6 @@ export function BangGiaiDoan({
           </div>
         )}
       </dl>
-    </div>
+    </TheThuGon>
   );
 }
