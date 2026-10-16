@@ -6,6 +6,7 @@ import ExcelJS from "exceljs";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { recordAudit } from "@/lib/audit";
+import { tinhLaiThucTe } from "@/lib/khoiLuong/tinhLaiMucCon";
 import { norm } from "@/lib/text";
 import type { SessionUser } from "@/lib/session";
 import {
@@ -294,6 +295,11 @@ export async function applyOrder(
 
   // Xóa đơn cũ và ghi đơn mới phải cùng thành công hoặc cùng hủy — nếu không, lỗi
   // giữa chừng để lại dự án không còn đơn hàng nào của loại này.
+  // Món của đơn cũ từng gắn đầu việc dự toán → xoá đơn thì thực tế đầu việc phải cộng lại.
+  const daGan = await db.purchaseOrderItem.findMany({
+    where: { order: { projectId: project.id, category: kq.category }, estimateItemId: { not: null } },
+    select: { estimateItemId: true },
+  });
   const orderId = await db.$transaction(async (tx) => {
     await tx.purchaseOrder.deleteMany({
       where: { projectId: project.id, category: kq.category },
@@ -350,6 +356,7 @@ export async function applyOrder(
 
     return created.id;
   });
+  await tinhLaiThucTe(daGan.map((g) => g.estimateItemId));
 
   await recordAudit({
     actor,

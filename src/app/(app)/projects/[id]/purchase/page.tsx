@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireProjectView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
-import { PurchaseEditor, type OrderView } from "./PurchaseEditor";
+import { PurchaseEditor, type DauViecOpt, type OrderView } from "./PurchaseEditor";
 
 export default async function PurchasePage({
   params,
@@ -16,7 +16,7 @@ export default async function PurchasePage({
   const canEdit = can(session.role, "purchase", "edit");
 
   // 2 truy vấn độc lập -> chạy song song (guard phân quyền đã xong ở trên).
-  const [project, suppliers] = await Promise.all([
+  const [project, suppliers, estimateItems] = await Promise.all([
     db.project.findUnique({
       where: { id },
       include: {
@@ -26,7 +26,10 @@ export default async function PurchasePage({
             supplier: { select: { id: true, name: true } },
             items: {
               orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
-              include: { images: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }], select: { id: true } } },
+              include: {
+                images: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }], select: { id: true } },
+                estimateItem: { select: { name: true } },
+              },
             },
           },
         },
@@ -36,7 +39,18 @@ export default async function PurchasePage({
       orderBy: [{ category: "asc" }, { name: "asc" }],
       select: { id: true, name: true },
     }),
+    db.estimateItem.findMany({
+      where: { projectId: id },
+      orderBy: [{ section: { sortOrder: "asc" } }, { sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true, name: true, unit: true, section: { select: { name: true, code: true } } },
+    }),
   ]);
+  const dauViec: DauViecOpt[] = estimateItems.map((e) => ({
+    id: e.id,
+    name: e.name,
+    unit: e.unit,
+    section: e.section ? [e.section.code, e.section.name].filter(Boolean).join(". ") : "Chưa phân hạng mục",
+  }));
   if (!project) notFound();
 
   const orders: OrderView[] = project.purchaseOrders.map((o) => ({
@@ -66,6 +80,8 @@ export default async function PurchasePage({
       weight: i.weight,
       note: i.note,
       imageIds: i.images.map((im) => im.id),
+      estimateItemId: i.estimateItemId,
+      estimateItemName: i.estimateItem?.name ?? null,
     })),
   }));
 
@@ -90,6 +106,7 @@ export default async function PurchasePage({
         projectId={project.id}
         orders={orders}
         suppliers={suppliers}
+        dauViec={dauViec}
         canEdit={canEdit}
       />
     </div>

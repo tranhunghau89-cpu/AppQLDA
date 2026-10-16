@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { denyProject } from "@/lib/auth";
+import { tinhLaiThucTe } from "@/lib/khoiLuong/tinhLaiMucCon";
 import { PO_CATEGORY_MAP, PO_STATUS_MAP } from "@/lib/constants";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -136,7 +137,12 @@ export async function deletePurchaseOrder(
 ): Promise<ActionResult> {
   const denied = await guard(projectId, "Bạn không có quyền xóa đơn hàng.", { orderId });
   if (denied) return denied;
+  const gan = await db.purchaseOrderItem.findMany({
+    where: { orderId, estimateItemId: { not: null } },
+    select: { estimateItemId: true },
+  });
   await db.purchaseOrder.delete({ where: { id: orderId } });
+  await capNhatDuToan(projectId, gan.map((g) => g.estimateItemId));
   revalidatePath(`/projects/${projectId}/purchase`);
   revalidatePath("/purchases");
   return { ok: true };
@@ -152,7 +158,17 @@ const itemSchema = z.object({
   amount: num,
   weight: num,
   note: z.string().trim().optional(),
+  estimateItemId: z.string().trim().optional(),
 });
+
+/** Món đơn hàng gắn / bỏ gắn đầu việc → cộng lại thực tế đầu việc cũ và mới. */
+async function capNhatDuToan(projectId: string, ids: (string | null | undefined)[]) {
+  if (!ids.some(Boolean)) return;
+  await tinhLaiThucTe(ids);
+  revalidatePath(`/projects/${projectId}/estimate`);
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/estimates");
+}
 
 export async function savePurchaseItem(
   projectId: string,
@@ -175,10 +191,21 @@ export async function savePurchaseItem(
     amount: String(form.get("amount") ?? ""),
     weight: String(form.get("weight") ?? ""),
     note: String(form.get("note") ?? ""),
+    estimateItemId: String(form.get("estimateItemId") ?? ""),
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
+  if (d.estimateItemId) {
+    const ei = await db.estimateItem.findUnique({
+      where: { id: d.estimateItemId },
+      select: { projectId: true },
+    });
+    if (!ei || ei.projectId !== projectId) {
+      return { ok: false, error: "Đầu việc dự toán không thuộc dự án này." };
+    }
+  }
   const data = {
+    estimateItemId: d.estimateItemId || null,
     category: d.category || null,
     groupName: d.groupName || null,
     name: d.name,
@@ -189,9 +216,13 @@ export async function savePurchaseItem(
     weight: d.weight,
     note: d.note || null,
   };
+  const cu = itemId
+    ? await db.purchaseOrderItem.findUnique({ where: { id: itemId }, select: { estimateItemId: true } })
+    : null;
   if (itemId) await db.purchaseOrderItem.update({ where: { id: itemId }, data });
   else await db.purchaseOrderItem.create({ data: { orderId, ...data } });
   await recompute(orderId);
+  await capNhatDuToan(projectId, [cu?.estimateItemId, data.estimateItemId]);
   revalidatePath(`/projects/${projectId}/purchase`);
   revalidatePath("/purchases");
   return { ok: true };
@@ -204,8 +235,9 @@ export async function deletePurchaseItem(
 ): Promise<ActionResult> {
   const denied = await guard(projectId, "Bạn không có quyền xóa vật tư.", { orderId, itemId });
   if (denied) return denied;
-  await db.purchaseOrderItem.delete({ where: { id: itemId } });
+  const xoa = await db.purchaseOrderItem.delete({ where: { id: itemId } });
   await recompute(orderId);
+  await capNhatDuToan(projectId, [xoa.estimateItemId]);
   revalidatePath(`/projects/${projectId}/purchase`);
   revalidatePath("/purchases");
   return { ok: true };

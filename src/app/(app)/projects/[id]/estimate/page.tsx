@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Download } from "lucide-react";
 import { db } from "@/lib/db";
+import { monDonHangThanhMucCon } from "@/lib/khoiLuong/mucCon";
 import { requireProjectView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { SIGNED_CONTRACT_STATUSES } from "@/lib/contract";
@@ -51,6 +52,19 @@ export default async function EstimatePage({
                 ghiChu: true,
               },
               orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+            },
+            donHang: {
+              select: {
+                id: true,
+                orderId: true,
+                name: true,
+                unit: true,
+                qty: true,
+                unitPrice: true,
+                amount: true,
+                order: { select: { orderNo: true } },
+              },
+              orderBy: [{ order: { createdAt: "asc" } }, { sortOrder: "asc" }, { id: "asc" }],
             },
           },
           orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
@@ -138,6 +152,12 @@ export default async function EstimatePage({
     thucTeGhiDe: it.thucTeGhiDe,
     mucConDuToan: it.mucCon.filter((m) => m.loai === "DU_TOAN"),
     mucConThucTe: it.mucCon.filter((m) => m.loai === "THUC_TE"),
+    donHang: it.donHang.map((m) => ({
+      id: m.id,
+      orderId: m.orderId,
+      orderNo: m.order.orderNo,
+      ...monDonHangThanhMucCon(m),
+    })),
     unitPrice: it.unitPrice,
     amount: it.amount,
     supplierId: it.supplierId,

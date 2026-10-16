@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Fragment, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronRight, ListTree, Plus, Pencil, Table2, Trash2 } from "lucide-react";
@@ -30,6 +31,7 @@ import {
 import { ApplyTemplate, type TemplateForClient } from "./ApplyTemplate";
 import { BangBocModal } from "./BangBocModal";
 import { MucConModal } from "./MucConModal";
+import { DashboardDuToan, type NhomSoSanh } from "./DashboardDuToan";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
 import { updateSalePrice } from "../../actions";
@@ -41,6 +43,18 @@ export interface MucConRow {
   khoiLuong: number | null;
   donGia: number | null;
   ghiChu: string | null;
+}
+
+/** Món đơn hàng mua đã gắn vào đầu việc — mục con thực tế chỉ đọc, sửa ở màn đơn hàng. */
+export interface DonHangRow {
+  id: string;
+  orderId: string;
+  orderNo: string | null;
+  ten: string;
+  donVi: string | null;
+  khoiLuong: number | null;
+  donGia: number | null;
+  thanhTien?: number | null;
 }
 
 export interface EstimateRow {
@@ -61,6 +75,7 @@ export interface EstimateRow {
   /** Mục con: dự toán và thực tế là hai danh sách riêng, được khác mã nhau. */
   mucConDuToan: MucConRow[];
   mucConThucTe: MucConRow[];
+  donHang: DonHangRow[];
   amount: number | null;
   supplierId: string | null;
   supplierName: string | null;
@@ -171,6 +186,21 @@ export function EstimateEditor({
   const summary = useMemo(
     () => computeProfit(items, salePrice, area),
     [items, salePrice, area]
+  );
+  // Dự toán và thực tế theo nhóm chi phí, cùng thứ tự với bảng lợi nhuận.
+  const soSanhNhom = useMemo<NhomSoSanh[]>(
+    () =>
+      summary.groupSubtotals.map((g) => {
+        const thuc = computeActualCost(items.filter((it) => it.groupCode === g.code));
+        return {
+          code: g.code,
+          label: g.label,
+          duToan: g.amount,
+          thucTe: thuc.total,
+          tamTinh: thuc.soDongCoGia < thuc.soDong,
+        };
+      }),
+    [items, summary]
   );
 
   // Tách nhà cung cấp theo khu vực dự án, giữ đúng thứ tự ưu tiên đã tính ở máy chủ.
@@ -431,7 +461,6 @@ export function EstimateEditor({
                 const subtotal = grp.rows.reduce((s, r) => s + computeAmount(r), 0);
                 const thucNhom = computeActualCost(grp.rows);
                 const csNhom = chiSoNhom(subtotal, sectionTotal, area);
-                const tyLeNhomTong = chiSoNhom(subtotal, tongDuToan, null).tyLe;
                 return (
                   <Fragment key={grp.label}>
                   <tbody>
@@ -439,18 +468,6 @@ export function EstimateEditor({
                       <td className="px-2 py-1.5 text-sm font-semibold text-slate-700">{gi + 1}</td>
                       <td colSpan={3} className="px-4 py-1.5 text-sm font-semibold text-slate-700">
                         {grp.label}
-                        <span
-                          className="ml-2 text-xs font-medium text-slate-500"
-                          title="Thành tiền của nhóm ÷ thành tiền của hạng mục"
-                        >
-                          {phanTram(csNhom.tyLe)} hạng mục
-                        </span>
-                        <span
-                          className="ml-1 text-xs font-medium text-slate-400"
-                          title="Thành tiền của nhóm ÷ tổng dự toán"
-                        >
-                          · {phanTram(tyLeNhomTong)} tổng
-                        </span>
                       </td>
                       <td
                         className="px-3 py-1.5 text-right text-xs text-slate-500"
@@ -484,7 +501,8 @@ export function EstimateEditor({
                       {canEdit && <td />}
                     </tr>
                         {grp.rows.map((r, ri) => {
-                          const soCon = r.mucConDuToan.length + r.mucConThucTe.length;
+                          const soThuc = r.mucConThucTe.length + r.donHang.length;
+                          const soCon = r.mucConDuToan.length + soThuc;
                           const coConDuToan = r.mucConDuToan.length > 0;
                           const dangMo = moMucCon.has(r.id);
                           return (
@@ -611,16 +629,16 @@ export function EstimateEditor({
                               ) : (
                                 formatVND(computeActualAmount(r))
                               )}
-                              {r.mucConThucTe.length > 0 && (
+                              {soThuc > 0 && (
                                 <div
                                   className="text-[10px] font-normal text-slate-400"
                                   title={
                                     r.thucTeGhiDe
                                       ? "Đang ghi đè bằng số gõ tay — mục con thực tế không cộng lên"
-                                      : `Tổng ${r.mucConThucTe.length} mục con thực tế`
+                                      : `Tổng ${r.mucConThucTe.length} mục con thực tế, ${r.donHang.length} món đơn hàng`
                                   }
                                 >
-                                  {r.thucTeGhiDe ? "ghi đè tay" : `∑ ${r.mucConThucTe.length} mục con`}
+                                  {r.thucTeGhiDe ? "ghi đè tay" : `∑ ${soThuc} mục con`}
                                 </div>
                               )}
                             </Td>
@@ -699,6 +717,34 @@ export function EstimateEditor({
                                 {canEdit && <td />}
                               </tr>
                             ))}
+                          {dangMo &&
+                            r.donHang.map((m) => (
+                              <tr key={m.id} className="bg-amber-50/20 text-xs text-slate-600">
+                                <td />
+                                <td className="py-1 pl-10 pr-3">
+                                  <span className="mr-1 rounded bg-emerald-100 px-1 text-[10px] font-medium text-emerald-800">
+                                    ĐH
+                                  </span>
+                                  {m.ten}
+                                  <Link
+                                    href={`/projects/${projectId}/purchase#${m.orderId}`}
+                                    className="ml-1 text-blue-600 hover:underline"
+                                  >
+                                    {m.orderNo ?? "đơn hàng"}
+                                  </Link>
+                                </td>
+                                <td className="px-3 py-1 text-slate-400">{m.donVi ?? r.unit ?? ""}</td>
+                                <td colSpan={3} />
+                                <td className="border-l border-slate-100 px-3 py-1 text-right tabular-nums">
+                                  {formatNumber(m.khoiLuong)}
+                                </td>
+                                <td className="px-3 py-1 text-right tabular-nums">{formatNumber(m.donGia)}</td>
+                                <td className="px-3 py-1 text-right tabular-nums text-amber-800">
+                                  {m.thanhTien != null ? formatVND(m.thanhTien) : "—"}
+                                </td>
+                                {canEdit && <td />}
+                              </tr>
+                            ))}
                           </Fragment>
                           );
                         })}
@@ -761,19 +807,7 @@ export function EstimateEditor({
           />
         )}
 
-        {summary.groupSubtotals.length > 0 && (
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <h3 className="mb-3 text-sm font-semibold text-slate-900">Theo nhóm</h3>
-            <dl className="space-y-1.5 text-sm">
-              {summary.groupSubtotals.map((g) => (
-                <div key={g.code} className="flex justify-between">
-                  <dt className="text-slate-500">{g.label}</dt>
-                  <dd className="text-slate-700">{formatVND(g.amount)}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        )}
+        {giaiDoan && <DashboardDuToan g={giaiDoan} nhom={soSanhNhom} />}
       </div>
 
       <Modal

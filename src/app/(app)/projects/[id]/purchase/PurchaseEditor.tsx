@@ -51,6 +51,16 @@ export interface OrderItemView {
   weight: number | null;
   note: string | null;
   imageIds: string[];
+  estimateItemId: string | null;
+  /** Tên đầu việc dự toán đã gắn (hiện dưới tên món). */
+  estimateItemName: string | null;
+}
+/** Đầu việc dự toán thi công để gắn món đơn hàng — nhóm theo hạng mục. */
+export interface DauViecOpt {
+  id: string;
+  name: string;
+  unit: string | null;
+  section: string;
 }
 export interface OrderView {
   id: string;
@@ -80,13 +90,20 @@ export function PurchaseEditor({
   projectId,
   orders,
   suppliers,
+  dauViec,
   canEdit,
 }: {
   projectId: string;
   orders: OrderView[];
   suppliers: SupplierOpt[];
+  dauViec: DauViecOpt[];
   canEdit: boolean;
 }) {
+  const nhomDauViec = useMemo(() => {
+    const m = new Map<string, DauViecOpt[]>();
+    for (const d of dauViec) m.set(d.section, [...(m.get(d.section) ?? []), d]);
+    return [...m];
+  }, [dauViec]);
   const router = useRouter();
   const [, start] = useTransition();
   const [pending, setPending] = useState(false);
@@ -353,6 +370,21 @@ export function PurchaseEditor({
           <Field label="Ghi chú">
             <Input name="note" defaultValue={iEditing?.note ?? ""} />
           </Field>
+          <Field label="Đầu việc dự toán thi công (cộng vào thực tế)">
+            <Select name="estimateItemId" defaultValue={iEditing?.estimateItemId ?? ""}>
+              <option value="">— Chưa gắn —</option>
+              {nhomDauViec.map(([hm, ds]) => (
+                <optgroup key={hm} label={hm}>
+                  {ds.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                      {d.unit ? ` (${d.unit})` : ""}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </Select>
+          </Field>
           {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => setIOpen(false)}>
@@ -481,6 +513,9 @@ function ItemsTable({
             <Td className="font-medium text-slate-900">
               {r.name}
               {r.unit ? <span className="text-slate-400"> ({r.unit})</span> : null}
+              {r.estimateItemName && (
+                <div className="text-xs font-normal text-emerald-700">→ {r.estimateItemName}</div>
+              )}
             </Td>
             <Td>
               <div className="flex justify-center">
@@ -581,7 +616,7 @@ function OrderCard({
   const currentRows = groups.find(([k]) => k === current)?.[1] ?? [];
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white">
+    <div id={order.id} className="scroll-mt-4 rounded-xl border border-slate-200 bg-white">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 p-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">

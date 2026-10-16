@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -83,8 +84,13 @@ export function MucConModal({
     klSai: d.khoiLuong.trim() !== "" && doc(d.khoiLuong) == null,
     dgSai: d.donGia.trim() !== "" && doc(d.donGia) == null,
   }));
+  // Phía thực tế còn cộng các món đơn hàng đã gắn (chỉ đọc — sửa ở màn đơn hàng).
+  const donHang = loai === "THUC_TE" ? dong.donHang : [];
   const tong = tongMucCon(
-    daDoc.map((d) => ({ ten: d.ten, donVi: d.donVi || null, khoiLuong: d.kl, donGia: d.dg })),
+    [
+      ...daDoc.map((d) => ({ ten: d.ten, donVi: d.donVi || null, khoiLuong: d.kl, donGia: d.dg })),
+      ...donHang,
+    ],
     dong.unit
   );
 
@@ -157,7 +163,7 @@ export function MucConModal({
                 l === loai ? "border-blue-600 text-blue-700" : "border-transparent text-slate-500 hover:text-slate-700"
               }`}
             >
-              {TEN[l]} <span className="text-xs text-slate-400">({ds[l].length})</span>
+              {TEN[l]} <span className="text-xs text-slate-400">({ds[l].length + (l === "THUC_TE" ? dong.donHang.length : 0)})</span>
             </button>
           ))}
         </div>
@@ -169,7 +175,7 @@ export function MucConModal({
           Ô số nhận công thức, ví dụ <span className="font-mono">=120*0,42</span>.
         </p>
 
-        {loai === "THUC_TE" && dong.thucTeGhiDe && dong.mucConThucTe.length > 0 && (
+        {loai === "THUC_TE" && dong.thucTeGhiDe && dong.mucConThucTe.length + dong.donHang.length > 0 && (
           <div className="flex items-center justify-between gap-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
             <span>Đầu việc đang GHI ĐÈ thực tế bằng số gõ tay — mục con không được cộng lên.</span>
             <Button size="sm" variant="outline" onClick={boGhiDe} disabled={pending}>
@@ -234,6 +240,25 @@ export function MucConModal({
                   </td>
                 </tr>
               ))}
+              {donHang.map((m) => (
+                <tr key={m.id} className="bg-emerald-50/40 text-slate-700" title="Món đơn hàng đã gắn — sửa ở màn đơn hàng">
+                  <td className="px-2 py-1">
+                    <span className="mr-1 rounded bg-emerald-100 px-1 text-[10px] font-medium text-emerald-800">ĐH</span>
+                    {m.ten}
+                  </td>
+                  <td className="px-2 py-1">{m.donVi ?? ""}</td>
+                  <td className="px-2 py-1 text-right tabular-nums">{m.khoiLuong == null ? "" : formatQty(m.khoiLuong)}</td>
+                  <td className="px-2 py-1 text-right tabular-nums">{m.donGia == null ? "" : formatVND(m.donGia)}</td>
+                  <td className="px-1 py-1 text-right tabular-nums">
+                    {m.thanhTien != null ? formatVND(m.thanhTien) : <span className="text-slate-300">—</span>}
+                  </td>
+                  <td className="px-2 py-1 text-xs" colSpan={2}>
+                    <Link href={`/projects/${projectId}/purchase#${m.orderId}`} className="text-blue-600 hover:underline">
+                      Đơn {m.orderNo ?? "hàng"}
+                    </Link>
+                  </td>
+                </tr>
+              ))}
             </tbody>
             <tfoot>
               <tr className="border-t border-slate-200 text-sm">
@@ -259,7 +284,7 @@ export function MucConModal({
           </table>
         </div>
 
-        {dang.length === 0 && (
+        {dang.length === 0 && donHang.length === 0 && (
           <p className="text-xs text-slate-400">
             Chưa có mục con {TEN[loai].toLowerCase()}. Lưu khi danh sách rỗng là gỡ hết mục con phía này.
           </p>

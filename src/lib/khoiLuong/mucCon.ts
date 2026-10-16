@@ -7,6 +7,28 @@ export interface MucCon {
   donVi: string | null;
   khoiLuong: number | null;
   donGia: number | null;
+  /** Thành tiền chốt sẵn (món đơn hàng có ô thành tiền) — có thì dùng thay KL × đơn giá. */
+  thanhTien?: number | null;
+}
+
+/** Một món đơn hàng mua đã gắn vào đầu việc — tính như một mục con thực tế. */
+export interface MonDonHang {
+  name: string;
+  unit: string | null;
+  qty: number | null;
+  unitPrice: number | null;
+  amount: number | null;
+}
+
+export function monDonHangThanhMucCon(m: MonDonHang): MucCon {
+  const thanhTien = m.amount ?? (m.qty != null && m.unitPrice != null ? m.qty * m.unitPrice : null);
+  return {
+    ten: m.name,
+    donVi: m.unit,
+    khoiLuong: m.qty,
+    donGia: m.unitPrice ?? (thanhTien != null && m.qty ? thanhTien / m.qty : null),
+    thanhTien,
+  };
 }
 
 export interface TongMucCon {
@@ -28,9 +50,10 @@ export function tongMucCon(ds: MucCon[], donViCha: string | null): TongMucCon {
   let kl = 0;
   let cungDonVi = ds.length > 0;
   for (const m of ds) {
-    if (m.khoiLuong != null && m.donGia != null) {
-      thanhTien = (thanhTien ?? 0) + m.khoiLuong * m.donGia;
-    } else soThieu++;
+    const tien =
+      m.thanhTien ?? (m.khoiLuong != null && m.donGia != null ? m.khoiLuong * m.donGia : null);
+    if (tien != null) thanhTien = (thanhTien ?? 0) + tien;
+    else soThieu++;
     // Mục con không ghi đơn vị thì hiểu là cùng đơn vị dòng cha.
     if (m.khoiLuong == null || (m.donVi && chuan(m.donVi) !== chuan(donViCha))) cungDonVi = false;
     else kl += m.khoiLuong;
