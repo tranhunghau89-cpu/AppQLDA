@@ -9,6 +9,10 @@ export interface MucCon {
   donGia: number | null;
   /** Thành tiền chốt sẵn (món đơn hàng có ô thành tiền) — có thì dùng thay KL × đơn giá. */
   thanhTien?: number | null;
+  /** Kg một đơn vị — quy bộ/cái ra kg khi đầu việc tính theo kg. */
+  kgMotDonVi?: number | null;
+  /** Tổng kg chốt sẵn (cột trọng lượng của món đơn hàng) — thắng kgMotDonVi. */
+  kgTong?: number | null;
 }
 
 /** Một món đơn hàng mua đã gắn vào đầu việc — tính như một mục con thực tế. */
@@ -18,6 +22,8 @@ export interface MonDonHang {
   qty: number | null;
   unitPrice: number | null;
   amount: number | null;
+  /** Trọng lượng (kg) ghi trên món đơn hàng. */
+  weight?: number | null;
 }
 
 export function monDonHangThanhMucCon(m: MonDonHang): MucCon {
@@ -28,6 +34,7 @@ export function monDonHangThanhMucCon(m: MonDonHang): MucCon {
     khoiLuong: m.qty,
     donGia: m.unitPrice ?? (thanhTien != null && m.qty ? thanhTien / m.qty : null),
     thanhTien,
+    kgTong: m.weight ?? null,
   };
 }
 
@@ -44,6 +51,19 @@ export interface TongMucCon {
 
 const chuan = (v: string | null | undefined) => (v ?? "").trim().toLowerCase();
 
+/**
+ * Khối lượng mục con tính theo ĐƠN VỊ CỦA ĐẦU VIỆC. Cùng đơn vị (hoặc mục con không ghi
+ * đơn vị) thì giữ nguyên; đầu việc tính kg mà mục con tính bộ/cái thì quy ra kg bằng
+ * trọng lượng (tổng kg chốt sẵn, hoặc KL × kg một đơn vị). Không quy được → null.
+ */
+export function khoiLuongTheoCha(m: MucCon, donViCha: string | null): number | null {
+  if (!m.donVi || chuan(m.donVi) === chuan(donViCha)) return m.khoiLuong;
+  if (chuan(donViCha) !== "kg") return null;
+  if (m.kgTong != null) return m.kgTong;
+  if (m.khoiLuong != null && m.kgMotDonVi != null) return m.khoiLuong * m.kgMotDonVi;
+  return null;
+}
+
 export function tongMucCon(ds: MucCon[], donViCha: string | null): TongMucCon {
   let thanhTien: number | null = null;
   let soThieu = 0;
@@ -54,9 +74,10 @@ export function tongMucCon(ds: MucCon[], donViCha: string | null): TongMucCon {
       m.thanhTien ?? (m.khoiLuong != null && m.donGia != null ? m.khoiLuong * m.donGia : null);
     if (tien != null) thanhTien = (thanhTien ?? 0) + tien;
     else soThieu++;
-    // Mục con không ghi đơn vị thì hiểu là cùng đơn vị dòng cha.
-    if (m.khoiLuong == null || (m.donVi && chuan(m.donVi) !== chuan(donViCha))) cungDonVi = false;
-    else kl += m.khoiLuong;
+    // Mục con không ghi đơn vị thì hiểu là cùng đơn vị dòng cha; bộ/cái quy ra kg khi có trọng lượng.
+    const klCha = khoiLuongTheoCha(m, donViCha);
+    if (klCha == null) cungDonVi = false;
+    else kl += klCha;
   }
   const khoiLuong = cungDonVi ? kl : null;
   return {

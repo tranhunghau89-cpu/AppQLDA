@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Layers, MapPin, Package } from "lucide-react";
+import { Layers, MapPin, Package, Scale } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
 import { can, type Role } from "@/lib/rbac";
@@ -86,6 +86,12 @@ export default async function ThuVienPage() {
             className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
           >
             <Layers className="h-4 w-4" /> Bộ hạng mục
+          </Link>
+          <Link
+            href="/thu-vien/quy-doi-kg"
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            <Scale className="h-4 w-4" /> Quy đổi bộ → kg
           </Link>
           <Link
             href="/thu-vien/khu-vuc"

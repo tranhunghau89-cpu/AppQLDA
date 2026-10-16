@@ -1764,6 +1764,9 @@ model MucConDuToan {
   donVi          String?
   khoiLuong      Float?
   donGia         Float?
+  // Kg của MỘT đơn vị khi mục con tính theo bộ/cái mà đầu việc tính theo kg (bulong,
+  // ty xà gồ) — để cộng được khối lượng lên đầu việc. Null = cùng đơn vị, không cần.
+  kgMotDonVi     Float?
   ghiChu         String?
   sortOrder      Int          @default(0)
 

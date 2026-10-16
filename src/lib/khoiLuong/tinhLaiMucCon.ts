@@ -1,7 +1,8 @@
 import "server-only";
 
 import { db } from "@/lib/db";
-import { monDonHangThanhMucCon, tongMucCon, type LoaiMucCon } from "@/lib/khoiLuong/mucCon";
+import { tongMucCon, type LoaiMucCon } from "@/lib/khoiLuong/mucCon";
+import { monDonHangCoKg, napThuVienKg } from "@/lib/khoiLuong/thuVienKg";
 
 /**
  * Cộng mục con lên dòng cha và GHI tổng vào dòng cha, để mọi chỗ cộng tiền khác
@@ -25,16 +26,17 @@ export async function tinhLaiTuMucCon(itemId: string, loai: LoaiMucCon) {
       _count: { select: { chiTiet: true } },
       mucCon: {
         where: { loai },
-        select: { ten: true, donVi: true, khoiLuong: true, donGia: true },
+        select: { ten: true, donVi: true, khoiLuong: true, donGia: true, kgMotDonVi: true },
       },
       donHang:
         loai === "THUC_TE"
-          ? { select: { name: true, unit: true, qty: true, unitPrice: true, amount: true } }
+          ? { select: { name: true, unit: true, qty: true, unitPrice: true, amount: true, weight: true } }
           : false,
     },
   });
   if (!cha) return;
-  const ds = [...cha.mucCon, ...(cha.donHang ?? []).map(monDonHangThanhMucCon)];
+  const thuVien = cha.unit?.trim().toLowerCase() === "kg" ? await napThuVienKg() : [];
+  const ds = [...cha.mucCon, ...(cha.donHang ?? []).map((m) => monDonHangCoKg(m, thuVien))];
   const t = tongMucCon(ds, cha.unit);
 
   if (loai === "DU_TOAN") {

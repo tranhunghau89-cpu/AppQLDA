@@ -50,6 +50,23 @@ describe("món đơn hàng gắn vào đầu việc", () => {
     expect(t).toEqual({ khoiLuong: null, thanhTien: 500_000, donGia: null, soThieu: 0 });
   });
 
+  it("đầu việc kg: mục con bộ quy ra kg theo kg/đv, món đơn hàng theo trọng lượng", () => {
+    const t = tongMucCon(
+      [
+        { ten: "M16x50", donVi: "bộ", khoiLuong: 200, donGia: 6000, kgMotDonVi: 0.175 },
+        { ten: "Thép", donVi: "kg", khoiLuong: 100, donGia: 20000 },
+        monDonHangThanhMucCon({ name: "M20x60", unit: "bộ", qty: 50, unitPrice: 9000, amount: null, weight: 15 }),
+      ],
+      "kg"
+    );
+    expect(t.khoiLuong).toBeCloseTo(35 + 100 + 15);
+    expect(t.thanhTien).toBe(1_200_000 + 2_000_000 + 450_000);
+  });
+
+  it("bộ chưa có kg/đv thì không cộng được KL", () => {
+    expect(tongMucCon([{ ten: "M16x50", donVi: "bộ", khoiLuong: 10, donGia: 1 }], "kg").khoiLuong).toBeNull();
+  });
+
   it("chỉ có SL và thành tiền: suy ra đơn giá", () => {
     const m = monDonHangThanhMucCon({ name: "X", unit: "cái", qty: 4, unitPrice: null, amount: 200 });
     expect(m.donGia).toBe(50);

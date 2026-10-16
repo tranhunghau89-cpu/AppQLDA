@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Download } from "lucide-react";
 import { db } from "@/lib/db";
-import { monDonHangThanhMucCon } from "@/lib/khoiLuong/mucCon";
+import { monDonHangCoKg, napThuVienKg } from "@/lib/khoiLuong/thuVienKg";
 import { requireProjectView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { SIGNED_CONTRACT_STATUSES } from "@/lib/contract";
@@ -28,8 +28,8 @@ export default async function EstimatePage({
     orderBy: { createdAt: "asc" },
   });
 
-  // 6 truy vấn độc lập -> chạy song song (guard phân quyền đã xong ở trên).
-  const [project, suppliers, templateRows, quoteRows, lienKetKhuVuc, congTacs] = await Promise.all([
+  // 7 truy vấn độc lập -> chạy song song (guard phân quyền đã xong ở trên).
+  const [project, suppliers, templateRows, quoteRows, lienKetKhuVuc, congTacs, thuVienKg] = await Promise.all([
     db.project.findUnique({
       where: { id },
       include: {
@@ -49,6 +49,7 @@ export default async function EstimatePage({
                 donVi: true,
                 khoiLuong: true,
                 donGia: true,
+                kgMotDonVi: true,
                 ghiChu: true,
               },
               orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
@@ -62,6 +63,7 @@ export default async function EstimatePage({
                 qty: true,
                 unitPrice: true,
                 amount: true,
+                weight: true,
                 order: { select: { orderNo: true } },
               },
               orderBy: [{ order: { createdAt: "asc" } }, { sortOrder: "asc" }, { id: "asc" }],
@@ -94,6 +96,8 @@ export default async function EstimatePage({
     }),
     // Công tác thư viện cho ô chọn công việc ngay trên bảng.
     napCongTacCoGia(),
+    // Bảng quy đổi bộ → kg (bulong, ty xà gồ) cho mục con và món đơn hàng.
+    napThuVienKg(),
   ]);
   if (!project) notFound();
 
@@ -156,7 +160,7 @@ export default async function EstimatePage({
       id: m.id,
       orderId: m.orderId,
       orderNo: m.order.orderNo,
-      ...monDonHangThanhMucCon(m),
+      ...monDonHangCoKg(m, thuVienKg),
     })),
     unitPrice: it.unitPrice,
     amount: it.amount,
@@ -210,6 +214,7 @@ export default async function EstimatePage({
         giaBanTheoHD={hdKy.length > 0 ? hdKy.map((c) => c.contractNo ?? "(chưa có số)") : null}
         area={project.area}
         canEdit={canEdit}
+        thuVienKg={thuVienKg}
         catalog={congTacs.map((c) => ({
           congTacId: c.id,
           code: c.ma,

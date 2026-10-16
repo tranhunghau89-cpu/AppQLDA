@@ -897,6 +897,7 @@ const mucConSchema = z.object({
   donVi: z.string().trim().nullable(),
   khoiLuong: z.number().min(0, "Khối lượng không được âm").nullable(),
   donGia: z.number().min(0, "Đơn giá không được âm").nullable(),
+  kgMotDonVi: z.number().positive("Kg một đơn vị phải dương").nullable().optional(),
   ghiChu: z.string().trim().nullable(),
 });
 export type MucConGui = z.input<typeof mucConSchema>;
@@ -930,6 +931,7 @@ export async function luuMucCon(
       data: ds.map((m, i) => ({
         ...m,
         donVi: m.donVi || null,
+        kgMotDonVi: m.kgMotDonVi ?? null,
         ghiChu: m.ghiChu || null,
         estimateItemId: itemId,
         loai,

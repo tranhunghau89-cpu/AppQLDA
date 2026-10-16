@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { tinhBieuThuc } from "@/lib/bieuThuc";
 import { tongMucCon, type LoaiMucCon } from "@/lib/khoiLuong/mucCon";
 import { formatQty, formatVND } from "@/lib/utils";
+import { traKgMotDonVi, type MauKg } from "@/lib/thuVien/trongLuongBulong";
 import { boGhiDeThucTe, luuMucCon } from "./actions";
 import type { EstimateRow, MucConRow } from "./EstimateEditor";
 
@@ -20,6 +21,8 @@ interface DongSua {
   donVi: string;
   khoiLuong: string;
   donGia: string;
+  /** Kg một đơn vị (bộ/cái → kg). Trống = lấy gợi ý từ bảng quy đổi. */
+  kgMotDonVi: string;
   ghiChu: string;
 }
 
@@ -31,6 +34,7 @@ const tuMucCon = (m: MucConRow): DongSua => ({
   donVi: m.donVi ?? "",
   khoiLuong: soVN(m.khoiLuong),
   donGia: soVN(m.donGia),
+  kgMotDonVi: soVN(m.kgMotDonVi),
   ghiChu: m.ghiChu ?? "",
 });
 const dongTrong = (donVi: string | null): DongSua => ({
@@ -39,8 +43,10 @@ const dongTrong = (donVi: string | null): DongSua => ({
   donVi: donVi ?? "",
   khoiLuong: "",
   donGia: "",
+  kgMotDonVi: "",
   ghiChu: "",
 });
+const chuanDv = (v: string | null | undefined) => (v ?? "").trim().toLowerCase();
 const doc = (tho: string) => (tho.trim() === "" ? null : tinhBieuThuc(tho));
 
 const TEN: Record<LoaiMucCon, string> = { DU_TOAN: "Dự toán", THUC_TE: "Thực tế (mua hàng)" };
@@ -54,12 +60,16 @@ const TEN: Record<LoaiMucCon, string> = { DU_TOAN: "Dự toán", THUC_TE: "Thự
 export function MucConModal({
   projectId,
   dong,
+  thuVienKg,
   onClose,
 }: {
   projectId: string;
   dong: EstimateRow;
+  thuVienKg: MauKg[];
   onClose: () => void;
 }) {
+  // Đầu việc tính kg → mục con tính bộ/cái cần kg một đơn vị để cộng được khối lượng.
+  const laKg = chuanDv(dong.unit) === "kg";
   const router = useRouter();
   const toast = useToast();
   const [pending, start] = useTransition();
@@ -77,18 +87,28 @@ export function MucConModal({
   const xoa = (khoa: number) => setDs((c) => ({ ...c, [loai]: c[loai].filter((d) => d.khoa !== khoa) }));
 
   // Ô số gõ sai thì báo ngay tại dòng, không gửi đi.
-  const daDoc = dang.map((d) => ({
-    ...d,
-    kl: doc(d.khoiLuong),
-    dg: doc(d.donGia),
-    klSai: d.khoiLuong.trim() !== "" && doc(d.khoiLuong) == null,
-    dgSai: d.donGia.trim() !== "" && doc(d.donGia) == null,
-  }));
+  const daDoc = dang.map((d) => {
+    const canQuyDoi = laKg && d.donVi.trim() !== "" && chuanDv(d.donVi) !== "kg";
+    const goiY = canQuyDoi ? traKgMotDonVi(d.ten, thuVienKg) : null;
+    const kgGo = doc(d.kgMotDonVi);
+    return {
+      ...d,
+      kl: doc(d.khoiLuong),
+      dg: doc(d.donGia),
+      klSai: d.khoiLuong.trim() !== "" && doc(d.khoiLuong) == null,
+      dgSai: d.donGia.trim() !== "" && doc(d.donGia) == null,
+      kgSai: d.kgMotDonVi.trim() !== "" && (kgGo == null || kgGo <= 0),
+      canQuyDoi,
+      goiY,
+      // Số người gõ thắng gợi ý; không cần quy đổi thì bỏ.
+      kg: canQuyDoi ? (kgGo ?? goiY?.kg ?? null) : null,
+    };
+  });
   // Phía thực tế còn cộng các món đơn hàng đã gắn (chỉ đọc — sửa ở màn đơn hàng).
   const donHang = loai === "THUC_TE" ? dong.donHang : [];
   const tong = tongMucCon(
     [
-      ...daDoc.map((d) => ({ ten: d.ten, donVi: d.donVi || null, khoiLuong: d.kl, donGia: d.dg })),
+      ...daDoc.map((d) => ({ ten: d.ten, donVi: d.donVi || null, khoiLuong: d.kl, donGia: d.dg, kgMotDonVi: d.kg })),
       ...donHang,
     ],
     dong.unit
@@ -96,7 +116,7 @@ export function MucConModal({
 
   function luu() {
     setLoi(null);
-    if (daDoc.some((d) => d.klSai || d.dgSai)) return setLoi("Có ô số không đọc được — sửa ô viền đỏ.");
+    if (daDoc.some((d) => d.klSai || d.dgSai || d.kgSai)) return setLoi("Có ô số không đọc được — sửa ô viền đỏ.");
     const conTen = daDoc.filter((d) => d.ten.trim() || d.kl != null || d.dg != null);
     if (conTen.some((d) => !d.ten.trim())) return setLoi("Mỗi mục con phải có tên / mã.");
     start(async () => {
@@ -109,6 +129,7 @@ export function MucConModal({
           donVi: d.donVi.trim() || null,
           khoiLuong: d.kl,
           donGia: d.dg,
+          kgMotDonVi: d.kg,
           ghiChu: d.ghiChu.trim() || null,
         }))
       );
@@ -170,7 +191,7 @@ export function MucConModal({
 
         <p className="text-xs text-slate-500">
           {loai === "DU_TOAN"
-            ? "Thành tiền dự toán của đầu việc = tổng các mục con; khối lượng cộng lại khi cùng đơn vị với đầu việc. Ô KL và đơn giá trên bảng sẽ khoá."
+            ? "Thành tiền dự toán của đầu việc = tổng các mục con; khối lượng cộng lại khi cùng đơn vị với đầu việc (đầu việc tính kg thì bộ/cái được quy ra kg theo cột kg/đv). Ô KL và đơn giá trên bảng sẽ khoá."
             : "Thực tế được có mã khác dự toán. Thành tiền thực của đầu việc = tổng các mục con — trừ khi đã gõ tay ô thực tế trên bảng (ghi đè)."}{" "}
           Ô số nhận công thức, ví dụ <span className="font-mono">=120*0,42</span>.
         </p>
@@ -191,6 +212,14 @@ export function MucConModal({
                 <th className="px-1 py-1 text-left font-medium">Mã / quy cách</th>
                 <th className="w-20 px-1 py-1 text-left font-medium">ĐVT</th>
                 <th className="w-28 px-1 py-1 text-right font-medium">KL</th>
+                {laKg && (
+                  <th
+                    className="w-24 px-1 py-1 text-right font-medium"
+                    title="Kg một bộ/cái để quy ra kg của đầu việc. Trống = lấy theo bảng quy đổi trong Thư viện, không có thì ước tính theo quy cách."
+                  >
+                    kg/đv
+                  </th>
+                )}
                 <th className="w-32 px-1 py-1 text-right font-medium">Đơn giá</th>
                 <th className="w-36 px-1 py-1 text-right font-medium">Thành tiền</th>
                 <th className="px-1 py-1 text-left font-medium">Ghi chú</th>
@@ -214,6 +243,24 @@ export function MucConModal({
                       onChange={(e) => sua(d.khoa, "khoiLuong", e.target.value)}
                     />
                   </td>
+                  {laKg && (
+                    <td className="px-1 py-0.5">
+                      {d.canQuyDoi ? (
+                        <input
+                          className={`${o} text-right tabular-nums ${d.kgSai ? oSai : d.kg == null ? "border-amber-300" : ""}`}
+                          value={d.kgMotDonVi}
+                          inputMode="decimal"
+                          placeholder={d.goiY ? `≈ ${String(d.goiY.kg).replace(".", ",")}` : "?"}
+                          title={
+                            d.goiY
+                              ? `${d.goiY.ghiChu}${d.kl != null && d.kg != null ? ` → ${formatQty(d.kl * d.kg)} kg` : ""}`
+                              : "Không đọc ra quy cách — gõ kg một đơn vị"
+                          }
+                          onChange={(e) => sua(d.khoa, "kgMotDonVi", e.target.value)}
+                        />
+                      ) : null}
+                    </td>
+                  )}
                   <td className="px-1 py-0.5">
                     <input
                       className={`${o} text-right tabular-nums ${d.dgSai ? oSai : ""}`}
@@ -248,6 +295,15 @@ export function MucConModal({
                   </td>
                   <td className="px-2 py-1">{m.donVi ?? ""}</td>
                   <td className="px-2 py-1 text-right tabular-nums">{m.khoiLuong == null ? "" : formatQty(m.khoiLuong)}</td>
+                  {laKg && (
+                    <td className="px-2 py-1 text-right text-xs tabular-nums text-slate-500">
+                      {m.kgTong != null
+                        ? `${formatQty(m.kgTong)} kg`
+                        : m.kgMotDonVi != null
+                          ? `≈ ${String(m.kgMotDonVi).replace(".", ",")}`
+                          : ""}
+                    </td>
+                  )}
                   <td className="px-2 py-1 text-right tabular-nums">{m.donGia == null ? "" : formatVND(m.donGia)}</td>
                   <td className="px-1 py-1 text-right tabular-nums">
                     {m.thanhTien != null ? formatVND(m.thanhTien) : <span className="text-slate-300">—</span>}
@@ -270,6 +326,7 @@ export function MucConModal({
                 <td className="px-1 pt-2 text-right tabular-nums text-slate-600" title="Chỉ cộng khi mọi mục con cùng đơn vị đầu việc">
                   {tong.khoiLuong == null ? "—" : `${formatQty(tong.khoiLuong)} ${dong.unit ?? ""}`}
                 </td>
+                {laKg && <td />}
                 <td className="px-1 pt-2 text-right tabular-nums text-slate-500">
                   {tong.donGia == null ? "" : `TB ${formatVND(Math.round(tong.donGia))}`}
                 </td>

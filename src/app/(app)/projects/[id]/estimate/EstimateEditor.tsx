@@ -31,6 +31,7 @@ import {
 import { ApplyTemplate, type TemplateForClient } from "./ApplyTemplate";
 import { BangBocModal } from "./BangBocModal";
 import { MucConModal } from "./MucConModal";
+import type { MauKg } from "@/lib/thuVien/trongLuongBulong";
 import { DashboardDuToan, type NhomSoSanh } from "./DashboardDuToan";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
@@ -42,6 +43,7 @@ export interface MucConRow {
   donVi: string | null;
   khoiLuong: number | null;
   donGia: number | null;
+  kgMotDonVi: number | null;
   ghiChu: string | null;
 }
 
@@ -55,6 +57,10 @@ export interface DonHangRow {
   khoiLuong: number | null;
   donGia: number | null;
   thanhTien?: number | null;
+  /** Trọng lượng ghi trên món (kg). */
+  kgTong?: number | null;
+  /** Kg một đơn vị tra theo bảng quy đổi khi món tính bộ/cái chưa ghi trọng lượng. */
+  kgMotDonVi?: number | null;
 }
 
 export interface EstimateRow {
@@ -129,6 +135,7 @@ export function EstimateEditor({
   area,
   canEdit,
   catalog,
+  thuVienKg,
 }: {
   projectId: string;
   items: EstimateRow[];
@@ -146,6 +153,8 @@ export function EstimateEditor({
   canEdit: boolean;
   /** Công tác thư viện — cho ô chọn công việc ngay trên bảng. */
   catalog: CongTacChon[];
+  /** Bảng quy đổi bộ → kg của thư viện (bulong, ty xà gồ). */
+  thuVienKg: MauKg[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -978,7 +987,7 @@ export function EstimateEditor({
       </Modal>
 
       {mucCon && (
-        <MucConModal projectId={projectId} dong={mucCon} onClose={() => setMucCon(null)} />
+        <MucConModal projectId={projectId} dong={mucCon} thuVienKg={thuVienKg} onClose={() => setMucCon(null)} />
       )}
 
       {bangBoc && (
