@@ -1422,7 +1422,7 @@ function OrderCard({
       {order.items.length > 0 && (
         <>
           <div className="flex flex-wrap gap-1 border-b border-slate-100 px-3 pt-2">
-            {groups.map(([key, rows]) => (
+            {groups.map(([key, rows], gi) => (
               <button
                 key={key}
                 type="button"
@@ -1434,6 +1434,7 @@ function OrderCard({
                     : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-700",
                 )}
               >
+                <span className="mr-1 font-semibold text-slate-400">{gi + 1}.</span>
                 {key}
                 <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 text-xs text-slate-500">
                   {rows.length}
