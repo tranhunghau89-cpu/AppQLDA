@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { Fragment, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -18,7 +18,12 @@ import { Input, Select, Textarea, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
 import { Table, THead, Th, Tr, Td } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { PO_CATEGORY, PO_CATEGORY_MAP, PO_STATUS, PO_STATUS_MAP } from "@/lib/constants";
+import {
+  PO_CATEGORY,
+  PO_CATEGORY_MAP,
+  PO_STATUS,
+  PO_STATUS_MAP,
+} from "@/lib/constants";
 import { cn, formatVND, formatNumber, formatDate } from "@/lib/utils";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
@@ -128,7 +133,7 @@ export function PurchaseEditor({
         ? s.dir === "asc"
           ? { field, dir: "desc" }
           : { field: null, dir: "asc" }
-        : { field, dir: "asc" }
+        : { field, dir: "asc" },
     );
   }
 
@@ -138,7 +143,11 @@ export function PurchaseEditor({
     setError(null);
     setPending(true);
     start(async () => {
-      const res = await savePurchaseOrder(projectId, oEditing?.id ?? null, form);
+      const res = await savePurchaseOrder(
+        projectId,
+        oEditing?.id ?? null,
+        form,
+      );
       setPending(false);
       if (!res.ok) setError(res.error);
       else {
@@ -154,7 +163,12 @@ export function PurchaseEditor({
     setError(null);
     setPending(true);
     start(async () => {
-      const res = await savePurchaseItem(projectId, iOrderId, iEditing?.id ?? null, form);
+      const res = await savePurchaseItem(
+        projectId,
+        iOrderId,
+        iEditing?.id ?? null,
+        form,
+      );
       setPending(false);
       if (!res.ok) setError(res.error);
       else {
@@ -164,7 +178,12 @@ export function PurchaseEditor({
     });
   }
   async function onDeleteOrder(o: OrderView) {
-    if (!(await confirm(`Xóa đơn hàng "${o.orderNo ?? ""}" và toàn bộ dòng vật tư?`))) return;
+    if (
+      !(await confirm(
+        `Xóa đơn hàng "${o.orderNo ?? ""}" và toàn bộ dòng vật tư?`,
+      ))
+    )
+      return;
     start(async () => {
       const res = await deletePurchaseOrder(projectId, o.id);
       if (!res.ok) toast.error(res.error);
@@ -200,7 +219,7 @@ export function PurchaseEditor({
                   "rounded-md px-3 py-1 text-sm font-medium transition",
                   groupBy === val
                     ? "bg-blue-600 text-white"
-                    : "text-slate-600 hover:bg-slate-100"
+                    : "text-slate-600 hover:bg-slate-100",
                 )}
               >
                 {label}
@@ -270,19 +289,30 @@ export function PurchaseEditor({
       ))}
 
       {/* Modal đơn hàng */}
-      <Modal open={oOpen} onClose={() => setOOpen(false)} title={oEditing ? "Sửa đơn hàng" : "Thêm đơn hàng"}>
+      <Modal
+        open={oOpen}
+        onClose={() => setOOpen(false)}
+        title={oEditing ? "Sửa đơn hàng" : "Thêm đơn hàng"}
+      >
         <form onSubmit={onOrderSubmit} className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Số / tên đơn">
               <Input name="orderNo" defaultValue={oEditing?.orderNo ?? ""} />
             </Field>
             <Field label="Ngày đơn">
-              <Input name="orderDate" type="date" defaultValue={d10(oEditing?.orderDate ?? null)} />
+              <Input
+                name="orderDate"
+                type="date"
+                defaultValue={d10(oEditing?.orderDate ?? null)}
+              />
             </Field>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Loại đơn *">
-              <Select name="category" defaultValue={oEditing?.category ?? "VTP"}>
+              <Select
+                name="category"
+                defaultValue={oEditing?.category ?? "VTP"}
+              >
                 {PO_CATEGORY.map((c) => (
                   <option key={c.value} value={c.value}>
                     {c.label}
@@ -312,13 +342,25 @@ export function PurchaseEditor({
           </Field>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Field label="Ngày đặt">
-              <Input name="orderedDate" type="date" defaultValue={d10(oEditing?.orderedDate ?? null)} />
+              <Input
+                name="orderedDate"
+                type="date"
+                defaultValue={d10(oEditing?.orderedDate ?? null)}
+              />
             </Field>
             <Field label="Dự kiến giao">
-              <Input name="expectedDate" type="date" defaultValue={d10(oEditing?.expectedDate ?? null)} />
+              <Input
+                name="expectedDate"
+                type="date"
+                defaultValue={d10(oEditing?.expectedDate ?? null)}
+              />
             </Field>
             <Field label="Ngày nhận">
-              <Input name="receivedDate" type="date" defaultValue={d10(oEditing?.receivedDate ?? null)} />
+              <Input
+                name="receivedDate"
+                type="date"
+                defaultValue={d10(oEditing?.receivedDate ?? null)}
+              />
             </Field>
           </div>
           <Field label="Đường dẫn file đơn (.xlsx trên ổ đĩa)">
@@ -327,9 +369,17 @@ export function PurchaseEditor({
           <Field label="Ghi chú">
             <Textarea name="note" defaultValue={oEditing?.note ?? ""} />
           </Field>
-          {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+          {error && (
+            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
+              {error}
+            </p>
+          )}
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setOOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOOpen(false)}
+            >
               Hủy
             </Button>
             <Button type="submit" disabled={pending}>
@@ -340,14 +390,26 @@ export function PurchaseEditor({
       </Modal>
 
       {/* Modal vật tư */}
-      <Modal open={iOpen} onClose={() => setIOpen(false)} title={iEditing ? "Sửa vật tư" : "Thêm vật tư"}>
+      <Modal
+        open={iOpen}
+        onClose={() => setIOpen(false)}
+        title={iEditing ? "Sửa vật tư" : "Thêm vật tư"}
+      >
         <form onSubmit={onItemSubmit} className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Loại (sheet)">
-              <Input name="category" defaultValue={iEditing?.category ?? ""} placeholder="BLLK, Tôn mái…" />
+              <Input
+                name="category"
+                defaultValue={iEditing?.category ?? ""}
+                placeholder="BLLK, Tôn mái…"
+              />
             </Field>
             <Field label="Hạng mục">
-              <Input name="groupName" defaultValue={iEditing?.groupName ?? ""} placeholder="HM khung mái…" />
+              <Input
+                name="groupName"
+                defaultValue={iEditing?.groupName ?? ""}
+                placeholder="HM khung mái…"
+              />
             </Field>
           </div>
           <Field label="Tên hàng, quy cách *">
@@ -355,26 +417,49 @@ export function PurchaseEditor({
           </Field>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Field label="SL">
-              <Input name="qty" type="number" step="any" defaultValue={iEditing?.qty ?? ""} />
+              <Input
+                name="qty"
+                type="number"
+                step="any"
+                defaultValue={iEditing?.qty ?? ""}
+              />
             </Field>
             <Field label="Đơn vị">
               <Input name="unit" defaultValue={iEditing?.unit ?? ""} />
             </Field>
             <Field label="Đơn giá">
-              <Input name="unitPrice" type="number" step="any" defaultValue={iEditing?.unitPrice ?? ""} />
+              <Input
+                name="unitPrice"
+                type="number"
+                step="any"
+                defaultValue={iEditing?.unitPrice ?? ""}
+              />
             </Field>
             <Field label="TL (kg)">
-              <Input name="weight" type="number" step="any" defaultValue={iEditing?.weight ?? ""} />
+              <Input
+                name="weight"
+                type="number"
+                step="any"
+                defaultValue={iEditing?.weight ?? ""}
+              />
             </Field>
           </div>
           <Field label="Thành tiền (để trống = SL × đơn giá)">
-            <Input name="amount" type="number" step="any" defaultValue={iEditing?.amount ?? ""} />
+            <Input
+              name="amount"
+              type="number"
+              step="any"
+              defaultValue={iEditing?.amount ?? ""}
+            />
           </Field>
           <Field label="Ghi chú">
             <Input name="note" defaultValue={iEditing?.note ?? ""} />
           </Field>
           <Field label="Đầu việc dự toán thi công (cộng vào thực tế)">
-            <Select name="estimateItemId" defaultValue={iEditing?.estimateItemId ?? ""}>
+            <Select
+              name="estimateItemId"
+              defaultValue={iEditing?.estimateItemId ?? ""}
+            >
               <option value="">— Chưa gắn —</option>
               {nhomDauViec.map(([hm, ds]) => (
                 <optgroup key={hm} label={hm}>
@@ -388,9 +473,17 @@ export function PurchaseEditor({
               ))}
             </Select>
           </Field>
-          {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+          {error && (
+            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
+              {error}
+            </p>
+          )}
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setIOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIOpen(false)}
+            >
               Hủy
             </Button>
             <Button type="submit" disabled={pending}>
@@ -406,7 +499,11 @@ export function PurchaseEditor({
 const otherOf = (it: OrderItemView, groupBy: GroupBy) =>
   (groupBy === "category" ? it.groupName : it.category) ?? "";
 
-function sortRows(rows: OrderItemView[], sort: SortState, groupBy: GroupBy): OrderItemView[] {
+function sortRows(
+  rows: OrderItemView[],
+  sort: SortState,
+  groupBy: GroupBy,
+): OrderItemView[] {
   if (!sort.field) return rows;
   const { field, dir } = sort;
   const sign = dir === "asc" ? 1 : -1;
@@ -414,7 +511,9 @@ function sortRows(rows: OrderItemView[], sort: SortState, groupBy: GroupBy): Ord
   out.sort((a, b) => {
     if (field === "name") return sign * a.name.localeCompare(b.name, "vi");
     if (field === "other")
-      return sign * otherOf(a, groupBy).localeCompare(otherOf(b, groupBy), "vi");
+      return (
+        sign * otherOf(a, groupBy).localeCompare(otherOf(b, groupBy), "vi")
+      );
     const av = a[field] as number | null;
     const bv = b[field] as number | null;
     if (av == null && bv == null) return 0;
@@ -444,18 +543,23 @@ function SortHead({
     <Th
       className={cn(
         "cursor-pointer select-none hover:bg-slate-200/70",
-        align === "right" && "text-right"
+        align === "right" && "text-right",
       )}
       onClick={() => onToggle(field)}
     >
       <span
         className={cn(
           "inline-flex items-center gap-1",
-          align === "right" && "flex-row-reverse"
+          align === "right" && "flex-row-reverse",
         )}
       >
         {label}
-        <Icon className={cn("h-3.5 w-3.5", active ? "text-blue-600" : "text-slate-300")} />
+        <Icon
+          className={cn(
+            "h-3.5 w-3.5",
+            active ? "text-blue-600" : "text-slate-300",
+          )}
+        />
       </span>
     </Th>
   );
@@ -493,155 +597,245 @@ function ItemsTable({
   showGroupCol?: boolean;
   groupColLabel?: string;
 }) {
+  // Bảng "toàn bộ vật tư": gom thành dòng cha (nhóm) + dòng con, như sheet Excel —
+  // thay cho cột nhóm lặp lại ở mọi dòng. Thứ tự nhóm theo lần xuất hiện đầu.
+  const khoi = useMemo(() => {
+    if (!showGroupCol) return [{ nhom: null as string | null, ds: rows }];
+    const m = new Map<string, OrderItemView[]>();
+    for (const r of rows) {
+      const k = (groupBy === "category" ? r.category : r.groupName) || "—";
+      m.set(k, [...(m.get(k) ?? []), r]);
+    }
+    return [...m].map(([nhom, ds]) => ({ nhom: nhom as string | null, ds }));
+  }, [rows, showGroupCol, groupBy]);
+
   return (
     <Table>
       <THead>
         <tr>
           <Th className="w-12 text-center">STT</Th>
-          {showGroupCol && <Th>{groupColLabel}</Th>}
-          <SortHead field="name" label="Tên hàng, quy cách" sort={sort} onToggle={onToggleSort} />
+          <SortHead
+            field="name"
+            label="Tên hàng, quy cách"
+            sort={sort}
+            onToggle={onToggleSort}
+          />
           <Th className="text-center">Biên dạng</Th>
-          <SortHead field="other" label={otherLabel} sort={sort} onToggle={onToggleSort} />
-          <SortHead field="qty" label="SL" sort={sort} onToggle={onToggleSort} align="right" />
+          <SortHead
+            field="other"
+            label={otherLabel}
+            sort={sort}
+            onToggle={onToggleSort}
+          />
+          <SortHead
+            field="qty"
+            label="SL"
+            sort={sort}
+            onToggle={onToggleSort}
+            align="right"
+          />
           <Th>ĐV</Th>
-          <SortHead field="unitPrice" label="Đơn giá" sort={sort} onToggle={onToggleSort} align="right" />
-          <SortHead field="amount" label="Thành tiền" sort={sort} onToggle={onToggleSort} align="right" />
-          <SortHead field="weight" label="TL (kg)" sort={sort} onToggle={onToggleSort} align="right" />
+          <SortHead
+            field="unitPrice"
+            label="Đơn giá"
+            sort={sort}
+            onToggle={onToggleSort}
+            align="right"
+          />
+          <SortHead
+            field="amount"
+            label="Thành tiền"
+            sort={sort}
+            onToggle={onToggleSort}
+            align="right"
+          />
+          <SortHead
+            field="weight"
+            label="TL (kg)"
+            sort={sort}
+            onToggle={onToggleSort}
+            align="right"
+          />
           <Th>Ghi chú</Th>
           {canEdit && <Th></Th>}
         </tr>
       </THead>
       <tbody onKeyDown={canEdit ? diChuyenO : undefined}>
-        {rows.map((r, i) => (
-          <Tr key={r.id}>
-            <Td className="w-12 text-center text-slate-400">{i + 1}</Td>
-            {showGroupCol && (
-              <Td className="text-slate-500">
-                {(groupBy === "category" ? r.category : r.groupName) || "—"}
-              </Td>
+        {khoi.map(({ nhom, ds }) => (
+          <Fragment key={nhom ?? ""}>
+            {nhom != null && (
+              <tr className="border-y border-slate-200 bg-slate-100/80">
+                <td colSpan={99} className="px-3 py-1.5 text-sm">
+                  <span className="font-semibold text-slate-800">{nhom}</span>
+                  <span className="ml-2 text-xs text-slate-500">
+                    {groupColLabel.toLowerCase()} · {ds.length} dòng ·{" "}
+                    {formatNumber(ds.reduce((t, x) => t + (x.weight ?? 0), 0))}{" "}
+                    kg
+                    {(() => {
+                      const tien = ds.reduce((t, x) => t + (x.amount ?? 0), 0);
+                      return tien ? ` · ${formatVND(tien)}` : "";
+                    })()}
+                  </span>
+                </td>
+              </tr>
             )}
-            <Td className="font-medium text-slate-900" data-cot="name">
-              {canEdit ? (
-                <OChuSua
-                  giaTri={r.name}
-                  nhan="Tên hàng, quy cách"
-                  rong
-                  luu={(v) => suaOMonHang(projectId, r.id, "name", v)}
-                />
-              ) : (
-                r.name
-              )}
-              {r.estimateItemName && (
-                <div className="text-xs font-normal text-emerald-700">→ {r.estimateItemName}</div>
-              )}
-            </Td>
-            <Td>
-              <div className="flex justify-center">
-                <ItemImages item={r} projectId={projectId} canEdit={canEdit} onRefresh={onRefresh} />
-              </div>
-            </Td>
-            <Td className="text-slate-500" data-cot="other">
-              {canEdit ? (
-                <OChuSua
-                  giaTri={otherOf(r, groupBy)}
-                  nhan={otherLabel}
-                  luu={(v) =>
-                    suaOMonHang(projectId, r.id, groupBy === "category" ? "groupName" : "category", v)
-                  }
-                />
-              ) : (
-                otherOf(r, groupBy) || "—"
-              )}
-            </Td>
-            <Td className="text-right" data-cot="qty">
-              {canEdit ? (
-                <OSoSua
-                  giaTri={r.qty}
-                  dinhDang={formatNumber}
-                  khoa={false}
-                  thuCong={false}
-                  nhan="SL"
-                  luu={(v) => suaOMonHang(projectId, r.id, "qty", v)}
-                />
-              ) : (
-                formatNumber(r.qty)
-              )}
-            </Td>
-            <Td className="text-slate-500" data-cot="unit">
-              {canEdit ? (
-                <OChuSua
-                  giaTri={r.unit ?? ""}
-                  nhan="Đơn vị"
-                  luu={(v) => suaOMonHang(projectId, r.id, "unit", v)}
-                />
-              ) : (
-                r.unit || "—"
-              )}
-            </Td>
-            <Td className="text-right" data-cot="unitPrice">
-              {canEdit ? (
-                <OSoSua
-                  giaTri={r.unitPrice}
-                  dinhDang={formatNumber}
-                  khoa={false}
-                  thuCong={false}
-                  nhan="Đơn giá"
-                  luu={(v) => suaOMonHang(projectId, r.id, "unitPrice", v)}
-                />
-              ) : (
-                formatNumber(r.unitPrice)
-              )}
-            </Td>
-            <Td className="text-right tabular-nums">{r.amount ? formatVND(r.amount) : "—"}</Td>
-            <Td className="text-right" data-cot="weight">
-              {canEdit ? (
-                <OSoSua
-                  giaTri={r.weight}
-                  dinhDang={formatNumber}
-                  khoa={false}
-                  thuCong={false}
-                  nhan="TL (kg)"
-                  luu={(v) => suaOMonHang(projectId, r.id, "weight", v)}
-                />
-              ) : (
-                formatNumber(r.weight)
-              )}
-            </Td>
-            <Td className="text-slate-500" data-cot="note">
-              {canEdit ? (
-                <OChuSua
-                  giaTri={r.note ?? ""}
-                  nhan="Ghi chú"
-                  luu={(v) => suaOMonHang(projectId, r.id, "note", v)}
-                />
-              ) : (
-                r.note || ""
-              )}
-            </Td>
-            {canEdit && (
-              <Td className="text-right">
-                <div className="flex justify-end gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => onEditItem(r)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-red-600 hover:bg-red-50"
-                    onClick={() => onDeleteItem(r)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </Td>
-            )}
-          </Tr>
+            {ds.map((r, i) => (
+              <Tr key={r.id}>
+                <Td
+                  className={cn(
+                    "w-12 text-center text-slate-400",
+                    nhom != null && "pl-6",
+                  )}
+                >
+                  {i + 1}
+                </Td>
+                <Td className="font-medium text-slate-900" data-cot="name">
+                  {canEdit ? (
+                    <OChuSua
+                      giaTri={r.name}
+                      nhan="Tên hàng, quy cách"
+                      rong
+                      luu={(v) => suaOMonHang(projectId, r.id, "name", v)}
+                    />
+                  ) : (
+                    r.name
+                  )}
+                  {r.estimateItemName && (
+                    <div className="text-xs font-normal text-emerald-700">
+                      → {r.estimateItemName}
+                    </div>
+                  )}
+                </Td>
+                <Td>
+                  <div className="flex justify-center">
+                    <ItemImages
+                      item={r}
+                      projectId={projectId}
+                      canEdit={canEdit}
+                      onRefresh={onRefresh}
+                    />
+                  </div>
+                </Td>
+                <Td className="text-slate-500" data-cot="other">
+                  {canEdit ? (
+                    <OChuSua
+                      giaTri={otherOf(r, groupBy)}
+                      nhan={otherLabel}
+                      luu={(v) =>
+                        suaOMonHang(
+                          projectId,
+                          r.id,
+                          groupBy === "category" ? "groupName" : "category",
+                          v,
+                        )
+                      }
+                    />
+                  ) : (
+                    otherOf(r, groupBy) || "—"
+                  )}
+                </Td>
+                <Td className="text-right" data-cot="qty">
+                  {canEdit ? (
+                    <OSoSua
+                      giaTri={r.qty}
+                      dinhDang={formatNumber}
+                      khoa={false}
+                      thuCong={false}
+                      nhan="SL"
+                      luu={(v) => suaOMonHang(projectId, r.id, "qty", v)}
+                    />
+                  ) : (
+                    formatNumber(r.qty)
+                  )}
+                </Td>
+                <Td className="text-slate-500" data-cot="unit">
+                  {canEdit ? (
+                    <OChuSua
+                      giaTri={r.unit ?? ""}
+                      nhan="Đơn vị"
+                      luu={(v) => suaOMonHang(projectId, r.id, "unit", v)}
+                    />
+                  ) : (
+                    r.unit || "—"
+                  )}
+                </Td>
+                <Td className="text-right" data-cot="unitPrice">
+                  {canEdit ? (
+                    <OSoSua
+                      giaTri={r.unitPrice}
+                      dinhDang={formatNumber}
+                      khoa={false}
+                      thuCong={false}
+                      nhan="Đơn giá"
+                      luu={(v) => suaOMonHang(projectId, r.id, "unitPrice", v)}
+                    />
+                  ) : (
+                    formatNumber(r.unitPrice)
+                  )}
+                </Td>
+                <Td className="text-right tabular-nums">
+                  {r.amount ? formatVND(r.amount) : "—"}
+                </Td>
+                <Td className="text-right" data-cot="weight">
+                  {canEdit ? (
+                    <OSoSua
+                      giaTri={r.weight}
+                      dinhDang={formatNumber}
+                      khoa={false}
+                      thuCong={false}
+                      nhan="TL (kg)"
+                      luu={(v) => suaOMonHang(projectId, r.id, "weight", v)}
+                    />
+                  ) : (
+                    formatNumber(r.weight)
+                  )}
+                </Td>
+                <Td className="text-slate-500" data-cot="note">
+                  {canEdit ? (
+                    <OChuSua
+                      giaTri={r.note ?? ""}
+                      nhan="Ghi chú"
+                      luu={(v) => suaOMonHang(projectId, r.id, "note", v)}
+                    />
+                  ) : (
+                    r.note || ""
+                  )}
+                </Td>
+                {canEdit && (
+                  <Td className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onEditItem(r)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-red-600 hover:bg-red-50"
+                        onClick={() => onDeleteItem(r)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </Td>
+                )}
+              </Tr>
+            ))}
+          </Fragment>
         ))}
         {canEdit && (
           <tr>
-            <td colSpan={99} className="border-t border-dashed border-slate-200 px-3 py-1.5">
+            <td
+              colSpan={99}
+              className="border-t border-dashed border-slate-200 px-3 py-1.5"
+            >
               <ThemNhanh
-                luu={(ten) => themNhanhMonHang(projectId, orderId, ten, nhomMoi)}
+                luu={(ten) =>
+                  themNhanhMonHang(projectId, orderId, ten, nhomMoi)
+                }
               />
             </td>
           </tr>
@@ -659,15 +853,27 @@ function ItemsTable({
 function diChuyenO(e: React.KeyboardEvent<HTMLTableSectionElement>) {
   const el = e.target as HTMLElement;
   if (el.tagName !== "INPUT") return;
-  const buoc = e.key === "Enter" || e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
+  const buoc =
+    e.key === "Enter" || e.key === "ArrowDown"
+      ? 1
+      : e.key === "ArrowUp"
+        ? -1
+        : 0;
   if (!buoc) return;
   const td = el.closest<HTMLElement>("td[data-cot]");
   const tr = td?.closest("tr");
   if (!td || !tr) return;
   e.preventDefault();
-  const ke = buoc > 0 ? tr.nextElementSibling : tr.previousElementSibling;
   const cot = td.dataset.cot;
-  const o = ke?.querySelector<HTMLInputElement>(`td[data-cot="${cot}"] input`);
+  let ke = buoc > 0 ? tr.nextElementSibling : tr.previousElementSibling;
+  let o: HTMLInputElement | null = null;
+  // Bỏ qua dòng cha (tên nhóm) không có ô cùng cột.
+  while (
+    ke &&
+    !(o = ke.querySelector<HTMLInputElement>(`td[data-cot="${cot}"] input`))
+  ) {
+    ke = buoc > 0 ? ke.nextElementSibling : ke.previousElementSibling;
+  }
   if (o) o.focus();
   else el.blur();
 }
@@ -725,7 +931,7 @@ function OChuSua({
       size={Math.max(4, (nhap ?? giaTri).length + 1)}
       className={cn(
         "field-sizing-content rounded border border-transparent bg-transparent px-1.5 py-0.5 hover:border-slate-200 focus:border-blue-500 focus:bg-white focus:outline-none disabled:opacity-50",
-        rong ? "min-w-[16ch] font-medium text-slate-900" : "min-w-[4ch]"
+        rong ? "min-w-[16ch] font-medium text-slate-900" : "min-w-[4ch]",
       )}
     />
   );
@@ -811,7 +1017,7 @@ function OrderCard({
       map.set(key, arr);
     }
     return Array.from(map.entries()).map(
-      ([key, rows]) => [key, sortRows(rows, sort, groupBy)] as const
+      ([key, rows]) => [key, sortRows(rows, sort, groupBy)] as const,
     );
   }, [order.items, groupBy, sort]);
 
@@ -823,30 +1029,50 @@ function OrderCard({
         weight: rows.reduce((s, r) => s + (r.weight ?? 0), 0),
         value: rows.reduce((s, r) => s + (r.amount ?? 0), 0),
       })),
-    [groups]
+    [groups],
   );
-  const allRows = useMemo(() => sortRows(order.items, sort, groupBy), [order.items, sort, groupBy]);
+  const allRows = useMemo(
+    () => sortRows(order.items, sort, groupBy),
+    [order.items, sort, groupBy],
+  );
 
   const [tab, setTab] = useState<string>(SUMMARY_TAB);
   const tabKeys = groups.map(([k]) => k);
-  const current = tab === SUMMARY_TAB || tabKeys.includes(tab) ? tab : SUMMARY_TAB;
+  const current =
+    tab === SUMMARY_TAB || tabKeys.includes(tab) ? tab : SUMMARY_TAB;
   const currentRows = groups.find(([k]) => k === current)?.[1] ?? [];
 
   return (
-    <div id={order.id} className="scroll-mt-4 rounded-xl border border-slate-200 bg-white">
+    <div
+      id={order.id}
+      className="scroll-mt-4 rounded-xl border border-slate-200 bg-white"
+    >
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 p-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <Badge tone={cat?.tone ?? "slate"}>{cat?.label ?? order.category}</Badge>
-            <span className="font-semibold text-slate-900">{order.orderNo ?? "(Đơn chưa đặt tên)"}</span>
-            <Badge tone={st?.tone ?? "slate"}>{st?.label ?? order.status}</Badge>
+            <Badge tone={cat?.tone ?? "slate"}>
+              {cat?.label ?? order.category}
+            </Badge>
+            <span className="font-semibold text-slate-900">
+              {order.orderNo ?? "(Đơn chưa đặt tên)"}
+            </span>
+            <Badge tone={st?.tone ?? "slate"}>
+              {st?.label ?? order.status}
+            </Badge>
           </div>
           <div className="text-sm text-slate-500">
             NCC: {order.supplierName ?? "—"} · Ngày đặt:{" "}
             {order.orderedDate ? formatDate(order.orderedDate) : "—"}
-            {order.expectedDate ? ` · Dự kiến giao: ${formatDate(order.expectedDate)}` : ""}
-            {order.receivedDate ? ` · Đã nhận: ${formatDate(order.receivedDate)}` : ""}
-            <LateBadge expected={order.expectedDate} received={order.receivedDate} />
+            {order.expectedDate
+              ? ` · Dự kiến giao: ${formatDate(order.expectedDate)}`
+              : ""}
+            {order.receivedDate
+              ? ` · Đã nhận: ${formatDate(order.receivedDate)}`
+              : ""}
+            <LateBadge
+              expected={order.expectedDate}
+              received={order.receivedDate}
+            />
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -890,7 +1116,7 @@ function OrderCard({
                   "rounded-t-md border-b-2 px-3 py-1.5 text-sm font-medium transition",
                   current === key
                     ? "border-blue-600 text-blue-700"
-                    : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                    : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-700",
                 )}
               >
                 {key}
@@ -906,7 +1132,7 @@ function OrderCard({
                 "rounded-t-md border-b-2 px-3 py-1.5 text-sm font-semibold transition",
                 current === SUMMARY_TAB
                   ? "border-blue-600 text-blue-700"
-                  : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                  : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-700",
               )}
             >
               Tổng hợp
@@ -932,24 +1158,34 @@ function OrderCard({
                   <tbody>
                     {summary.map((s, i) => (
                       <Tr key={s.key}>
-                        <Td className="w-12 text-center text-slate-400">{i + 1}</Td>
+                        <Td className="w-12 text-center text-slate-400">
+                          {i + 1}
+                        </Td>
                         <Td className="font-medium text-slate-900">{s.key}</Td>
                         <Td className="text-right">{s.count}</Td>
                         <Td className="text-right">{formatNumber(s.weight)}</Td>
-                        <Td className="text-right">{s.value ? formatVND(s.value) : "—"}</Td>
+                        <Td className="text-right">
+                          {s.value ? formatVND(s.value) : "—"}
+                        </Td>
                       </Tr>
                     ))}
                     <Tr className="bg-slate-50 font-semibold">
                       <Td className="text-slate-900">Tổng cộng</Td>
                       <Td className="text-right">{order.items.length}</Td>
-                      <Td className="text-right">{formatNumber(order.totalWeight)}</Td>
-                      <Td className="text-right">{order.value ? formatVND(order.value) : "—"}</Td>
+                      <Td className="text-right">
+                        {formatNumber(order.totalWeight)}
+                      </Td>
+                      <Td className="text-right">
+                        {order.value ? formatVND(order.value) : "—"}
+                      </Td>
                     </Tr>
                   </tbody>
                 </Table>
               </div>
               <div>
-                <div className="mb-1.5 text-sm font-medium text-slate-600">Toàn bộ vật tư</div>
+                <div className="mb-1.5 text-sm font-medium text-slate-600">
+                  Toàn bộ vật tư
+                </div>
                 <ItemsTable
                   rows={allRows}
                   sort={sort}
@@ -973,7 +1209,11 @@ function OrderCard({
               rows={currentRows}
               orderId={order.id}
               nhomMoi={
-                current === "—" ? {} : groupBy === "category" ? { category: current } : { groupName: current }
+                current === "—"
+                  ? {}
+                  : groupBy === "category"
+                    ? { category: current }
+                    : { groupName: current }
               }
               sort={sort}
               onToggleSort={onToggleSort}
@@ -1004,11 +1244,15 @@ function OrderCard({
           </div>
           <div className="flex items-center gap-2">
             <dt className="text-slate-500">Khối lượng:</dt>
-            <dd className="font-semibold text-blue-600">{formatNumber(order.totalWeight)} kg</dd>
+            <dd className="font-semibold text-blue-600">
+              {formatNumber(order.totalWeight)} kg
+            </dd>
           </div>
           <div className="flex items-center gap-2">
             <dt className="text-slate-500">Giá trị:</dt>
-            <dd className="font-semibold text-slate-900">{order.value ? formatVND(order.value) : "—"}</dd>
+            <dd className="font-semibold text-slate-900">
+              {order.value ? formatVND(order.value) : "—"}
+            </dd>
           </div>
         </dl>
       </div>
@@ -1064,7 +1308,8 @@ function ItemImages({
             href={`/api/po-images/${imgId}`}
             target="_blank"
             rel="noopener noreferrer"
-            title="Mở hình biên dạng" aria-label="Mở hình biên dạng"
+            title="Mở hình biên dạng"
+            aria-label="Mở hình biên dạng"
             className="block"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1078,7 +1323,8 @@ function ItemImages({
             <button
               type="button"
               onClick={() => onDelete(imgId)}
-              title="Xóa ảnh" aria-label="Xóa ảnh"
+              title="Xóa ảnh"
+              aria-label="Xóa ảnh"
               className="absolute -right-1.5 -top-1.5 hidden rounded-full bg-red-600 p-0.5 text-white shadow group-hover:block hover:bg-red-700"
             >
               <X className="h-2.5 w-2.5" />
@@ -1092,7 +1338,8 @@ function ItemImages({
             type="button"
             disabled={busy}
             onClick={() => inputRef.current?.click()}
-            title="Thêm ảnh biên dạng" aria-label="Thêm ảnh biên dạng"
+            title="Thêm ảnh biên dạng"
+            aria-label="Thêm ảnh biên dạng"
             className="flex h-8 w-8 items-center justify-center rounded border border-dashed border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-500 disabled:opacity-50"
           >
             <ImagePlus className="h-4 w-4" />
@@ -1111,7 +1358,13 @@ function ItemImages({
   );
 }
 
-function LateBadge({ expected, received }: { expected: string | null; received: string | null }) {
+function LateBadge({
+  expected,
+  received,
+}: {
+  expected: string | null;
+  received: string | null;
+}) {
   if (!expected) return null;
   const exp = new Date(expected);
   const end = received ? new Date(received) : new Date();
