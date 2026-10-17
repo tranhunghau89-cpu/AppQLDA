@@ -3,7 +3,8 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { denyProject } from "@/lib/auth";
+import { denyProject, getSession } from "@/lib/auth";
+import { can, type Role } from "@/lib/rbac";
 import { tinhLaiThucTe } from "@/lib/khoiLuong/tinhLaiMucCon";
 import { PO_CATEGORY_MAP, PO_STATUS_MAP } from "@/lib/constants";
 import { laCongThuc, tinhBieuThuc } from "@/lib/bieuThuc";
@@ -557,6 +558,19 @@ export async function deletePurchaseItemImage(
 }
 
 // ── Thư viện đơn hàng mẫu ────────────────────────────────────────────────────────────
+//
+// Thư viện DÙNG CHUNG toàn công ty (mẫu để mở dự án mới), nên: lưu / xoá mẫu cần quyền
+// sửa thư viện (`thuVien:edit`), không chỉ quyền sửa đơn của một dự án — kẻo người được
+// giao một dự án xoá được mẫu của cả công ty. Mẫu KHÔNG mang đơn giá / ghi chú của dự
+// án gốc, để giá mua của công trình này không lộ sang người chỉ được giao công trình khác.
+
+async function denyThuVien(): Promise<ActionResult | null> {
+  const s = await getSession();
+  if (!s || !can(s.role as Role, "thuVien", "edit")) {
+    return { ok: false, error: "Chỉ người quản lý thư viện mới lưu / xoá được đơn hàng mẫu." };
+  }
+  return null;
+}
 
 /** Lưu một đơn có sẵn thành mẫu: chép mọi món (không chép ảnh, không chép gắn dự toán). */
 export async function luuMauDonHang(
@@ -564,7 +578,9 @@ export async function luuMauDonHang(
   orderId: string,
   ten: string
 ): Promise<ActionResult> {
-  const denied = await guard(projectId, "Bạn không có quyền lưu đơn hàng mẫu.", { orderId });
+  const denied =
+    (await guard(projectId, "Bạn không có quyền lưu đơn hàng mẫu.", { orderId })) ??
+    (await denyThuVien());
   if (denied) return denied;
   const name = ten.trim();
   if (!name) return { ok: false, error: "Đặt tên cho mẫu." };
@@ -577,7 +593,6 @@ export async function luuMauDonHang(
     data: {
       name,
       category: o.category,
-      note: o.note,
       items: {
         create: o.items.map((i, k) => ({
           category: i.category,
@@ -585,10 +600,8 @@ export async function luuMauDonHang(
           name: i.name,
           unit: i.unit,
           qty: i.qty,
-          unitPrice: i.unitPrice,
           weight: i.weight,
           length: i.length,
-          note: i.note,
           sortOrder: k,
         })),
       },
@@ -648,9 +661,10 @@ export async function taoDonTuMau(
 }
 
 export async function xoaMauDonHang(projectId: string, mauId: string): Promise<ActionResult> {
-  const denied = await guard(projectId, "Bạn không có quyền xoá đơn hàng mẫu.");
+  const denied =
+    (await guard(projectId, "Bạn không có quyền xoá đơn hàng mẫu.")) ?? (await denyThuVien());
   if (denied) return denied;
-  await db.purchaseOrderTemplate.delete({ where: { id: mauId } });
+  await db.purchaseOrderTemplate.deleteMany({ where: { id: mauId } });
   revalidatePath(`/projects/${projectId}/purchase`);
   return { ok: true };
 }

@@ -28,9 +28,12 @@ export interface MauView {
 export function NutTaoTuMau({
   projectId,
   mau,
+  quanLyMau,
 }: {
   projectId: string;
   mau: MauView[];
+  /** Được xoá mẫu — quyền sửa thư viện dùng chung. */
+  quanLyMau: boolean;
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -120,18 +123,20 @@ export function NutTaoTuMau({
                           {formatDate(m.createdAt)}
                         </span>
                       </span>
-                      <button
-                        type="button"
-                        title="Xoá mẫu"
-                        aria-label="Xoá mẫu"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          xoa(m);
-                        }}
-                        className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {quanLyMau && (
+                        <button
+                          type="button"
+                          title="Xoá mẫu"
+                          aria-label="Xoá mẫu"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            xoa(m);
+                          }}
+                          className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </label>
                   </li>
                 );
@@ -224,8 +229,9 @@ export function NutLuuMau({
             />
           </Field>
           <p className="text-xs text-slate-500">
-            Chép mọi nhóm, quy cách, mã, SL, chiều dài, kg, đơn giá. Không chép
-            ảnh biên dạng và phần gắn dự toán.
+            Chép mọi nhóm, quy cách, mã, SL, chiều dài, kg. Không chép đơn giá,
+            ghi chú, ảnh biên dạng và phần gắn dự toán — mẫu dùng chung cho mọi
+            dự án.
           </p>
           <div className="flex justify-end gap-2">
             <Button

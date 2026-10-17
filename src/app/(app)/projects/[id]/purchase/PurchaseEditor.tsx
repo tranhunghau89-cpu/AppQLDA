@@ -115,6 +115,7 @@ export function PurchaseEditor({
   suppliers,
   dauViec,
   mau,
+  quanLyMau,
   canEdit,
 }: {
   projectId: string;
@@ -122,6 +123,8 @@ export function PurchaseEditor({
   suppliers: SupplierOpt[];
   dauViec: DauViecOpt[];
   mau: MauView[];
+  /** Được lưu / xoá mẫu (quyền sửa thư viện dùng chung). */
+  quanLyMau: boolean;
   canEdit: boolean;
 }) {
   const nhomDauViec = useMemo(() => {
@@ -256,7 +259,11 @@ export function PurchaseEditor({
           </div>
           {canEdit && (
             <div className="flex items-center gap-2">
-              <NutTaoTuMau projectId={projectId} mau={mau} />
+              <NutTaoTuMau
+                projectId={projectId}
+                mau={mau}
+                quanLyMau={quanLyMau}
+              />
               <Button
                 size="sm"
                 onClick={() => {
@@ -281,6 +288,7 @@ export function PurchaseEditor({
           <OrderCard
             key={o.id}
             order={o}
+            quanLyMau={quanLyMau}
             canEdit={canEdit}
             projectId={projectId}
             groupBy={groupBy}
@@ -1286,6 +1294,7 @@ const GOP_TAB = "__gop__";
 
 function OrderCard({
   order,
+  quanLyMau,
   canEdit,
   projectId,
   groupBy,
@@ -1299,6 +1308,7 @@ function OrderCard({
   onDeleteItem,
 }: {
   order: OrderView;
+  quanLyMau: boolean;
   canEdit: boolean;
   projectId: string;
   groupBy: GroupBy;
@@ -1398,11 +1408,13 @@ function OrderCard({
           )}
           {canEdit && (
             <>
-              <NutLuuMau
-                projectId={projectId}
-                orderId={order.id}
-                tenGoiY={order.orderNo ?? ""}
-              />
+              {quanLyMau && (
+                <NutLuuMau
+                  projectId={projectId}
+                  orderId={order.id}
+                  tenGoiY={order.orderNo ?? ""}
+                />
+              )}
               <Button variant="ghost" size="icon" onClick={onEditOrder}>
                 <Pencil className="h-4 w-4" />
               </Button>
@@ -1434,7 +1446,9 @@ function OrderCard({
                     : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-700",
                 )}
               >
-                <span className="mr-1 font-semibold text-slate-400">{gi + 1}.</span>
+                <span className="mr-1 font-semibold text-slate-400">
+                  {gi + 1}.
+                </span>
                 {key}
                 <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 text-xs text-slate-500">
                   {rows.length}

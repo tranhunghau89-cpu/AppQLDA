@@ -128,6 +128,7 @@ export default async function PurchasePage({
         suppliers={suppliers}
         dauViec={dauViec}
         mau={mau}
+        quanLyMau={can(session.role, "thuVien", "edit")}
         canEdit={canEdit}
       />
     </div>
