@@ -304,10 +304,16 @@ model PurchaseOrderItem {
   estimateItemId String?
   estimateItem   EstimateItem? @relation(fields: [estimateItemId], references: [id], onDelete: SetNull)
 
+  // Công tác thư viện đơn giá của món — NGUỒN CHUNG với dự toán: món và đầu việc dự toán
+  // cùng một công tác thì tự gắn với nhau (lib/donHang/tuGan).
+  congTacId String?
+  congTac   CongTac? @relation(fields: [congTacId], references: [id], onDelete: SetNull)
+
   images PoItemImage[]
 
   @@index([orderId])
   @@index([estimateItemId])
+  @@index([congTacId])
 }
 
 /// Đơn hàng mẫu — thư viện để thêm nhanh đơn cho dự án mới (lưu từ một đơn có sẵn).
@@ -1331,6 +1337,7 @@ model CongTac {
 
   donGia      DonGiaCongTac[]
   bienThe     CongTacVatTu[]
+  monDonHang  PurchaseOrderItem[]
   dongBaoGia  QuoteItem[]
   dongMau     BoHangMucDong[]
   dongThiCong EstimateItem[]

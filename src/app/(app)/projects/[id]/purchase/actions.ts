@@ -14,6 +14,7 @@ import {
   type MonTinhKg,
 } from "@/lib/donHang/khoiLuong";
 import { napThuVienKg } from "@/lib/khoiLuong/thuVienKg";
+import { tuGanDonHang } from "@/lib/donHang/tuGan";
 
 /** Quy cách của một món = dòng tiêu đề hạng mục nó nằm dưới; nhóm = sheet (Tôn mái, Rod…). */
 const monTinhKg = (d: {
@@ -464,6 +465,32 @@ export async function ganDuToanNhieu(
   });
   await capNhatDuToan(projectId, [...new Set([...cu.map((c) => c.estimateItemId), estimateItemId || null])]);
   revalidatePath(`/projects/${projectId}/purchase`);
+  return { ok: true };
+}
+
+/**
+ * Nối CẢ một nhóm / quy cách với một công tác Thư viện đơn giá (rỗng = bỏ nối). Nguồn
+ * chung với dự toán: xong thì tự gắn vào đầu việc dự toán cùng công tác (`tuGanDonHang`).
+ */
+export async function noiThuVienNhieu(
+  projectId: string,
+  orderId: string,
+  itemIds: string[],
+  congTacId: string
+): Promise<ActionResult> {
+  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa vật tư.", { orderId });
+  if (denied) return denied;
+  if (congTacId) {
+    const ct = await db.congTac.findFirst({ where: { id: congTacId, active: true }, select: { id: true } });
+    if (!ct) return { ok: false, error: "Công tác này không còn trong thư viện." };
+  }
+  await db.purchaseOrderItem.updateMany({
+    where: { orderId, id: { in: itemIds } },
+    data: { congTacId: congTacId || null },
+  });
+  await tuGanDonHang(projectId);
+  revalidatePath(`/projects/${projectId}/purchase`);
+  revalidatePath(`/projects/${projectId}/estimate`);
   return { ok: true };
 }
 

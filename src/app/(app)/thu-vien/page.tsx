@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Layers, MapPin, Package, Scale } from "lucide-react";
+import { Layers, Link2, MapPin, Package, Scale } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
 import { can, type Role } from "@/lib/rbac";
@@ -98,6 +98,12 @@ export default async function ThuVienPage() {
             className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
           >
             <MapPin className="h-4 w-4" /> Khu vực &amp; NCC
+          </Link>
+          <Link
+            href="/thu-vien/ghep-ten"
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 transition-colors hover:bg-red-100"
+          >
+            <Link2 className="h-4 w-4" /> Ghép tên dự toán
           </Link>
         </nav>
       </div>

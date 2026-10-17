@@ -15,6 +15,7 @@ import { coThamChieuId, coVong, idThamChieu, tinhCongThucDong } from "@/lib/khoi
 import { doiChieuThuVien, type DeXuatDoiChieu } from "@/lib/thuVien/doiChieuThuVien";
 import { ESTIMATE_GROUP_MAP } from "@/lib/constants";
 import { chonDonGia, ngayTraGia } from "@/lib/thuVien/gia";
+import { tuGanDonHang } from "@/lib/donHang/tuGan";
 import { computeTemplateLines, type TemplateLine } from "@/lib/estimateTemplate";
 import {
   doXuongDuToan,
@@ -1011,6 +1012,8 @@ export async function suaCongViecEstimate(
         amount: kl != null && unitPrice != null ? kl * unitPrice : null,
       },
     });
+    // Nguồn chung: món đơn hàng cùng công tác thì tự gắn vào đầu việc này.
+    await tuGanDonHang(projectId);
   }
 
   revalidatePath(`/projects/${projectId}/estimate`);
@@ -1209,6 +1212,7 @@ export async function apDungDoiChieuThuVien(projectId: string, ids: string[]): P
     action: "UPDATE",
     changes: { doiChieuThuVien: { truoc: null, sau: `${lam.length} dòng` } },
   });
+  await tuGanDonHang(projectId);
   revalidatePath(`/projects/${projectId}/estimate`);
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/estimates");

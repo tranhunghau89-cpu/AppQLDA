@@ -613,6 +613,16 @@ export function EstimateEditor({
                                     catalog={catalog}
                                     luu={(chon) => suaCongViecEstimate(projectId, r.id, chon)}
                                   />
+                                  {/* Nguyên tắc: đầu việc lấy từ Thư viện đơn giá — dòng gõ tay
+                                      thì nhắc. Dòng hệ thống tự tính (vận chuyển, lắp dựng) miễn. */}
+                                  {!r.congTacId && !r.layTuThamSo && (
+                                    <div
+                                      className="px-1.5 text-[11px] font-medium text-red-600"
+                                      title="Bấm vào tên để chọn công tác thư viện, hoặc ghép hàng loạt ở Thư viện đơn giá → Ghép tên dự toán"
+                                    >
+                                      ⚠ chưa nối thư viện
+                                    </div>
+                                  )}
                                   {r.note ? (
                                     <div className="px-1.5 text-xs text-slate-400">{r.note}</div>
                                   ) : null}

@@ -4,7 +4,11 @@ import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireProjectView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
-import { PurchaseEditor, type DauViecOpt, type OrderView } from "./PurchaseEditor";
+import {
+  PurchaseEditor,
+  type DauViecOpt,
+  type OrderView,
+} from "./PurchaseEditor";
 import type { MauView } from "./ThuVienMau";
 
 export default async function PurchasePage({
@@ -17,58 +21,82 @@ export default async function PurchasePage({
   const canEdit = can(session.role, "purchase", "edit");
 
   // 2 truy vấn độc lập -> chạy song song (guard phân quyền đã xong ở trên).
-  const [project, suppliers, estimateItems, mauDb] = await Promise.all([
-    db.project.findUnique({
-      where: { id },
-      include: {
-        purchaseOrders: {
-          orderBy: [{ category: "asc" }, { createdAt: "asc" }],
-          include: {
-            supplier: { select: { id: true, name: true } },
-            items: {
-              orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
-              include: {
-                images: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }], select: { id: true } },
-                estimateItem: { select: { name: true } },
+  const [project, suppliers, estimateItems, mauDb, congTacs] =
+    await Promise.all([
+      db.project.findUnique({
+        where: { id },
+        include: {
+          purchaseOrders: {
+            orderBy: [{ category: "asc" }, { createdAt: "asc" }],
+            include: {
+              supplier: { select: { id: true, name: true } },
+              items: {
+                orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+                include: {
+                  images: {
+                    orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+                    select: { id: true },
+                  },
+                  estimateItem: { select: { name: true } },
+                },
               },
             },
           },
         },
-      },
-    }),
-    db.supplier.findMany({
-      orderBy: [{ category: "asc" }, { name: "asc" }],
-      select: { id: true, name: true },
-    }),
-    db.estimateItem.findMany({
-      where: { projectId: id },
-      orderBy: [{ section: { sortOrder: "asc" } }, { sortOrder: "asc" }, { createdAt: "asc" }],
-      select: { id: true, name: true, unit: true, section: { select: { name: true, code: true } } },
-    }),
-    db.purchaseOrderTemplate.findMany({
-      orderBy: [{ category: "asc" }, { name: "asc" }],
-      select: {
-        id: true,
-        name: true,
-        category: true,
-        createdAt: true,
-        items: { select: { category: true } },
-      },
-    }),
-  ]);
+      }),
+      db.supplier.findMany({
+        orderBy: [{ category: "asc" }, { name: "asc" }],
+        select: { id: true, name: true },
+      }),
+      db.estimateItem.findMany({
+        where: { projectId: id },
+        orderBy: [
+          { section: { sortOrder: "asc" } },
+          { sortOrder: "asc" },
+          { createdAt: "asc" },
+        ],
+        select: {
+          id: true,
+          name: true,
+          unit: true,
+          section: { select: { name: true, code: true } },
+        },
+      }),
+      db.purchaseOrderTemplate.findMany({
+        orderBy: [{ category: "asc" }, { name: "asc" }],
+        select: {
+          id: true,
+          name: true,
+          category: true,
+          createdAt: true,
+          items: { select: { category: true } },
+        },
+      }),
+      db.congTac.findMany({
+        where: { active: true },
+        orderBy: [{ nhomMa: "asc" }, { sortOrder: "asc" }, { ma: "asc" }],
+        select: { id: true, ma: true, ten: true, donVi: true, nhomMa: true },
+      }),
+    ]);
   const mau: MauView[] = mauDb.map((m) => ({
     id: m.id,
     name: m.name,
     category: m.category,
     soDong: m.items.length,
-    nhom: [...new Set(m.items.map((i) => i.category).filter((c): c is string => !!c))],
+    nhom: [
+      ...new Set(
+        m.items.map((i) => i.category).filter((c): c is string => !!c),
+      ),
+    ],
     createdAt: m.createdAt.toISOString(),
   }));
   const dauViec: DauViecOpt[] = estimateItems.map((e) => ({
     id: e.id,
     name: e.name,
     unit: e.unit,
-    section: e.section ? [e.section.code, e.section.name].filter(Boolean).join(". ") : "Chưa phân hạng mục",
+    section: e.section
+      ? [e.section.code, e.section.name].filter(Boolean).join(". ")
+      : "Chưa phân hạng mục",
   }));
   if (!project) notFound();
 
@@ -81,7 +109,8 @@ export default async function PurchasePage({
     supplierName: o.supplier?.name ?? null,
     status: o.status,
     orderedDate: o.orderedDate?.toISOString() ?? null,
-    expectedDate: (o as { expectedDate?: Date | null }).expectedDate?.toISOString() ?? null,
+    expectedDate:
+      (o as { expectedDate?: Date | null }).expectedDate?.toISOString() ?? null,
     receivedDate: o.receivedDate?.toISOString() ?? null,
     value: o.value,
     totalWeight: o.totalWeight,
@@ -101,6 +130,7 @@ export default async function PurchasePage({
       note: i.note,
       imageIds: i.images.map((im) => im.id),
       estimateItemId: i.estimateItemId,
+      congTacId: i.congTacId,
       estimateItemName: i.estimateItem?.name ?? null,
     })),
   }));
@@ -116,9 +146,12 @@ export default async function PurchasePage({
         </Link>
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">
-            Đơn hàng & Mua hàng — <span className="font-mono">{project.code}</span> {project.name}
+            Đơn hàng & Mua hàng —{" "}
+            <span className="font-mono">{project.code}</span> {project.name}
           </h1>
-          <p className="text-sm text-slate-500">Đơn đặt hàng vật tư, nhà cung cấp và trạng thái</p>
+          <p className="text-sm text-slate-500">
+            Đơn đặt hàng vật tư, nhà cung cấp và trạng thái
+          </p>
         </div>
       </div>
 
@@ -128,6 +161,7 @@ export default async function PurchasePage({
         suppliers={suppliers}
         dauViec={dauViec}
         mau={mau}
+        thuVien={congTacs}
         quanLyMau={can(session.role, "thuVien", "edit")}
         canEdit={canEdit}
       />
