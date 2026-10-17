@@ -28,13 +28,6 @@ interface TemplateSeed {
 
 const TEMPLATES: TemplateSeed[] = [
   {
-    name: "Mẫu chung — kết cấu thép và bao che",
-    buildingType: null,
-    description:
-      "Mẫu dùng chung cho mọi loại công trình khi chưa có mẫu riêng. Không khai sẵn hạng mục: hạng mục lấy thẳng từ các phần của báo giá chi tiết.",
-    lines: [],
-  },
-  {
     name: "Nhà xưởng kết cấu thép + bao che",
     buildingType: "Nhà xưởng",
     description:
