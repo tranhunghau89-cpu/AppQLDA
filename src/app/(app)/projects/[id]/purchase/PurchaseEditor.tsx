@@ -686,15 +686,18 @@ function ItemsTable({
           return (
             <Fragment key={nhom ?? ""}>
               {nhom != null && (
-                <tr className="border-y border-slate-200 bg-slate-100/80">
-                  <td className="w-12 py-1.5 text-center text-sm font-semibold text-slate-800">
+                // Cấp 1 — nhóm vật tư: nền xanh, IN HOA, số to.
+                <tr className="border-y-2 border-blue-200 bg-blue-50">
+                  <td className="w-12 py-2.5 text-center text-base font-bold text-blue-700">
                     {ni + 1}
                   </td>
-                  <td colSpan={98} className="px-3 py-1.5 text-sm">
-                    <span className="font-semibold text-slate-800">{nhom}</span>
+                  <td colSpan={98} className="px-3 py-2.5 text-sm">
+                    <span className="text-[15px] font-bold uppercase tracking-wide text-blue-900">
+                      {nhom}
+                    </span>
                     {gop && (
                       <>
-                        <span className="mx-1.5 text-slate-400">—</span>
+                        <span className="mx-1.5 text-blue-300">—</span>
                         {canEdit ? (
                           <OChuSua
                             giaTri={boSoDau(gop.hm)}
@@ -711,7 +714,7 @@ function ItemsTable({
                             }
                           />
                         ) : (
-                          <span className="font-medium text-slate-700">
+                          <span className="font-semibold text-slate-800">
                             {boSoDau(gop.hm)}
                           </span>
                         )}
@@ -731,18 +734,21 @@ function ItemsTable({
                   </td>
                 </tr>
               )}
-              {hms.map(({ hm, ds: con }) => (
+              {hms.map(({ hm, ds: con }, hi) => (
                 <Fragment key={hm}>
                   {hm && !gop && (
-                    <tr className="bg-white">
-                      <td />
+                    // Cấp 2 — quy cách: nền xám nhạt, số "1.2" theo nhóm, bỏ số gốc "I."/"2." đầu chữ.
+                    <tr className="border-t border-slate-200 bg-slate-50">
+                      <td className="w-12 py-2 text-center text-sm font-semibold text-slate-600">
+                        {nhom != null ? `${ni + 1}.${hi + 1}` : hi + 1}
+                      </td>
                       <td
                         colSpan={98}
-                        className="px-3 pb-1 pt-2.5 text-sm font-semibold text-slate-800"
+                        className="border-l-4 border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800"
                       >
                         {canEdit ? (
                           <OChuSua
-                            giaTri={hm}
+                            giaTri={boSoDau(hm)}
                             nhan={otherLabel}
                             rong
                             luu={(v) =>
@@ -756,7 +762,7 @@ function ItemsTable({
                             }
                           />
                         ) : (
-                          hm
+                          boSoDau(hm)
                         )}
                         <span className="ml-2 text-xs font-normal text-slate-500">
                           <TongKhoiLuong ds={con} />
@@ -768,16 +774,12 @@ function ItemsTable({
                     <Tr key={r.id}>
                       <Td
                         className={cn(
-                          "w-12 text-center text-slate-400",
-                          nhom != null && "pl-6",
+                          "w-12 text-center text-xs text-slate-400",
                         )}
                       >
                         {i + 1}
                       </Td>
-                      <Td
-                        className="font-medium text-slate-900"
-                        data-cot="name"
-                      >
+                      <Td className="pl-6 text-slate-900" data-cot="name">
                         {canEdit ? (
                           <OChuSua
                             giaTri={r.name}
