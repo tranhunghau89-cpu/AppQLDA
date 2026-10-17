@@ -28,7 +28,13 @@ export function OSoSua({
   luu,
   batBuoc = false,
   thuCong = batBuoc,
+  congThuc,
 }: {
+  /**
+   * Ô đang chạy theo công thức tham chiếu dòng ("=[6.1]+[7.1]"): bấm vào thì hiện công
+   * thức để sửa thay cho con số, và cạnh số có dấu ƒ.
+   */
+  congThuc?: string;
   /** Ô bắt buộc: còn trống thì tô đỏ "phải điền" (xem `kieuO`). */
   batBuoc?: boolean;
   /** Ô người lập tự gõ (khối lượng) — đã điền vẫn giữ tông đỏ nhạt; false = giá có sẵn. */
@@ -68,7 +74,7 @@ export function OSoSua({
       setNhap(null);
       return;
     }
-    if (tho.trim() === hienThi) {
+    if (tho.trim() === hienThi || (congThuc && tho.trim() === congThuc)) {
       setNhap(null);
       return;
     }
@@ -90,9 +96,12 @@ export function OSoSua({
         value={nhap ?? hienThi}
         placeholder="—"
         disabled={dangLuu}
+        title={congThuc ? `KL = ${congThuc}` : undefined}
         onFocus={(e) => {
-          setNhap(hienThi);
-          e.currentTarget.select();
+          const el = e.currentTarget;
+          setNhap(congThuc ?? hienThi);
+          // Chọn sau khi giá trị đổi sang công thức, không thì chỉ chọn được con số cũ.
+          requestAnimationFrame(() => el.select());
         }}
         onChange={(e) => setNhap(e.target.value)}
         onKeyDown={(e) => {
@@ -116,6 +125,11 @@ export function OSoSua({
           mauO(nhap ?? hienThi, batBuoc, false, thuCong)
         }
       />
+      {congThuc && nhap == null && (
+        <span className="ml-0.5 text-xs italic text-violet-500" title={`KL = ${congThuc}`}>
+          ƒ
+        </span>
+      )}
       {xemTruoc != null && (
         <span className="absolute right-1 top-full z-10 mt-0.5 whitespace-nowrap rounded bg-slate-800 px-1.5 py-0.5 text-[11px] text-white">
           = {dinhDang(xemTruoc)}

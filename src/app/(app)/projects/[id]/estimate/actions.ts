@@ -11,6 +11,7 @@ import { dienGiaiCach, tongChiTiet } from "@/lib/khoiLuong/tongChiTiet";
 import { type LoaiMucCon } from "@/lib/khoiLuong/mucCon";
 import { tinhLaiTuMucCon } from "@/lib/khoiLuong/tinhLaiMucCon";
 import { tinhLaiDanXuatThiCong } from "@/lib/khoiLuong/danXuatThiCong";
+import { coThamChieuId, coVong, idThamChieu, tinhCongThucDong } from "@/lib/khoiLuong/congThucDong";
 import { ESTIMATE_GROUP_MAP } from "@/lib/constants";
 import { chonDonGia, ngayTraGia } from "@/lib/thuVien/gia";
 import { computeTemplateLines, type TemplateLine } from "@/lib/estimateTemplate";
@@ -174,12 +175,13 @@ export async function saveEstimateItem(
       db.mucConDuToan.count({ where: { estimateItemId: id, loai: "DU_TOAN" } }),
       db.estimateItem.findUnique({
         where: { id },
-        select: { actualQty: true, actualUnitPrice: true },
+        select: { actualQty: true, actualUnitPrice: true, klCongThuc: true },
       }),
     ]);
     const conLai: Record<string, unknown> = { ...data };
-    // Dòng dẫn xuất: KL tự tính từ dòng nguồn, biểu mẫu không ghi đè.
-    if (soChiTiet > 0 || data.layTuThamSo) delete conLai.designQty;
+    // Dòng dẫn xuất / công thức: KL tự tính, biểu mẫu không ghi đè.
+    if (soChiTiet > 0 || data.layTuThamSo || cu?.klCongThuc) delete conLai.designQty;
+    if (data.layTuThamSo) conLai.klCongThuc = null;
     // Có mục con dự toán thì KL, đơn giá và thành tiền là tổng của mục con.
     if (soConDuToan > 0) {
       delete conLai.designQty;
@@ -778,6 +780,8 @@ export async function suaOEstimate(
   const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa dự toán.", itemId);
   if (denied) return denied;
 
+  if (truong === "qty" && coThamChieuId(tho)) return luuCongThucDong(projectId, itemId, tho.trim());
+
   const giaTri = tho.trim() === "" ? null : tinhBieuThuc(tho);
   if (tho.trim() !== "" && giaTri == null) {
     return { ok: false, error: laCongThuc(tho) ? "Công thức không hợp lệ." : "Không phải là số." };
@@ -843,11 +847,52 @@ export async function suaOEstimate(
       actualUnitPrice,
       // Thiếu một vế thì để trống chứ không ghi 0: 0 đồng là một khẳng định.
       amount: kl != null && unitPrice != null ? kl * unitPrice : null,
+      // Gõ một con số vào ô KL = bỏ công thức tham chiếu dòng.
+      ...(truong === "qty" ? { klCongThuc: null } : {}),
       ...(suaThuc ? { thucTeGhiDe: ghiDe, actualAmount: null } : {}),
     },
   });
   if (suaThuc && !ghiDe) await tinhLaiTuMucCon(itemId, "THUC_TE");
   if (truong === "qty") await tinhLaiDanXuatThiCong(projectId);
+
+  revalidatePath(`/projects/${projectId}/estimate`);
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/estimates");
+  return { ok: true };
+}
+
+/**
+ * Đặt KL của một dòng theo công thức tham chiếu dòng khác ("=[@id1]+[@id2]" — giao diện
+ * đã dịch số thứ tự sang id). Dòng được tham chiếu phải cùng hạng mục, không được tạo
+ * vòng; KL tính ngay và mọi dòng tự tính khác của dự án tính lại theo.
+ */
+async function luuCongThucDong(projectId: string, itemId: string, congThuc: string): Promise<ActionResult> {
+  if (congThuc.length > 1000) return { ok: false, error: "Công thức quá dài." };
+  const dong = await db.estimateItem.findUnique({
+    where: { id: itemId },
+    select: { name: true, sectionId: true, layTuThamSo: true, _count: { select: { chiTiet: true, mucCon: { where: { loai: "DU_TOAN" } } } } },
+  });
+  if (!dong) return { ok: false, error: "Không tìm thấy đầu mục dự toán." };
+  if (dong._count.chiTiet > 0 || dong._count.mucCon > 0) {
+    return { ok: false, error: `"${dong.name}" đang lấy KL từ bảng bóc / mục con — gỡ trước khi đặt công thức.` };
+  }
+  const cungHangMuc = await db.estimateItem.findMany({
+    where: { projectId, sectionId: dong.sectionId },
+    select: { id: true, designQty: true, klCongThuc: true },
+  });
+  const ids = new Set(cungHangMuc.map((d) => d.id));
+  const ngoai = idThamChieu(congThuc).filter((id) => !ids.has(id));
+  if (ngoai.length) return { ok: false, error: "Công thức tham chiếu dòng không thuộc hạng mục này." };
+  const khac = new Map(cungHangMuc.flatMap((d) => (d.klCongThuc && d.id !== itemId ? [[d.id, d.klCongThuc] as const] : [])));
+  if (coVong(itemId, congThuc, khac)) return { ok: false, error: "Công thức tham chiếu vòng (dòng dùng lại chính nó)." };
+  const kl = tinhCongThucDong(congThuc, new Map(cungHangMuc.map((d) => [d.id, d.designQty])));
+  if (kl == null) return { ok: false, error: "Công thức không hợp lệ." };
+  if (kl < 0) return { ok: false, error: "Không được là số âm." };
+
+  // Công thức thắng vai trò "tự tính từ tham số": một dòng chỉ có một cách ra KL.
+  await db.estimateItem.update({ where: { id: itemId }, data: { klCongThuc: congThuc, layTuThamSo: null, heSoQuyDoi: null } });
+  // Ghi KL + thành tiền của dòng này và mọi dòng phụ thuộc nó.
+  await tinhLaiDanXuatThiCong(projectId);
 
   revalidatePath(`/projects/${projectId}/estimate`);
   revalidatePath(`/projects/${projectId}`);

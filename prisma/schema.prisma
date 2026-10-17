@@ -670,6 +670,9 @@ model EstimateItem {
   napThamSo      String?
   layTuThamSo    String?
   heSoQuyDoi     Float?
+  // KL theo công thức tham chiếu dòng khác cùng hạng mục, lưu theo id: "=[@id1]+[@id2]".
+  // Giao diện hiện/nhập theo số thứ tự ("=[6.1]+[7.1]"). Xem lib/khoiLuong/congThucDong.
+  klCongThuc     String?
   unitPrice      Float?
   amount         Float?
   supplierId     String?

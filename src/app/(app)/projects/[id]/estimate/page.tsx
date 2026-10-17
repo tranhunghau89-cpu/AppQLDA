@@ -174,6 +174,7 @@ export default async function EstimatePage({
     layTuThamSo: it.layTuThamSo,
     napThamSo: it.napThamSo,
     heSoQuyDoi: it.heSoQuyDoi,
+    klCongThuc: it.klCongThuc,
     congTacId: it.congTacId,
     maCV: it.congTac?.ma ?? null,
   }));

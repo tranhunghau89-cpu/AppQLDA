@@ -12,6 +12,7 @@ import { ESTIMATE_GROUP, ESTIMATE_GROUP_MAP } from "@/lib/constants";
 import { formatVND, formatNumber, formatQty } from "@/lib/utils";
 import { chiSoNhom } from "@/lib/nhomDong";
 import { OSoSua } from "@/components/ui/OSoSua";
+import { coThamChieuMa, idSangMa, maSangId } from "@/lib/khoiLuong/congThucDong";
 import { OChonCongTac, type CongTacChon } from "@/components/ui/OChonCongTac";
 import {
   computeActualAmount,
@@ -95,6 +96,8 @@ export interface EstimateRow {
   layTuThamSo: string | null;
   napThamSo: string | null;
   heSoQuyDoi: number | null;
+  /** KL theo công thức tham chiếu dòng, lưu theo id ("=[@id]+[@id]"). */
+  klCongThuc: string | null;
   /** Công tác thư viện đang gắn; null = dòng nhập từ Excel hoặc gõ tay. */
   congTacId: string | null;
   /** Mã CV (mã định mức) của công tác đang gắn. */
@@ -393,6 +396,15 @@ export function EstimateEditor({
           const gon = thuGon.has(khoa);
           const tyLeTong = chiSoNhom(sectionTotal, tongDuToan, area).tyLe;
           const m2 = chiSoNhom(sectionTotal, 0, area).moiM2;
+          // Số thứ tự "nhóm.dòng" ↔ id dòng — để gõ công thức "=[6.1]+[7.1]" trong hạng mục.
+          const maToiId = new Map<string, string>();
+          const idToiMa = new Map<string, string>();
+          block.groups.forEach((g, gi) =>
+            g.rows.forEach((r, ri) => {
+              maToiId.set(`${gi + 1}.${ri + 1}`, r.id);
+              idToiMa.set(r.id, `${gi + 1}.${ri + 1}`);
+            })
+          );
           return (
             <div key={khoa} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
               <div className="flex items-center justify-between gap-3 bg-slate-800 px-4 py-2.5 text-white">
@@ -586,7 +598,14 @@ export function EstimateEditor({
                                         ? `Tổng ${r.mucConDuToan.length} mục con dự toán — sửa bằng nút mục con`
                                         : `Tự tính = tổng ${tenThamSo(r.layTuThamSo)} của hạng mục — sửa các dòng nguồn`
                                   }
-                                  luu={(tho) => suaOEstimate(projectId, r.id, "qty", tho)}
+                                  congThuc={r.klCongThuc ? idSangMa(r.klCongThuc, idToiMa) : undefined}
+                                  luu={(tho) => {
+                                    if (!coThamChieuMa(tho)) return suaOEstimate(projectId, r.id, "qty", tho);
+                                    const ct = maSangId(tho, maToiId);
+                                    return ct.ok
+                                      ? suaOEstimate(projectId, r.id, "qty", ct.congThuc)
+                                      : Promise.resolve({ ok: false as const, error: ct.error });
+                                  }}
                                 />
                               ) : (
                                 <>
