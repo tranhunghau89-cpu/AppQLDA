@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { denyProject } from "@/lib/auth";
 import { tinhLaiThucTe } from "@/lib/khoiLuong/tinhLaiMucCon";
 import { PO_CATEGORY_MAP, PO_STATUS_MAP } from "@/lib/constants";
+import { laCongThuc, tinhBieuThuc } from "@/lib/bieuThuc";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -240,6 +241,85 @@ export async function deletePurchaseItem(
   await capNhatDuToan(projectId, [xoa.estimateItemId]);
   revalidatePath(`/projects/${projectId}/purchase`);
   revalidatePath("/purchases");
+  return { ok: true };
+}
+
+const O_CHU = ["name", "unit", "note", "category", "groupName"] as const;
+const O_SO = ["qty", "unitPrice", "weight"] as const;
+type TruongMon = (typeof O_CHU)[number] | (typeof O_SO)[number];
+
+/**
+ * Sửa MỘT ô của dòng vật tư ngay trên bảng — như gõ vào ô Excel.
+ *
+ * Ô số nhận số kiểu Việt và công thức "=" qua `tinhBieuThuc`. Sửa SL hay đơn giá thì
+ * thành tiền tính lại = SL × đơn giá; số tiền lệch từ file Excel cũ chỉ giữ đến khi
+ * có người sửa một trong hai ô đó.
+ */
+export async function suaOMonHang(
+  projectId: string,
+  itemId: string,
+  truong: TruongMon,
+  tho: string
+): Promise<ActionResult> {
+  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa vật tư.", { itemId });
+  if (denied) return denied;
+  const dong = await db.purchaseOrderItem.findUnique({ where: { id: itemId } });
+  if (!dong) return { ok: false, error: "Không tìm thấy dòng vật tư." };
+
+  const s = tho.trim();
+  let data: Record<string, string | number | null>;
+  if ((O_CHU as readonly string[]).includes(truong)) {
+    if (truong === "name" && !s) return { ok: false, error: "Tên vật tư không được để trống." };
+    data = { [truong]: s || null };
+  } else if ((O_SO as readonly string[]).includes(truong)) {
+    const giaTri = s === "" ? null : tinhBieuThuc(s);
+    if (s !== "" && giaTri == null) {
+      return { ok: false, error: laCongThuc(s) ? "Công thức không hợp lệ." : "Không phải là số." };
+    }
+    if (giaTri != null && giaTri < 0) return { ok: false, error: "Không được là số âm." };
+    data = { [truong]: giaTri };
+    if (truong === "qty" || truong === "unitPrice") {
+      const qty = truong === "qty" ? giaTri : dong.qty;
+      const gia = truong === "unitPrice" ? giaTri : dong.unitPrice;
+      data.amount = qty != null && gia != null ? qty * gia : null;
+    }
+  } else return { ok: false, error: "Ô không sửa được." };
+
+  await db.purchaseOrderItem.update({ where: { id: itemId }, data });
+  await recompute(dong.orderId);
+  if (truong === "qty" || truong === "weight") await capNhatDuToan(projectId, [dong.estimateItemId]);
+  revalidatePath(`/projects/${projectId}/purchase`);
+  revalidatePath("/purchases");
+  return { ok: true };
+}
+
+/** Thêm nhanh một dòng từ ô "gõ tên…" cuối bảng; nhóm theo tab đang mở. */
+export async function themNhanhMonHang(
+  projectId: string,
+  orderId: string,
+  ten: string,
+  nhom: { category?: string | null; groupName?: string | null }
+): Promise<ActionResult> {
+  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa vật tư.", { orderId });
+  if (denied) return denied;
+  const name = ten.trim();
+  if (!name) return { ok: false, error: "Tên vật tư không được để trống." };
+  const cuoi = await db.purchaseOrderItem.findFirst({
+    where: { orderId },
+    orderBy: { sortOrder: "desc" },
+    select: { sortOrder: true, unit: true },
+  });
+  await db.purchaseOrderItem.create({
+    data: {
+      orderId,
+      name,
+      unit: cuoi?.unit ?? null,
+      category: nhom.category || null,
+      groupName: nhom.groupName || null,
+      sortOrder: (cuoi?.sortOrder ?? -1) + 1,
+    },
+  });
+  revalidatePath(`/projects/${projectId}/purchase`);
   return { ok: true };
 }
 

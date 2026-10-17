@@ -29,7 +29,10 @@ import {
   deletePurchaseItem,
   uploadPurchaseItemImages,
   deletePurchaseItemImage,
+  suaOMonHang,
+  themNhanhMonHang,
 } from "./actions";
+import { OSoSua } from "@/components/ui/OSoSua";
 
 type GroupBy = "category" | "group";
 type SortField = "name" | "other" | "qty" | "unitPrice" | "amount" | "weight";
@@ -279,7 +282,7 @@ export function PurchaseEditor({
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Loại đơn *">
-              <Select name="category" defaultValue={oEditing?.category ?? "BL"}>
+              <Select name="category" defaultValue={oEditing?.category ?? "VTP"}>
                 {PO_CATEGORY.map((c) => (
                   <option key={c.value} value={c.value}>
                     {c.label}
@@ -471,7 +474,12 @@ function ItemsTable({
   onDeleteItem,
   showGroupCol = false,
   groupColLabel = "",
+  orderId,
+  nhomMoi,
 }: {
+  orderId: string;
+  /** Nhóm gán cho dòng thêm nhanh — theo tab đang mở. */
+  nhomMoi: { category?: string | null; groupName?: string | null };
   rows: OrderItemView[];
   sort: SortState;
   onToggleSort: (f: SortField) => void;
@@ -495,13 +503,15 @@ function ItemsTable({
           <Th className="text-center">Biên dạng</Th>
           <SortHead field="other" label={otherLabel} sort={sort} onToggle={onToggleSort} />
           <SortHead field="qty" label="SL" sort={sort} onToggle={onToggleSort} align="right" />
+          <Th>ĐV</Th>
           <SortHead field="unitPrice" label="Đơn giá" sort={sort} onToggle={onToggleSort} align="right" />
           <SortHead field="amount" label="Thành tiền" sort={sort} onToggle={onToggleSort} align="right" />
           <SortHead field="weight" label="TL (kg)" sort={sort} onToggle={onToggleSort} align="right" />
+          <Th>Ghi chú</Th>
           {canEdit && <Th></Th>}
         </tr>
       </THead>
-      <tbody>
+      <tbody onKeyDown={canEdit ? diChuyenO : undefined}>
         {rows.map((r, i) => (
           <Tr key={r.id}>
             <Td className="w-12 text-center text-slate-400">{i + 1}</Td>
@@ -510,9 +520,17 @@ function ItemsTable({
                 {(groupBy === "category" ? r.category : r.groupName) || "—"}
               </Td>
             )}
-            <Td className="font-medium text-slate-900">
-              {r.name}
-              {r.unit ? <span className="text-slate-400"> ({r.unit})</span> : null}
+            <Td className="font-medium text-slate-900" data-cot="name">
+              {canEdit ? (
+                <OChuSua
+                  giaTri={r.name}
+                  nhan="Tên hàng, quy cách"
+                  rong
+                  luu={(v) => suaOMonHang(projectId, r.id, "name", v)}
+                />
+              ) : (
+                r.name
+              )}
               {r.estimateItemName && (
                 <div className="text-xs font-normal text-emerald-700">→ {r.estimateItemName}</div>
               )}
@@ -522,11 +540,84 @@ function ItemsTable({
                 <ItemImages item={r} projectId={projectId} canEdit={canEdit} onRefresh={onRefresh} />
               </div>
             </Td>
-            <Td className="text-slate-500">{otherOf(r, groupBy) || "—"}</Td>
-            <Td className="text-right">{formatNumber(r.qty)}</Td>
-            <Td className="text-right">{formatNumber(r.unitPrice)}</Td>
-            <Td className="text-right">{r.amount ? formatVND(r.amount) : "—"}</Td>
-            <Td className="text-right">{formatNumber(r.weight)}</Td>
+            <Td className="text-slate-500" data-cot="other">
+              {canEdit ? (
+                <OChuSua
+                  giaTri={otherOf(r, groupBy)}
+                  nhan={otherLabel}
+                  luu={(v) =>
+                    suaOMonHang(projectId, r.id, groupBy === "category" ? "groupName" : "category", v)
+                  }
+                />
+              ) : (
+                otherOf(r, groupBy) || "—"
+              )}
+            </Td>
+            <Td className="text-right" data-cot="qty">
+              {canEdit ? (
+                <OSoSua
+                  giaTri={r.qty}
+                  dinhDang={formatNumber}
+                  khoa={false}
+                  thuCong={false}
+                  nhan="SL"
+                  luu={(v) => suaOMonHang(projectId, r.id, "qty", v)}
+                />
+              ) : (
+                formatNumber(r.qty)
+              )}
+            </Td>
+            <Td className="text-slate-500" data-cot="unit">
+              {canEdit ? (
+                <OChuSua
+                  giaTri={r.unit ?? ""}
+                  nhan="Đơn vị"
+                  luu={(v) => suaOMonHang(projectId, r.id, "unit", v)}
+                />
+              ) : (
+                r.unit || "—"
+              )}
+            </Td>
+            <Td className="text-right" data-cot="unitPrice">
+              {canEdit ? (
+                <OSoSua
+                  giaTri={r.unitPrice}
+                  dinhDang={formatNumber}
+                  khoa={false}
+                  thuCong={false}
+                  nhan="Đơn giá"
+                  luu={(v) => suaOMonHang(projectId, r.id, "unitPrice", v)}
+                />
+              ) : (
+                formatNumber(r.unitPrice)
+              )}
+            </Td>
+            <Td className="text-right tabular-nums">{r.amount ? formatVND(r.amount) : "—"}</Td>
+            <Td className="text-right" data-cot="weight">
+              {canEdit ? (
+                <OSoSua
+                  giaTri={r.weight}
+                  dinhDang={formatNumber}
+                  khoa={false}
+                  thuCong={false}
+                  nhan="TL (kg)"
+                  luu={(v) => suaOMonHang(projectId, r.id, "weight", v)}
+                />
+              ) : (
+                formatNumber(r.weight)
+              )}
+            </Td>
+            <Td className="text-slate-500" data-cot="note">
+              {canEdit ? (
+                <OChuSua
+                  giaTri={r.note ?? ""}
+                  nhan="Ghi chú"
+                  luu={(v) => suaOMonHang(projectId, r.id, "note", v)}
+                />
+              ) : (
+                r.note || ""
+              )}
+            </Td>
             {canEdit && (
               <Td className="text-right">
                 <div className="flex justify-end gap-1">
@@ -546,8 +637,134 @@ function ItemsTable({
             )}
           </Tr>
         ))}
+        {canEdit && (
+          <tr>
+            <td colSpan={99} className="border-t border-dashed border-slate-200 px-3 py-1.5">
+              <ThemNhanh
+                luu={(ten) => themNhanhMonHang(projectId, orderId, ten, nhomMoi)}
+              />
+            </td>
+          </tr>
+        )}
       </tbody>
     </Table>
+  );
+}
+
+/**
+ * Enter / ↑ / ↓ trong một ô sửa → nhảy sang ô CÙNG CỘT ở dòng trên/dưới, như Excel.
+ * Ô tự lưu khi mất focus nên chỉ cần dời focus. Tab giữ nguyên hành vi trình duyệt
+ * (sang ô bên phải).
+ */
+function diChuyenO(e: React.KeyboardEvent<HTMLTableSectionElement>) {
+  const el = e.target as HTMLElement;
+  if (el.tagName !== "INPUT") return;
+  const buoc = e.key === "Enter" || e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
+  if (!buoc) return;
+  const td = el.closest<HTMLElement>("td[data-cot]");
+  const tr = td?.closest("tr");
+  if (!td || !tr) return;
+  e.preventDefault();
+  const ke = buoc > 0 ? tr.nextElementSibling : tr.previousElementSibling;
+  const cot = td.dataset.cot;
+  const o = ke?.querySelector<HTMLInputElement>(`td[data-cot="${cot}"] input`);
+  if (o) o.focus();
+  else el.blur();
+}
+
+/** Ô chữ sửa ngay trong bảng — cùng nếp với `OSoSua`: Enter/rời ô thì lưu, Esc thì thôi. */
+function OChuSua({
+  giaTri,
+  nhan,
+  luu,
+  rong = false,
+}: {
+  giaTri: string;
+  nhan: string;
+  luu: (v: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  rong?: boolean;
+}) {
+  const router = useRouter();
+  const toast = useToast();
+  const [dangLuu, start] = useTransition();
+  const [nhap, setNhap] = useState<string | null>(null);
+  const huy = useRef(false);
+
+  function roiO(v: string) {
+    if (huy.current || v.trim() === giaTri.trim()) {
+      huy.current = false;
+      setNhap(null);
+      return;
+    }
+    start(async () => {
+      const res = await luu(v);
+      if (!res.ok) toast.error(res.error);
+      else router.refresh();
+      setNhap(null);
+    });
+  }
+
+  return (
+    <input
+      aria-label={nhan}
+      value={nhap ?? giaTri}
+      placeholder="—"
+      disabled={dangLuu}
+      onFocus={(e) => {
+        setNhap(giaTri);
+        e.currentTarget.select();
+      }}
+      onChange={(e) => setNhap(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          huy.current = true;
+          e.currentTarget.blur();
+        }
+      }}
+      onBlur={(e) => roiO(e.currentTarget.value)}
+      size={Math.max(4, (nhap ?? giaTri).length + 1)}
+      className={cn(
+        "field-sizing-content rounded border border-transparent bg-transparent px-1.5 py-0.5 hover:border-slate-200 focus:border-blue-500 focus:bg-white focus:outline-none disabled:opacity-50",
+        rong ? "min-w-[16ch] font-medium text-slate-900" : "min-w-[4ch]"
+      )}
+    />
+  );
+}
+
+/** Dòng cuối bảng: gõ tên rồi Enter là có dòng mới, con trỏ ở lại để gõ tiếp dòng sau. */
+function ThemNhanh({
+  luu,
+}: {
+  luu: (ten: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+}) {
+  const router = useRouter();
+  const toast = useToast();
+  const [dangLuu, start] = useTransition();
+  const [ten, setTen] = useState("");
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <Plus className="h-4 w-4 text-slate-400" />
+      <input
+        aria-label="Thêm vật tư mới"
+        value={ten}
+        disabled={dangLuu}
+        placeholder="Gõ tên hàng, quy cách rồi Enter để thêm dòng…"
+        onChange={(e) => setTen(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key !== "Enter" || !ten.trim()) return;
+          e.preventDefault();
+          start(async () => {
+            const res = await luu(ten);
+            if (!res.ok) toast.error(res.error);
+            else {
+              setTen("");
+              router.refresh();
+            }
+          });
+        }}
+        className="flex-1 bg-transparent py-0.5 placeholder:text-slate-400 focus:outline-none"
+      />
+    </div>
   );
 }
 
@@ -746,12 +963,18 @@ function OrderCard({
                   onDeleteItem={onDeleteItem}
                   showGroupCol
                   groupColLabel={groupColLabel}
+                  orderId={order.id}
+                  nhomMoi={{}}
                 />
               </div>
             </div>
           ) : (
             <ItemsTable
               rows={currentRows}
+              orderId={order.id}
+              nhomMoi={
+                current === "—" ? {} : groupBy === "category" ? { category: current } : { groupName: current }
+              }
               sort={sort}
               onToggleSort={onToggleSort}
               groupBy={groupBy}
