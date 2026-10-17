@@ -172,6 +172,8 @@ export default async function EstimatePage({
     sortOrder: it.sortOrder,
     soChiTiet: it._count.chiTiet,
     layTuThamSo: it.layTuThamSo,
+    napThamSo: it.napThamSo,
+    heSoQuyDoi: it.heSoQuyDoi,
     congTacId: it.congTacId,
     maCV: it.congTac?.ma ?? null,
   }));

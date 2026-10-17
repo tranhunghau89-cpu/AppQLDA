@@ -61,6 +61,11 @@ const schema = z.object({
   note: z.string().trim().optional(),
   sectionId: z.string().trim().optional(),
   groupLabel: z.string().trim().optional(),
+  // "" = nhập tay; "nap:KCT_KG" = dòng nguồn; "lay:KCT_KG" = dòng tự tính.
+  vaiTroKL: z
+    .string()
+    .regex(/^((nap|lay):(KCT_KG|TON_M2|DECK_M2|DINH_BO))?$/, "Vai trò khối lượng không hợp lệ"),
+  heSoQuyDoi: num,
 });
 
 function parse(form: FormData) {
@@ -78,6 +83,8 @@ function parse(form: FormData) {
     note: String(form.get("note") ?? ""),
     sectionId: String(form.get("sectionId") ?? ""),
     groupLabel: String(form.get("groupLabel") ?? ""),
+    vaiTroKL: String(form.get("vaiTroKL") ?? ""),
+    heSoQuyDoi: String(form.get("heSoQuyDoi") ?? ""),
   });
 }
 
@@ -133,6 +140,9 @@ export async function saveEstimateItem(
     note: d.note || null,
     sectionId: d.sectionId || null,
     groupLabel: d.groupLabel || null,
+    napThamSo: d.vaiTroKL.startsWith("nap:") ? d.vaiTroKL.slice(4) : null,
+    layTuThamSo: d.vaiTroKL.startsWith("lay:") ? d.vaiTroKL.slice(4) : null,
+    heSoQuyDoi: d.vaiTroKL.startsWith("lay:") ? d.heSoQuyDoi : null,
   };
   if (data.sectionId) {
     const s = await db.estimateSection.findUnique({
@@ -164,12 +174,12 @@ export async function saveEstimateItem(
       db.mucConDuToan.count({ where: { estimateItemId: id, loai: "DU_TOAN" } }),
       db.estimateItem.findUnique({
         where: { id },
-        select: { actualQty: true, actualUnitPrice: true, layTuThamSo: true },
+        select: { actualQty: true, actualUnitPrice: true },
       }),
     ]);
     const conLai: Record<string, unknown> = { ...data };
     // Dòng dẫn xuất: KL tự tính từ dòng nguồn, biểu mẫu không ghi đè.
-    if (soChiTiet > 0 || cu?.layTuThamSo) delete conLai.designQty;
+    if (soChiTiet > 0 || data.layTuThamSo) delete conLai.designQty;
     // Có mục con dự toán thì KL, đơn giá và thành tiền là tổng của mục con.
     if (soConDuToan > 0) {
       delete conLai.designQty;

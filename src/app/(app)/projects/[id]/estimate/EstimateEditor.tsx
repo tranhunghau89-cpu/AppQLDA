@@ -93,6 +93,8 @@ export interface EstimateRow {
   soChiTiet: number;
   /** Dòng dẫn xuất: KL tự tính từ dòng nguồn mang cùng tham số trong hạng mục. */
   layTuThamSo: string | null;
+  napThamSo: string | null;
+  heSoQuyDoi: number | null;
   /** Công tác thư viện đang gắn; null = dòng nhập từ Excel hoặc gõ tay. */
   congTacId: string | null;
   /** Mã CV (mã định mức) của công tác đang gắn. */
@@ -938,6 +940,38 @@ export function EstimateEditor({
             <Field label="Đơn giá">
               <Input name="unitPrice" inputMode="decimal" defaultValue={soVN(editing?.unitPrice)} />
             </Field>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Field label="Khối lượng">
+              <Select
+                name="vaiTroKL"
+                defaultValue={
+                  editing?.layTuThamSo ? `lay:${editing.layTuThamSo}` : editing?.napThamSo ? `nap:${editing.napThamSo}` : ""
+                }
+              >
+                <option value="">Nhập tay</option>
+                <optgroup label="Dòng nguồn — cộng KL dòng này vào">
+                  {Object.entries(TEN_THAM_SO).map(([k, ten]) => (
+                    <option key={k} value={`nap:${k}`}>
+                      Tổng {ten} của hạng mục
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Tự tính — KL dòng này bằng">
+                  {Object.entries(TEN_THAM_SO).map(([k, ten]) => (
+                    <option key={k} value={`lay:${k}`}>
+                      Tổng {ten} × hệ số
+                    </option>
+                  ))}
+                </optgroup>
+              </Select>
+            </Field>
+            <Field label="Hệ số (khi tự tính)">
+              <Input name="heSoQuyDoi" inputMode="decimal" placeholder="1" defaultValue={soVN(editing?.heSoQuyDoi)} />
+            </Field>
+            <p className="self-end pb-2 text-xs text-slate-500">
+              Vd Xà gồ, Dầm ngang: nguồn kg thép; Vận chuyển KCT, Lắp dựng KCT: tự tính từ kg thép.
+            </p>
           </div>
           <Field label="Thành tiền (để trống = KL × đơn giá)">
             <Input name="amount" inputMode="decimal" defaultValue={soVN(editing?.amount)} />
