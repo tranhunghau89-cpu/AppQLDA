@@ -12,6 +12,7 @@ import { type LoaiMucCon } from "@/lib/khoiLuong/mucCon";
 import { tinhLaiTuMucCon } from "@/lib/khoiLuong/tinhLaiMucCon";
 import { tinhLaiDanXuatThiCong } from "@/lib/khoiLuong/danXuatThiCong";
 import { coThamChieuId, coVong, idThamChieu, tinhCongThucDong } from "@/lib/khoiLuong/congThucDong";
+import { doiChieuThuVien, type DeXuatDoiChieu } from "@/lib/thuVien/doiChieuThuVien";
 import { ESTIMATE_GROUP_MAP } from "@/lib/constants";
 import { chonDonGia, ngayTraGia } from "@/lib/thuVien/gia";
 import { computeTemplateLines, type TemplateLine } from "@/lib/estimateTemplate";
@@ -263,6 +264,24 @@ export async function applyEstimateTemplate(
   const sectionName = payload.sectionName.trim() || template.ten;
   const count = await db.estimateSection.count({ where: { projectId } });
 
+  // Dòng bộ đã gắn công tác thư viện: dòng dự toán mang theo công tác và nguồn giá theo
+  // khu vực dự án. `donGiaId` chỉ gắn khi đơn giá gửi lên đúng là giá thư viện — người
+  // dùng đã sửa giá trong hộp áp mẫu thì con số không còn đến từ bản giá ấy.
+  const thuVien = await giaThuVienTheoCongTac(
+    projectId,
+    template.dong.flatMap((l) => (l.congTacId ? [l.congTacId] : []))
+  );
+  const nguonGia = (lineId: string, unitPrice: number | null) => {
+    const l = template.dong.find((x) => x.id === lineId);
+    if (!l?.congTacId) return {};
+    const g = thuVien.gia.get(l.congTacId);
+    return {
+      congTacId: l.congTacId,
+      khuVucId: thuVien.khuVucId,
+      donGiaId: g && g.donGia != null && unitPrice === g.donGia ? g.donGiaId : null,
+    };
+  };
+
   await db.estimateSection.create({
     data: {
       projectId,
@@ -273,6 +292,7 @@ export async function applyEstimateTemplate(
       items: {
         create: computed.map((c, idx) => ({
           ...thamSoMau(template.dong.find((l) => l.id === c.lineId)),
+          ...nguonGia(c.lineId, c.unitPrice),
           projectId,
           groupLabel: c.groupLabel,
           groupCode: c.groupCode,
@@ -292,6 +312,26 @@ export async function applyEstimateTemplate(
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/estimates");
   return { ok: true };
+}
+
+/** Giá thư viện hiện hành của các công tác, theo khu vực của dự án. */
+async function giaThuVienTheoCongTac(projectId: string, congTacIds: string[]) {
+  const ngay = ngayTraGia();
+  const ids = [...new Set(congTacIds)];
+  const [project, ungVien] = await Promise.all([
+    db.project.findUnique({ where: { id: projectId }, select: { khuVucId: true } }),
+    ids.length
+      ? db.donGiaCongTac.findMany({
+          where: { congTacId: { in: ids }, hieuLucTu: { lte: ngay } },
+          select: { id: true, congTacId: true, congTacVatTuId: true, khuVucId: true, donGia: true, hieuLucTu: true, createdAt: true },
+        })
+      : Promise.resolve([]),
+  ]);
+  const khuVucId = project?.khuVucId ?? null;
+  const gia = new Map(
+    ids.map((id) => [id, chonDonGia(ungVien.filter((g) => g.congTacId === id), { congTacId: id, khuVucId, ngay })])
+  );
+  return { khuVucId, gia };
 }
 
 /** Tham số dẫn xuất của một dòng bộ hạng mục, theo đúng vai trò của nó. */
@@ -1058,6 +1098,117 @@ export async function boGhiDeThucTe(projectId: string, itemId: string): Promise<
     data: { thucTeGhiDe: false, actualQty: null, actualUnitPrice: null, actualAmount: null },
   });
   await tinhLaiTuMucCon(itemId, "THUC_TE");
+  revalidatePath(`/projects/${projectId}/estimate`);
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/estimates");
+  return { ok: true };
+}
+
+// ---------- Đối chiếu thư viện công tác ----------
+
+export interface DongDoiChieu extends DeXuatDoiChieu {
+  ten: string;
+  donVi: string | null;
+  hangMuc: string | null;
+  maCu: string | null;
+}
+
+/** Tính đề xuất từ CSDL — dùng chung cho xem trước và áp dụng, để hai bước không lệch nhau. */
+async function tinhDoiChieu(projectId: string) {
+  const [dongDuToan, bo, congTacs] = await Promise.all([
+    db.estimateItem.findMany({
+      where: { projectId },
+      orderBy: [{ section: { sortOrder: "asc" } }, { sortOrder: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        unit: true,
+        congTacId: true,
+        unitPrice: true,
+        designQty: true,
+        congTac: { select: { ma: true } },
+        section: { select: { name: true, templateId: true } },
+        _count: { select: { mucCon: { where: { loai: "DU_TOAN" } } } },
+      },
+    }),
+    db.boHangMucDong.findMany({ select: { phanId: true, ten: true, donVi: true, congTacId: true } }),
+    db.congTac.findMany({ where: { active: true }, select: { id: true, ma: true, ten: true, tenNgan: true, donVi: true } }),
+  ]);
+  const gia = await giaThuVienTheoCongTac(projectId, congTacs.map((c) => c.id));
+  const deXuat = doiChieuThuVien(
+    dongDuToan.map((d) => ({
+      id: d.id,
+      ten: d.name,
+      donVi: d.unit,
+      congTacId: d.congTacId,
+      donGia: d.unitPrice,
+      phanMauId: d.section?.templateId ?? null,
+      coMucCon: d._count.mucCon > 0,
+    })),
+    bo,
+    congTacs.map((c) => ({ ...c, donGia: gia.gia.get(c.id)?.donGia ?? null }))
+  );
+  return { dongDuToan, deXuat, gia };
+}
+
+export async function xemDoiChieuThuVien(
+  projectId: string
+): Promise<{ ok: true; dong: DongDoiChieu[] } | { ok: false; error: string }> {
+  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa dự toán.");
+  if (denied) return denied;
+  const { dongDuToan, deXuat } = await tinhDoiChieu(projectId);
+  const theoId = new Map(dongDuToan.map((d) => [d.id, d]));
+  return {
+    ok: true,
+    dong: deXuat.map((x) => {
+      const d = theoId.get(x.id)!;
+      return { ...x, ten: d.name, donVi: d.unit, hangMuc: d.section?.name ?? null, maCu: d.congTac?.ma ?? null };
+    }),
+  };
+}
+
+/**
+ * Gắn mã công tác + đơn giá thư viện cho các dòng người dùng đã tick. Tính lại đề xuất ở
+ * máy chủ chứ không tin bản gửi lên; dòng không còn trong đề xuất thì bỏ qua.
+ */
+export async function apDungDoiChieuThuVien(projectId: string, ids: string[]): Promise<ActionResult> {
+  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa dự toán.");
+  if (denied) return denied;
+  const chon = new Set(ids);
+  const { dongDuToan, deXuat, gia } = await tinhDoiChieu(projectId);
+  const theoId = new Map(dongDuToan.map((d) => [d.id, d]));
+  const lam = deXuat.filter((x) => chon.has(x.id));
+  if (lam.length === 0) return { ok: false, error: "Không có dòng nào để cập nhật." };
+
+  await db.$transaction(
+    lam.map((x) => {
+      const d = theoId.get(x.id)!;
+      const donGia = x.donGiaMoi ?? d.unitPrice;
+      return db.estimateItem.update({
+        where: { id: x.id },
+        data: {
+          congTacId: x.congTacId,
+          khuVucId: gia.khuVucId,
+          ...(x.donGiaMoi != null
+            ? {
+                unitPrice: donGia,
+                donGiaId: gia.gia.get(x.congTacId)?.donGiaId ?? null,
+                amount: d.designQty != null && donGia != null ? d.designQty * donGia : null,
+              }
+            : {}),
+        },
+      });
+    })
+  );
+  await recordAudit({
+    actor: await requireSession(),
+    entity: "EstimateItem",
+    entityId: projectId,
+    entityLabel: `Đối chiếu thư viện — ${lam.length} dòng`,
+    projectId,
+    action: "UPDATE",
+    changes: { doiChieuThuVien: { truoc: null, sau: `${lam.length} dòng` } },
+  });
   revalidatePath(`/projects/${projectId}/estimate`);
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/estimates");

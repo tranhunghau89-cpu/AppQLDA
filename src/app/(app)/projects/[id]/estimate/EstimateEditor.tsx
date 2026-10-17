@@ -42,6 +42,7 @@ import {
 import { ApplyTemplate, type TemplateForClient } from "./ApplyTemplate";
 import { BangBocModal } from "./BangBocModal";
 import { MucConModal } from "./MucConModal";
+import { DoiChieuThuVien } from "./DoiChieuThuVien";
 import type { MauKg } from "@/lib/thuVien/trongLuongBulong";
 import { DashboardDuToan, type NhomSoSanh } from "./DashboardDuToan";
 import { useConfirm } from "@/components/ui/confirm";
@@ -415,6 +416,7 @@ export function EstimateEditor({
           <h2 className="text-lg font-semibold text-slate-900">Bảng dự toán</h2>
           {canEdit && (
             <div className="flex gap-2">
+              <DoiChieuThuVien projectId={projectId} />
               <ApplyTemplate projectId={projectId} templates={templates} />
               <Button size="sm" onClick={() => openNew()}>
                 <Plus className="h-4 w-4" /> Thêm dòng

@@ -101,6 +101,9 @@ export default async function EstimatePage({
   ]);
   if (!project) notFound();
 
+  // Dòng bộ đã gắn công tác: giá gợi ý là giá THƯ VIỆN hiện hành, không phải giá chép
+  // vào bộ lúc lập mẫu — giá bộ đứng yên trong khi thư viện cập nhật theo ngày hiệu lực.
+  const giaThuVien = new Map(congTacs.map((c) => [c.id, c.donGia]));
   const templates: TemplateForClient[] = templateRows.map((t) => ({
     id: t.id,
     name: t.ten,
@@ -110,7 +113,7 @@ export default async function EstimatePage({
       groupLabel: l.groupLabel ?? "",
       name: l.ten,
       unit: l.donVi,
-      defaultUnitPrice: l.donGiaMacDinh,
+      defaultUnitPrice: (l.congTacId ? giaThuVien.get(l.congTacId) : null) ?? l.donGiaMacDinh,
       role: l.vaiTro,
       feedsParam: l.napThamSo,
       takesFromParam: l.layTuThamSo,
