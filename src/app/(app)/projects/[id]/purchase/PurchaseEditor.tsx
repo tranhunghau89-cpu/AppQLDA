@@ -578,7 +578,6 @@ function ItemsTable({
   onEditItem,
   onDeleteItem,
   showGroupCol = false,
-  groupColLabel = "",
   orderId,
   nhomMoi,
 }: {
@@ -596,7 +595,6 @@ function ItemsTable({
   onEditItem: (it: OrderItemView) => void;
   onDeleteItem: (it: OrderItemView) => void;
   showGroupCol?: boolean;
-  groupColLabel?: string;
 }) {
   // Bảng "toàn bộ vật tư": gom thành dòng cha (nhóm) + dòng con, như sheet Excel —
   // thay cho cột nhóm lặp lại ở mọi dòng. Thứ tự nhóm theo lần xuất hiện đầu.
@@ -676,187 +674,231 @@ function ItemsTable({
         </tr>
       </THead>
       <tbody onKeyDown={canEdit ? diChuyenO : undefined}>
-        {khoi.map(({ nhom, ds, hms }) => (
-          <Fragment key={nhom ?? ""}>
-            {nhom != null && (
-              <tr className="border-y border-slate-200 bg-slate-100/80">
-                <td colSpan={99} className="px-3 py-1.5 text-sm">
-                  <span className="font-semibold text-slate-800">{nhom}</span>
-                  <span className="ml-2 text-xs text-slate-500">
-                    {groupColLabel.toLowerCase()} · {ds.length} dòng ·{" "}
-                    {formatNumber(ds.reduce((t, x) => t + (x.weight ?? 0), 0))}{" "}
-                    kg
-                    {(() => {
-                      const tien = ds.reduce((t, x) => t + (x.amount ?? 0), 0);
-                      return tien ? ` · ${formatVND(tien)}` : "";
-                    })()}
-                  </span>
-                </td>
-              </tr>
-            )}
-            {hms.map(({ hm, ds: con }) => (
-              <Fragment key={hm}>
-                {hm && (
-                  <tr className="bg-white">
-                    <td />
-                    <td
-                      colSpan={98}
-                      className="px-3 pb-1 pt-2.5 text-sm font-semibold text-slate-800"
-                    >
-                      {canEdit ? (
-                        <OChuSua
-                          giaTri={hm}
-                          nhan={otherLabel}
-                          rong
-                          luu={(v) =>
-                            doiTenHangMuc(
-                              projectId,
-                              orderId,
-                              con.map((x) => x.id),
-                              truongHangMuc,
-                              v,
-                            )
-                          }
-                        />
-                      ) : (
-                        hm
-                      )}
-                    </td>
-                  </tr>
-                )}
-                {con.map((r, i) => (
-                  <Tr key={r.id}>
-                    <Td
-                      className={cn(
-                        "w-12 text-center text-slate-400",
-                        nhom != null && "pl-6",
-                      )}
-                    >
-                      {i + 1}
-                    </Td>
-                    <Td className="font-medium text-slate-900" data-cot="name">
-                      {canEdit ? (
-                        <OChuSua
-                          giaTri={r.name}
-                          nhan="Tên hàng, quy cách"
-                          rong
-                          luu={(v) => suaOMonHang(projectId, r.id, "name", v)}
-                        />
-                      ) : (
-                        r.name
-                      )}
-                      {r.estimateItemName && (
-                        <div className="text-xs font-normal text-emerald-700">
-                          → {r.estimateItemName}
-                        </div>
-                      )}
-                    </Td>
-                    <Td>
-                      <div className="flex justify-center">
-                        <ItemImages
-                          item={r}
-                          projectId={projectId}
-                          canEdit={canEdit}
-                          onRefresh={onRefresh}
-                        />
-                      </div>
-                    </Td>
-                    <Td className="text-right" data-cot="qty">
-                      {canEdit ? (
-                        <OSoSua
-                          giaTri={r.qty}
-                          dinhDang={formatNumber}
-                          khoa={false}
-                          thuCong={false}
-                          nhan="SL"
-                          luu={(v) => suaOMonHang(projectId, r.id, "qty", v)}
-                        />
-                      ) : (
-                        formatNumber(r.qty)
-                      )}
-                    </Td>
-                    <Td className="text-slate-500" data-cot="unit">
-                      {canEdit ? (
-                        <OChuSua
-                          giaTri={r.unit ?? ""}
-                          nhan="Đơn vị"
-                          luu={(v) => suaOMonHang(projectId, r.id, "unit", v)}
-                        />
-                      ) : (
-                        r.unit || "—"
-                      )}
-                    </Td>
-                    <Td className="text-right" data-cot="unitPrice">
-                      {canEdit ? (
-                        <OSoSua
-                          giaTri={r.unitPrice}
-                          dinhDang={formatNumber}
-                          khoa={false}
-                          thuCong={false}
-                          nhan="Đơn giá"
-                          luu={(v) =>
-                            suaOMonHang(projectId, r.id, "unitPrice", v)
-                          }
-                        />
-                      ) : (
-                        formatNumber(r.unitPrice)
-                      )}
-                    </Td>
-                    <Td className="text-right tabular-nums">
-                      {r.amount ? formatVND(r.amount) : "—"}
-                    </Td>
-                    <Td className="text-right" data-cot="weight">
-                      {canEdit ? (
-                        <OSoSua
-                          giaTri={r.weight}
-                          dinhDang={formatNumber}
-                          khoa={false}
-                          thuCong={false}
-                          nhan="TL (kg)"
-                          luu={(v) => suaOMonHang(projectId, r.id, "weight", v)}
-                        />
-                      ) : (
-                        formatNumber(r.weight)
-                      )}
-                    </Td>
-                    <Td className="text-slate-500" data-cot="note">
-                      {canEdit ? (
-                        <OChuSua
-                          giaTri={r.note ?? ""}
-                          nhan="Ghi chú"
-                          luu={(v) => suaOMonHang(projectId, r.id, "note", v)}
-                        />
-                      ) : (
-                        r.note || ""
-                      )}
-                    </Td>
-                    {canEdit && (
-                      <Td className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onEditItem(r)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-red-600 hover:bg-red-50"
-                            onClick={() => onDeleteItem(r)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+        {khoi.map(({ nhom, ds, hms }, ni) => {
+          // Nhóm chỉ có MỘT hạng mục (quy cách) thì đưa quy cách lên luôn dòng nhóm, bỏ số
+          // thứ tự "1." đầu chữ vì nhóm đã được đánh số.
+          const gop =
+            nhom != null && hms.length === 1 && hms[0].hm ? hms[0] : null;
+          return (
+            <Fragment key={nhom ?? ""}>
+              {nhom != null && (
+                <tr className="border-y border-slate-200 bg-slate-100/80">
+                  <td className="w-12 py-1.5 text-center text-sm font-semibold text-slate-800">
+                    {ni + 1}
+                  </td>
+                  <td colSpan={98} className="px-3 py-1.5 text-sm">
+                    <span className="font-semibold text-slate-800">{nhom}</span>
+                    {gop && (
+                      <>
+                        <span className="mx-1.5 text-slate-400">—</span>
+                        {canEdit ? (
+                          <OChuSua
+                            giaTri={boSoDau(gop.hm)}
+                            nhan="Quy cách nhóm"
+                            rong
+                            luu={(v) =>
+                              doiTenHangMuc(
+                                projectId,
+                                orderId,
+                                gop.ds.map((x) => x.id),
+                                truongHangMuc,
+                                v,
+                              )
+                            }
+                          />
+                        ) : (
+                          <span className="font-medium text-slate-700">
+                            {boSoDau(gop.hm)}
+                          </span>
+                        )}
+                      </>
+                    )}
+                    <span className="ml-2 text-xs text-slate-500">
+                      {ds.length} dòng ·{" "}
+                      {formatNumber(
+                        ds.reduce((t, x) => t + (x.weight ?? 0), 0),
+                      )}{" "}
+                      kg
+                      {(() => {
+                        const tien = ds.reduce(
+                          (t, x) => t + (x.amount ?? 0),
+                          0,
+                        );
+                        return tien ? ` · ${formatVND(tien)}` : "";
+                      })()}
+                    </span>
+                  </td>
+                </tr>
+              )}
+              {hms.map(({ hm, ds: con }) => (
+                <Fragment key={hm}>
+                  {hm && !gop && (
+                    <tr className="bg-white">
+                      <td />
+                      <td
+                        colSpan={98}
+                        className="px-3 pb-1 pt-2.5 text-sm font-semibold text-slate-800"
+                      >
+                        {canEdit ? (
+                          <OChuSua
+                            giaTri={hm}
+                            nhan={otherLabel}
+                            rong
+                            luu={(v) =>
+                              doiTenHangMuc(
+                                projectId,
+                                orderId,
+                                con.map((x) => x.id),
+                                truongHangMuc,
+                                v,
+                              )
+                            }
+                          />
+                        ) : (
+                          hm
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                  {con.map((r, i) => (
+                    <Tr key={r.id}>
+                      <Td
+                        className={cn(
+                          "w-12 text-center text-slate-400",
+                          nhom != null && "pl-6",
+                        )}
+                      >
+                        {i + 1}
+                      </Td>
+                      <Td
+                        className="font-medium text-slate-900"
+                        data-cot="name"
+                      >
+                        {canEdit ? (
+                          <OChuSua
+                            giaTri={r.name}
+                            nhan="Tên hàng, quy cách"
+                            rong
+                            luu={(v) => suaOMonHang(projectId, r.id, "name", v)}
+                          />
+                        ) : (
+                          r.name
+                        )}
+                        {r.estimateItemName && (
+                          <div className="text-xs font-normal text-emerald-700">
+                            → {r.estimateItemName}
+                          </div>
+                        )}
+                      </Td>
+                      <Td>
+                        <div className="flex justify-center">
+                          <ItemImages
+                            item={r}
+                            projectId={projectId}
+                            canEdit={canEdit}
+                            onRefresh={onRefresh}
+                          />
                         </div>
                       </Td>
-                    )}
-                  </Tr>
-                ))}
-              </Fragment>
-            ))}
-          </Fragment>
-        ))}
+                      <Td className="text-right" data-cot="qty">
+                        {canEdit ? (
+                          <OSoSua
+                            giaTri={r.qty}
+                            dinhDang={formatNumber}
+                            khoa={false}
+                            thuCong={false}
+                            nhan="SL"
+                            luu={(v) => suaOMonHang(projectId, r.id, "qty", v)}
+                          />
+                        ) : (
+                          formatNumber(r.qty)
+                        )}
+                      </Td>
+                      <Td className="text-slate-500" data-cot="unit">
+                        {canEdit ? (
+                          <OChuSua
+                            giaTri={r.unit ?? ""}
+                            nhan="Đơn vị"
+                            luu={(v) => suaOMonHang(projectId, r.id, "unit", v)}
+                          />
+                        ) : (
+                          r.unit || "—"
+                        )}
+                      </Td>
+                      <Td className="text-right" data-cot="unitPrice">
+                        {canEdit ? (
+                          <OSoSua
+                            giaTri={r.unitPrice}
+                            dinhDang={formatNumber}
+                            khoa={false}
+                            thuCong={false}
+                            nhan="Đơn giá"
+                            luu={(v) =>
+                              suaOMonHang(projectId, r.id, "unitPrice", v)
+                            }
+                          />
+                        ) : (
+                          formatNumber(r.unitPrice)
+                        )}
+                      </Td>
+                      <Td className="text-right tabular-nums">
+                        {r.amount ? formatVND(r.amount) : "—"}
+                      </Td>
+                      <Td className="text-right" data-cot="weight">
+                        {canEdit ? (
+                          <OSoSua
+                            giaTri={r.weight}
+                            dinhDang={formatNumber}
+                            khoa={false}
+                            thuCong={false}
+                            nhan="TL (kg)"
+                            luu={(v) =>
+                              suaOMonHang(projectId, r.id, "weight", v)
+                            }
+                          />
+                        ) : (
+                          formatNumber(r.weight)
+                        )}
+                      </Td>
+                      <Td className="text-slate-500" data-cot="note">
+                        {canEdit ? (
+                          <OChuSua
+                            giaTri={r.note ?? ""}
+                            nhan="Ghi chú"
+                            luu={(v) => suaOMonHang(projectId, r.id, "note", v)}
+                          />
+                        ) : (
+                          r.note || ""
+                        )}
+                      </Td>
+                      {canEdit && (
+                        <Td className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onEditItem(r)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-600 hover:bg-red-50"
+                              onClick={() => onDeleteItem(r)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </Td>
+                      )}
+                    </Tr>
+                  ))}
+                </Fragment>
+              ))}
+            </Fragment>
+          );
+        })}
         {canEdit && (
           <tr>
             <td
@@ -881,6 +923,9 @@ function ItemsTable({
  * Ô tự lưu khi mất focus nên chỉ cần dời focus. Tab giữ nguyên hành vi trình duyệt
  * (sang ô bên phải).
  */
+/** "1. Máng xối tôn…" / "II. La đỡ…" → bỏ số thứ tự đầu chữ. */
+const boSoDau = (s: string) => s.replace(/^\s*(\d+|[IVXLC]+)\s*[.)]\s*/, "");
+
 function diChuyenO(e: React.KeyboardEvent<HTMLTableSectionElement>) {
   const el = e.target as HTMLElement;
   if (el.tagName !== "INPUT") return;
@@ -1229,7 +1274,6 @@ function OrderCard({
                   onEditItem={onEditItem}
                   onDeleteItem={onDeleteItem}
                   showGroupCol
-                  groupColLabel={groupColLabel}
                   orderId={order.id}
                   nhomMoi={{}}
                 />
