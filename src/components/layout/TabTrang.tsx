@@ -47,6 +47,7 @@ export const TAB_DU_AN: readonly MucTab[] = [
 export const TAB_HOP_DONG: readonly MucTab[] = [
   { href: "/contracts", label: "Hợp đồng & Báo giá", resource: "contract" },
   { href: "/estimates", label: "Dự toán thi công", resource: "estimate" },
+  { href: "/estimates/so-sanh", label: "So sánh dự án", resource: "estimate" },
 ];
 
 // Thi công ngoài hiện trường, theo thứ tự: lên kế hoạch tiến độ (tuần · Gantt) → làm việc theo
