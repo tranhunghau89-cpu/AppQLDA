@@ -293,6 +293,28 @@ export async function suaOMonHang(
   return { ok: true };
 }
 
+/**
+ * Đổi tên dòng tiêu đề hạng mục trên bảng = đổi `groupName` (hoặc `category`) của mọi
+ * dòng đang nằm dưới tiêu đề đó. Để trống thì các dòng thôi thuộc hạng mục nào.
+ */
+export async function doiTenHangMuc(
+  projectId: string,
+  orderId: string,
+  itemIds: string[],
+  truong: "groupName" | "category",
+  tho: string
+): Promise<ActionResult> {
+  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa vật tư.", { orderId });
+  if (denied) return denied;
+  if (truong !== "groupName" && truong !== "category") return { ok: false, error: "Ô không sửa được." };
+  await db.purchaseOrderItem.updateMany({
+    where: { orderId, id: { in: itemIds } },
+    data: { [truong]: tho.trim() || null },
+  });
+  revalidatePath(`/projects/${projectId}/purchase`);
+  return { ok: true };
+}
+
 /** Thêm nhanh một dòng từ ô "gõ tên…" cuối bảng; nhóm theo tab đang mở. */
 export async function themNhanhMonHang(
   projectId: string,
