@@ -664,6 +664,12 @@ model EstimateItem {
   // true = người dùng đã gõ tay KL/đơn giá thực trên dòng cha → mục con thực tế không
   // ghi đè nữa. Xoá trắng cả hai ô thì cờ tắt và dòng cha lại cộng theo mục con.
   thucTeGhiDe    Boolean          @default(false)
+  // Khối lượng dẫn xuất, cùng luật với QuoteItem: dòng nguồn mang `napThamSo`, dòng đích
+  // (Vận chuyển KCT, Lắp dựng KCT, Lợp tôn…) mang `layTuThamSo` và KL = tổng KL nguồn
+  // trong cùng hạng mục × `heSoQuyDoi`. Xem lib/khoiLuong/danXuatThiCong.
+  napThamSo      String?
+  layTuThamSo    String?
+  heSoQuyDoi     Float?
   unitPrice      Float?
   amount         Float?
   supplierId     String?

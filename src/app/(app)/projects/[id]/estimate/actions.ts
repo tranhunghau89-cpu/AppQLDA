@@ -10,6 +10,7 @@ import { docBangChiTiet, type DongBoc } from "@/lib/import/bocChiTiet";
 import { dienGiaiCach, tongChiTiet } from "@/lib/khoiLuong/tongChiTiet";
 import { type LoaiMucCon } from "@/lib/khoiLuong/mucCon";
 import { tinhLaiTuMucCon } from "@/lib/khoiLuong/tinhLaiMucCon";
+import { tinhLaiDanXuatThiCong } from "@/lib/khoiLuong/danXuatThiCong";
 import { ESTIMATE_GROUP_MAP } from "@/lib/constants";
 import { chonDonGia, ngayTraGia } from "@/lib/thuVien/gia";
 import { computeTemplateLines, type TemplateLine } from "@/lib/estimateTemplate";
@@ -163,11 +164,12 @@ export async function saveEstimateItem(
       db.mucConDuToan.count({ where: { estimateItemId: id, loai: "DU_TOAN" } }),
       db.estimateItem.findUnique({
         where: { id },
-        select: { actualQty: true, actualUnitPrice: true },
+        select: { actualQty: true, actualUnitPrice: true, layTuThamSo: true },
       }),
     ]);
     const conLai: Record<string, unknown> = { ...data };
-    if (soChiTiet > 0) delete conLai.designQty;
+    // Dòng dẫn xuất: KL tự tính từ dòng nguồn, biểu mẫu không ghi đè.
+    if (soChiTiet > 0 || cu?.layTuThamSo) delete conLai.designQty;
     // Có mục con dự toán thì KL, đơn giá và thành tiền là tổng của mục con.
     if (soConDuToan > 0) {
       delete conLai.designQty;
@@ -184,6 +186,7 @@ export async function saveEstimateItem(
     if (doiThuc && conLai.thucTeGhiDe === false) await tinhLaiTuMucCon(id, "THUC_TE");
   }
   else await db.estimateItem.create({ data: { projectId, ...data, ...sortOrder } });
+  await tinhLaiDanXuatThiCong(projectId);
 
   revalidatePath(`/projects/${projectId}/estimate`);
   revalidatePath(`/projects/${projectId}`);
@@ -198,6 +201,7 @@ export async function deleteEstimateItem(
   const denied = await guard(projectId, "Bạn không có quyền xóa dòng dự toán.", id);
   if (denied) return denied;
   await db.estimateItem.delete({ where: { id } });
+  await tinhLaiDanXuatThiCong(projectId);
   revalidatePath(`/projects/${projectId}/estimate`);
   revalidatePath("/estimates");
   return { ok: true };
@@ -256,6 +260,7 @@ export async function applyEstimateTemplate(
       sortOrder: count,
       items: {
         create: computed.map((c, idx) => ({
+          ...thamSoMau(template.dong.find((l) => l.id === c.lineId)),
           projectId,
           groupLabel: c.groupLabel,
           groupCode: c.groupCode,
@@ -275,6 +280,19 @@ export async function applyEstimateTemplate(
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/estimates");
   return { ok: true };
+}
+
+/** Tham số dẫn xuất của một dòng bộ hạng mục, theo đúng vai trò của nó. */
+function thamSoMau(
+  l: { vaiTro: string; napThamSo: string | null; layTuThamSo: string | null; heSoQuyDoi: number | null } | undefined
+) {
+  if (!l) return {};
+  const lay = l.vaiTro === "DERIVED" ? l.layTuThamSo?.trim() || null : null;
+  return {
+    napThamSo: lay ? null : l.napThamSo?.trim() || null,
+    layTuThamSo: lay,
+    heSoQuyDoi: lay ? l.heSoQuyDoi : null,
+  };
 }
 
 export async function deleteEstimateSection(
@@ -388,6 +406,9 @@ async function napNguonDoXuong(projectId: string, quoteId: string) {
       donGiaId: i.donGiaId,
       giaSuaTay: i.giaSuaTay,
       nhomChiPhi: ct?.nhomChiPhi ?? null,
+      napThamSo: i.napThamSo,
+      layTuThamSo: i.layTuThamSo,
+      heSoQuyDoi: i.heSoQuyDoi,
     };
   });
 
@@ -497,12 +518,16 @@ export async function doXuongDuToanThiCong(
               congTacId: d.congTacId,
               donGiaId: d.donGiaId,
               khuVucId,
+              napThamSo: d.napThamSo,
+              layTuThamSo: d.layTuThamSo,
+              heSoQuyDoi: d.heSoQuyDoi,
             })),
           },
         },
       })
     )
   );
+  await tinhLaiDanXuatThiCong(projectId);
 
   revalidatePath(`/projects/${projectId}/estimate`);
   revalidatePath(`/projects/${projectId}`);
@@ -662,6 +687,7 @@ export async function luuBangBoc(
   ]);
   // Đầu việc có mục con dự toán thì thành tiền vẫn là tổng mục con.
   await tinhLaiTuMucCon(estimateItemId, "DU_TOAN");
+  await tinhLaiDanXuatThiCong(projectId);
 
   await recordAudit({
     actor: await requireSession(),
@@ -756,6 +782,7 @@ export async function suaOEstimate(
       actualQty: true,
       unitPrice: true,
       actualUnitPrice: true,
+      layTuThamSo: true,
       _count: { select: { chiTiet: true, mucCon: { where: { loai: "DU_TOAN" } } } },
     },
   });
@@ -774,6 +801,12 @@ export async function suaOEstimate(
       return {
         ok: false,
         error: `Khối lượng "${dong.name}" bằng tổng bảng bóc ${dong._count.chiTiet} dòng — sửa bảng bóc.`,
+      };
+    }
+    if (dong.layTuThamSo) {
+      return {
+        ok: false,
+        error: `Khối lượng "${dong.name}" tự tính từ các dòng nguồn trong hạng mục — sửa các dòng nguồn.`,
       };
     }
     designQty = giaTri;
@@ -804,6 +837,7 @@ export async function suaOEstimate(
     },
   });
   if (suaThuc && !ghiDe) await tinhLaiTuMucCon(itemId, "THUC_TE");
+  if (truong === "qty") await tinhLaiDanXuatThiCong(projectId);
 
   revalidatePath(`/projects/${projectId}/estimate`);
   revalidatePath(`/projects/${projectId}`);
@@ -940,6 +974,7 @@ export async function luuMucCon(
     }),
   ]);
   await tinhLaiTuMucCon(itemId, loai);
+  if (loai === "DU_TOAN") await tinhLaiDanXuatThiCong(projectId);
 
   await recordAudit({
     actor: await requireSession(),

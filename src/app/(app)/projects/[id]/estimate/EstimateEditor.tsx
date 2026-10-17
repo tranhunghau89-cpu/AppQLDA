@@ -91,6 +91,8 @@ export interface EstimateRow {
   sortOrder: number;
   /** Số dòng bảng bóc chi tiết đang gắn. >0 nghĩa là KL thiết kế do bảng quyết định. */
   soChiTiet: number;
+  /** Dòng dẫn xuất: KL tự tính từ dòng nguồn mang cùng tham số trong hạng mục. */
+  layTuThamSo: string | null;
   /** Công tác thư viện đang gắn; null = dòng nhập từ Excel hoặc gõ tay. */
   congTacId: string | null;
   /** Mã CV (mã định mức) của công tác đang gắn. */
@@ -119,6 +121,13 @@ const nhanNhom = (r: { groupLabel: string | null; groupCode: string }) =>
 const phanTram = (x: number | null) => (x == null ? "—" : `${(x * 100).toFixed(1)}%`);
 // Ô số đọc kiểu Việt (dấu chấm = hàng nghìn) — điền sẵn phải dùng dấu phẩy thập phân,
 // không thì 75922.52 bị đọc thành 7.592.252.
+const TEN_THAM_SO: Record<string, string> = {
+  KCT_KG: "kg thép",
+  TON_M2: "m² tôn",
+  DECK_M2: "m² tôn sàn deck",
+  DINH_BO: "bộ đinh chống cắt",
+};
+const tenThamSo = (p: string | null) => (p ? TEN_THAM_SO[p] ?? p : "");
 const soVN = (v: number | null | undefined) => (v == null ? "" : String(v).replace(".", ","));
 
 export function EstimateEditor({
@@ -566,12 +575,14 @@ export function EstimateEditor({
                                   nhan={`Khối lượng — ${r.name}`}
                                   giaTri={r.designQty}
                                   dinhDang={formatQty}
-                                  khoa={r.soChiTiet > 0 || coConDuToan}
-                                  dauKhoa={r.soChiTiet > 0 ? "▤" : "∑"}
+                                  khoa={r.soChiTiet > 0 || coConDuToan || !!r.layTuThamSo}
+                                  dauKhoa={r.soChiTiet > 0 ? "▤" : coConDuToan ? "∑" : "↳"}
                                   lyDoKhoa={
                                     r.soChiTiet > 0
                                       ? `Bằng tổng bảng bóc ${r.soChiTiet} dòng — sửa bằng nút bảng bóc`
-                                      : `Tổng ${r.mucConDuToan.length} mục con dự toán — sửa bằng nút mục con`
+                                      : coConDuToan
+                                        ? `Tổng ${r.mucConDuToan.length} mục con dự toán — sửa bằng nút mục con`
+                                        : `Tự tính = tổng ${tenThamSo(r.layTuThamSo)} của hạng mục — sửa các dòng nguồn`
                                   }
                                   luu={(tho) => suaOEstimate(projectId, r.id, "qty", tho)}
                                 />
@@ -910,14 +921,16 @@ export function EstimateEditor({
                 inputMode="decimal"
                 placeholder="12,5 hoặc =3*4"
                 defaultValue={soVN(editing?.designQty)}
-                readOnly={(editing?.soChiTiet ?? 0) > 0}
-                className={(editing?.soChiTiet ?? 0) > 0 ? "bg-slate-100 text-slate-500" : undefined}
+                readOnly={(editing?.soChiTiet ?? 0) > 0 || !!editing?.layTuThamSo}
+                className={(editing?.soChiTiet ?? 0) > 0 || editing?.layTuThamSo ? "bg-slate-100 text-slate-500" : undefined}
               />
-              {(editing?.soChiTiet ?? 0) > 0 && (
+              {(editing?.soChiTiet ?? 0) > 0 ? (
                 <p className="text-xs text-slate-500">
                   Bằng tổng bảng bóc ({editing!.soChiTiet} dòng).
                 </p>
-              )}
+              ) : editing?.layTuThamSo ? (
+                <p className="text-xs text-slate-500">Tự tính = tổng {tenThamSo(editing.layTuThamSo)} của hạng mục.</p>
+              ) : null}
             </Field>
             <Field label="KL thực tế">
               <Input name="actualQty" inputMode="decimal" defaultValue={soVN(editing?.actualQty)} />

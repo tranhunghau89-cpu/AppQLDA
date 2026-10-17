@@ -255,3 +255,21 @@ describe("doXuongDuToan — hàm thuần", () => {
     expect(doXuongDuToan([], [])).toEqual({ hangMuc: [], dong: [], canhBao: [] });
   });
 });
+
+describe("tham số dẫn xuất đi theo xuống thi công", () => {
+  it("chép napThamSo cho dòng nguồn, layTuThamSo + hệ số cho dòng đích", () => {
+    const kq = doXuongDuToan(
+      [phan({ id: "a" })],
+      [
+        dong({ id: "1", sectionId: "a", napThamSo: "KCT_KG" }),
+        dong({ id: "2", sectionId: "a", layTuThamSo: "KCT_KG", heSoQuyDoi: 1.05, napThamSo: "X" }),
+        dong({ id: "3", sectionId: "a" }),
+      ]
+    );
+    expect(kq.dong.map((d) => [d.napThamSo, d.layTuThamSo, d.heSoQuyDoi])).toEqual([
+      ["KCT_KG", null, null],
+      [null, "KCT_KG", 1.05],
+      [null, null, null],
+    ]);
+  });
+});

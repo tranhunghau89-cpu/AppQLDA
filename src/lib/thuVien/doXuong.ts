@@ -44,6 +44,10 @@ export interface DongNguon {
   giaSuaTay: boolean;
   /** Nhóm chi phí suy từ công tác; null = không tra được. */
   nhomChiPhi: string | null;
+  /** Tham số dẫn xuất của dòng chào giá — đi theo xuống để thi công tự tính như chào giá. */
+  napThamSo?: string | null;
+  layTuThamSo?: string | null;
+  heSoQuyDoi?: number | null;
 }
 
 export interface HangMucMoi {
@@ -69,6 +73,9 @@ export interface DongMoi {
 
   congTacId: string | null;
   donGiaId: string | null;
+  napThamSo: string | null;
+  layTuThamSo: string | null;
+  heSoQuyDoi: number | null;
 }
 
 export interface KetQuaDoXuong {
@@ -182,6 +189,9 @@ export function doXuongDuToan(
         sortOrder: 0, // đánh lại sau khi xếp
         congTacId: d.congTacId,
         donGiaId: d.giaSuaTay ? null : d.donGiaId,
+        napThamSo: d.layTuThamSo ? null : d.napThamSo?.trim() || null,
+        layTuThamSo: d.layTuThamSo?.trim() || null,
+        heSoQuyDoi: d.layTuThamSo ? soHopLe(d.heSoQuyDoi) : null,
       },
     });
     dongTheoHangMuc.set(hangMuc.id, ds);
