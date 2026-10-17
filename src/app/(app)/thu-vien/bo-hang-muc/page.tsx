@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { TabTrang, TAB_DANH_MUC } from "@/components/layout/TabTrang";
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
 import { can, type Role } from "@/lib/rbac";
@@ -109,14 +108,9 @@ export default async function BoHangMucPage() {
 
   return (
     <div className="space-y-6">
+      <TabTrang tabs={TAB_DANH_MUC} hienTai="/thu-vien/bo-hang-muc" role={session.role} />
       <div>
-        <Link
-          href="/thu-vien"
-          className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
-        >
-          <ArrowLeft className="h-4 w-4" /> Thư viện đơn giá
-        </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Bộ hạng mục chuẩn</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">Bộ hạng mục chuẩn</h1>
         <p className="text-sm text-slate-500">
           Khung hạng mục theo loại công trình. Mỗi <strong>phần</strong> mang hai mặt:
           các dòng công tác để tính giá vốn, và một dòng hạng mục in cho chủ đầu tư.

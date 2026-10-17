@@ -72,11 +72,15 @@ export const TAB_CHI_PHI: readonly MucTab[] = [
   { href: "/debts", label: "Công nợ", resource: "debt" },
 ];
 
-// Dữ liệu gốc dùng chung: đơn giá, và hai danh bạ đối tác — bên mua (CĐT) và bên bán (NCC).
-// Khác quyền nhau — người mua hàng có thể chỉ thấy NCC — nên menu và thanh tab đều phải
-// lọc theo từng tab.
+// Dữ liệu gốc dùng chung: đơn giá, các loại MẪU (bộ hạng mục cho dự toán, đơn hàng mẫu,
+// mẫu QC) và hai danh bạ đối tác — bên mua (CĐT) và bên bán (NCC). Khác quyền nhau —
+// người mua hàng có thể chỉ thấy NCC, mẫu QC chỉ Ban giám đốc — nên menu và thanh tab
+// đều phải lọc theo từng tab.
 export const TAB_DANH_MUC: readonly MucTab[] = [
   { href: "/thu-vien", label: "Thư viện đơn giá", resource: "thuVien" },
+  { href: "/thu-vien/bo-hang-muc", label: "Bộ hạng mục", resource: "thuVien" },
+  { href: "/thu-vien/don-hang-mau", label: "Đơn hàng mẫu", resource: "thuVien" },
+  { href: "/qc-mau", label: "Mẫu QC", resource: "user" },
   { href: "/customers", label: "Chủ đầu tư", resource: "customer" },
   { href: "/suppliers", label: "Nhà cung cấp", resource: "supplier" },
 ];
@@ -87,11 +91,10 @@ export const TAB_TIEN_ICH: readonly MucTab[] = [
   { href: "/huong-dan", label: "Sổ tay hướng dẫn" },
 ];
 
-// Việc của quản trị viên — cả bốn trang chỉ Ban giám đốc vào được. Mẫu QC kiểm bằng vai
-// trò ADMIN, cùng mức với quyền "user".
+// Việc của quản trị viên — cả ba trang chỉ Ban giám đốc vào được. (Mẫu QC đã về nhóm
+// Danh mục, cạnh các loại mẫu khác.)
 export const TAB_QUAN_TRI: readonly MucTab[] = [
   { href: "/users", label: "Người dùng", resource: "user" },
-  { href: "/qc-mau", label: "Mẫu QC", resource: "user" },
   { href: "/import", label: "Nhập từ Excel", resource: "import" },
   { href: "/audit", label: "Nhật ký thay đổi", resource: "audit" },
 ];

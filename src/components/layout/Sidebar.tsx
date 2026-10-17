@@ -166,14 +166,15 @@ const NAV: NavGroup[] = [
           "/estimate-templates",
           "/quote-templates",
         ],
+        // Mẫu QC nằm ở đây; /qc-mau cũng khớp tiền tố của "Việc QC" — giành để chỉ mục
+        // này sáng.
+        gianh: (p) => p.startsWith("/qc-mau"),
       },
       { ...mucGop(TAB_TIEN_ICH), label: "Tiện ích", icon: Wrench },
       {
         ...mucGop(TAB_QUAN_TRI),
         label: "Quản trị",
         icon: Users,
-        // /qc-mau cũng khớp tiền tố của "Việc QC" — giành để chỉ mục này sáng.
-        gianh: (p) => p.startsWith("/qc-mau"),
       },
     ],
   },

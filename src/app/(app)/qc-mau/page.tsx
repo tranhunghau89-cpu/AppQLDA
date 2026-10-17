@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { QcMauEditor } from "./QcMauEditor";
-import { TabTrang, TAB_QUAN_TRI } from "@/components/layout/TabTrang";
+import { TabTrang, TAB_DANH_MUC } from "@/components/layout/TabTrang";
 
 export default async function QcMauPage() {
   const session = await requireSession();
@@ -23,7 +23,7 @@ export default async function QcMauPage() {
 
   return (
     <div className="space-y-6">
-      <TabTrang tabs={TAB_QUAN_TRI} hienTai="/qc-mau" role={session.role} />
+      <TabTrang tabs={TAB_DANH_MUC} hienTai="/qc-mau" role={session.role} />
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Mẫu QC</h1>
         <p className="text-sm text-slate-500">
