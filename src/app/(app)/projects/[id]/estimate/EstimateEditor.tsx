@@ -159,9 +159,12 @@ export function EstimateEditor({
   giaiDoan,
   area,
   canEdit,
+  suaThuVien,
   catalog,
   thuVienKg,
 }: {
+  /** Được gắn mã công tác cho dòng bộ hạng mục (quyền sửa thư viện). */
+  suaThuVien: boolean;
   projectId: string;
   items: EstimateRow[];
   sections: SectionInfo[];
@@ -417,7 +420,7 @@ export function EstimateEditor({
           {canEdit && (
             <div className="flex gap-2">
               <DoiChieuThuVien projectId={projectId} />
-              <ApplyTemplate projectId={projectId} templates={templates} />
+              <ApplyTemplate projectId={projectId} templates={templates} catalog={catalog} suaThuVien={suaThuVien} />
               <Button size="sm" onClick={() => openNew()}>
                 <Plus className="h-4 w-4" /> Thêm dòng
               </Button>

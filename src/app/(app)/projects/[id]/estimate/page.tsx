@@ -114,6 +114,7 @@ export default async function EstimatePage({
       name: l.ten,
       unit: l.donVi,
       defaultUnitPrice: (l.congTacId ? giaThuVien.get(l.congTacId) : null) ?? l.donGiaMacDinh,
+      congTacId: l.congTacId,
       role: l.vaiTro,
       feedsParam: l.napThamSo,
       takesFromParam: l.layTuThamSo,
@@ -221,6 +222,7 @@ export default async function EstimatePage({
         giaBanTheoHD={hdKy.length > 0 ? hdKy.map((c) => c.contractNo ?? "(chưa có số)") : null}
         area={project.area}
         canEdit={canEdit}
+        suaThuVien={can(session.role, "thuVien", "edit")}
         thuVienKg={thuVienKg}
         catalog={congTacs.map((c) => ({
           congTacId: c.id,

@@ -15,6 +15,8 @@ export interface TemplateLine {
   groupCode: string;
   note: string | null;
   sortOrder: number;
+  /** Công tác thư viện dòng mẫu đã gắn (null = chưa gắn mã, giá lấy theo bộ). */
+  congTacId?: string | null;
 }
 
 /** Giá trị user nhập cho 1 dòng (KL chỉ dùng cho dòng INPUT; đơn giá sửa được mọi dòng). */

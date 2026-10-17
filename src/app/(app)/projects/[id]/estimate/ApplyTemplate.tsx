@@ -10,6 +10,10 @@ import { formatNumber, formatVND } from "@/lib/utils";
 import { laCongThuc, tinhBieuThuc } from "@/lib/bieuThuc";
 import { computeTemplateLines, type TemplateLine } from "@/lib/estimateTemplate";
 import { applyEstimateTemplate } from "./actions";
+import { luuCongTacDong } from "@/app/(app)/thu-vien/bo-hang-muc/actions";
+import { useToast } from "@/components/ui/toast";
+import { norm } from "@/lib/text";
+import type { CongTacChon } from "@/components/ui/OChonCongTac";
 
 export interface TemplateForClient {
   id: string;
@@ -17,6 +21,10 @@ export interface TemplateForClient {
   code: string | null;
   lines: TemplateLine[];
 }
+
+/** Số → chuỗi ô nhập kiểu Việt; đơn giá từ 1.000 trở lên làm tròn đồng, khỏi "27204,5454…". */
+const soO = (v: number | null) =>
+  v == null ? "" : String(Math.abs(v) >= 1000 ? Math.round(v) : Math.round(v * 100) / 100).replace(".", ",");
 
 // Ô khối lượng / đơn giá nhận số kiểu Việt hoặc công thức bắt đầu bằng "=" (=12*3,5).
 const parseNum = (s: string | undefined): number | null => tinhBieuThuc(s);
@@ -53,11 +61,32 @@ function OCongThuc({
 export function ApplyTemplate({
   projectId,
   templates,
+  catalog,
+  suaThuVien,
 }: {
   projectId: string;
   templates: TemplateForClient[];
+  catalog: CongTacChon[];
+  /** Được gắn mã công tác cho dòng mẫu — lưu thẳng vào bộ hạng mục. */
+  suaThuVien: boolean;
 }) {
   const router = useRouter();
+  const toast = useToast();
+  // Mã vừa gắn trong hộp này, chờ trang tải lại bộ hạng mục.
+  const [maGan, setMaGan] = useState<Record<string, string | null>>({});
+  const [dangGan, startGan] = useTransition();
+  const ctTheoId = useMemo(() => new Map(catalog.map((c) => [c.congTacId, c])), [catalog]);
+
+  function ganMa(lineId: string, congTacId: string | null) {
+    startGan(async () => {
+      const r = await luuCongTacDong(lineId, congTacId);
+      if (!r.ok) return toast.error(r.error);
+      setMaGan((m) => ({ ...m, [lineId]: congTacId }));
+      const ct = congTacId ? ctTheoId.get(congTacId) : null;
+      if (ct?.baseCost != null) set(lineId, "price", soO(ct.baseCost));
+      router.refresh();
+    });
+  }
   const [open, setOpen] = useState(false);
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? "");
   const [sectionName, setSectionName] = useState(templates[0]?.name ?? "");
@@ -75,8 +104,8 @@ export function ApplyTemplate({
     for (const l of t?.lines ?? []) {
       init[l.id] = {
         // Dấu phẩy thập phân: ô đọc số kiểu Việt, "0.5" sẽ thành 5.
-        qty: l.defaultQty != null ? String(l.defaultQty).replace(".", ",") : "",
-        price: l.defaultUnitPrice != null ? String(l.defaultUnitPrice).replace(".", ",") : "",
+        qty: soO(l.defaultQty),
+        price: soO(l.defaultUnitPrice),
       };
     }
     setValues(init);
@@ -186,6 +215,7 @@ export function ApplyTemplate({
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-slate-100 text-xs text-slate-500">
                 <tr>
+                  <th className="px-2 py-1.5 text-left">Mã CV</th>
                   <th className="px-2 py-1.5 text-left">Hạng mục</th>
                   <th className="px-2 py-1.5 text-left">ĐV</th>
                   <th className="px-2 py-1.5 text-right">Khối lượng</th>
@@ -199,7 +229,7 @@ export function ApplyTemplate({
                   return (
                     <Fragment key={grp.label}>
                       <tr className="bg-slate-50">
-                        <td colSpan={4} className="px-2 py-1 font-semibold text-slate-700">
+                        <td colSpan={5} className="px-2 py-1 font-semibold text-slate-700">
                           {grp.label}
                         </td>
                         <td className="px-2 py-1 text-right font-medium text-slate-600">{sub ? formatVND(sub) : ""}</td>
@@ -209,6 +239,15 @@ export function ApplyTemplate({
                         const derived = l.role === "DERIVED";
                         return (
                           <tr key={l.id} className={derived ? "bg-slate-50/40" : ""}>
+                            <td className="px-1 py-0.5">
+                              <OChonMa
+                                congTacId={l.id in maGan ? maGan[l.id] : (l.congTacId ?? null)}
+                                donVi={l.unit}
+                                catalog={catalog}
+                                khoa={!suaThuVien || dangGan}
+                                chon={(id) => ganMa(l.id, id)}
+                              />
+                            </td>
                             <td className="px-2 py-0.5 pl-4 text-slate-800">
                               {l.name}
                               {l.note ? <span className="text-slate-400"> · {l.note}</span> : null}
@@ -242,7 +281,7 @@ export function ApplyTemplate({
               </tbody>
               <tfoot className="sticky bottom-0 bg-white">
                 <tr className="border-t border-slate-200">
-                  <td colSpan={4} className="px-2 py-2 text-right font-semibold text-slate-700">
+                  <td colSpan={5} className="px-2 py-2 text-right font-semibold text-slate-700">
                     Tổng hạng mục
                   </td>
                   <td className="px-2 py-2 text-right text-base font-bold text-slate-900">{formatVND(total)}</td>
@@ -264,5 +303,58 @@ export function ApplyTemplate({
         </div>
       </Modal>
     </>
+  );
+}
+
+/**
+ * Ô chọn mã công tác thư viện cho một dòng mẫu. Công tác cùng đơn vị lên đầu; chọn là
+ * lưu vào bộ hạng mục (mọi lần áp sau dùng mã này), bỏ chọn là gỡ mã.
+ */
+function OChonMa({
+  congTacId,
+  donVi,
+  catalog,
+  khoa,
+  chon,
+}: {
+  congTacId: string | null;
+  donVi: string | null;
+  catalog: CongTacChon[];
+  khoa: boolean;
+  chon: (congTacId: string | null) => void;
+}) {
+  const dv = norm(donVi);
+  const cungDv = catalog.filter((c) => norm(c.unit) === dv);
+  const khac = catalog.filter((c) => norm(c.unit) !== dv);
+  const nhan = (c: CongTacChon) =>
+    `${c.code} · ${c.tenNgan || c.name}${c.baseCost != null ? ` — ${c.baseCost.toLocaleString("vi-VN")}` : ""}`;
+  return (
+    <select
+      value={congTacId ?? ""}
+      disabled={khoa}
+      onChange={(e) => chon(e.target.value || null)}
+      title={congTacId ? catalog.find((c) => c.congTacId === congTacId)?.name : "Chưa gắn mã — giá lấy theo bộ"}
+      className={`w-24 rounded border px-1 py-1 font-mono text-[11px] disabled:opacity-70 ${
+        congTacId ? "border-slate-200 text-slate-700" : "border-amber-300 bg-amber-50 text-amber-700"
+      }`}
+    >
+      <option value="">gắn mã…</option>
+      {cungDv.length > 0 && (
+        <optgroup label={`Cùng đơn vị (${donVi ?? "—"})`}>
+          {cungDv.map((c) => (
+            <option key={c.congTacId} value={c.congTacId}>
+              {nhan(c)}
+            </option>
+          ))}
+        </optgroup>
+      )}
+      <optgroup label="Đơn vị khác">
+        {khac.map((c) => (
+          <option key={c.congTacId} value={c.congTacId}>
+            {nhan(c)} ({c.unit ?? "—"})
+          </option>
+        ))}
+      </optgroup>
+    </select>
   );
 }
