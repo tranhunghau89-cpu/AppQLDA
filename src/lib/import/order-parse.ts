@@ -156,6 +156,15 @@ export function bocTachSheet(
       continue;
     }
 
+    // Dòng tiêu đề hạng mục gộp ngang nhiều ô ("1. Tôn PU dày 0.45mm…"): ExcelJS trả
+    // cùng một chữ cho mọi ô trong vùng gộp, nên cột ĐV/SL cũng mang tên. Dòng này còn
+    // có tổng phụ ở cột trọng lượng nên lọt qua bộ lọc SL/TL bên dưới nếu không chặn ở đây.
+    const oKhac = [col.unit, col.qty].filter((c): c is number => !!c && c !== nameCol);
+    if (oKhac.some((c) => text(ws.getCell(r, c).value) === name)) {
+      group = name;
+      continue;
+    }
+
     const qty = col.qty ? num(ws.getCell(r, col.qty).value) : null;
     const weight = col.weight ? num(ws.getCell(r, col.weight).value) : null;
     // Không có cả số lượng lẫn trọng lượng thì không phải dòng đặt hàng thật.

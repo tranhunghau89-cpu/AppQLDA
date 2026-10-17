@@ -121,6 +121,17 @@ describe("doCot", () => {
 });
 
 describe("bocTachSheet", () => {
+  it("dòng tiêu đề gộp ô (cùng chữ ở cột tên và cột ĐV) là hạng mục, không phải món", () => {
+    // ExcelJS trả giá trị ô chủ cho mọi ô trong vùng gộp; dòng tiêu đề còn mang tổng phụ.
+    const tieuDe = "1. Tôn Vòm dày 0.45mm, 5 Sóng, khổ 1000mm, màu";
+    const ws = sheetDatHang("T", {
+      4: { 1: 1, 2: tieuDe, 3: tieuDe, 4: tieuDe, 7: { result: 3091 } },
+      5: { 1: 1, 2: "M.5", 3: "Tấm", 4: 160, 7: 1500 },
+    });
+    const r = bocTachSheet(ws, "T", 0, 0);
+    expect(r.dong.map((d) => d.name)).not.toContain(tieuDe);
+    expect(r.dong.find((d) => d.name === "M.5")?.groupName).toBe(tieuDe);
+  });
   it("bóc dòng vật tư và gán hạng mục theo dòng chữ cái phía trên", () => {
     const r = bocTachSheet(sheetDatHang("Tôn mái"), "Tôn mái", 0, 0);
     expect(r.headerRow).toBe(3);
