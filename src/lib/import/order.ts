@@ -327,6 +327,7 @@ export async function applyOrder(
             unitPrice: d.unitPrice,
             amount: d.amount,
             weight: d.weight,
+            length: d.length,
             note: d.note,
             sortOrder: d.sortOrder,
           })),

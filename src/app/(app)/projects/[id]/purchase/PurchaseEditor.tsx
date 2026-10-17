@@ -39,6 +39,7 @@ import {
   themNhanhMonHang,
 } from "./actions";
 import { OSoSua } from "@/components/ui/OSoSua";
+import { tongNhom } from "@/lib/donHang/khoiLuong";
 
 type GroupBy = "category" | "group";
 type SortField = "name" | "other" | "qty" | "unitPrice" | "amount" | "weight";
@@ -58,6 +59,8 @@ export interface OrderItemView {
   unitPrice: number | null;
   amount: number | null;
   weight: number | null;
+  /** Chiều dài một cây/tấm/sợi, mm. */
+  length: number | null;
   note: string | null;
   imageIds: string[];
   estimateItemId: string | null;
@@ -640,6 +643,7 @@ function ItemsTable({
             onToggle={onToggleSort}
           />
           <Th className="text-center">Biên dạng</Th>
+          <Th className="text-right">Dài (mm)</Th>
           <SortHead
             field="qty"
             label="SL"
@@ -714,11 +718,8 @@ function ItemsTable({
                       </>
                     )}
                     <span className="ml-2 text-xs text-slate-500">
-                      {ds.length} dòng ·{" "}
-                      {formatNumber(
-                        ds.reduce((t, x) => t + (x.weight ?? 0), 0),
-                      )}{" "}
-                      kg
+                      {ds.length} dòng
+                      <TongKhoiLuong ds={ds} />
                       {(() => {
                         const tien = ds.reduce(
                           (t, x) => t + (x.amount ?? 0),
@@ -757,6 +758,9 @@ function ItemsTable({
                         ) : (
                           hm
                         )}
+                        <span className="ml-2 text-xs font-normal text-slate-500">
+                          <TongKhoiLuong ds={con} />
+                        </span>
                       </td>
                     </tr>
                   )}
@@ -799,6 +803,22 @@ function ItemsTable({
                             onRefresh={onRefresh}
                           />
                         </div>
+                      </Td>
+                      <Td className="text-right" data-cot="length">
+                        {canEdit ? (
+                          <OSoSua
+                            giaTri={r.length}
+                            dinhDang={formatNumber}
+                            khoa={false}
+                            thuCong={false}
+                            nhan="Dài (mm)"
+                            luu={(v) =>
+                              suaOMonHang(projectId, r.id, "length", v)
+                            }
+                          />
+                        ) : (
+                          formatNumber(r.length)
+                        )}
                       </Td>
                       <Td className="text-right" data-cot="qty">
                         {canEdit ? (
@@ -923,6 +943,38 @@ function ItemsTable({
  * Ô tự lưu khi mất focus nên chỉ cần dời focus. Tab giữ nguyên hành vi trình duyệt
  * (sang ô bên phải).
  */
+/**
+ * Tổng của một nhóm như dòng "Tổng cộng" Excel: tổng dài (m), tổng m² (tôn) và kg.
+ * Số nào bằng 0 thì không hiện — nhóm bulông không có "0 m".
+ */
+function TongKhoiLuong({ ds }: { ds: OrderItemView[] }) {
+  const t = tongNhom(ds.map((x) => ({ ...x, quyCach: x.groupName })));
+  return (
+    <>
+      {t.dai > 0 && (
+        <>
+          {" "}
+          · <b className="font-medium text-slate-700">
+            {formatNumber(t.dai)}
+          </b>{" "}
+          m
+        </>
+      )}
+      {t.m2 > 0 && (
+        <>
+          {" "}
+          · <b className="font-medium text-slate-700">
+            {formatNumber(t.m2)}
+          </b>{" "}
+          m²
+        </>
+      )}
+      {" · "}
+      <b className="font-medium text-slate-700">{formatNumber(t.kg)}</b> kg
+    </>
+  );
+}
+
 /** "1. Máng xối tôn…" / "II. La đỡ…" → bỏ số thứ tự đầu chữ. */
 const boSoDau = (s: string) => s.replace(/^\s*(\d+|[IVXLC]+)\s*[.)]\s*/, "");
 

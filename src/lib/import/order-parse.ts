@@ -25,6 +25,8 @@ export interface DongDonHang {
   unitPrice: number | null;
   amount: number | null;
   weight: number | null;
+  /** Chiều dài một cây/tấm/sợi, mm (cột "Chiều dài (mm)"). */
+  length: number | null;
   note: string | null;
   sortOrder: number;
   /** Dòng nguồn trong sheet — dùng để gắn ảnh biên dạng vào đúng vật tư. */
@@ -101,6 +103,8 @@ export function doCot(ws: OrderSheetLike, hdr: number): Record<string, number> {
     else if (n.includes("thanhtien") && !("amount" in col)) col.amount = c;
     else if (n.includes("trongluong") && !("weight" in col)) col.weight = c;
     else if (n.includes("ghichu") && !("note" in col)) col.note = c;
+    // "Chiều dài (mm)" / "Dài (mm)" — không lấy "Tổng dài (m)" hay "Chiều dài thực".
+    else if (/^(chieu)?dai\(?mm/.test(n) && !("length" in col)) col.length = c;
   }
   return col;
 }
@@ -179,6 +183,7 @@ export function bocTachSheet(
       unitPrice: col.price ? num(ws.getCell(r, col.price).value) : null,
       amount: col.amount ? num(ws.getCell(r, col.amount).value) : null,
       weight,
+      length: col.length ? num(ws.getCell(r, col.length).value) : null,
       note: col.note ? text(ws.getCell(r, col.note).value) || null : null,
       sortOrder: sort++,
       row: r,

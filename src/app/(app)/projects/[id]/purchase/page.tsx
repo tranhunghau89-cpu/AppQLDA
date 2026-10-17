@@ -78,6 +78,7 @@ export default async function PurchasePage({
       unitPrice: i.unitPrice,
       amount: i.amount,
       weight: i.weight,
+      length: i.length,
       note: i.note,
       imageIds: i.images.map((im) => im.id),
       estimateItemId: i.estimateItemId,

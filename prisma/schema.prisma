@@ -295,6 +295,7 @@ model PurchaseOrderItem {
   unitPrice Float?
   amount    Float?
   weight    Float? // kg
+  length    Float? // chiều dài một cây/tấm/sợi, mm — để tính kg, tổng dài, m²
   note      String?
   sortOrder Int           @default(0)
 

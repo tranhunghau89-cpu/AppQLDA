@@ -7,6 +7,27 @@ import { denyProject } from "@/lib/auth";
 import { tinhLaiThucTe } from "@/lib/khoiLuong/tinhLaiMucCon";
 import { PO_CATEGORY_MAP, PO_STATUS_MAP } from "@/lib/constants";
 import { laCongThuc, tinhBieuThuc } from "@/lib/bieuThuc";
+import {
+  kgMotDonVi,
+  kgSauKhiSua,
+  type MonTinhKg,
+} from "@/lib/donHang/khoiLuong";
+import { napThuVienKg } from "@/lib/khoiLuong/thuVienKg";
+
+/** Quy cách của một món = dòng tiêu đề hạng mục nó nằm dưới; nhóm = sheet (Tôn mái, Rod…). */
+const monTinhKg = (d: {
+  name: string;
+  unit: string | null;
+  length: number | null;
+  groupName: string | null;
+  category: string | null;
+}): MonTinhKg => ({
+  name: d.name,
+  unit: d.unit,
+  length: d.length,
+  quyCach: d.groupName,
+  nhom: d.category,
+});
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -23,26 +44,35 @@ async function recompute(orderId: string) {
   });
   if (!o) return;
   const value = o.items.reduce(
-    (s, i) => s + (i.amount ?? (i.qty != null && i.unitPrice != null ? i.qty * i.unitPrice : 0)),
-    0
+    (s, i) =>
+      s +
+      (i.amount ??
+        (i.qty != null && i.unitPrice != null ? i.qty * i.unitPrice : 0)),
+    0,
   );
   const totalWeight = o.items.reduce((s, i) => s + (i.weight ?? 0), 0);
-  await db.purchaseOrder.update({ where: { id: orderId }, data: { value, totalWeight } });
+  await db.purchaseOrder.update({
+    where: { id: orderId },
+    data: { value, totalWeight },
+  });
 }
 
 const orderSchema = z.object({
   orderNo: z.string().trim().optional(),
   orderDate: z.string().trim().optional(),
-  category: z.string().refine((v) => v in PO_CATEGORY_MAP, "Loại đơn không hợp lệ"),
+  category: z
+    .string()
+    .refine((v) => v in PO_CATEGORY_MAP, "Loại đơn không hợp lệ"),
   supplierId: z.string().trim().optional(),
-  status: z.string().refine((v) => v in PO_STATUS_MAP, "Trạng thái không hợp lệ"),
+  status: z
+    .string()
+    .refine((v) => v in PO_STATUS_MAP, "Trạng thái không hợp lệ"),
   orderedDate: z.string().trim().optional(),
   expectedDate: z.string().trim().optional(),
   receivedDate: z.string().trim().optional(),
   filePath: z.string().trim().optional(),
   note: z.string().trim().optional(),
 });
-
 
 /**
  * Chặn khi thiếu quyền / ngoài phạm vi dự án; đối chiếu đơn hàng (và dòng vật tư,
@@ -51,7 +81,11 @@ const orderSchema = z.object({
 async function guard(
   projectId: string,
   fallback: string,
-  opts: { orderId?: string | null; itemId?: string | null; imageId?: string | null } = {}
+  opts: {
+    orderId?: string | null;
+    itemId?: string | null;
+    imageId?: string | null;
+  } = {},
 ): Promise<ActionResult | null> {
   const denied = await denyProject("purchase", "edit", projectId, fallback);
   if (denied) return denied;
@@ -91,9 +125,13 @@ async function guard(
 export async function savePurchaseOrder(
   projectId: string,
   orderId: string | null,
-  form: FormData
+  form: FormData,
 ): Promise<ActionResult> {
-  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa đơn hàng.", { orderId });
+  const denied = await guard(
+    projectId,
+    "Bạn không có quyền chỉnh sửa đơn hàng.",
+    { orderId },
+  );
   if (denied) return denied;
   const parsed = orderSchema.safeParse({
     orderNo: String(form.get("orderNo") ?? ""),
@@ -107,7 +145,8 @@ export async function savePurchaseOrder(
     filePath: String(form.get("filePath") ?? ""),
     note: String(form.get("note") ?? ""),
   });
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  if (!parsed.success)
+    return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
   const data = {
     orderNo: d.orderNo || null,
@@ -124,7 +163,9 @@ export async function savePurchaseOrder(
   let oid = orderId;
   if (oid) await db.purchaseOrder.update({ where: { id: oid }, data });
   else {
-    const created = await db.purchaseOrder.create({ data: { projectId, ...data } });
+    const created = await db.purchaseOrder.create({
+      data: { projectId, ...data },
+    });
     oid = created.id;
   }
   revalidatePath(`/projects/${projectId}/purchase`);
@@ -134,16 +175,21 @@ export async function savePurchaseOrder(
 
 export async function deletePurchaseOrder(
   projectId: string,
-  orderId: string
+  orderId: string,
 ): Promise<ActionResult> {
-  const denied = await guard(projectId, "Bạn không có quyền xóa đơn hàng.", { orderId });
+  const denied = await guard(projectId, "Bạn không có quyền xóa đơn hàng.", {
+    orderId,
+  });
   if (denied) return denied;
   const gan = await db.purchaseOrderItem.findMany({
     where: { orderId, estimateItemId: { not: null } },
     select: { estimateItemId: true },
   });
   await db.purchaseOrder.delete({ where: { id: orderId } });
-  await capNhatDuToan(projectId, gan.map((g) => g.estimateItemId));
+  await capNhatDuToan(
+    projectId,
+    gan.map((g) => g.estimateItemId),
+  );
   revalidatePath(`/projects/${projectId}/purchase`);
   revalidatePath("/purchases");
   return { ok: true };
@@ -163,7 +209,10 @@ const itemSchema = z.object({
 });
 
 /** Món đơn hàng gắn / bỏ gắn đầu việc → cộng lại thực tế đầu việc cũ và mới. */
-async function capNhatDuToan(projectId: string, ids: (string | null | undefined)[]) {
+async function capNhatDuToan(
+  projectId: string,
+  ids: (string | null | undefined)[],
+) {
   if (!ids.some(Boolean)) return;
   await tinhLaiThucTe(ids);
   revalidatePath(`/projects/${projectId}/estimate`);
@@ -175,12 +224,16 @@ export async function savePurchaseItem(
   projectId: string,
   orderId: string,
   itemId: string | null,
-  form: FormData
+  form: FormData,
 ): Promise<ActionResult> {
-  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa vật tư.", {
-    orderId,
-    itemId,
-  });
+  const denied = await guard(
+    projectId,
+    "Bạn không có quyền chỉnh sửa vật tư.",
+    {
+      orderId,
+      itemId,
+    },
+  );
   if (denied) return denied;
   const parsed = itemSchema.safeParse({
     category: String(form.get("category") ?? ""),
@@ -194,7 +247,8 @@ export async function savePurchaseItem(
     note: String(form.get("note") ?? ""),
     estimateItemId: String(form.get("estimateItemId") ?? ""),
   });
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  if (!parsed.success)
+    return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
   if (d.estimateItemId) {
     const ei = await db.estimateItem.findUnique({
@@ -218,9 +272,13 @@ export async function savePurchaseItem(
     note: d.note || null,
   };
   const cu = itemId
-    ? await db.purchaseOrderItem.findUnique({ where: { id: itemId }, select: { estimateItemId: true } })
+    ? await db.purchaseOrderItem.findUnique({
+        where: { id: itemId },
+        select: { estimateItemId: true },
+      })
     : null;
-  if (itemId) await db.purchaseOrderItem.update({ where: { id: itemId }, data });
+  if (itemId)
+    await db.purchaseOrderItem.update({ where: { id: itemId }, data });
   else await db.purchaseOrderItem.create({ data: { orderId, ...data } });
   await recompute(orderId);
   await capNhatDuToan(projectId, [cu?.estimateItemId, data.estimateItemId]);
@@ -232,9 +290,12 @@ export async function savePurchaseItem(
 export async function deletePurchaseItem(
   projectId: string,
   orderId: string,
-  itemId: string
+  itemId: string,
 ): Promise<ActionResult> {
-  const denied = await guard(projectId, "Bạn không có quyền xóa vật tư.", { orderId, itemId });
+  const denied = await guard(projectId, "Bạn không có quyền xóa vật tư.", {
+    orderId,
+    itemId,
+  });
   if (denied) return denied;
   const xoa = await db.purchaseOrderItem.delete({ where: { id: itemId } });
   await recompute(orderId);
@@ -245,7 +306,7 @@ export async function deletePurchaseItem(
 }
 
 const O_CHU = ["name", "unit", "note", "category", "groupName"] as const;
-const O_SO = ["qty", "unitPrice", "weight"] as const;
+const O_SO = ["qty", "unitPrice", "weight", "length"] as const;
 type TruongMon = (typeof O_CHU)[number] | (typeof O_SO)[number];
 
 /**
@@ -259,9 +320,13 @@ export async function suaOMonHang(
   projectId: string,
   itemId: string,
   truong: TruongMon,
-  tho: string
+  tho: string,
 ): Promise<ActionResult> {
-  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa vật tư.", { itemId });
+  const denied = await guard(
+    projectId,
+    "Bạn không có quyền chỉnh sửa vật tư.",
+    { itemId },
+  );
   if (denied) return denied;
   const dong = await db.purchaseOrderItem.findUnique({ where: { id: itemId } });
   if (!dong) return { ok: false, error: "Không tìm thấy dòng vật tư." };
@@ -269,14 +334,19 @@ export async function suaOMonHang(
   const s = tho.trim();
   let data: Record<string, string | number | null>;
   if ((O_CHU as readonly string[]).includes(truong)) {
-    if (truong === "name" && !s) return { ok: false, error: "Tên vật tư không được để trống." };
+    if (truong === "name" && !s)
+      return { ok: false, error: "Tên vật tư không được để trống." };
     data = { [truong]: s || null };
   } else if ((O_SO as readonly string[]).includes(truong)) {
     const giaTri = s === "" ? null : tinhBieuThuc(s);
     if (s !== "" && giaTri == null) {
-      return { ok: false, error: laCongThuc(s) ? "Công thức không hợp lệ." : "Không phải là số." };
+      return {
+        ok: false,
+        error: laCongThuc(s) ? "Công thức không hợp lệ." : "Không phải là số.",
+      };
     }
-    if (giaTri != null && giaTri < 0) return { ok: false, error: "Không được là số âm." };
+    if (giaTri != null && giaTri < 0)
+      return { ok: false, error: "Không được là số âm." };
     data = { [truong]: giaTri };
     if (truong === "qty" || truong === "unitPrice") {
       const qty = truong === "qty" ? giaTri : dong.qty;
@@ -285,9 +355,25 @@ export async function suaOMonHang(
     }
   } else return { ok: false, error: "Ô không sửa được." };
 
+  // Đổi SL / chiều dài / tên / ĐV → kg tự tính lại theo quy cách (xem lib/donHang/khoiLuong).
+  if (
+    truong === "qty" ||
+    truong === "length" ||
+    truong === "name" ||
+    truong === "unit"
+  ) {
+    const moi = { ...dong, ...data } as typeof dong;
+    const kg = kgSauKhiSua(
+      dong,
+      { ...monTinhKg(moi), qty: moi.qty },
+      await napThuVienKg(),
+    );
+    if (kg !== undefined) data.weight = kg;
+  }
   await db.purchaseOrderItem.update({ where: { id: itemId }, data });
   await recompute(dong.orderId);
-  if (truong === "qty" || truong === "weight") await capNhatDuToan(projectId, [dong.estimateItemId]);
+  if ("weight" in data || truong === "qty")
+    await capNhatDuToan(projectId, [dong.estimateItemId]);
   revalidatePath(`/projects/${projectId}/purchase`);
   revalidatePath("/purchases");
   return { ok: true };
@@ -302,15 +388,45 @@ export async function doiTenHangMuc(
   orderId: string,
   itemIds: string[],
   truong: "groupName" | "category",
-  tho: string
+  tho: string,
 ): Promise<ActionResult> {
-  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa vật tư.", { orderId });
+  const denied = await guard(
+    projectId,
+    "Bạn không có quyền chỉnh sửa vật tư.",
+    { orderId },
+  );
   if (denied) return denied;
-  if (truong !== "groupName" && truong !== "category") return { ok: false, error: "Ô không sửa được." };
+  if (truong !== "groupName" && truong !== "category")
+    return { ok: false, error: "Ô không sửa được." };
   await db.purchaseOrderItem.updateMany({
     where: { orderId, id: { in: itemIds } },
     data: { [truong]: tho.trim() || null },
   });
+  // Quy cách nhóm đổi (dày, khổ, đường kính…) → tính lại kg các dòng tính được; dòng
+  // không đọc ra quy cách thì giữ nguyên kg.
+  const ds = await db.purchaseOrderItem.findMany({
+    where: { orderId, id: { in: itemIds } },
+  });
+  const thuVien = await napThuVienKg();
+  let doi = false;
+  for (const d of ds) {
+    const k = kgMotDonVi(monTinhKg(d), thuVien);
+    if (!k || d.qty == null) continue;
+    const kg = Math.round(k.kg * d.qty * 1000) / 1000;
+    if (kg === d.weight) continue;
+    await db.purchaseOrderItem.update({
+      where: { id: d.id },
+      data: { weight: kg },
+    });
+    doi = true;
+  }
+  if (doi) {
+    await recompute(orderId);
+    await capNhatDuToan(
+      projectId,
+      ds.map((d) => d.estimateItemId),
+    );
+  }
   revalidatePath(`/projects/${projectId}/purchase`);
   return { ok: true };
 }
@@ -320,9 +436,13 @@ export async function themNhanhMonHang(
   projectId: string,
   orderId: string,
   ten: string,
-  nhom: { category?: string | null; groupName?: string | null }
+  nhom: { category?: string | null; groupName?: string | null },
 ): Promise<ActionResult> {
-  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa vật tư.", { orderId });
+  const denied = await guard(
+    projectId,
+    "Bạn không có quyền chỉnh sửa vật tư.",
+    { orderId },
+  );
   if (denied) return denied;
   const name = ten.trim();
   if (!name) return { ok: false, error: "Tên vật tư không được để trống." };
@@ -350,17 +470,26 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 export async function uploadPurchaseItemImages(
   projectId: string,
   itemId: string,
-  form: FormData
+  form: FormData,
 ): Promise<ActionResult> {
-  const denied = await guard(projectId, "Bạn không có quyền thêm ảnh.", { itemId });
+  const denied = await guard(projectId, "Bạn không có quyền thêm ảnh.", {
+    itemId,
+  });
   if (denied) return denied;
-  const files = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
+  const files = form
+    .getAll("files")
+    .filter((f): f is File => f instanceof File && f.size > 0);
   if (!files.length) return { ok: false, error: "Chưa chọn ảnh." };
   for (const f of files) {
-    if (!f.type.startsWith("image/")) return { ok: false, error: `"${f.name}" không phải ảnh.` };
-    if (f.size > MAX_IMAGE_BYTES) return { ok: false, error: `"${f.name}" vượt quá 10MB.` };
+    if (!f.type.startsWith("image/"))
+      return { ok: false, error: `"${f.name}" không phải ảnh.` };
+    if (f.size > MAX_IMAGE_BYTES)
+      return { ok: false, error: `"${f.name}" vượt quá 10MB.` };
   }
-  const item = await db.purchaseOrderItem.findUnique({ where: { id: itemId }, select: { id: true } });
+  const item = await db.purchaseOrderItem.findUnique({
+    where: { id: itemId },
+    select: { id: true },
+  });
   if (!item) return { ok: false, error: "Không tìm thấy dòng vật tư." };
 
   const last = await db.poItemImage.findFirst({
@@ -381,9 +510,11 @@ export async function uploadPurchaseItemImages(
 
 export async function deletePurchaseItemImage(
   projectId: string,
-  imageId: string
+  imageId: string,
 ): Promise<ActionResult> {
-  const denied = await guard(projectId, "Bạn không có quyền xóa ảnh.", { imageId });
+  const denied = await guard(projectId, "Bạn không có quyền xóa ảnh.", {
+    imageId,
+  });
   if (denied) return denied;
   await db.poItemImage.delete({ where: { id: imageId } });
   revalidatePath(`/projects/${projectId}/purchase`);
