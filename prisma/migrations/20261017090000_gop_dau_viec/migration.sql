@@ -1,4 +1,4 @@
-﻿-- Gộp tay đầu việc cho trang so sánh dự án. Chỉ thêm bảng.
+-- Gộp tay đầu việc cho trang so sánh dự án. Chỉ thêm bảng.
 CREATE TABLE "GopDauViec" (
     "khoaNguon" TEXT NOT NULL,
     "khoaDich" TEXT NOT NULL,
