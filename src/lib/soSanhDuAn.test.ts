@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { doLech, khoaDauViec, soSanhDuAn, thongKe, trungVi, type DongNhap, type DuAnNhap } from "./soSanhDuAn";
+import { doLech, duAnGanTrong, khoaDauViec, phangGop, soSanhDuAn, tamTinh, thongKe, trungVi, type DongNhap, type DuAnNhap } from "./soSanhDuAn";
 
 function dong(p: Partial<DongNhap> = {}): DongNhap {
   return {
@@ -122,5 +122,61 @@ describe("soSanhDuAn", () => {
       duAn("B", 1, [dong({ congTacId: "c", unit: "tấn", designQty: 1 })]),
     ]);
     expect(kq.dong[1].donViLech).toBe(true);
+  });
+});
+
+describe("bỏ qua hạng mục, gộp tay, tạm tính", () => {
+  const ds = [
+    duAn("A", 1000, [dong({ sectionName: null, designQty: 30000, unitPrice: 20000 })]),
+    duAn("B", 1000, [dong({ sectionName: "Khung mái", sectionTemplateId: "t1", designQty: 20000, unitPrice: 22000 })]),
+    duAn("C", 1000, [
+      dong({ name: "Thép TH", designQty: 25000, unitPrice: 21000 }),
+      dong({ name: "Canopy", unit: "m2", designQty: 10, unitPrice: 1 }),
+    ]),
+  ];
+
+  it("đầu việc bỏ qua hạng mục gom cùng tên ở hạng mục khác nhau", () => {
+    const thep = soSanhDuAn(ds).dauViec.find((d) => d.ten === "Thép tổ hợp")!;
+    expect(Object.keys(thep.theoDuAn)).toEqual(["A", "B"]);
+    expect(thep.theoDuAn.B.donGia).toBe(22000);
+  });
+
+  it("gộp tay đưa 'Thép TH' về 'Thép tổ hợp'", () => {
+    const gop = new Map([[khoaDauViec({ name: "Thép TH", unit: "kg", congTacId: null }), khoaDauViec(dong())]]);
+    const thep = soSanhDuAn(ds, "du_toan", gop).dauViec.find((d) => d.ten === "Thép tổ hợp")!;
+    expect(Object.keys(thep.theoDuAn).sort()).toEqual(["A", "B", "C"]);
+    expect(thep.thongKe.klM2.trungVi).toBe(25);
+    expect(thep.khoaDauViec).toBe("n:theptohop|kg");
+  });
+
+  it("phangGop nối chuỗi và không treo khi vòng", () => {
+    const m = phangGop([
+      { khoaNguon: "a", khoaDich: "b" },
+      { khoaNguon: "b", khoaDich: "c" },
+      { khoaNguon: "x", khoaDich: "y" },
+      { khoaNguon: "y", khoaDich: "x" },
+    ]);
+    expect(m.get("a")).toBe("c");
+    expect(m.get("b")).toBe("c");
+    expect(m.has("x") || m.has("y")).toBe(true);
+  });
+
+  it("tạm tính bỏ đầu việc hiếm, KL = KL/m² trung vị × m²", () => {
+    const gop = new Map([["n:thepth|kg", "n:theptohop|kg"]]);
+    const tt = tamTinh(soSanhDuAn(ds, "du_toan", gop), 2000);
+    expect(tt.map((d) => d.ten)).toEqual(["Thép tổ hợp"]);
+    expect(tt[0].kl).toBe(50000);
+    expect(tt[0].donGia).toBe(21000);
+    expect(tt[0].tien).toBe(50000 * 21000);
+    expect(tt[0].groupCode).toBe("KCT");
+  });
+
+  it("dự án dự toán gần trống bị đánh dấu", () => {
+    const s = duAnGanTrong([
+      ...ds,
+      duAn("R", 1000, [dong({ designQty: 1, unitPrice: 1000 })]),
+      duAn("E", 1000, []),
+    ]);
+    expect([...s].sort()).toEqual(["E", "R"]);
   });
 });

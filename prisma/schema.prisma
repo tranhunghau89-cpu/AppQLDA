@@ -1772,3 +1772,20 @@ model MucConDuToan {
 
   @@index([estimateItemId, loai, sortOrder])
 }
+
+// ----- Gộp tay đầu việc khi so sánh dự án -----
+//
+// Khoá đầu việc là "c:<congTacId>" hoặc "n:<tên norm>|<đơn vị norm>" (lib/soSanhDuAn).
+// Dòng ở đây nói: mọi dòng dự toán mang khoá `khoaNguon` tính như khoá `khoaDich` — để
+// "Thép TH" ở dự án cũ và "Thép tổ hợp" ở dự án mới thành một dòng so sánh. Chỉ ảnh
+// hưởng trang so sánh, không đụng dòng dự toán.
+model GopDauViec {
+  khoaNguon String   @id
+  khoaDich  String
+  tenNguon  String? // tên hiển thị lúc gộp, để danh sách gộp đọc được
+  tenDich   String?
+  nguoiGop  String?
+  createdAt DateTime @default(now())
+
+  @@index([khoaDich])
+}

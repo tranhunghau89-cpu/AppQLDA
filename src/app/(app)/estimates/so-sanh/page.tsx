@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { requireView } from "@/lib/auth";
+import { can, type Role } from "@/lib/rbac";
 import { scopedProjectWhere } from "@/lib/scope";
 import { TabTrang, TAB_HOP_DONG } from "@/components/layout/TabTrang";
 import type { DuAnNhap } from "@/lib/soSanhDuAn";
@@ -14,9 +15,11 @@ import { BangSoSanh } from "./BangSoSanh";
  */
 export default async function SoSanhDuAnPage() {
   const session = await requireView("estimate");
+  const canEdit = can(session.role as Role, "estimate", "edit");
+  const scope = await scopedProjectWhere(session);
 
   const projects = await db.project.findMany({
-    where: { ...(await scopedProjectWhere(session)), estimateItems: { some: {} } },
+    where: { ...scope, estimateItems: { some: {} } },
     orderBy: { code: "desc" },
     select: {
       id: true,
@@ -44,6 +47,17 @@ export default async function SoSanhDuAnPage() {
     },
   });
 
+  const [gop, duAnDich] = await Promise.all([
+    db.gopDauViec.findMany({ orderBy: { createdAt: "desc" } }),
+    canEdit
+      ? db.project.findMany({
+          where: scope,
+          orderBy: { code: "desc" },
+          select: { id: true, code: true, name: true, area: true, _count: { select: { estimateItems: true } } },
+        })
+      : Promise.resolve([]),
+  ]);
+
   const duAn: (DuAnNhap & { buildingType: string | null; status: string })[] = projects.map((p) => ({
     id: p.id,
     code: p.code,
@@ -70,7 +84,12 @@ export default async function SoSanhDuAnPage() {
           tên + đơn vị.
         </p>
       </div>
-      <BangSoSanh duAn={duAn} />
+      <BangSoSanh
+        duAn={duAn}
+        canEdit={canEdit}
+        gop={gop.map((g) => ({ khoaNguon: g.khoaNguon, khoaDich: g.khoaDich, tenNguon: g.tenNguon, tenDich: g.tenDich }))}
+        duAnDich={duAnDich.map((p) => ({ id: p.id, code: p.code, name: p.name, area: p.area, soDong: p._count.estimateItems }))}
+      />
     </div>
   );
 }
