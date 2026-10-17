@@ -1,9 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useMemo, useState, useTransition } from "react";
+import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronRight, ListTree, Plus, Pencil, Table2, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  ListTree,
+  PanelRightClose,
+  PanelRightOpen,
+  Plus,
+  Pencil,
+  Table2,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea, Field } from "@/components/ui/form";
 import { Modal } from "@/components/ui/modal";
@@ -172,6 +182,29 @@ export function EstimateEditor({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+
+  // Cột tổng hợp bên phải: màn hình dưới 2xl (1536px) mặc định thu gọn để bảng dự toán
+  // dùng hết chiều ngang. Người dùng bật/tắt thì nhớ lựa chọn trong trình duyệt. Đọc sau
+  // khi gắn để HTML máy chủ và máy khách khớp nhau.
+  const [anCotPhai, setAnCotPhai] = useState(false);
+  useEffect(() => {
+    let an = window.innerWidth < 1536;
+    try {
+      const luu = localStorage.getItem("du-toan:cot-phai");
+      if (luu === "an") an = true;
+      if (luu === "hien") an = false;
+    } catch {}
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- đọc lựa chọn đã lưu sau khi gắn
+    setAnCotPhai(an);
+  }, []);
+  function doiCotPhai() {
+    setAnCotPhai((c) => {
+      try {
+        localStorage.setItem("du-toan:cot-phai", c ? "hien" : "an");
+      } catch {}
+      return !c;
+    });
+  }
   const [editing, setEditing] = useState<EstimateRow | null>(null);
   // Hạng mục + nhóm điền sẵn khi bấm "Thêm dòng vào …"; "" = chưa phân hạng mục.
   // Hạng mục, nhóm (tiêu đề trên bảng) và loại chi phí của dòng đang thêm / sửa.
@@ -369,9 +402,15 @@ export function EstimateEditor({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-4 2xl:grid-cols-[minmax(0,1fr)_minmax(0,80rem)_minmax(22rem,1fr)]">
+    <div
+      className={
+        anCotPhai
+          ? "grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_auto]"
+          : "grid grid-cols-1 gap-6 xl:grid-cols-4 2xl:grid-cols-[minmax(0,1fr)_minmax(0,80rem)_minmax(22rem,1fr)]"
+      }
+    >
       {/* Bảng dự toán */}
-      <div className="space-y-4 xl:col-span-3 2xl:col-span-1 2xl:col-start-2">
+      <div className={anCotPhai ? "min-w-0 space-y-4" : "space-y-4 xl:col-span-3 2xl:col-span-1 2xl:col-start-2"}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold text-slate-900">Bảng dự toán</h2>
           {canEdit && (
@@ -817,7 +856,25 @@ export function EstimateEditor({
       </div>
 
       {/* Tổng hợp chi phí / lợi nhuận */}
+      {anCotPhai ? (
+        <button
+          type="button"
+          onClick={doiCotPhai}
+          title="Hiện cột tổng hợp (giai đoạn, dự toán và thực tế, theo nhóm)"
+          className="flex items-center justify-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 xl:sticky xl:top-20 xl:px-2 xl:py-4 xl:[writing-mode:vertical-rl]"
+        >
+          <PanelRightOpen className="h-4 w-4 xl:rotate-90" />
+          Tổng hợp
+        </button>
+      ) : (
       <div className="space-y-4 2xl:max-w-md">
+        <button
+          type="button"
+          onClick={doiCotPhai}
+          className="flex w-full items-center justify-end gap-1.5 text-xs text-slate-500 hover:text-slate-800"
+        >
+          <PanelRightClose className="h-4 w-4" /> Thu gọn cột tổng hợp
+        </button>
         {giaiDoan && (
           <BangGiaiDoan
             g={giaiDoan}
@@ -850,6 +907,7 @@ export function EstimateEditor({
 
         {giaiDoan && <DashboardDuToan g={giaiDoan} nhom={soSanhNhom} />}
       </div>
+      )}
 
       <Modal
         open={open}
