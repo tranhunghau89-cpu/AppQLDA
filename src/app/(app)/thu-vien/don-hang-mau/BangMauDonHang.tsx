@@ -10,7 +10,7 @@ import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
 import { PO_CATEGORY_MAP } from "@/lib/constants";
 import { formatDate, formatNumber } from "@/lib/utils";
-import { doiTenMau, xoaMau } from "./actions";
+import { doiTenMau, xoaDongMau, xoaMau } from "./actions";
 
 export interface MauChiTiet {
   id: string;
@@ -124,6 +124,7 @@ export function BangMauDonHang({ mau, canEdit }: { mau: MauChiTiet[]; canEdit: b
                       <Th className="text-right">SL</Th>
                       <Th>ĐV</Th>
                       <Th className="text-right">TL (kg)</Th>
+                      {canEdit && <Th className="w-10" />}
                     </tr>
                   </THead>
                   <tbody>
@@ -133,6 +134,14 @@ export function BangMauDonHang({ mau, canEdit }: { mau: MauChiTiet[]; canEdit: b
                         so={ni + 1}
                         ten={n}
                         ds={m.items.filter((i) => (i.category || "—") === n)}
+                        onXoa={
+                          canEdit
+                            ? async (ids, nhan) => {
+                                if (await confirm(`Xoá ${nhan} khỏi mẫu "${m.name}"?`))
+                                  chay(() => xoaDongMau(m.id, ids));
+                              }
+                            : undefined
+                        }
                       />
                     ))}
                   </tbody>
@@ -146,7 +155,37 @@ export function BangMauDonHang({ mau, canEdit }: { mau: MauChiTiet[]; canEdit: b
   );
 }
 
-function NhomMau({ so, ten, ds }: { so: number; ten: string; ds: MauChiTiet["items"] }) {
+function NutXoa({ title, onClick }: { title: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      onClick={onClick}
+      className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-600"
+    >
+      <Trash2 className="h-3.5 w-3.5" />
+    </button>
+  );
+}
+
+function NhomMau({
+  so,
+  ten,
+  ds,
+  onXoa,
+}: {
+  so: number;
+  ten: string;
+  ds: MauChiTiet["items"];
+  onXoa?: (ids: string[], nhan: string) => void;
+}) {
+  /** Các dòng liền nhau cùng quy cách bắt đầu từ vị trí k. */
+  const cungQuyCach = (k: number) => {
+    const ids: string[] = [];
+    for (let j = k; j < ds.length && ds[j].groupName === ds[k].groupName; j++) ids.push(ds[j].id);
+    return ids;
+  };
   return (
     <>
       <tr className="border-y-2 border-blue-200 bg-blue-50">
@@ -154,6 +193,14 @@ function NhomMau({ so, ten, ds }: { so: number; ten: string; ds: MauChiTiet["ite
         <td colSpan={5} className="px-3 py-2 font-bold uppercase tracking-wide text-blue-900">
           {ten}
         </td>
+        {onXoa && (
+          <td className="text-center">
+            <NutXoa
+              title="Xoá cả nhóm"
+              onClick={() => onXoa(ds.map((i) => i.id), `cả nhóm "${ten}" (${ds.length} dòng)`)}
+            />
+          </td>
+        )}
       </tr>
       {ds.map((i, k) => {
         const tieuDe = i.groupName && i.groupName !== ds[k - 1]?.groupName;
@@ -168,6 +215,17 @@ function NhomMau({ so, ten, ds }: { so: number; ten: string; ds: MauChiTiet["ite
                 >
                   {i.groupName}
                 </td>
+                {onXoa && (
+                  <td className="text-center">
+                    <NutXoa
+                      title="Xoá cả quy cách"
+                      onClick={() => {
+                        const ids = cungQuyCach(k);
+                        onXoa(ids, `quy cách "${i.groupName}" (${ids.length} dòng)`);
+                      }}
+                    />
+                  </td>
+                )}
               </tr>
             )}
             <Tr>
@@ -177,6 +235,11 @@ function NhomMau({ so, ten, ds }: { so: number; ten: string; ds: MauChiTiet["ite
               <Td className="text-right tabular-nums">{formatNumber(i.qty)}</Td>
               <Td className="text-slate-500">{i.unit || "—"}</Td>
               <Td className="text-right tabular-nums">{formatNumber(i.weight)}</Td>
+              {onXoa && (
+                <Td className="text-center">
+                  <NutXoa title="Xoá dòng" onClick={() => onXoa([i.id], `dòng "${i.name}"`)} />
+                </Td>
+              )}
             </Tr>
           </Fragment>
         );

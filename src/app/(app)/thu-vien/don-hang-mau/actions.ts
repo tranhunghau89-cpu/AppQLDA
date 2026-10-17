@@ -33,3 +33,14 @@ export async function xoaMau(mauId: string): Promise<ActionResult> {
   revalidatePath("/thu-vien/don-hang-mau");
   return { ok: true };
 }
+
+/** Xoá một số dòng của mẫu — một dòng, cả một quy cách hoặc cả một nhóm. */
+export async function xoaDongMau(mauId: string, itemIds: string[]): Promise<ActionResult> {
+  const d = await deny();
+  if (d) return d;
+  await db.purchaseOrderTemplateItem.deleteMany({
+    where: { templateId: mauId, id: { in: itemIds } },
+  });
+  revalidatePath("/thu-vien/don-hang-mau");
+  return { ok: true };
+}
