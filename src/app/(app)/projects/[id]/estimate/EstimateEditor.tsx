@@ -183,12 +183,12 @@ export function EstimateEditor({
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
-  // Cột tổng hợp bên phải: màn hình dưới 2xl (1536px) mặc định thu gọn để bảng dự toán
-  // dùng hết chiều ngang. Người dùng bật/tắt thì nhớ lựa chọn trong trình duyệt. Đọc sau
-  // khi gắn để HTML máy chủ và máy khách khớp nhau.
+  // Cột tổng hợp bên phải: màn hình dưới 1920px mặc định thu gọn để bảng dự toán dùng hết
+  // chiều ngang — ở 1687px bảng đã ép cột tên xuống ba hàng. Người dùng bật/tắt thì nhớ
+  // lựa chọn trong trình duyệt. Đọc sau khi gắn để HTML máy chủ và máy khách khớp nhau.
   const [anCotPhai, setAnCotPhai] = useState(false);
   useEffect(() => {
-    let an = window.innerWidth < 1536;
+    let an = window.innerWidth < 1920;
     try {
       const luu = localStorage.getItem("du-toan:cot-phai");
       if (luu === "an") an = true;
