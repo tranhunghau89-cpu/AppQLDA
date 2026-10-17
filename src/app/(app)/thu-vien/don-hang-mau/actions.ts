@@ -38,8 +38,14 @@ export async function xoaMau(mauId: string): Promise<ActionResult> {
 export async function xoaDongMau(mauId: string, itemIds: string[]): Promise<ActionResult> {
   const d = await deny();
   if (d) return d;
+  // Prisma bỏ qua điều kiện undefined — chặn trước để không lỡ xoá rộng.
+  const ids = (Array.isArray(itemIds) ? itemIds : []).filter(
+    (x): x is string => typeof x === "string" && x.length > 0
+  );
+  if (typeof mauId !== "string" || !mauId) return { ok: false, error: "Thiếu mã mẫu." };
+  if (ids.length === 0) return { ok: false, error: "Chưa chọn dòng cần xoá." };
   await db.purchaseOrderTemplateItem.deleteMany({
-    where: { templateId: mauId, id: { in: itemIds } },
+    where: { templateId: mauId, id: { in: ids } },
   });
   revalidatePath("/thu-vien/don-hang-mau");
   return { ok: true };
