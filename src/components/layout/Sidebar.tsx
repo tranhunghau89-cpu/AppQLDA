@@ -17,6 +17,8 @@ import {
   Library,
   Wrench,
   X,
+  PanelLeftClose,
+  PanelLeftOpen,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -245,6 +247,35 @@ export function thuGonMenu(pathname: string): boolean {
   return /^\/projects\/[^/]+$/.test(pathname) && pathname !== "/projects/new";
 }
 
+// Người dùng tự thu gọn menu (mọi trang) — tiện nghi riêng từng máy, để ở localStorage.
+// Cùng lối `useSyncExternalStore` như nhóm gập ở trên: máy chủ luôn dựng menu đầy đủ.
+const KHOA_GON = "qlda:menu-gon";
+const ngheGon = new Set<() => void>();
+function docGon(): boolean {
+  try {
+    return window.localStorage.getItem(KHOA_GON) === "1";
+  } catch {
+    return false;
+  }
+}
+function theoDoiGon(fn: () => void): () => void {
+  ngheGon.add(fn);
+  return () => ngheGon.delete(fn);
+}
+export function datMenuGon(gon: boolean) {
+  try {
+    window.localStorage.setItem(KHOA_GON, gon ? "1" : "0");
+  } catch {}
+  for (const fn of ngheGon) fn();
+}
+
+/** Menu đang ở dạng dải biểu tượng (desktop): trang tự thu, hoặc người dùng đã bấm thu. */
+export function useMenuGon(): { gon: boolean; gonTay: boolean } {
+  const pathname = usePathname();
+  const gonTay = useSyncExternalStore(theoDoiGon, docGon, () => false);
+  return { gon: gonTay || thuGonMenu(pathname), gonTay };
+}
+
 export function Sidebar({
   role,
   open,
@@ -256,9 +287,11 @@ export function Sidebar({
   onClose: () => void;
 }) {
   const pathname = usePathname();
-  const gon = thuGonMenu(pathname);
+  const { gon, gonTay } = useMenuGon();
   // Chữ chỉ hiện khi menu bung (rê chuột) nếu đang thu gọn.
   const chu = gon ? "lg:hidden lg:group-hover/sb:inline" : "";
+  // Dạng dải biểu tượng: tiêu đề nhóm thu thành một vạch màu, chỉ bung khi rê chuột.
+  const tieuDeGon = gon ? "lg:h-1 lg:p-0 lg:mt-3 lg:group-hover/sb:h-auto lg:group-hover/sb:px-3 lg:group-hover/sb:py-1.5 lg:[&>svg]:hidden lg:group-hover/sb:[&>svg]:block" : "";
   // Lần dựng ở máy chủ: chưa gập nhóm nào. Trình duyệt đọc tiếp từ localStorage.
   const dong = useSyncExternalStore(theoDoi, docNhomDong, () => RONG);
 
@@ -330,7 +363,8 @@ export function Sidebar({
                   aria-controls={idND}
                   className={cn(
                     "mt-3 flex w-full items-center gap-1.5 rounded-md px-3 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide",
-                    mau ? `${mau.tieuDe} text-white` : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+                    mau ? `${mau.tieuDe} text-white` : "text-slate-400 hover:bg-slate-50 hover:text-slate-600",
+                    tieuDeGon
                   )}
                 >
                   <ChevronDown
@@ -346,8 +380,15 @@ export function Sidebar({
 
               <div
                 id={idND}
-                hidden={!moRong}
-                className={cn("space-y-1", mau && `mt-1 ml-2 border-l-2 pl-1.5 ${mau.vach}`)}
+                // Dải biểu tượng luôn hiện đủ icon, kể cả nhóm đang gập: icon là cách duy
+                // nhất để tới trang khi menu thu gọn.
+                hidden={!moRong && !gon}
+                className={cn(
+                  "space-y-1",
+                  mau && `mt-1 ml-2 border-l-2 pl-1.5 ${mau.vach}`,
+                  gon && "lg:ml-0 lg:border-l-0 lg:pl-0 lg:group-hover/sb:ml-2 lg:group-hover/sb:border-l-2 lg:group-hover/sb:pl-1.5",
+                  !moRong && gon && "max-lg:hidden"
+                )}
               >
                 {items.map((item) => {
                   const active = dangO(pathname, item);
@@ -356,6 +397,7 @@ export function Sidebar({
                     <Link
                       key={item.href}
                       href={item.href}
+                      title={gon ? item.label : undefined}
                       className={cn(
                         "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                         active ? (mau?.dangXem ?? "bg-blue-50 text-blue-700") : "text-slate-600 hover:bg-slate-100"
@@ -371,6 +413,19 @@ export function Sidebar({
           );
         })}
       </nav>
+
+      {/* Nút thu gọn / mở rộng menu — chỉ desktop; trang tự thu (chi tiết dự án) thì không cần. */}
+      {!thuGonMenu(pathname) && (
+        <button
+          type="button"
+          onClick={() => datMenuGon(!gonTay)}
+          title={gonTay ? "Mở rộng menu" : "Thu gọn menu"}
+          className="hidden shrink-0 items-center gap-3 border-t border-slate-100 px-5 py-3 text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-800 lg:flex"
+        >
+          {gonTay ? <PanelLeftOpen className="h-4 w-4 shrink-0" /> : <PanelLeftClose className="h-4 w-4 shrink-0" />}
+          <span className={cn("truncate", chu)}>{gonTay ? "Mở rộng menu" : "Thu gọn menu"}</span>
+        </button>
+      )}
     </aside>
   );
 }
