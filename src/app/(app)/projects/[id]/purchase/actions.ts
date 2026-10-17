@@ -431,6 +431,41 @@ export async function doiTenHangMuc(
   return { ok: true };
 }
 
+/**
+ * Gắn (hoặc bỏ gắn, `estimateItemId` rỗng) CẢ MỘT nhóm / quy cách vào một đầu việc dự
+ * toán thi công. Khối lượng các món cộng vào cột thực tế của đầu việc — đầu việc tính kg
+ * thì lấy kg, cùng đơn vị thì lấy SL (xem `tinhLaiTuMucCon`).
+ */
+export async function ganDuToanNhieu(
+  projectId: string,
+  orderId: string,
+  itemIds: string[],
+  estimateItemId: string
+): Promise<ActionResult> {
+  const denied = await guard(projectId, "Bạn không có quyền chỉnh sửa vật tư.", { orderId });
+  if (denied) return denied;
+  if (estimateItemId) {
+    const ei = await db.estimateItem.findUnique({
+      where: { id: estimateItemId },
+      select: { projectId: true },
+    });
+    if (!ei || ei.projectId !== projectId) {
+      return { ok: false, error: "Đầu việc dự toán không thuộc dự án này." };
+    }
+  }
+  const cu = await db.purchaseOrderItem.findMany({
+    where: { orderId, id: { in: itemIds } },
+    select: { estimateItemId: true },
+  });
+  await db.purchaseOrderItem.updateMany({
+    where: { orderId, id: { in: itemIds } },
+    data: { estimateItemId: estimateItemId || null },
+  });
+  await capNhatDuToan(projectId, [...new Set([...cu.map((c) => c.estimateItemId), estimateItemId || null])]);
+  revalidatePath(`/projects/${projectId}/purchase`);
+  return { ok: true };
+}
+
 /** Thêm nhanh một dòng từ ô "gõ tên…" cuối bảng; nhóm theo tab đang mở. */
 export async function themNhanhMonHang(
   projectId: string,
@@ -517,6 +552,105 @@ export async function deletePurchaseItemImage(
   });
   if (denied) return denied;
   await db.poItemImage.delete({ where: { id: imageId } });
+  revalidatePath(`/projects/${projectId}/purchase`);
+  return { ok: true };
+}
+
+// ── Thư viện đơn hàng mẫu ────────────────────────────────────────────────────────────
+
+/** Lưu một đơn có sẵn thành mẫu: chép mọi món (không chép ảnh, không chép gắn dự toán). */
+export async function luuMauDonHang(
+  projectId: string,
+  orderId: string,
+  ten: string
+): Promise<ActionResult> {
+  const denied = await guard(projectId, "Bạn không có quyền lưu đơn hàng mẫu.", { orderId });
+  if (denied) return denied;
+  const name = ten.trim();
+  if (!name) return { ok: false, error: "Đặt tên cho mẫu." };
+  const o = await db.purchaseOrder.findUnique({
+    where: { id: orderId },
+    include: { items: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] } },
+  });
+  if (!o) return { ok: false, error: "Không tìm thấy đơn hàng." };
+  await db.purchaseOrderTemplate.create({
+    data: {
+      name,
+      category: o.category,
+      note: o.note,
+      items: {
+        create: o.items.map((i, k) => ({
+          category: i.category,
+          groupName: i.groupName,
+          name: i.name,
+          unit: i.unit,
+          qty: i.qty,
+          unitPrice: i.unitPrice,
+          weight: i.weight,
+          length: i.length,
+          note: i.note,
+          sortOrder: k,
+        })),
+      },
+    },
+  });
+  revalidatePath(`/projects/${projectId}/purchase`);
+  return { ok: true };
+}
+
+/**
+ * Tạo đơn mới (nháp) cho dự án từ một mẫu. `giuSoLuong` = false thì để trống SL, kg,
+ * thành tiền — chỉ lấy khung nhóm / quy cách / mã để điền số của công trình mới.
+ */
+export async function taoDonTuMau(
+  projectId: string,
+  mauId: string,
+  giuSoLuong: boolean
+): Promise<ActionResult> {
+  const denied = await guard(projectId, "Bạn không có quyền thêm đơn hàng.");
+  if (denied) return denied;
+  const mau = await db.purchaseOrderTemplate.findUnique({
+    where: { id: mauId },
+    include: { items: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] } },
+  });
+  if (!mau) return { ok: false, error: "Không tìm thấy mẫu." };
+  const o = await db.purchaseOrder.create({
+    data: {
+      projectId,
+      orderNo: mau.name,
+      category: mau.category,
+      status: "DRAFT",
+      note: mau.note,
+      items: {
+        create: mau.items.map((i) => {
+          const qty = giuSoLuong ? i.qty : null;
+          return {
+            category: i.category,
+            groupName: i.groupName,
+            name: i.name,
+            unit: i.unit,
+            qty,
+            unitPrice: i.unitPrice,
+            amount: qty != null && i.unitPrice != null ? qty * i.unitPrice : null,
+            weight: giuSoLuong ? i.weight : null,
+            length: i.length,
+            note: i.note,
+            sortOrder: i.sortOrder,
+          };
+        }),
+      },
+    },
+  });
+  await recompute(o.id);
+  revalidatePath(`/projects/${projectId}/purchase`);
+  revalidatePath("/purchases");
+  return { ok: true };
+}
+
+export async function xoaMauDonHang(projectId: string, mauId: string): Promise<ActionResult> {
+  const denied = await guard(projectId, "Bạn không có quyền xoá đơn hàng mẫu.");
+  if (denied) return denied;
+  await db.purchaseOrderTemplate.delete({ where: { id: mauId } });
   revalidatePath(`/projects/${projectId}/purchase`);
   return { ok: true };
 }

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireProjectView } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { PurchaseEditor, type DauViecOpt, type OrderView } from "./PurchaseEditor";
+import type { MauView } from "./ThuVienMau";
 
 export default async function PurchasePage({
   params,
@@ -16,7 +17,7 @@ export default async function PurchasePage({
   const canEdit = can(session.role, "purchase", "edit");
 
   // 2 truy vấn độc lập -> chạy song song (guard phân quyền đã xong ở trên).
-  const [project, suppliers, estimateItems] = await Promise.all([
+  const [project, suppliers, estimateItems, mauDb] = await Promise.all([
     db.project.findUnique({
       where: { id },
       include: {
@@ -44,7 +45,25 @@ export default async function PurchasePage({
       orderBy: [{ section: { sortOrder: "asc" } }, { sortOrder: "asc" }, { createdAt: "asc" }],
       select: { id: true, name: true, unit: true, section: { select: { name: true, code: true } } },
     }),
+    db.purchaseOrderTemplate.findMany({
+      orderBy: [{ category: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        createdAt: true,
+        items: { select: { category: true } },
+      },
+    }),
   ]);
+  const mau: MauView[] = mauDb.map((m) => ({
+    id: m.id,
+    name: m.name,
+    category: m.category,
+    soDong: m.items.length,
+    nhom: [...new Set(m.items.map((i) => i.category).filter((c): c is string => !!c))],
+    createdAt: m.createdAt.toISOString(),
+  }));
   const dauViec: DauViecOpt[] = estimateItems.map((e) => ({
     id: e.id,
     name: e.name,
@@ -108,6 +127,7 @@ export default async function PurchasePage({
         orders={orders}
         suppliers={suppliers}
         dauViec={dauViec}
+        mau={mau}
         canEdit={canEdit}
       />
     </div>

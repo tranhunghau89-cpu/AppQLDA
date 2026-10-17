@@ -310,6 +310,36 @@ model PurchaseOrderItem {
   @@index([estimateItemId])
 }
 
+/// Đơn hàng mẫu — thư viện để thêm nhanh đơn cho dự án mới (lưu từ một đơn có sẵn).
+model PurchaseOrderTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  category  String // KCT | XA_GO | TON | VTP — như PurchaseOrder.category
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items PurchaseOrderTemplateItem[]
+}
+
+model PurchaseOrderTemplateItem {
+  id         String                @id @default(cuid())
+  templateId String
+  template   PurchaseOrderTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  category   String?
+  groupName  String?
+  name       String
+  unit       String?
+  qty        Float?
+  unitPrice  Float?
+  weight     Float?
+  length     Float?
+  note       String?
+  sortOrder  Int                   @default(0)
+
+  @@index([templateId])
+}
+
 model PoItemImage {
   id        String            @id @default(cuid())
   itemId    String

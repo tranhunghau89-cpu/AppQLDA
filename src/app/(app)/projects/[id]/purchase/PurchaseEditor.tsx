@@ -1,6 +1,14 @@
 "use client";
 
-import { Fragment, useMemo, useRef, useState, useTransition } from "react";
+import {
+  createContext,
+  Fragment,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -35,11 +43,14 @@ import {
   uploadPurchaseItemImages,
   deletePurchaseItemImage,
   suaOMonHang,
+  ganDuToanNhieu,
   doiTenHangMuc,
   themNhanhMonHang,
 } from "./actions";
 import { OSoSua } from "@/components/ui/OSoSua";
+import { NutLuuMau, NutTaoTuMau, type MauView } from "./ThuVienMau";
 import { tongNhom } from "@/lib/donHang/khoiLuong";
+import { gopTheoMa } from "@/lib/donHang/gop";
 
 type GroupBy = "category" | "group";
 type SortField = "name" | "other" | "qty" | "unitPrice" | "amount" | "weight";
@@ -103,12 +114,14 @@ export function PurchaseEditor({
   orders,
   suppliers,
   dauViec,
+  mau,
   canEdit,
 }: {
   projectId: string;
   orders: OrderView[];
   suppliers: SupplierOpt[];
   dauViec: DauViecOpt[];
+  mau: MauView[];
   canEdit: boolean;
 }) {
   const nhomDauViec = useMemo(() => {
@@ -204,299 +217,310 @@ export function PurchaseEditor({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-slate-500">Gom theo:</span>
-          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
-            {(
-              [
-                ["category", "Nhóm vật tư"],
-                ["group", "Hạng mục"],
-              ] as [GroupBy, string][]
-            ).map(([val, label]) => (
+    <DauViecCtx.Provider value={canEdit ? nhomDauViec : []}>
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-slate-500">Gom theo:</span>
+            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
+              {(
+                [
+                  ["category", "Nhóm vật tư"],
+                  ["group", "Hạng mục"],
+                ] as [GroupBy, string][]
+              ).map(([val, label]) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setGroupBy(val)}
+                  className={cn(
+                    "rounded-md px-3 py-1 text-sm font-medium transition",
+                    groupBy === val
+                      ? "bg-blue-600 text-white"
+                      : "text-slate-600 hover:bg-slate-100",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {sort.field && (
               <button
-                key={val}
                 type="button"
-                onClick={() => setGroupBy(val)}
-                className={cn(
-                  "rounded-md px-3 py-1 text-sm font-medium transition",
-                  groupBy === val
-                    ? "bg-blue-600 text-white"
-                    : "text-slate-600 hover:bg-slate-100",
-                )}
+                onClick={() => setSort({ field: null, dir: "asc" })}
+                className="text-xs text-slate-400 underline hover:text-slate-600"
               >
-                {label}
+                Bỏ sắp xếp
               </button>
-            ))}
+            )}
           </div>
-          {sort.field && (
-            <button
-              type="button"
-              onClick={() => setSort({ field: null, dir: "asc" })}
-              className="text-xs text-slate-400 underline hover:text-slate-600"
-            >
-              Bỏ sắp xếp
-            </button>
+          {canEdit && (
+            <div className="flex items-center gap-2">
+              <NutTaoTuMau projectId={projectId} mau={mau} />
+              <Button
+                size="sm"
+                onClick={() => {
+                  setOEditing(null);
+                  setError(null);
+                  setOOpen(true);
+                }}
+              >
+                <Plus className="h-4 w-4" /> Thêm đơn hàng
+              </Button>
+            </div>
           )}
         </div>
-        {canEdit && (
-          <Button
-            size="sm"
-            onClick={() => {
-              setOEditing(null);
+
+        {orders.length === 0 && (
+          <div className="rounded-xl border border-dashed border-slate-300 py-12 text-center text-slate-400">
+            Chưa có đơn đặt hàng nào
+          </div>
+        )}
+
+        {orders.map((o) => (
+          <OrderCard
+            key={o.id}
+            order={o}
+            canEdit={canEdit}
+            projectId={projectId}
+            groupBy={groupBy}
+            sort={sort}
+            onToggleSort={toggleSort}
+            onRefresh={() => router.refresh()}
+            onEditOrder={() => {
+              setOEditing(o);
               setError(null);
               setOOpen(true);
             }}
-          >
-            <Plus className="h-4 w-4" /> Thêm đơn hàng
-          </Button>
-        )}
-      </div>
+            onDeleteOrder={() => onDeleteOrder(o)}
+            onAddItem={() => {
+              setIOrderId(o.id);
+              setIEditing(null);
+              setError(null);
+              setIOpen(true);
+            }}
+            onEditItem={(it) => {
+              setIOrderId(o.id);
+              setIEditing(it);
+              setError(null);
+              setIOpen(true);
+            }}
+            onDeleteItem={(it) => onDeleteItem(o.id, it)}
+          />
+        ))}
 
-      {orders.length === 0 && (
-        <div className="rounded-xl border border-dashed border-slate-300 py-12 text-center text-slate-400">
-          Chưa có đơn đặt hàng nào
-        </div>
-      )}
-
-      {orders.map((o) => (
-        <OrderCard
-          key={o.id}
-          order={o}
-          canEdit={canEdit}
-          projectId={projectId}
-          groupBy={groupBy}
-          sort={sort}
-          onToggleSort={toggleSort}
-          onRefresh={() => router.refresh()}
-          onEditOrder={() => {
-            setOEditing(o);
-            setError(null);
-            setOOpen(true);
-          }}
-          onDeleteOrder={() => onDeleteOrder(o)}
-          onAddItem={() => {
-            setIOrderId(o.id);
-            setIEditing(null);
-            setError(null);
-            setIOpen(true);
-          }}
-          onEditItem={(it) => {
-            setIOrderId(o.id);
-            setIEditing(it);
-            setError(null);
-            setIOpen(true);
-          }}
-          onDeleteItem={(it) => onDeleteItem(o.id, it)}
-        />
-      ))}
-
-      {/* Modal đơn hàng */}
-      <Modal
-        open={oOpen}
-        onClose={() => setOOpen(false)}
-        title={oEditing ? "Sửa đơn hàng" : "Thêm đơn hàng"}
-      >
-        <form onSubmit={onOrderSubmit} className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Số / tên đơn">
-              <Input name="orderNo" defaultValue={oEditing?.orderNo ?? ""} />
-            </Field>
-            <Field label="Ngày đơn">
-              <Input
-                name="orderDate"
-                type="date"
-                defaultValue={d10(oEditing?.orderDate ?? null)}
-              />
-            </Field>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Loại đơn *">
-              <Select
-                name="category"
-                defaultValue={oEditing?.category ?? "VTP"}
-              >
-                {PO_CATEGORY.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Trạng thái *">
-              <Select name="status" defaultValue={oEditing?.status ?? "DRAFT"}>
-                {PO_STATUS.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          </div>
-          <Field label="Nhà cung cấp">
-            <Select name="supplierId" defaultValue={oEditing?.supplierId ?? ""}>
-              <option value="">— Không —</option>
-              {suppliers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Field label="Ngày đặt">
-              <Input
-                name="orderedDate"
-                type="date"
-                defaultValue={d10(oEditing?.orderedDate ?? null)}
-              />
-            </Field>
-            <Field label="Dự kiến giao">
-              <Input
-                name="expectedDate"
-                type="date"
-                defaultValue={d10(oEditing?.expectedDate ?? null)}
-              />
-            </Field>
-            <Field label="Ngày nhận">
-              <Input
-                name="receivedDate"
-                type="date"
-                defaultValue={d10(oEditing?.receivedDate ?? null)}
-              />
-            </Field>
-          </div>
-          <Field label="Đường dẫn file đơn (.xlsx trên ổ đĩa)">
-            <Input name="filePath" defaultValue={oEditing?.filePath ?? ""} />
-          </Field>
-          <Field label="Ghi chú">
-            <Textarea name="note" defaultValue={oEditing?.note ?? ""} />
-          </Field>
-          {error && (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
-              {error}
-            </p>
-          )}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOOpen(false)}
-            >
-              Hủy
-            </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Đang lưu…" : "Lưu"}
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Modal vật tư */}
-      <Modal
-        open={iOpen}
-        onClose={() => setIOpen(false)}
-        title={iEditing ? "Sửa vật tư" : "Thêm vật tư"}
-      >
-        <form onSubmit={onItemSubmit} className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Loại (sheet)">
-              <Input
-                name="category"
-                defaultValue={iEditing?.category ?? ""}
-                placeholder="BLLK, Tôn mái…"
-              />
-            </Field>
-            <Field label="Hạng mục">
-              <Input
-                name="groupName"
-                defaultValue={iEditing?.groupName ?? ""}
-                placeholder="HM khung mái…"
-              />
-            </Field>
-          </div>
-          <Field label="Tên hàng, quy cách *">
-            <Input name="name" defaultValue={iEditing?.name ?? ""} required />
-          </Field>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Field label="SL">
-              <Input
-                name="qty"
-                type="number"
-                step="any"
-                defaultValue={iEditing?.qty ?? ""}
-              />
-            </Field>
-            <Field label="Đơn vị">
-              <Input name="unit" defaultValue={iEditing?.unit ?? ""} />
-            </Field>
-            <Field label="Đơn giá">
-              <Input
-                name="unitPrice"
-                type="number"
-                step="any"
-                defaultValue={iEditing?.unitPrice ?? ""}
-              />
-            </Field>
-            <Field label="TL (kg)">
-              <Input
-                name="weight"
-                type="number"
-                step="any"
-                defaultValue={iEditing?.weight ?? ""}
-              />
-            </Field>
-          </div>
-          <Field label="Thành tiền (để trống = SL × đơn giá)">
-            <Input
-              name="amount"
-              type="number"
-              step="any"
-              defaultValue={iEditing?.amount ?? ""}
-            />
-          </Field>
-          <Field label="Ghi chú">
-            <Input name="note" defaultValue={iEditing?.note ?? ""} />
-          </Field>
-          <Field label="Đầu việc dự toán thi công (cộng vào thực tế)">
-            <Select
-              name="estimateItemId"
-              defaultValue={iEditing?.estimateItemId ?? ""}
-            >
-              <option value="">— Chưa gắn —</option>
-              {nhomDauViec.map(([hm, ds]) => (
-                <optgroup key={hm} label={hm}>
-                  {ds.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                      {d.unit ? ` (${d.unit})` : ""}
+        {/* Modal đơn hàng */}
+        <Modal
+          open={oOpen}
+          onClose={() => setOOpen(false)}
+          title={oEditing ? "Sửa đơn hàng" : "Thêm đơn hàng"}
+        >
+          <form onSubmit={onOrderSubmit} className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Số / tên đơn">
+                <Input name="orderNo" defaultValue={oEditing?.orderNo ?? ""} />
+              </Field>
+              <Field label="Ngày đơn">
+                <Input
+                  name="orderDate"
+                  type="date"
+                  defaultValue={d10(oEditing?.orderDate ?? null)}
+                />
+              </Field>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Loại đơn *">
+                <Select
+                  name="category"
+                  defaultValue={oEditing?.category ?? "VTP"}
+                >
+                  {PO_CATEGORY.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
                     </option>
                   ))}
-                </optgroup>
-              ))}
-            </Select>
-          </Field>
-          {error && (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
-              {error}
-            </p>
-          )}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIOpen(false)}
-            >
-              Hủy
-            </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Đang lưu…" : "Lưu"}
-            </Button>
-          </div>
-        </form>
-      </Modal>
-    </div>
+                </Select>
+              </Field>
+              <Field label="Trạng thái *">
+                <Select
+                  name="status"
+                  defaultValue={oEditing?.status ?? "DRAFT"}
+                >
+                  {PO_STATUS.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+            <Field label="Nhà cung cấp">
+              <Select
+                name="supplierId"
+                defaultValue={oEditing?.supplierId ?? ""}
+              >
+                <option value="">— Không —</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Field label="Ngày đặt">
+                <Input
+                  name="orderedDate"
+                  type="date"
+                  defaultValue={d10(oEditing?.orderedDate ?? null)}
+                />
+              </Field>
+              <Field label="Dự kiến giao">
+                <Input
+                  name="expectedDate"
+                  type="date"
+                  defaultValue={d10(oEditing?.expectedDate ?? null)}
+                />
+              </Field>
+              <Field label="Ngày nhận">
+                <Input
+                  name="receivedDate"
+                  type="date"
+                  defaultValue={d10(oEditing?.receivedDate ?? null)}
+                />
+              </Field>
+            </div>
+            <Field label="Đường dẫn file đơn (.xlsx trên ổ đĩa)">
+              <Input name="filePath" defaultValue={oEditing?.filePath ?? ""} />
+            </Field>
+            <Field label="Ghi chú">
+              <Textarea name="note" defaultValue={oEditing?.note ?? ""} />
+            </Field>
+            {error && (
+              <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
+                {error}
+              </p>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setOOpen(false)}
+              >
+                Hủy
+              </Button>
+              <Button type="submit" disabled={pending}>
+                {pending ? "Đang lưu…" : "Lưu"}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* Modal vật tư */}
+        <Modal
+          open={iOpen}
+          onClose={() => setIOpen(false)}
+          title={iEditing ? "Sửa vật tư" : "Thêm vật tư"}
+        >
+          <form onSubmit={onItemSubmit} className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Loại (sheet)">
+                <Input
+                  name="category"
+                  defaultValue={iEditing?.category ?? ""}
+                  placeholder="BLLK, Tôn mái…"
+                />
+              </Field>
+              <Field label="Hạng mục">
+                <Input
+                  name="groupName"
+                  defaultValue={iEditing?.groupName ?? ""}
+                  placeholder="HM khung mái…"
+                />
+              </Field>
+            </div>
+            <Field label="Tên hàng, quy cách *">
+              <Input name="name" defaultValue={iEditing?.name ?? ""} required />
+            </Field>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <Field label="SL">
+                <Input
+                  name="qty"
+                  type="number"
+                  step="any"
+                  defaultValue={iEditing?.qty ?? ""}
+                />
+              </Field>
+              <Field label="Đơn vị">
+                <Input name="unit" defaultValue={iEditing?.unit ?? ""} />
+              </Field>
+              <Field label="Đơn giá">
+                <Input
+                  name="unitPrice"
+                  type="number"
+                  step="any"
+                  defaultValue={iEditing?.unitPrice ?? ""}
+                />
+              </Field>
+              <Field label="TL (kg)">
+                <Input
+                  name="weight"
+                  type="number"
+                  step="any"
+                  defaultValue={iEditing?.weight ?? ""}
+                />
+              </Field>
+            </div>
+            <Field label="Thành tiền (để trống = SL × đơn giá)">
+              <Input
+                name="amount"
+                type="number"
+                step="any"
+                defaultValue={iEditing?.amount ?? ""}
+              />
+            </Field>
+            <Field label="Ghi chú">
+              <Input name="note" defaultValue={iEditing?.note ?? ""} />
+            </Field>
+            <Field label="Đầu việc dự toán thi công (cộng vào thực tế)">
+              <Select
+                name="estimateItemId"
+                defaultValue={iEditing?.estimateItemId ?? ""}
+              >
+                <option value="">— Chưa gắn —</option>
+                {nhomDauViec.map(([hm, ds]) => (
+                  <optgroup key={hm} label={hm}>
+                    {ds.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                        {d.unit ? ` (${d.unit})` : ""}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </Select>
+            </Field>
+            {error && (
+              <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
+                {error}
+              </p>
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIOpen(false)}
+              >
+                Hủy
+              </Button>
+              <Button type="submit" disabled={pending}>
+                {pending ? "Đang lưu…" : "Lưu"}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      </div>
+    </DauViecCtx.Provider>
   );
 }
 
@@ -720,6 +744,19 @@ function ItemsTable({
                         )}
                       </>
                     )}
+                    {canEdit && (gop || hms.length === 1) && (
+                      <GanDuToan
+                        ds={ds}
+                        luu={(id) =>
+                          ganDuToanNhieu(
+                            projectId,
+                            orderId,
+                            ds.map((x) => x.id),
+                            id,
+                          )
+                        }
+                      />
+                    )}
                     <span className="ml-2 text-xs text-slate-500">
                       {ds.length} dòng
                       <TongKhoiLuong ds={ds} />
@@ -767,6 +804,19 @@ function ItemsTable({
                         <span className="ml-2 text-xs font-normal text-slate-500">
                           <TongKhoiLuong ds={con} />
                         </span>
+                        {canEdit && (
+                          <GanDuToan
+                            ds={con}
+                            luu={(id) =>
+                              ganDuToanNhieu(
+                                projectId,
+                                orderId,
+                                con.map((x) => x.id),
+                                id,
+                              )
+                            }
+                          />
+                        )}
                       </td>
                     </tr>
                   )}
@@ -946,6 +996,133 @@ function ItemsTable({
  * (sang ô bên phải).
  */
 /**
+ * Tab "Gộp theo mã": bóc tách nhập riêng từng hạng mục, đặt hàng thì cộng dồn cùng mã —
+ * như cột Mã bulong / Tổng SL / Tổng trọng lượng của sheet BLLK. Gộp trong từng nhóm vật
+ * tư, để tôn không cộng lẫn với bulông.
+ */
+function BangGopTheoMa({ items }: { items: OrderItemView[] }) {
+  const nhom = useMemo(() => {
+    const m = new Map<string, OrderItemView[]>();
+    for (const it of items) {
+      const k = it.category || "—";
+      m.set(k, [...(m.get(k) ?? []), it]);
+    }
+    return [...m].map(([k, ds]) => [k, gopTheoMa(ds)] as const);
+  }, [items]);
+  return (
+    <div className="space-y-4 p-4">
+      {nhom.map(([k, ds], ni) => (
+        <div key={k}>
+          <div className="mb-1.5 text-sm font-bold uppercase tracking-wide text-blue-900">
+            {ni + 1}. {k}
+          </div>
+          <Table>
+            <THead>
+              <tr>
+                <Th className="w-12 text-center">STT</Th>
+                <Th>Mã / quy cách</Th>
+                <Th className="text-right">Tổng SL</Th>
+                <Th>ĐV</Th>
+                <Th className="text-right">Tổng TL (kg)</Th>
+                <Th>Theo hạng mục</Th>
+              </tr>
+            </THead>
+            <tbody>
+              {ds.map((g, i) => (
+                <Tr key={`${g.name}|${g.unit}`}>
+                  <Td className="w-12 text-center text-xs text-slate-400">
+                    {i + 1}
+                  </Td>
+                  <Td className="font-medium text-slate-900">{g.name}</Td>
+                  <Td className="text-right font-semibold tabular-nums">
+                    {formatNumber(g.qty)}
+                  </Td>
+                  <Td className="text-slate-500">{g.unit || "—"}</Td>
+                  <Td className="text-right tabular-nums">
+                    {formatNumber(g.weight)}
+                  </Td>
+                  <Td className="text-xs text-slate-500">
+                    {g.chiTiet.length > 1
+                      ? g.chiTiet
+                          .map(
+                            (c) =>
+                              `${boSoDau(c.hangMuc)}: ${formatNumber(c.qty)}`,
+                          )
+                          .join(" · ")
+                      : boSoDau(g.chiTiet[0]?.hangMuc ?? "")}
+                  </Td>
+                </Tr>
+              ))}
+            </tbody>
+          </Table>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Đầu việc dự toán (theo hạng mục) để gắn món đơn hàng — rỗng khi không có quyền sửa. */
+const DauViecCtx = createContext<[string, DauViecOpt[]][]>([]);
+
+/**
+ * Ô chọn đầu việc dự toán cho CẢ một nhóm / quy cách. Mọi món cùng gắn một đầu việc thì
+ * hiện đầu việc đó; lẫn lộn thì hiện "nhiều đầu việc" — chọn lại là gắn chung cho tất cả.
+ */
+function GanDuToan({
+  ds,
+  luu,
+}: {
+  ds: OrderItemView[];
+  luu: (
+    estimateItemId: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+}) {
+  const nhom = useContext(DauViecCtx);
+  const router = useRouter();
+  const toast = useToast();
+  const [dangLuu, start] = useTransition();
+  if (nhom.length === 0) return null;
+  const ids = new Set(ds.map((x) => x.estimateItemId ?? ""));
+  const hienTai = ids.size === 1 ? [...ids][0] : "__mix";
+  return (
+    <select
+      aria-label="Gắn vào đầu việc dự toán"
+      title="Cộng khối lượng cả nhóm vào thực tế của đầu việc dự toán"
+      value={hienTai}
+      disabled={dangLuu}
+      onChange={(e) => {
+        const v = e.target.value;
+        if (v === "__mix") return;
+        start(async () => {
+          const res = await luu(v);
+          if (!res.ok) toast.error(res.error);
+          else router.refresh();
+        });
+      }}
+      className={cn(
+        "ml-3 max-w-[18rem] rounded border px-1.5 py-0.5 align-middle text-xs font-normal normal-case tracking-normal disabled:opacity-50",
+        hienTai && hienTai !== "__mix"
+          ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+          : "border-dashed border-slate-300 bg-white text-slate-500",
+      )}
+    >
+      <option value="">→ Gắn dự toán…</option>
+      {hienTai === "__mix" && <option value="__mix">→ nhiều đầu việc</option>}
+      {nhom.map(([hm, dsDv]) => (
+        <optgroup key={hm} label={hm}>
+          {dsDv.map((d) => (
+            <option key={d.id} value={d.id}>
+              → {d.name}
+              {d.unit ? ` (${d.unit})` : ""}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </select>
+  );
+}
+
+/**
  * Tổng của một nhóm như dòng "Tổng cộng" Excel: tổng dài (m), tổng m² (tôn) và kg.
  * Số nào bằng 0 thì không hiện — nhóm bulông không có "0 m".
  */
@@ -1105,6 +1282,7 @@ function ThemNhanh({
 }
 
 const SUMMARY_TAB = "__summary__";
+const GOP_TAB = "__gop__";
 
 function OrderCard({
   order,
@@ -1169,7 +1347,9 @@ function OrderCard({
   const [tab, setTab] = useState<string>(SUMMARY_TAB);
   const tabKeys = groups.map(([k]) => k);
   const current =
-    tab === SUMMARY_TAB || tabKeys.includes(tab) ? tab : SUMMARY_TAB;
+    tab === SUMMARY_TAB || tab === GOP_TAB || tabKeys.includes(tab)
+      ? tab
+      : SUMMARY_TAB;
   const currentRows = groups.find(([k]) => k === current)?.[1] ?? [];
 
   return (
@@ -1218,6 +1398,11 @@ function OrderCard({
           )}
           {canEdit && (
             <>
+              <NutLuuMau
+                projectId={projectId}
+                orderId={order.id}
+                tenGoiY={order.orderNo ?? ""}
+              />
               <Button variant="ghost" size="icon" onClick={onEditOrder}>
                 <Pencil className="h-4 w-4" />
               </Button>
@@ -1267,9 +1452,24 @@ function OrderCard({
             >
               Tổng hợp
             </button>
+            <button
+              type="button"
+              onClick={() => setTab(GOP_TAB)}
+              title="Cộng dồn cùng mã qua các hạng mục — số đặt hàng gửi nhà cung cấp"
+              className={cn(
+                "rounded-t-md border-b-2 px-3 py-1.5 text-sm font-semibold transition",
+                current === GOP_TAB
+                  ? "border-blue-600 text-blue-700"
+                  : "border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-700",
+              )}
+            >
+              Gộp theo mã
+            </button>
           </div>
 
-          {current === SUMMARY_TAB ? (
+          {current === GOP_TAB ? (
+            <BangGopTheoMa items={order.items} />
+          ) : current === SUMMARY_TAB ? (
             <div className="space-y-4 p-4">
               <div>
                 <div className="mb-1.5 text-sm font-medium text-slate-600">
