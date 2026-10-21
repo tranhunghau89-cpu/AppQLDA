@@ -4,6 +4,7 @@ import { ArrowLeft, Download } from "lucide-react";
 import { db } from "@/lib/db";
 import { monDonHangCoKg, napThuVienKg } from "@/lib/khoiLuong/thuVienKg";
 import { requireProjectView } from "@/lib/auth";
+import { canEditProject } from "@/lib/scope";
 import { can } from "@/lib/rbac";
 import { SIGNED_CONTRACT_STATUSES } from "@/lib/contract";
 import { docGiaTriGiaiDoan } from "@/lib/giaTriGiaiDoanDuAn";
@@ -20,7 +21,9 @@ export default async function EstimatePage({
 }) {
   const { id } = await params;
   const session = await requireProjectView("estimate", id);
-  const canEdit = can(session.role, "estimate", "edit");
+  // Không phải thành viên dự án -> chỉ xem, ẩn mọi nút sửa.
+  const thanhVien = await canEditProject(session, id);
+  const canEdit = thanhVien && can(session.role, "estimate", "edit");
   const giaiDoan = await docGiaTriGiaiDoan(id);
   const hdKy = await db.contract.findMany({
     where: { projectId: id, status: { in: SIGNED_CONTRACT_STATUSES } },

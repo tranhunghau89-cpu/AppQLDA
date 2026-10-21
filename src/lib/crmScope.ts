@@ -62,10 +62,11 @@ export function whereBaoGiaTrongPhamVi(
   ai: AiDo,
   duAnTrongPhamVi: string[] | "ALL"
 ): Record<string, unknown> {
-  if (ai.role === "ADMIN" || duAnTrongPhamVi === "ALL") return {};
+  if (ai.role === "ADMIN") return {};
+  // "ALL" chỉ mở phần báo giá của DỰ ÁN; báo giá cơ hội vẫn theo người phụ trách khách.
   return {
     OR: [
-      { projectId: { in: duAnTrongPhamVi } },
+      duAnTrongPhamVi === "ALL" ? { projectId: { not: null } } : { projectId: { in: duAnTrongPhamVi } },
       { coHoi: { khachHang: { OR: [{ ownerId: ai.userId }, { ownerId: null }] } } },
     ],
   };

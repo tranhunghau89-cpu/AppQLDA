@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { denyProject, getSession } from "@/lib/auth";
-import { canAccessProject } from "@/lib/scope";
+import { canEditProject } from "@/lib/scope";
 import type { Role } from "@/lib/rbac";
 import type { SessionUser } from "@/lib/session";
 import { baoThayDoi } from "@/lib/baoThayDoi";
@@ -34,17 +34,17 @@ const lamMoi = (projectId: string) => {
   revalidatePath("/", "layout");
 };
 
-/** Người phụ trách phải đang hoạt động và xem được dự án. */
+/** Người phụ trách phải đang hoạt động và là thành viên dự án. */
 async function phuTrachHopLe(projectId: string, id: string): Promise<boolean> {
   const u = await db.user.findUnique({ where: { id }, select: { id: true, role: true, active: true } });
-  return !!u?.active && canAccessProject({ userId: u.id, role: u.role as Role } as SessionUser, projectId);
+  return !!u?.active && canEditProject({ userId: u.id, role: u.role as Role } as SessionUser, projectId);
 }
 
-/** Ghi nhận phiếu bảo hành. Ai xem được dự án cũng ghi được — CĐT gọi ai thì người đó ghi. */
+/** Ghi nhận phiếu bảo hành. Thành viên dự án nào cũng ghi được — CĐT gọi ai thì người đó ghi. */
 export async function taoPhieuBaoHanh(projectId: string, input: z.input<typeof taoSchema>): Promise<KetQua> {
   const session = await getSession();
   if (!session) return { ok: false, error: "Phiên đăng nhập hết hạn." };
-  if (!(await canAccessProject(session, projectId)))
+  if (!(await canEditProject(session, projectId)))
     return { ok: false, error: "Bạn không có quyền với dự án này." };
   const p = taoSchema.safeParse(input);
   if (!p.success) return { ok: false, error: p.error.issues[0].message };
@@ -91,7 +91,7 @@ export async function capNhatPhieuBaoHanh(id: string, input: z.input<typeof capN
   const session = await getSession();
   if (!session) return { ok: false, error: "Phiên đăng nhập hết hạn." };
   const truoc = await db.phieuBaoHanh.findUnique({ where: { id } });
-  if (!truoc || !(await canAccessProject(session, truoc.projectId)))
+  if (!truoc || !(await canEditProject(session, truoc.projectId)))
     return { ok: false, error: "Không tìm thấy phiếu hoặc bạn không có quyền." };
   if (truoc.phuTrachId !== session.userId) {
     const denied = await denyProject("project", "edit", truoc.projectId, "Chỉ người phụ trách hoặc người quản lý dự án được cập nhật phiếu.");

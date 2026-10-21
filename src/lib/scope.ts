@@ -1,14 +1,15 @@
-// Scope theo dự án được giao (kết hợp với RBAC theo vai trò).
-// ADMIN thấy tất cả; vai trò khác chỉ các dự án được gán qua ProjectMember.
+// Scope theo dự án (kết hợp với RBAC theo vai trò).
+// XEM: mọi vai trò thấy tất cả dự án — xem được nội dung gì là do RBAC theo phòng ban quyết.
+// SỬA: ADMIN sửa mọi dự án; vai trò khác chỉ sửa dự án mình là thành viên (ProjectMember).
 import { cache } from "react";
 import { db } from "@/lib/db";
 import type { SessionUser } from "@/lib/session";
 
 /**
- * Danh sách id dự án user được phép, hoặc "ALL" nếu ADMIN.
+ * Id các dự án user là thành viên.
  *
  * Bọc `cache()` vì hàm này chạy nhiều lần trong CÙNG một request: layout gọi
- * `myProjects`, trang gọi `scopedProjectWhere`, có trang còn gọi thêm ở chỗ khác.
+ * `myProjects`, trang gọi `canEditProject`, có trang còn gọi thêm ở chỗ khác.
  * `cache()` gộp lại thành 1 truy vấn; khóa theo userId nên không lẫn giữa các user.
  */
 const idsTheoUser = cache(async (userId: string): Promise<string[]> => {
@@ -19,33 +20,44 @@ const idsTheoUser = cache(async (userId: string): Promise<string[]> => {
   return rows.map((r) => r.projectId);
 });
 
+/** Phạm vi XEM: mọi vai trò đều thấy tất cả dự án. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function myProjectIds(session: SessionUser): Promise<string[] | "ALL"> {
-  if (session.role === "ADMIN") return "ALL";
-  return idsTheoUser(session.userId);
+  return "ALL";
 }
 
-/**
- * Kiểm tra user có được truy cập 1 dự án cụ thể không.
- *
- * Dùng lại danh sách đã cache thay vì `findUnique` riêng: một server action có thể
- * gọi hàm này vài lần (guard + đối chiếu thực thể), trước đây mỗi lần là 1 truy vấn.
- */
+/** Kiểm tra user có được XEM 1 dự án không. Hiện ai đăng nhập cũng xem được. */
 export async function canAccessProject(session: SessionUser, projectId: string): Promise<boolean> {
   const ids = await myProjectIds(session);
   return ids === "ALL" || ids.includes(projectId);
 }
 
-/** Điều kiện `where` để lọc Project theo scope (rỗng nếu ADMIN). */
+/** Phạm vi SỬA: id dự án user được thêm/sửa/xóa dữ liệu, hoặc "ALL" nếu ADMIN. */
+export async function myEditableProjectIds(session: SessionUser): Promise<string[] | "ALL"> {
+  if (session.role === "ADMIN") return "ALL";
+  return idsTheoUser(session.userId);
+}
+
+/**
+ * Kiểm tra user có được SỬA dữ liệu của 1 dự án không (ADMIN hoặc thành viên).
+ * Cũng dùng để lọc người nhận chuông / người được giao việc: họ phải là người làm dự án.
+ */
+export async function canEditProject(session: SessionUser, projectId: string): Promise<boolean> {
+  const ids = await myEditableProjectIds(session);
+  return ids === "ALL" || ids.includes(projectId);
+}
+
+/** Điều kiện `where` để lọc Project theo phạm vi xem (rỗng = tất cả). */
 export async function scopedProjectWhere(session: SessionUser) {
   const ids = await myProjectIds(session);
   return ids === "ALL" ? {} : { id: { in: ids } };
 }
 
-/** Các dự án trong phạm vi (dùng cho dropdown Quick-Add). */
+/** Các dự án user được sửa (dùng cho dropdown Quick-Add, tạo đề xuất…). */
 export async function myProjects(session: SessionUser) {
-  const where = await scopedProjectWhere(session);
+  const ids = await myEditableProjectIds(session);
   return db.project.findMany({
-    where,
+    where: ids === "ALL" ? {} : { id: { in: ids } },
     select: { id: true, code: true, name: true },
     orderBy: { code: "asc" },
   });

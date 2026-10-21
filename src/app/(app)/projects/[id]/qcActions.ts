@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { denyProject, requireSession } from "@/lib/auth";
-import { canAccessProject } from "@/lib/scope";
+import { canEditProject } from "@/lib/scope";
 import { isStorageConfigured, uploadFile } from "@/lib/storage";
 import { QC_GIAI_DOAN_MAP, QC_LOAI_MAP, QC_NHOM_MAP } from "@/lib/constants";
 import { ROLES } from "@/lib/rbac";
@@ -199,7 +199,7 @@ export async function xoaQcMuc(
 
 /**
  * Đánh kết quả một mục. Quyền theo BỘ PHẬN của mục (không theo ma trận RBAC):
- * người đúng bộ phận hoặc ADMIN, và phải xem được dự án.
+ * người đúng bộ phận hoặc ADMIN, và phải là thành viên dự án.
  */
 export async function danhGiaQc(
   projectId: string,
@@ -207,7 +207,7 @@ export async function danhGiaQc(
   form: FormData,
 ): Promise<ActionResult> {
   const session = await requireSession();
-  if (!(await canAccessProject(session, projectId)))
+  if (!(await canEditProject(session, projectId)))
     return { ok: false, error: "Bạn không có quyền với dự án này." };
   const muc = await db.qcMuc.findFirst({ where: { id: mucId, projectId } });
   if (!muc) return { ok: false, error: "Không tìm thấy mục QC." };
@@ -306,7 +306,7 @@ export async function ghiChuTieuChiQc(
   ghiChu: string,
 ): Promise<ActionResult> {
   const session = await requireSession();
-  if (!(await canAccessProject(session, projectId)))
+  if (!(await canEditProject(session, projectId)))
     return { ok: false, error: "Bạn không có quyền với dự án này." };
   const muc = await db.qcMuc.findFirst({ where: { id: mucId, projectId } });
   if (!muc) return { ok: false, error: "Không tìm thấy mục QC." };

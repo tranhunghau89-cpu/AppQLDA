@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { denyProject, requireSession } from "@/lib/auth";
 import type { SessionUser } from "@/lib/session";
-import { canAccessProject } from "@/lib/scope";
+import { canEditProject } from "@/lib/scope";
 import {
   TEN_BUOC,
   TRANG_THAI_SAU,
@@ -31,7 +31,7 @@ async function adminIds() {
   return ds.map((u) => u.id);
 }
 
-/** Người nhận tin "Xin duyệt": người chỉ định > cả phòng chỉ định (xem được dự án) > Ban giám đốc. */
+/** Người nhận tin "Xin duyệt": người chỉ định > cả phòng chỉ định (là thành viên dự án) > Ban giám đốc. */
 async function nguoiDuyetIds(
   session: SessionUser,
   projectId: string,
@@ -45,7 +45,7 @@ async function nguoiDuyetIds(
     });
     const xem = await Promise.all(
       ds.map((u) =>
-        canAccessProject({ ...session, userId: u.id, role: u.role as Role }, projectId),
+        canEditProject({ ...session, userId: u.id, role: u.role as Role }, projectId),
       ),
     );
     const ids = ds.filter((_, i) => xem[i]).map((u) => u.id);
@@ -62,7 +62,7 @@ export async function chuyenBuoc(
   ghiChu: string,
 ): Promise<ActionResult> {
   const session = await requireSession();
-  if (!(await canAccessProject(session, projectId)))
+  if (!(await canEditProject(session, projectId)))
     return { ok: false, error: "Bạn không có quyền với dự án này." };
   if (!(buoc in TEN_BUOC)) return { ok: false, error: "Bước không hợp lệ." };
   const nd = ghiChu.trim();
@@ -159,8 +159,8 @@ export async function giaoBuoc(
   if (v.phuTrachId) {
     const u = await db.user.findUnique({ where: { id: v.phuTrachId }, select: { active: true, role: true } });
     if (!u?.active) return { ok: false, error: "Người được giao không còn hoạt động." };
-    if (!(await canAccessProject({ ...session, userId: v.phuTrachId, role: u.role as never }, projectId)))
-      return { ok: false, error: "Người được giao không có quyền xem dự án này — thêm vào thành viên trước." };
+    if (!(await canEditProject({ ...session, userId: v.phuTrachId, role: u.role as never }, projectId)))
+      return { ok: false, error: "Người được giao chưa là thành viên dự án này — thêm vào thành viên trước." };
   }
   const han = v.hanXuLy ? new Date(v.hanXuLy) : null;
   if (han && Number.isNaN(han.getTime())) return { ok: false, error: "Hạn không hợp lệ." };
@@ -210,8 +210,8 @@ export async function chiDinhDuyet(
       select: { active: true, role: true },
     });
     if (!u?.active) return { ok: false, error: "Người duyệt không còn hoạt động." };
-    if (!(await canAccessProject({ ...session, userId: nguoiId, role: u.role as never }, projectId)))
-      return { ok: false, error: "Người duyệt không xem được dự án này — thêm vào thành viên trước." };
+    if (!(await canEditProject({ ...session, userId: nguoiId, role: u.role as never }, projectId)))
+      return { ok: false, error: "Người duyệt chưa là thành viên dự án này — thêm vào thành viên trước." };
     boPhan = u.role;
   }
 

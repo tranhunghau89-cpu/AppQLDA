@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Receipt } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireProjectView } from "@/lib/auth";
+import { canEditProject } from "@/lib/scope";
 import { can, type Role } from "@/lib/rbac";
 import { templateChoices } from "@/lib/quoteTemplatePick";
 import { ClientQuoteEditor } from "./ClientQuoteEditor";
@@ -15,7 +16,9 @@ export default async function ClientQuotePage({
 }) {
   const { id } = await params;
   const session = await requireProjectView("quote", id);
-  const canEdit = can(session.role as Role, "quote", "edit");
+  // Không phải thành viên dự án -> chỉ xem, ẩn mọi nút sửa.
+  const thanhVien = await canEditProject(session, id);
+  const canEdit = thanhVien && can(session.role as Role, "quote", "edit");
   // Vai Vật tư không có khóa "customer" -> không được thấy nhật ký trao đổi.
   const canViewCrm = can(session.role as Role, "customer", "view");
   const canEditCrm = can(session.role as Role, "customer", "edit");

@@ -5,7 +5,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { db } from "./db";
-import { canAccessProject } from "./scope";
+import { canAccessProject, canEditProject } from "./scope";
 import {
   SESSION_COOKIE,
   SESSION_MAX_AGE,
@@ -115,7 +115,8 @@ export async function requireProjectView(
 }
 
 /**
- * Server Action ghi dữ liệu của 1 dự án: cần quyền sửa theo vai trò VÀ dự án trong phạm vi.
+ * Server Action của 1 dự án: cần quyền theo vai trò VÀ phạm vi dự án
+ * ("edit" -> phải là thành viên/ADMIN; "view" -> ai cũng xem được).
  * Thiếu -> ném lỗi (các action bọc trong try/catch và trả về ActionResult).
  */
 export async function requireProjectPermission(
@@ -124,13 +125,18 @@ export async function requireProjectPermission(
   projectId: string
 ): Promise<SessionUser> {
   const session = await requirePermission(resource, action);
-  if (!(await canAccessProject(session, projectId))) {
+  if (!(await trongPhamVi(session, action, projectId))) {
     throw new Error(OUT_OF_SCOPE);
   }
   return session;
 }
 
-export const OUT_OF_SCOPE = "Bạn không được phân công dự án này.";
+export const OUT_OF_SCOPE = "Bạn không phải thành viên dự án này nên chỉ được xem.";
+
+/** Ghi cần là thành viên dự án; đọc thì mọi người trong phạm vi xem. */
+function trongPhamVi(session: SessionUser, action: Action, projectId: string): Promise<boolean> {
+  return action === "edit" ? canEditProject(session, projectId) : canAccessProject(session, projectId);
+}
 
 /**
  * Kiểm tra quyền + phạm vi dự án cho Server Action, KHÔNG ném lỗi.
@@ -148,7 +154,7 @@ export async function denyProject(
   const session = await getSession();
   if (!session) return { ok: false, error: "Phiên đăng nhập hết hạn." };
   if (!can(session.role as Role, resource, action)) return { ok: false, error: fallback };
-  if (!(await canAccessProject(session, projectId))) {
+  if (!(await trongPhamVi(session, action, projectId))) {
     return { ok: false, error: OUT_OF_SCOPE };
   }
   return null;

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireProjectView } from "@/lib/auth";
+import { canEditProject } from "@/lib/scope";
 import { can } from "@/lib/rbac";
 import { ContractEditor, type ContractView } from "./ContractEditor";
 
@@ -13,7 +14,9 @@ export default async function ContractPage({
 }) {
   const { id } = await params;
   const session = await requireProjectView("contract", id);
-  const canEdit = can(session.role, "contract", "edit");
+  // Không phải thành viên dự án -> chỉ xem, ẩn mọi nút sửa.
+  const thanhVien = await canEditProject(session, id);
+  const canEdit = thanhVien && can(session.role, "contract", "edit");
 
   const project = await db.project.findUnique({
     where: { id },

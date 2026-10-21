@@ -74,14 +74,6 @@ export default async function ProjectsPage() {
           </a>
         </div>
       </div>
-      {rows.length === 0 && session.role !== "ADMIN" && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          Bạn chưa được phân công dự án nào. Liên hệ Ban giám đốc/Quản lý để
-          được thêm vào dự án (mục{" "}
-          <span className="font-medium">Thành viên dự án</span> trong trang chi
-          tiết dự án).
-        </div>
-      )}
       <ProjectList
         projects={rows}
         customers={customers}

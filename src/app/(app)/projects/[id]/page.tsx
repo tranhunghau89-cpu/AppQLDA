@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireProjectView } from "@/lib/auth";
+import { canEditProject } from "@/lib/scope";
 import { AuditEntries, type AuditRow } from "@/components/audit/AuditEntries";
 import { serverNow } from "@/lib/now";
 import { can } from "@/lib/rbac";
@@ -52,7 +53,9 @@ export default async function ProjectDetailPage({
 }) {
   const { id } = await params;
   const session = await requireProjectView("project", id);
-  const canEdit = can(session.role, "project", "edit");
+  // Không phải thành viên dự án -> chỉ xem, ẩn mọi nút sửa.
+  const thanhVien = await canEditProject(session, id);
+  const canEdit = thanhVien && can(session.role, "project", "edit");
 
   // Guard phân quyền ở trên đã chạy xong; 5 truy vấn dưới đây độc lập nhau nên chạy
   // song song thay vì nối tiếp — trước đây trang này tốn ~5 round-trip tới DB.
@@ -123,12 +126,12 @@ export default async function ProjectDetailPage({
   ]);
   if (!project) notFound();
 
-  const canEditProgress = can(session.role, "progress", "edit");
+  const canEditProgress = thanhVien && can(session.role, "progress", "edit");
   const canViewProfit = can(session.role, "profit", "view");
   const canViewContract = can(session.role, "contract", "view");
   const canViewPurchase = can(session.role, "purchase", "view");
   const canViewCost = can(session.role, "cost", "view");
-  const canEditPayment = can(session.role, "cost", "edit");
+  const canEditPayment = thanhVien && can(session.role, "cost", "edit");
   const canViewPayment = can(session.role, "debt", "view") || canEditPayment;
   const nowMs = serverNow();
   const quyTrinh = await napQuyTrinh(id);
@@ -332,9 +335,9 @@ export default async function ProjectDetailPage({
     createdAt: d.createdAt.toISOString(),
   }));
   const canEditTypes = [
-    can(session.role, "quote", "edit") ? "BAO_GIA" : null,
-    can(session.role, "contract", "edit") ? "HOP_DONG" : null,
-    can(session.role, "progress", "edit") ? "SHOP_DRAWING" : null,
+    (thanhVien && can(session.role, "quote", "edit")) ? "BAO_GIA" : null,
+    (thanhVien && can(session.role, "contract", "edit")) ? "HOP_DONG" : null,
+    (thanhVien && can(session.role, "progress", "edit")) ? "SHOP_DRAWING" : null,
   ].filter((v): v is string => v !== null);
 
   const payments = paymentRows.map((x) => ({
@@ -736,7 +739,7 @@ export default async function ProjectDetailPage({
           milestones={milestoneRows}
           dotThanhToan={dotTheoMoc}
           canEdit={canEditProgress}
-          canEditContract={can(session.role, "contract", "edit")}
+          canEditContract={thanhVien && can(session.role, "contract", "edit")}
           hopDong={
             hdCanCu && {
               id: hdCanCu.id,

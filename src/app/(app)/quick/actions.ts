@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireSession, requirePermission } from "@/lib/auth";
-import { canAccessProject } from "@/lib/scope";
+import { canEditProject } from "@/lib/scope";
 import { addProjectNote, addPayment } from "@/app/(app)/projects/actions";
 import { saveEstimateItem } from "@/app/(app)/projects/[id]/estimate/actions";
 import { paymentDb } from "@/lib/payments";
@@ -15,8 +15,8 @@ export type BulkResult = { ok: true; count: number } | { ok: false; error: strin
 
 async function scope(projectId: string): Promise<{ ok: false; error: string } | null> {
   const s = await requireSession();
-  if (!(await canAccessProject(s, projectId)))
-    return { ok: false, error: "Dự án này ngoài phạm vi được giao của bạn." };
+  if (!(await canEditProject(s, projectId)))
+    return { ok: false, error: "Bạn không phải thành viên dự án này nên chỉ được xem." };
   return null;
 }
 

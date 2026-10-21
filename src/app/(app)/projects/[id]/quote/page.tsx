@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Tags } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireProjectView } from "@/lib/auth";
+import { canEditProject } from "@/lib/scope";
 import { can, type Role } from "@/lib/rbac";
 import { templateChoices } from "@/lib/quoteTemplatePick";
 import { QuoteEditor } from "./QuoteEditor";
@@ -11,7 +12,9 @@ import { napDuLieuBaoGia } from "./napDuLieu";
 export default async function QuotePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await requireProjectView("quote", id);
-  const canEdit = can(session.role as Role, "quote", "edit");
+  // Không phải thành viên dự án -> chỉ xem, ẩn mọi nút sửa.
+  const thanhVien = await canEditProject(session, id);
+  const canEdit = thanhVien && can(session.role as Role, "quote", "edit");
 
   const [project, duLieu] = await Promise.all([
     db.project.findUnique({

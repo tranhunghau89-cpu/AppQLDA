@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireProjectView } from "@/lib/auth";
+import { canEditProject } from "@/lib/scope";
 import { can } from "@/lib/rbac";
 import {
   PurchaseEditor,
@@ -18,7 +19,9 @@ export default async function PurchasePage({
 }) {
   const { id } = await params;
   const session = await requireProjectView("purchase", id);
-  const canEdit = can(session.role, "purchase", "edit");
+  // Không phải thành viên dự án -> chỉ xem, ẩn mọi nút sửa.
+  const thanhVien = await canEditProject(session, id);
+  const canEdit = thanhVien && can(session.role, "purchase", "edit");
 
   // 2 truy vấn độc lập -> chạy song song (guard phân quyền đã xong ở trên).
   const [project, suppliers, estimateItems, mauDb, congTacs] =

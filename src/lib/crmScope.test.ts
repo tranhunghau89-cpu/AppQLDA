@@ -86,10 +86,15 @@ describe("whereBaoGiaTrongPhamVi", () => {
     }
   });
 
-  it('duAnTrongPhamVi = "ALL" cũng cho mệnh đề rỗng, kể cả khi vai không phải ADMIN', () => {
-    // myProjectIds chỉ trả "ALL" cho ADMIN, nhưng nếu sau này có vai khác được như
-    // vậy thì hàm này phải xử lý nhất quán chứ không ghép "ALL" vào mảng.
-    expect(whereBaoGiaTrongPhamVi(sales, "ALL")).toEqual({});
+  it('duAnTrongPhamVi = "ALL" với vai không phải ADMIN: mọi báo giá dự án, cơ hội vẫn theo chủ khách', () => {
+    // myProjectIds trả "ALL" cho mọi vai (ai cũng xem được mọi dự án), nhưng báo giá
+    // cơ hội của người kinh doanh khác vẫn không được lộ ra.
+    expect(whereBaoGiaTrongPhamVi(sales, "ALL")).toEqual({
+      OR: [
+        { projectId: { not: null } },
+        { coHoi: { khachHang: { OR: [{ ownerId: sales.userId }, { ownerId: null }] } } },
+      ],
+    });
   });
 });
 

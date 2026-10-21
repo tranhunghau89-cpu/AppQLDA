@@ -1,7 +1,7 @@
 // Báo thay đổi trong dự án (hợp đồng, thiết kế, thanh toán, thông tin dự án) tới đúng
 // người — đi qua chuông + hộp thư Trao đổi như các tin khác.
 import { db } from "@/lib/db";
-import { canAccessProject } from "@/lib/scope";
+import { canEditProject } from "@/lib/scope";
 import type { Role } from "@/lib/rbac";
 import type { SessionUser } from "@/lib/session";
 
@@ -48,7 +48,7 @@ export function laNhomThayDoi(x: string): x is NhomThayDoi {
 
 /**
  * Người nhận trong một dự án: các phòng + các người chỉ định, đang hoạt động, trừ người
- * gửi, và CHỈ những ai xem được dự án — ngoài phạm vi thì không được đọc nội dung.
+ * gửi, và CHỈ thành viên dự án — không báo cho cả phòng ban.
  */
 export async function nguoiNhanDuAn(
   projectId: string,
@@ -67,7 +67,7 @@ export async function nguoiNhanDuAn(
     select: { id: true, role: true },
   });
   const xem = await Promise.all(
-    ung.map((u) => canAccessProject({ userId: u.id, role: u.role as Role } as SessionUser, projectId)),
+    ung.map((u) => canEditProject({ userId: u.id, role: u.role as Role } as SessionUser, projectId)),
   );
   return ung.filter((_, i) => xem[i]).map((u) => u.id);
 }
