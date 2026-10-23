@@ -45,6 +45,8 @@ import { MucConModal } from "./MucConModal";
 import { DoiChieuThuVien } from "./DoiChieuThuVien";
 import type { MauKg } from "@/lib/thuVien/trongLuongBulong";
 import { DashboardDuToan, type NhomSoSanh } from "./DashboardDuToan";
+import { TongHopKhoiLuong } from "./TongHopKhoiLuong";
+import { tongHopKhoiLuong } from "@/lib/tongHopKhoiLuong";
 import { useConfirm } from "@/components/ui/confirm";
 import { useToast } from "@/components/ui/toast";
 import { updateSalePrice } from "../../actions";
@@ -262,6 +264,12 @@ export function EstimateEditor({
       }),
     [items, summary]
   );
+  // Khối lượng thép tổ hợp, thép hình, xà gồ, tôn — cả dự toán và từng hạng mục.
+  const khoiLuongVatTu = useMemo(() => tongHopKhoiLuong(items), [items]);
+  const tenHangMuc = (sectionId: string | null) => {
+    const s = sections.find((x) => x.id === sectionId);
+    return s ? `${s.code ? `${s.code} · ` : ""}${s.name}` : "Chưa phân hạng mục";
+  };
 
   // Tách nhà cung cấp theo khu vực dự án, giữ đúng thứ tự ưu tiên đã tính ở máy chủ.
   // Nhóm "khác" vẫn hiện đầy đủ — mua ngoài vùng là chuyện có thật, chỉ là không phải
@@ -919,6 +927,8 @@ export function EstimateEditor({
               </>}
           />
         )}
+
+        <TongHopKhoiLuong vatTu={khoiLuongVatTu} tenHangMuc={tenHangMuc} area={area} />
 
         {giaiDoan && <DashboardDuToan g={giaiDoan} nhom={soSanhNhom} />}
       </div>
