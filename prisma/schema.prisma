@@ -1282,6 +1282,36 @@ model AuditLog {
   @@index([actorId, createdAt])
 }
 
+// ----- Bản nháp do AI đọc từ file (plan/34) -----
+
+// AI chỉ được tạo bản nháp; người bấm Ghi thì mới thành dữ liệu thật. Cố ý KHÔNG có khóa
+// ngoại tới Project/Contract/User, giống AuditLog: hợp đồng bị xóa thì bản nháp vẫn còn
+// để trả lời "AI đọc ra gì, người sửa thành gì".
+model BanNhapAi {
+  id          String   @id @default(cuid())
+  loai        String // HOP_DONG (sau này: BOQ | DON_HANG | BAO_GIA_NCC)
+  projectId   String? // tham chiếu mềm
+  trangThai   String   @default("DANG_DOC") // DANG_DOC | CHO_DUYET | DA_GHI | HUY | LOI
+  fileKeys    String[] // key Storage; nhiều phần tử khi tải nhiều ảnh
+  tenFile     String
+  // JSON AI trả về, đã qua zod — không bao giờ sửa. So với duLieuDaSua để đo độ chính xác.
+  ketQuaAi    Json?
+  canhBao     Json? // [{ truong, mucDo, noiDung }] từ lib/aiHopDong/kiemTra
+  duLieuDaSua Json? // bản người dùng bấm Ghi
+  loi         String?
+  model       String?
+  tokenVao    Int?
+  tokenRa     Int?
+  ketQuaId    String? // Contract.id sau khi ghi
+  nguoiTaoId  String
+  nguoiGhiId  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([projectId, createdAt])
+  @@index([nguoiTaoId, trangThai])
+}
+
 // ===================== THƯ VIỆN DÙNG CHUNG =====================
 //
 // Một nguồn duy nhất cho cả dự toán chào giá, báo giá gửi khách và dự toán thi công.

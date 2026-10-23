@@ -1,74 +1,32 @@
 "use server";
 
 import { baoThayDoi } from "@/lib/baoThayDoi";
-import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { denyProject, requireSession } from "@/lib/auth";
 import { diffFields, recordAudit } from "@/lib/audit";
-import { CONTRACT_STATUS_MAP } from "@/lib/constants";
-import { lineAmount } from "@/lib/contract";
 import { laCongThuc, tinhBieuThuc } from "@/lib/bieuThuc";
 import { syncSalePriceFromContracts } from "@/lib/contractSalePrice";
+import { tinhLaiGiaTriHopDong as recompute } from "@/lib/ghiHopDong";
+import {
+  CONTRACT_AUDIT_FIELDS,
+  ITEM_AUDIT_FIELDS,
+  contractData,
+  contractSchema,
+  itemData,
+  itemSchema,
+  loiDongHangMuc,
+} from "@/lib/hopDongDuLieu";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
-const CONTRACT_AUDIT_FIELDS = [
-  "contractNo",
-  "signDate",
-  "effectiveDate",
-  "durationDays",
-  "subject",
-  "partyAName",
-  "status",
-  "vatPercent",
-  "paymentTerms",
-  "note",
-] as const;
 const CONTRACT_AUDIT_SELECT = Object.fromEntries(
   CONTRACT_AUDIT_FIELDS.map((f) => [f, true])
 ) as Record<(typeof CONTRACT_AUDIT_FIELDS)[number], true>;
 
-const ITEM_AUDIT_FIELDS = ["name", "unit", "qty", "unitPrice", "amount"] as const;
 const ITEM_AUDIT_SELECT = Object.fromEntries(
   ITEM_AUDIT_FIELDS.map((f) => [f, true])
 ) as Record<(typeof ITEM_AUDIT_FIELDS)[number], true>;
-
-const num = z
-  .union([z.string(), z.number()])
-  .transform((v) => (v === "" || v == null ? null : Number(v)))
-  .refine((v) => v === null || !Number.isNaN(v), "Số không hợp lệ")
-  .nullable();
-
-async function recompute(contractId: string) {
-  const c = await db.contract.findUnique({
-    where: { id: contractId },
-    include: { items: true },
-  });
-  if (!c) return;
-  const beforeVat = c.items.reduce((s, i) => s + lineAmount(i), 0);
-  const withVat = beforeVat * (1 + (c.vatPercent ?? 0) / 100);
-  await db.contract.update({
-    where: { id: contractId },
-    data: { valueBeforeVat: beforeVat, valueWithVat: withVat },
-  });
-}
-
-const contractSchema = z.object({
-  contractNo: z.string().trim().min(1, "Chưa nhập số hợp đồng"),
-  signDate: z.string().trim().optional(),
-  effectiveDate: z.string().trim().optional(),
-  durationDays: num.refine((v) => v === null || (Number.isInteger(v) && v >= 0), "Thời hạn phải là số ngày nguyên"),
-  subject: z.string().trim().min(1, "Chưa nhập trích yếu (V/v)"),
-  partyAName: z.string().trim().min(1, "Chưa nhập chủ đầu tư (Bên A)"),
-  partyAInfo: z.string().trim().optional(),
-  status: z.string().refine((v) => v in CONTRACT_STATUS_MAP, "Trạng thái không hợp lệ"),
-  vatPercent: num,
-  paymentTerms: z.string().trim().optional(),
-  filePath: z.string().trim().optional(),
-  note: z.string().trim().optional(),
-});
-
 
 /**
  * Chặn khi thiếu quyền / ngoài phạm vi dự án, hoặc khi hợp đồng không thuộc dự án đó.
@@ -116,20 +74,7 @@ export async function saveContract(
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
-  const data = {
-    contractNo: d.contractNo || null,
-    signDate: d.signDate ? new Date(d.signDate) : null,
-    effectiveDate: d.effectiveDate ? new Date(d.effectiveDate) : null,
-    durationDays: d.durationDays,
-    subject: d.subject || null,
-    partyAName: d.partyAName || null,
-    partyAInfo: d.partyAInfo || null,
-    status: d.status,
-    vatPercent: d.vatPercent,
-    paymentTerms: d.paymentTerms || null,
-    filePath: d.filePath || null,
-    note: d.note || null,
-  };
+  const data = contractData(d);
 
   const truoc = contractId
     ? await db.contract.findUnique({ where: { id: contractId }, select: CONTRACT_AUDIT_SELECT })
@@ -193,14 +138,6 @@ export async function deleteContract(
   return { ok: true };
 }
 
-const itemSchema = z.object({
-  name: z.string().trim().min(1, "Tên hạng mục không được để trống"),
-  unit: z.string().trim().optional(),
-  qty: num,
-  unitPrice: num,
-  amount: num,
-});
-
 export async function saveContractItem(
   projectId: string,
   contractId: string,
@@ -218,19 +155,9 @@ export async function saveContractItem(
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
-  // Dòng khoán (có thành tiền chốt cứng) thì không cần khối lượng / đơn giá; còn lại
-  // thiếu một trong hai là thành tiền ra 0 — chặn lại.
-  if (d.amount == null) {
-    if (d.qty == null) return { ok: false, error: "Chưa nhập khối lượng" };
-    if (d.unitPrice == null) return { ok: false, error: "Chưa nhập đơn giá" };
-  }
-  const data = {
-    name: d.name,
-    unit: d.unit || null,
-    qty: d.qty,
-    unitPrice: d.unitPrice,
-    amount: d.amount,
-  };
+  const loi = loiDongHangMuc(d);
+  if (loi) return { ok: false, error: loi };
+  const data = itemData(d);
   const truocItem = itemId
     ? await db.contractItem.findUnique({ where: { id: itemId }, select: ITEM_AUDIT_SELECT })
     : null;
